@@ -20,6 +20,10 @@ namespace Turbo.Rooms.Wired;
 /// chair] listed alike 2/2; selector.19.R4: a union interleaved, not one selector after the
 /// other). Habbo's own room order is not the ids' (selector.0.R4); ours is, an inference that
 /// keeps the one measured property: the order does not depend on how the furni were picked.
+/// Users come newest first: Users By Type, By Name (whatever its list order) and In Area all put
+/// the user who entered or re-entered last in front, not by name, tile or entry order (official
+/// client capture 2026-10-24, two accounts, W4 lab selector.2/11/13.R4 and R4b, 2/2 each). That a
+/// bot is placed the same way is inferred: the one sample with a bot does not fit any rule.
 /// </summary>
 public static class WiredSelectorChain
 {
@@ -123,7 +127,10 @@ public static class WiredSelectorChain
         return inverted;
     }
 
-    /// <summary>Rebuilds the pool in room order: furni by id, users by room index.</summary>
+    /// <summary>
+    /// Rebuilds the pool in room order: furni by id, users newest first (a room index is handed out
+    /// on every entry, so the highest is the user who came in last).
+    /// </summary>
     public static void PutInRoomOrder(IWiredSelectionSet pool)
     {
         if (pool.SelectedFurniIds.Count > 1)
@@ -136,7 +143,7 @@ public static class WiredSelectorChain
 
         if (pool.SelectedAvatarIds.Count > 1)
         {
-            var avatars = pool.SelectedAvatarIds.OrderBy(x => x.Value).ToArray();
+            var avatars = pool.SelectedAvatarIds.OrderByDescending(x => x.Value).ToArray();
 
             pool.SelectedAvatarIds.Clear();
             pool.SelectedAvatarIds.UnionWith(avatars);

@@ -58,7 +58,28 @@ public sealed class WiredSelectorLabAnswersTests
         var set = await RemoteAsync(picked);
 
         set.SelectedFurniIds.Should().Equal(B, C);
-        set.SelectedAvatarIds.Select(x => x.Value).Should().Equal(5, 6);
+        set.SelectedAvatarIds.Select(x => x.Value).Should().Equal(6, 5);
+    }
+
+    // selector.11.R4 / R4b (two accounts): Users By Name lists the user who entered last first,
+    // whatever the order of its name list, and a user who leaves and comes back moves to the
+    // front (official client capture 2026-10-24T16-02-03 / 16-03-46, 2/2 each).
+    [Theory]
+    [InlineData("Ann\tBob")]
+    [InlineData("Bob\tAnn")]
+    public async Task Selector11R4_TheUserWhoEnteredLastComesFirst(string names)
+    {
+        var box = await AddSelectorAsync<WiredSelectorEntitiesByName>(
+            "wf_slc_users_byname",
+            stringParam: names
+        );
+
+        (await RunChainAsync(box)).Should().Equal(6, 5);
+
+        _room.Harness.State.AvatarsByObjectId.Remove(5);
+        _room.Enter(7, 1, 1, "Ann", playerId: 105);
+
+        (await RunChainAsync(box)).Should().Equal(7, 6);
     }
 
     // selector.19.R7: with an inverted selector in the pile the union is the whole room.
@@ -356,6 +377,23 @@ public sealed class WiredSelectorLabAnswersTests
         await wired.ProcessWiredAsync(10_000, dormant: false, Ct);
 
         return await remote.SelectAsync(Context(), Ct);
+    }
+
+    private async Task<int[]> RunChainAsync(IWiredSelector selector)
+    {
+        var pool = new WiredSelectionSet();
+
+        await WiredSelectorChain.RunAsync(
+            [selector],
+            Context(),
+            pool,
+            _room.Harness.State.ItemsById.Values.ToList(),
+            _room.Harness.State.AvatarsByObjectId.Values.ToList(),
+            null,
+            Ct
+        );
+
+        return [.. pool.SelectedAvatarIds.Select(x => x.Value)];
     }
 
     private WiredProcessingContext Context() =>
