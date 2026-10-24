@@ -186,6 +186,23 @@ public class WiredConfig
     public int SelectedItemsLimit { get; init; } = 20;
 
     /// <summary>
+    /// Whether a save picking more furni than <see cref="SelectedItemsLimit"/> in a slot is refused
+    /// and stores nothing, as on Habbo (official client capture 2026-10-24: Chase saved with 21 of
+    /// 20 answered by a server error, the earlier picks kept). Off keeps the first ones up to the
+    /// limit and saves.
+    /// </summary>
+    public bool RefuseOverLimitPicks { get; init; } = true;
+
+    /// <summary>
+    /// Whether a refused save the hotel's texts have no word for (a param out of its range, too
+    /// many picks) is answered as Habbo answers it, with the server error the client shows as
+    /// "Sorry, received server error: 1" (official client capture 2026-10-24: Join Team team 0
+    /// and 5, Chase with 21 picks). Off answers with this server's own
+    /// <c>wired.validation.error</c> text in the wired editor's error dialog.
+    /// </summary>
+    public bool RefusalsAsServerError { get; init; } = true;
+
+    /// <summary>
     /// Whether "Place Temporary Furni" may copy only Builders Club furni, as on Habbo: its save is
     /// refused with <c>wiredfurni.error.furni_can_not_be_cloned</c> ("You can only select Builders
     /// Club furniture that do not have advanced functionality.") for anything else. Off lets a
@@ -201,6 +218,13 @@ public class WiredConfig
     /// the earlier kind match working, where any lamp matched any other lamp.
     /// </summary>
     public bool FurniMatchesByKind { get; init; }
+
+    /// <summary>
+    /// Whether "Place Temporary Furni" copies only picked furni still in the room, as on Habbo: a
+    /// template picked up places nothing and says nothing, though the box's snapshot still lists it
+    /// (official client capture 2026-10-24). Off copies it from the snapshot as long as its kind is known.
+    /// </summary>
+    public bool PlaceFurniNeedsTemplateInRoom { get; init; } = true;
 
     /// <summary>
     /// Whether Set Highlight's steady Color tint may only colour Builders Club or temporary furni,

@@ -33,7 +33,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 /// temporary furni (<c>RoomFurniModule.PlaceTemporaryFloorItemAsync</c>): nobody owns them, they
 /// are gone when the room unloads, and <c>wf_act_remove_furni</c> takes them away sooner. What
 /// is copied is the box's snapshot of the picked furni, taken when it was saved (type, tile,
-/// altitude, rotation, state), so the originals need not stay in the room.
+/// altitude, rotation, state), of the picked furni still in the room: as on Habbo, a template
+/// picked up is copied no more (<see cref="WiredConfig.PlaceFurniNeedsTemplateInRoom"/>).
 ///
 /// Int params, as the client's editor writes them: whether the custom target is a user
 /// (otherwise the second furni slot), target location, target altitude, offset x, offset y
@@ -179,12 +180,23 @@ public class WiredActionPlaceFurni(
     /// <summary>
     /// What is copied: the box's snapshot of the picked furni for "Use the snapshot", otherwise
     /// the furni of slot 0 as they stand now (picked, secondary picks, triggering, selector or
-    /// signal furni).
+    /// signal furni). A snapshot entry whose furni was picked up places nothing and says nothing
+    /// (official client capture 2026-10-24: the box flashed, no copy, no notification, though its
+    /// text still held the entry). Inference: the other entries of a group are still copied.
     /// </summary>
     private List<(int Id, WiredFurniSnapshotEntry Entry)> FurniToPlace(IWiredContext ctx)
     {
         if (GetFurniSources()[0].Contains(WiredFurniSourceType.SnapshotItems))
-            return [.. GetFurniSnapshot().Select(x => (x.Key, x.Value))];
+        {
+            var snapshot = GetFurniSnapshot().Select(x => (x.Key, x.Value));
+
+            if (!WiredConfig.PlaceFurniNeedsTemplateInRoom)
+                return [.. snapshot];
+
+            var picked = GetStuffIds().ToHashSet();
+
+            return [.. snapshot.Where(x => picked.Contains(x.Key))];
+        }
 
         return
         [

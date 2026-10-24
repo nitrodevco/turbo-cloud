@@ -426,6 +426,9 @@ public abstract partial class FurnitureWiredLogic(
             RefuseUnpickableFurni(update.StuffIds, secondary: false, furniSources);
             RefuseUnpickableFurni(update.StuffIds2, secondary: true, furniSources);
 
+            if (PicksOverLimit(update.StuffIds) || PicksOverLimit(update.StuffIds2))
+                return false;
+
             if (GetValidStuffIds(update.StuffIds, out var validStuffIds))
                 stuffIds = validStuffIds;
 
@@ -787,6 +790,16 @@ public abstract partial class FurnitureWiredLogic(
             : sources.Any(x =>
                 x is WiredFurniSourceType.SelectedItems or WiredFurniSourceType.SnapshotItems
             );
+
+    /// <summary>
+    /// A slot picking more furni than the editor's limit refuses the whole save, as Habbo does
+    /// (official client capture 2026-10-24: Chase with 21 of 20 picks stored nothing; the editor
+    /// itself stops picking at the limit, <c>UserDefinedRoomEventsCtrl.as:211</c>). Inference: the
+    /// picks are counted as sent and the second slot is held to the same limit.
+    /// <see cref="Configuration.WiredConfig.RefuseOverLimitPicks"/> off keeps the first ones instead.
+    /// </summary>
+    private bool PicksOverLimit(List<int> proposed) =>
+        WiredConfig.RefuseOverLimitPicks && proposed.Count > WiredConfig.SelectedItemsLimit;
 
     protected virtual bool GetValidStuffIds(List<int> proposed, out List<int> stuffIds)
     {
