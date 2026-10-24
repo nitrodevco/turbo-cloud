@@ -32,13 +32,16 @@ public class WiredActionMoveRotateFurni(
         [
             new WiredRangeParamRule(0, 11, 0), // Movement Type
             new WiredRangeParamRule(0, 3, 0), // Rotation Type
-            new WiredParamRule(1),
+            new WiredParamRule(0),
         ];
 
     // The official server opens a fresh box with a third int, 1 (defaults [0,0,1],
     // 2026-10-20T17-39-35-Open-wait), that the editor neither reads nor writes (AS3 actiontypes/
-    // _-M2F.as:29-37: two radio groups); a save of the two keeps it at its default.
+    // _-M2F.as:29-37: two radio groups); a save of the two stores it as 0 (official client
+    // capture 2026-10-24, W1 lab action.4.E1, 2/2). Neither value changed a move (action.4.B1).
     private const int EDITOR_PARAMS = 2;
+
+    public override List<int> GetDefaultIntParams() => [0, 0, 1];
 
     protected override int GetRequiredIntParamCount() => EDITOR_PARAMS;
 
