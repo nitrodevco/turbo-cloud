@@ -21,7 +21,7 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 /// (<c>time_util.advanced_info</c>; bit 19+n for unit n: milliseconds, seconds, minutes,
 /// hours, days, weeks, months), so two of them subtract to the time between two instants.
 /// Param 1 chooses the
-/// instant: the value as a unix timestamp, the creation time or the last update time.
+/// instant: the value as a unix time in milliseconds, the creation time or the last update time.
 /// </summary>
 [RoomObjectLogic("wf_xtra_var_time_util")]
 public class WiredAddonVariableTimeUtil(
@@ -126,9 +126,11 @@ public class WiredAddonVariableTimeUtil(
 
                 return ms <= 0 ? null : DateTimeOffset.FromUnixTimeMilliseconds(ms);
             }
+            // The value is a unix time in milliseconds, as Habbo reads it (official client capture
+            // 2026-10-24, wired matrix addon.1002.R1: 90061 read as 00:01:30.061, 10/10).
             default:
                 return parent.TryGetValue(key, out var value)
-                    ? DateTimeOffset.FromUnixTimeSeconds(Math.Max(0, value.Value))
+                    ? DateTimeOffset.FromUnixTimeMilliseconds(Math.Max(0, value.Value))
                     : null;
         }
     }

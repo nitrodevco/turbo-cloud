@@ -11,27 +11,35 @@ using Xunit;
 namespace Turbo.Tests.Rooms;
 
 /// <summary>
-/// "Time Utilities" on a global variable holding 1 700 000 000 (2023-11-14 22:13:20 UTC), read as
-/// a unix timestamp ("Value" mode). The editor ticks sub-variable <c>id</c> as bit <c>id</c> of the
+/// "Time Utilities" on a global variable holding 90 061, read as a unix timestamp in MILLISECONDS
+/// ("Value" mode): 1970-01-01 00:01:30.061 UTC, a Thursday (official client capture 2026-10-24,
+/// WIN63-202610201032, wired matrix addon.1002.R1, 10/10: millisecond 90061, second 90, minute 1,
+/// hour 0, day 0, seconds_of_minute 30, minute_of_hour 1, day_of_week 4, year 1970; ours read
+/// seconds). The editor ticks sub-variable <c>id</c> as bit <c>id</c> of the
 /// mask (<c>SubVariableCreatorPreset</c>): 10 is "year", 21 "second", 24 "day". The advanced ones
 /// count whole units since 1970 (<c>time_util.advanced_info</c>), so two of them subtract to the
 /// time between two instants (baikal, "Habbo Wired: Time Tracking System").
 /// </summary>
 public sealed class WiredVariableTimeUtilTests
 {
-    private const int TIMESTAMP = 1_700_000_000;
+    private const int TIMESTAMP = 90_061;
 
     private readonly WiredRoom _room = new(8, 8);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Theory]
-    [InlineData(10, "year", 2023)]
-    [InlineData(21, "second", TIMESTAMP)]
-    [InlineData(22, "minute", TIMESTAMP / 60)]
-    [InlineData(24, "day", TIMESTAMP / 86_400)]
-    [InlineData(26, "month", (2023 - 1970) * 12 + 10)]
-    public async Task A_ticked_sub_variable_reads_its_unit_of_the_timestamp(
+    [InlineData(1, "milliseconds_of_seconds", 61)]
+    [InlineData(2, "seconds_of_minute", 30)]
+    [InlineData(3, "minute_of_hour", 1)]
+    [InlineData(5, "day_of_week", 4)]
+    [InlineData(10, "year", 1970)]
+    [InlineData(20, "millisecond", 90_061)]
+    [InlineData(21, "second", 90)]
+    [InlineData(22, "minute", 1)]
+    [InlineData(23, "hour", 0)]
+    [InlineData(24, "day", 0)]
+    public async Task Addon_1002_R1_a_ticked_sub_variable_reads_the_value_as_epoch_milliseconds(
         int id,
         string name,
         int expected
