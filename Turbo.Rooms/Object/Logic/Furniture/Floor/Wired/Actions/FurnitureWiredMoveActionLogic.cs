@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,11 +35,18 @@ public abstract class FurnitureWiredMoveActionLogic(
     protected virtual bool SucceedsWithoutMoving => false;
 
     /// <summary>
-    /// Plans the furni in slot 0 onto the first furni in slot 1, offset by
+    /// Plans the furni in slot 0 onto the first furni in slot 1 (with
+    /// <paramref name="anyTarget"/>, one of them drawn at random), offset by
     /// (<paramref name="dx"/>, <paramref name="dy"/>) tiles. "Furni to furni" is this with no
     /// offset and "move furni to" with one; they were the same loop written twice.
     /// </summary>
-    protected void PlanOntoTargetFurni(IWiredContext ctx, WiredMovePlan plan, int dx, int dy)
+    protected void PlanOntoTargetFurni(
+        IWiredContext ctx,
+        WiredMovePlan plan,
+        int dx,
+        int dy,
+        bool anyTarget = false
+    )
     {
         var movers = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0));
         var targets = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 1));
@@ -46,7 +54,7 @@ public abstract class FurnitureWiredMoveActionLogic(
         if (movers.Count == 0 || targets.Count == 0)
             return;
 
-        var target = targets[0];
+        var target = anyTarget ? targets[Random.Shared.Next(targets.Count)] : targets[0];
         var at = plan.Where(target);
 
         foreach (var mover in movers)
