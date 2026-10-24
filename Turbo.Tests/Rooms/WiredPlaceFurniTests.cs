@@ -204,6 +204,62 @@ public sealed class WiredPlaceFurniTests
         Dialogs().Should().BeEmpty();
     }
 
+    // Official client capture 2026-10-24 (action.55.R4): the template picked up, the box still
+    // lists it in its snapshot text, and a run flashes the box but places nothing and tells
+    // nobody. Inference: a template still in the room is copied all the same.
+    [Theory]
+    [InlineData(true, 1)]
+    [InlineData(false, 2)]
+    public async Task Place_furni_does_not_copy_a_template_that_was_picked_up_action_55_R4(
+        bool needsTemplateInRoom,
+        int copies
+    )
+    {
+        await SetUpFailingPlacementAsync(offsetX: 1);
+        _room.Harness.Room.UseWiredConfig(
+            new WiredConfig { PlaceFurniNeedsTemplateInRoom = needsTemplateInRoom }
+        );
+
+        (
+            await _room.Harness.Room.RemoveItemByIdAsync(
+                ActionContext.CreateForSystem(1),
+                LAMP,
+                true,
+                Ct
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        await ClickAsync(105);
+
+        Furni.Items.Count(x => x.IsTemporary).Should().Be(copies);
+        Dialogs().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Place_furni_with_every_template_picked_up_places_nothing_and_tells_nobody_action_55_R4()
+    {
+        await SetUpFailingPlacementAsync(offsetX: 1);
+
+        foreach (var template in new[] { LAMP, BORROWED_CHAIR })
+            (
+                await _room.Harness.Room.RemoveItemByIdAsync(
+                    ActionContext.CreateForSystem(1),
+                    template,
+                    true,
+                    Ct
+                )
+            )
+                .Should()
+                .BeTrue();
+
+        await ClickAsync(105);
+
+        Furni.Items.Should().NotContain(x => x.IsTemporary);
+        Dialogs().Should().BeEmpty();
+    }
+
     /// <summary>
     /// A click on <c>CLICK_ME</c> runs Place Temporary Furni over the lamp and a chair of its type,
     /// moved <paramref name="offsetX"/> tiles right: the default ten is off the 8x8 map for both.

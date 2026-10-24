@@ -203,6 +203,13 @@ public class WiredConfig
     public bool FurniMatchesByKind { get; init; }
 
     /// <summary>
+    /// Whether "Place Temporary Furni" copies only picked furni still in the room, as on Habbo: a
+    /// template picked up places nothing and says nothing, though the box's snapshot still lists it
+    /// (official client capture 2026-10-24). Off copies it from the snapshot as long as its kind is known.
+    /// </summary>
+    public bool PlaceFurniNeedsTemplateInRoom { get; init; } = true;
+
+    /// <summary>
     /// Whether Set Highlight's steady Color tint may only colour Builders Club or temporary furni,
     /// as on Habbo ("Steady Color Tint only works on BC or temporary furniture. Normal furniture
     /// cannot use this setting.", <c>wiredfurni.error.set_furni_highlight.normal_furni</c>): a
