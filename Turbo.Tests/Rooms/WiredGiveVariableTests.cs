@@ -70,6 +70,47 @@ public sealed class WiredGiveVariableTests
     }
 
     /// <summary>
+    /// action.39.R1: given to the selector's users and the selector found nobody (Users by Name
+    /// "nobody"), nobody gets the variable, the triggering user neither (official client capture
+    /// 2026-10-24T18-34-22, W5 lab, 2/2).
+    /// </summary>
+    [Fact]
+    public async Task An_empty_user_selection_gives_nobody_not_the_triggerer_action_39_R1()
+    {
+        var mark = await PlaceMarkAsync();
+        var give = _room.AddBox<WiredActionGiveVariable>(BOX, 0, 0, "wf_act_give_var");
+
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                BOX,
+                intParams: [(int)WiredVariableTargetType.User, 0, 5, 0],
+                definitionSpecifics: [0],
+                playerSources:
+                [
+                    [WiredPlayerSourceType.SelectorUsers],
+                ],
+                variableIds: [mark.GetVarSnapshot().VariableId.ToString()]
+            )
+        ).Should().BeTrue();
+
+        var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
+
+        ctx.Selected.SelectedAvatarIds.Add(PLAYER_INDEX);
+
+        (await give.ExecuteAsync(ctx, Ct)).Should().BeFalse();
+        mark.TryGetValue(
+                new WiredVariableKey(
+                    mark.GetVarSnapshot().VariableId,
+                    WiredVariableTargetType.User,
+                    PLAYER_INDEX
+                ),
+                out _
+            )
+            .Should()
+            .BeFalse();
+    }
+
+    /// <summary>
     /// Give Variable with "override" fires Variable Changed as a creation both when the user had
     /// no value and when it replaces one; only a change of an existing value is an update
     /// (official client capture: the created-only trigger fired on both gives, not on Change

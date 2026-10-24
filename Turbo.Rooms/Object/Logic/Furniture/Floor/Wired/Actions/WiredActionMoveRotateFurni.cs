@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -49,16 +50,27 @@ public class WiredActionMoveRotateFurni(
 
     protected override bool SucceedsWithoutMoving => true;
 
+    /// <summary>
+    /// The picks move from the top down, each onto the room as the ones before left it: a block
+    /// and the trophy on it, both picked and moved one tile, move the trophy alone, which drops
+    /// to the floor and leaves the block blocked by it, on every later firing too; the block
+    /// picked alone moves without the trophy, which stays where it was (official client capture
+    /// 2026-10-24T18-40-50, W1 lab action.4.X9 2/2, action.4.X9b 2/2). Inference: the order is
+    /// highest altitude first, then lowest id - the one order that gives both firings of X9.
+    /// </summary>
     protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
-        foreach (var furniId in ctx.GetSelection(this).SelectedFurniIds)
-        {
-            if (
-                !FurniModule.TryGetItem(furniId, out var item)
-                || item is not IRoomFloorItem floorItem
+        var picks = ctx.GetSelection(this)
+            .SelectedFurniIds.Select(id =>
+                FurniModule.TryGetItem(id, out var item) ? item as IRoomFloorItem : null
             )
-                continue;
+            .OfType<IRoomFloorItem>()
+            .OrderByDescending(item => plan.Where(item).Z.Value)
+            .ThenBy(item => item.ObjectId.Value)
+            .ToList();
 
+        foreach (var floorItem in picks)
+        {
             var at = plan.Where(floorItem);
             var moveDirection = GetMoveDirection(_movementType);
             var moveRotation = GetMoveRotation(at.Rotation, _rotationType);

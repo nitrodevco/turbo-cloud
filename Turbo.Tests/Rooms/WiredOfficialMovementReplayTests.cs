@@ -55,12 +55,28 @@ public sealed class WiredOfficialMovementReplayTests
     /// and heights after them), every one listed by the failure message and in the round report
     /// (B r58 golden2): a fix that removes some lowers its count, a change that adds one fails.
     /// Keyed "recording/segment".
+    /// <para>
+    /// Two kinds of move differences are the replay's, not the room's: the capture's boxes did
+    /// what one Move and Rotate Furni per furni cannot. 22-42-42 and 22-43-11 (a chair_plasty2
+    /// with a legotrophy at 0.04 inside it, both moved to one tile in one packet, the trophy
+    /// keeping its altitude, also jumps of 5 and 8 tiles in the same recordings): Move and Rotate
+    /// moves only the top one of two stacked furni and drops it to the floor, the other then
+    /// blocked by it (W1 lab action.4.X9, official client capture 2026-10-24T18-40-50, 2/2), so
+    /// another box moved these. 08-39-04 segment 2 (a train at 30 stepping through stacks of
+    /// 45-73 without a height update): a furni keeps its own altitude through stacks only with
+    /// Movement Physics keep altitude (action.4.X10, 18-41-43, 2/2), which the replay does not
+    /// place: with one on the replay's stack 16 of its 17 rows go, the one left being the step
+    /// onto 43,30 under a duck (nothing stacks on it) at 73 that ours refuses, a box setting the
+    /// capture does not show (move through furni?). WiredStackedMovesTests holds both rules with
+    /// the boxes known.
+    /// </para>
     /// </summary>
     private static readonly Dictionary<string, (int Load, int Move)> KnownDifferences = new()
     {
         ["2026-10-14T09-23-50/0"] = (37, 0),
         ["2026-10-17T00-31-23/0"] = (20, 0),
         ["2026-10-17T18-26-25/0"] = (15, 0),
+        // Chair and trophy moved together by another box (see above).
         ["2026-10-17T22-42-42/0"] = (2, 21),
         ["2026-10-17T22-43-11/0"] = (29, 9),
         ["2026-10-17T22-43-24/0"] = (15, 2),
@@ -69,6 +85,7 @@ public sealed class WiredOfficialMovementReplayTests
         ["2026-10-17T22-45-15/0"] = (15, 0),
         ["2026-10-18T08-39-04/0"] = (15, 8),
         ["2026-10-18T08-39-04/1"] = (98, 0),
+        // The train kept its altitude through the stacks (inferred: a keep-altitude add-on).
         ["2026-10-18T08-39-04/2"] = (37, 17),
         ["2026-10-18T08-39-04/3"] = (20, 0),
     };
