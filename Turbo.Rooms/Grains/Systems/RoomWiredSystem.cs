@@ -400,6 +400,12 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 ForgetFurniValues(pickupEvt.ObjectId);
                 QueueEvent(evt);
                 break;
+            // A bot picked up leaves as a user does, and lets go of what it held the same way.
+            case BotRemovedEvent botRemovedEvt:
+                _playerActiveStore.RemoveAvatarStore(botRemovedEvt.ObjectId);
+                ForgetUserVisualization(botRemovedEvt.ObjectId);
+                QueueEvent(evt);
+                break;
             case RoomItemDetachedEvent detatchedEvt:
                 _furnitureActiveStore.RemoveFurnitureStore(detatchedEvt.ObjectId);
                 ForgetStoredValuesOfUnownedFurni(detatchedEvt.ObjectId);
@@ -529,8 +535,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         // "User Says Keyword" gives its stack $(trigger_text): what was said. It is carried, so
         // it reaches delayed effects and the stacks a signal from here calls.
-        if (trigger is WiredTriggerHabboSaysKeyword && evt is PlayerChatEvent chat)
-            ctx.CarriedPlaceholders[WiredPlaceholderText.TriggerTextToken] = chat.Text;
+        if (trigger is WiredTriggerHabboSaysKeyword && SaidIn(evt) is { } said)
+            ctx.CarriedPlaceholders[WiredPlaceholderText.TriggerTextToken] = said;
 
         // A received link message is the stack's $(trigger_text) the same way
         // (wiredfurni.params.link.receive_message_info); a dataframe fills the placeholders and
@@ -553,6 +559,14 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         return ctx;
     }
+
+    private static string? SaidIn(RoomEvent evt) =>
+        evt switch
+        {
+            PlayerChatEvent chat => chat.Text,
+            BotChatEvent botChat => botChat.Text,
+            _ => null,
+        };
 
     private static async Task CaptureLinkPayloadAsync(
         IWiredTrigger trigger,

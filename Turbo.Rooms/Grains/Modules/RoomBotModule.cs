@@ -19,6 +19,7 @@ using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Events.Bot;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Rooms.Configuration;
@@ -159,7 +160,22 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
             return false;
 
         if (TryGetBot(botId, out var bot))
+        {
             Persist(bot);
+
+            // Wired hears a placed bot as a user entering, the bot triggering (official client
+            // capture 2026-10-24, W3 lab trigger.7.R2: Enter Room fired 3/3, triggerer the bot).
+            await _roomGrain.PublishRoomEventAsync(
+                new BotPlacedEvent
+                {
+                    RoomId = _roomGrain.RoomId,
+                    CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
+                    ObjectId = bot.ObjectId,
+                    BotName = bot.Name,
+                },
+                ct
+            );
+        }
 
         // A bot that was just placed is about to be set up, so the client is asked to open its
         // menu. Told, not awaited: the presence may be waiting on this room.
@@ -313,6 +329,18 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
 
         State.AvatarsByBotId.Remove(botId);
         _lastPersistedTileByBotId.Remove(botId);
+
+        // Wired hears a bot picked up as a user leaving (official client capture 2026-10-24, W3
+        // lab trigger.23.R2: Leave Room fired 2/2).
+        await _roomGrain.PublishRoomEventAsync(
+            new BotRemovedEvent
+            {
+                RoomId = _roomGrain.RoomId,
+                CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
+                ObjectId = bot.ObjectId,
+            },
+            ct
+        );
 
         if (
             !await _roomGrain

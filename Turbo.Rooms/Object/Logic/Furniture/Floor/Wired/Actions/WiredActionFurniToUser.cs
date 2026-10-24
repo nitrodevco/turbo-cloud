@@ -11,7 +11,10 @@ using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
-/// <summary>Moves the picked furni onto the tile of the first selected user.</summary>
+/// <summary>
+/// Moves the picked furni onto the tile of the first selected user, a bot's tile included
+/// (official client capture 2026-10-24, W1 lab action.35.B3: onto bot "frank"'s tile).
+/// </summary>
 [RoomObjectLogic("wf_act_furni_to_user")]
 public class WiredActionFurniToUser(
     IGrainFactory grainFactory,
@@ -28,13 +31,13 @@ public class WiredActionFurniToUser(
     protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
         var selection = ctx.GetSelection(this);
-        var players = GetPlayers(selection);
+        var users = GetUsers(selection);
         var items = GetFloorItems(selection);
 
-        if (players.Count == 0 || items.Count == 0)
+        if (users.Count == 0 || items.Count == 0)
             return;
 
-        var target = players[0];
+        var target = users[0];
 
         foreach (var item in items)
             plan.Move(item, target.X, target.Y);
