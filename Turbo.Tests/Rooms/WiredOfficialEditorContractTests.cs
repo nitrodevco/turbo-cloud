@@ -77,10 +77,6 @@ public sealed class WiredOfficialEditorContractTests
     /// </summary>
     private static readonly Dictionary<string, string[]> KnownDifferences = new()
     {
-        // Habbo's furni quantifier radio; what "any" and "all" do with no or empty chests is
-        // measured (wired matrix condition.45.R1, 46.R1) and not built here yet.
-        ["wf_cnd_chest_has_items"] = ["quantifierType: official 1, ours 0"],
-        ["wf_cnd_chest_has_item_type"] = ["quantifierType: official 1, ours 0"],
         // Habbo sends three variable slots though its editor writes one (AS3 actiontypes/chests/
         // _-D13.as:48-51); what the other two hold is not known yet.
         ["wf_act_init_transaction"] = ["variableIds: official [\"0\",\"0\",\"0\"], ours [\"0\"]"],
