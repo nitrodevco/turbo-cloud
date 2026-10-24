@@ -12,6 +12,8 @@ using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Plugins;
 using Turbo.Gamedata.Texts;
 using Turbo.Gamedata.Variables;
+using Turbo.Messages.PluginMessages;
+using Turbo.Messages.Registry;
 using Turbo.Networking.Extensions;
 using Turbo.Plugins;
 using Turbo.Plugins.Configuration;
@@ -59,7 +61,7 @@ public sealed class PluginTemplateTests : IDisposable
     }
 
     [Fact]
-    public async Task The_template_plugin_loads_registers_its_packets_and_module_and_gives_the_hotel_its_texts()
+    public async Task The_template_plugin_loads_registers_its_messages_and_module_and_gives_the_hotel_its_texts()
     {
         var manifest = JsonDocument
             .Parse(await File.ReadAllTextAsync(Path.Combine(Template, "manifest.json"), Ct))
@@ -102,24 +104,33 @@ public sealed class PluginTemplateTests : IDisposable
             NullLogger<ClientModuleRegistry>.Instance
         );
         var packets = new ExtensionPacketRegistry();
+        var messages = new PluginMessageDirectory(packets);
         var loaded = new LoadedPluginGamedata();
-        var manager = new PluginManager(
-            new ServiceCollection()
-                .AddSingleton<IClientModuleDirectory>(modules)
-                .AddSingleton<IExtensionPacketRegistry>(packets)
-                .AddSingleton<IPluginGamedataSeeds>(
-                    new PluginGamedataSeeds(
-                        _db,
-                        _fakes.Create<IGamedataVariableService>(),
-                        texts,
-                        files,
-                        loaded,
-                        modules,
-                        NullLogger<PluginGamedataSeeds>.Instance
-                    )
+        var host = new ServiceCollection()
+            .AddSingleton<IClientModuleDirectory>(modules)
+            .AddSingleton<IExtensionPacketRegistry>(packets)
+            .AddSingleton<IPluginGamedataSeeds>(
+                new PluginGamedataSeeds(
+                    _db,
+                    _fakes.Create<IGamedataVariableService>(),
+                    texts,
+                    files,
+                    loaded,
+                    modules,
+                    NullLogger<PluginGamedataSeeds>.Instance
                 )
-                .BuildServiceProvider(),
-            new AssemblyProcessor([]),
+            )
+            .BuildServiceProvider();
+        var manager = new PluginManager(
+            host,
+            new AssemblyProcessor([
+                new PluginMessageFeatureProcessor(
+                    new MessageRegistry(host, NullLogger<MessageRegistry>.Instance),
+                    messages,
+                    NullLoggerFactory.Instance,
+                    host
+                ),
+            ]),
             Options.Create(new PluginConfig { PluginFolderPath = _folder }),
             NullLogger<PluginManager>.Instance
         );
@@ -135,8 +146,17 @@ public sealed class PluginTemplateTests : IDisposable
             .Which.Url.Should()
             .StartWith($"/gamedata/plugins/{key}/{key}.js?v=");
         modules.FindFile(key, $"{key}.png").Should().NotBeNull("the module's toolbar icon");
-        packets.TryGetParser(20400, out _).Should().BeTrue("the window asks for the skill");
-        packets.TryGetParser(20402, out _).Should().BeTrue("the window's Train button");
+        messages
+            .Messages.Select(x => x.Name)
+            .Should()
+            .Equal($"{key}.get", $"{key}.state", $"{key}.train");
+        messages
+            .Messages.Single(x => x.Name == $"{key}.state")
+            .Schema.Should()
+            .Be(
+                """[["level","int"],["experience","int"],["needed","int"]]""",
+                "client/src/skill.ts reads these"
+            );
         (await texts.GetValuesAsync([$"{key}.window.title"], Ct))
             .Should()
             .ContainKey($"{key}.window.title");
@@ -150,7 +170,7 @@ public sealed class PluginTemplateTests : IDisposable
         await manager.UnloadAllAsync(Ct);
 
         modules.Modules.Should().BeEmpty();
-        packets.TryGetParser(20400, out _).Should().BeFalse();
+        messages.Messages.Should().BeEmpty();
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using Turbo.Primitives.Networking.Capabilities;
 using Turbo.Primitives.Networking.Extensions;
 using Turbo.Primitives.Packets;
@@ -54,6 +55,10 @@ public sealed class ExtensionPacketRegistry : IExtensionPacketRegistry
         _serializers.TryGetValue(composerType, out serializer!);
 
     public bool HasCapability(string name) => _capabilities.ContainsKey(name);
+
+    // Serializers are keyed by type; a scan of the few plugins register is fine for a load.
+    public bool HasHeader(int header) =>
+        _parsers.ContainsKey(header) || _serializers.Values.Any(x => x.Header == header);
 
     private static void RequirePluginHeader(int header)
     {

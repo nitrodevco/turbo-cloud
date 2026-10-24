@@ -13,6 +13,7 @@ using Turbo.Networking.Revisions;
 using Turbo.PacketHandlers.Marketplace;
 using Turbo.Primitives.Catalog.Marketplace;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Networking.Extensions;
 using Turbo.Primitives.Packets;
 using Turbo.Primitives.Players;
 using Turbo.Revisions.Revision20260909;
@@ -76,15 +77,15 @@ public sealed class SignInGateTests : IAsyncLifetime
         services.AddLogging();
         services.AddTurboMessageSystem();
         services.AddSingleton(_fakes.Create<ISessionGateway>());
+        services.AddSingleton<IExtensionPacketRegistry>(new ExtensionPacketRegistry());
         _container = services.BuildServiceProvider();
 
-        _registrations = await _container
-            .GetServices<IAssemblyFeatureProcessor>()
-            .Single()
-            .ProcessAsync(
-                typeof(BuyMarketplaceOfferMessageHandler).Assembly,
-                new FakingServiceProvider(_container, _fakes)
-            );
+        _registrations = await new AssemblyProcessor(
+            _container.GetServices<IAssemblyFeatureProcessor>()
+        ).ProcessAsync(
+            typeof(BuyMarketplaceOfferMessageHandler).Assembly,
+            new FakingServiceProvider(_container, _fakes)
+        );
 
         _packages = new PackageHandler(
             _revisions,

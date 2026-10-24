@@ -249,7 +249,8 @@ public class HotelCountdownNoticeServiceTests
             new ExtensionPacketRegistry(),
             _fakes.Create<ICommandTreeService>(),
             _notice,
-            _fakes.Create<IClientModuleDirectory>()
+            _fakes.Create<IClientModuleDirectory>(),
+            _fakes.Create<Turbo.Primitives.Plugins.Messages.IPluginMessageDirectory>()
         );
 
         await handler.HandleAsync(

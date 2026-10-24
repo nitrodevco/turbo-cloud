@@ -383,7 +383,8 @@ public sealed class ClientModuleTests : IAsyncDisposable
             new ExtensionPacketRegistry(),
             _fakes.Create<ICommandTreeService>(),
             _fakes.Create<IHotelCountdownNotice>(),
-            _registry
+            _registry,
+            _fakes.Create<Turbo.Primitives.Plugins.Messages.IPluginMessageDirectory>()
         );
 
         await handler.HandleAsync(

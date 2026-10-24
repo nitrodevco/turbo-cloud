@@ -6,14 +6,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Turbo.Contracts.Plugins;
 using Turbo.Contracts.Plugins.Exports;
 using Turbo.Primitives.ClientModules;
-using Turbo.Primitives.Networking.Extensions;
 
 namespace Skills;
 
 /// <summary>
-/// The plugin: its services and settings, its packets, and its client module
-/// (<c>wwwroot/skills.js</c>, built from <c>client/src</c>). Its command, permission nodes and packet
-/// handlers are found in the assembly as it loads; everything it registers goes when it unloads.
+/// The plugin: its services and settings and its client module (<c>wwwroot/skills.js</c>, built
+/// from <c>client/src</c>). Its command, permission nodes, messages and their handlers are found in
+/// the assembly as it loads; everything it registers goes when it unloads.
 /// </summary>
 public sealed class SkillsPlugin : ITurboPlugin
 {
@@ -31,21 +30,11 @@ public sealed class SkillsPlugin : ITurboPlugin
 
     public Task StartAsync(IServiceProvider services, CancellationToken ct)
     {
-        var host = services.GetRequiredService<IHostServices>();
-        var packets = host.GetRequiredService<IExtensionPacketRegistry>();
-
         _registrations.Add(
-            packets.RegisterParser(
-                SkillsHeaders.GET_SKILL,
-                new EmptyParser(() => new GetSkillMessage())
-            )
-        );
-        _registrations.Add(
-            packets.RegisterParser(SkillsHeaders.TRAIN, new EmptyParser(() => new TrainMessage()))
-        );
-        _registrations.Add(packets.RegisterSerializer(typeof(SkillMessage), new SkillSerializer()));
-        _registrations.Add(
-            host.GetRequiredService<IClientModuleRegistry>().Register(Key, "skills.js")
+            services
+                .GetRequiredService<IHostServices>()
+                .GetRequiredService<IClientModuleRegistry>()
+                .Register(Key, "skills.js")
         );
 
         return Task.CompletedTask;

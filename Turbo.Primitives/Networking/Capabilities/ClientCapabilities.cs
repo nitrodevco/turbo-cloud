@@ -45,6 +45,13 @@ public static class ClientCapabilities
     /// </summary>
     public const string CLIENT_MODULES = "client.modules";
 
+    /// <summary>
+    /// <c>TurboPluginMessagesMessage</c>: the plugins' named messages, each with the header the
+    /// host gave it and its field schema, sent after the capability answer and again when they
+    /// change; plugin messages themselves go only to a session that accepted it.
+    /// </summary>
+    public const string CLIENT_MESSAGES = "client.messages";
+
     /// <summary>Maximum preceding argument text in a suggestion request.</summary>
     public const int MAX_SUGGEST_CONTEXT = 1024;
 
@@ -68,6 +75,7 @@ public static class ClientCapabilities
         [STARTER_ROOMS] = 1,
         [LIVE_NOTICES] = 1,
         [CLIENT_MODULES] = 1,
+        [CLIENT_MESSAGES] = 1,
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>

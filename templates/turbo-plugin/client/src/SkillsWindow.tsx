@@ -13,7 +13,7 @@ export const SkillsWindow = ({ close }: ClientModuleWindowProps) => {
     useEffect(() => {
         const stop = skillStore.listen(setSkill);
 
-        api.packets.send(GET_SKILL);
+        api.messages.send(GET_SKILL, {});
 
         return stop;
     }, [ api ]);
@@ -39,7 +39,7 @@ export const SkillsWindow = ({ close }: ClientModuleWindowProps) => {
                     textStyle="u_regular" />
                 <Button
                     variant="101"
-                    onPointerTap={() => api.packets.send(TRAIN)}
+                    onPointerTap={() => api.messages.send(TRAIN, {})}
                     layout={{ width: 100, height: 22 }}>
                     {text('train', 'Train')}
                 </Button>

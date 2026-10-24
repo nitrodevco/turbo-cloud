@@ -145,7 +145,8 @@ public class CommandTreeDeliveryTests
             new ExtensionPacketRegistry(),
             tree,
             _fakes.Create<IHotelCountdownNotice>(),
-            _fakes.Create<IClientModuleDirectory>()
+            _fakes.Create<IClientModuleDirectory>(),
+            _fakes.Create<Turbo.Primitives.Plugins.Messages.IPluginMessageDirectory>()
         );
 
         await handler.HandleAsync(
@@ -181,7 +182,8 @@ public class CommandTreeDeliveryTests
             new ExtensionPacketRegistry(),
             tree,
             _fakes.Create<IHotelCountdownNotice>(),
-            _fakes.Create<IClientModuleDirectory>()
+            _fakes.Create<IClientModuleDirectory>(),
+            _fakes.Create<Turbo.Primitives.Plugins.Messages.IPluginMessageDirectory>()
         );
 
         await handler.HandleAsync(

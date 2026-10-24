@@ -4,7 +4,7 @@ A Turbo plugin with both halves in one folder:
 
 ```
 server/          the server half (C#): SkillsPlugin, its settings, permission node, :skills command,
-                 packets and their handlers
+                 messages and their handlers
 client/src/      the client module (TypeScript + React): a window, a toolbar icon, a patch to the purse
 wwwroot/         files clients load beside the module (its icon), and template-patches.json: changes to
                  core windows as data, no code (nitro-next docs/template-patches.md); the built
@@ -51,8 +51,10 @@ server you run.
 
 The client module is written against `@nitrodevco/client-module-sdk` (nitro-next
 `docs/client-modules.md`, "Writing a module with the SDK"): `defineModule`, `useApi`, the client's
-own React and theme. The packets are numbered by hand in `server/SkillsMessages.cs` and
-`client/src/skill.ts`; keep the two in step and pick numbers no other plugin uses.
+own React and theme. The two halves talk in named messages (turbo-cloud `docs/plugin-messages.md`):
+records with `[PluginMessage("skills.<name>")]` in `server/SkillsMessages.cs`, read and sent by name
+in `client/src/skill.ts` (`api.messages.on/send`). The server numbers them and tells the client, so
+there is nothing to keep in step but the names and fields.
 
-Guides (turbo-cloud `docs/`): `extensions.md` (the model), `client-modules.md`, `plugin-packets.md`,
+Guides (turbo-cloud `docs/`): `extensions.md` (the model), `client-modules.md`, `plugin-messages.md`,
 `commands.md`, `permissions.md`, `settings.md`, `database.md` (when the plugin keeps data).

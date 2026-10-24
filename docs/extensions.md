@@ -183,6 +183,11 @@ list. The client side reads and writes by name (`api.messages.on('skills.levelle
 by the schema it was sent, and a generated `.d.ts` gives the author types. No header coordination,
 no second serializer, and a mismatch between halves is detected, not misread.
 
+**Implemented** (`client.messages`, header 30010): `[PluginMessage]` records and
+`IPluginMessageHandler<T>` in `Turbo.Primitives.Plugins.Messages`, `api.messages.on/send` in the
+client and the SDK's `ClientModuleMessageOf<typeof schema>`; see `docs/plugin-messages.md`. The map
+is its own packet, sent before the module list; a `.d.ts` generator is still to come.
+
 ### 4.8 Web routes (a registry)
 
 A plugin registers **player-facing HTTP routes** the way it registers commands: implement a public
@@ -227,7 +232,7 @@ noted.
    conflict and unmatched reports).
 2. **Plugin lifecycle isolation** (failure isolation, rollback of a failed load, reload only what
    changed).
-3. **Named messages** (§4.7). Removes header coordination; needs nothing above. In progress.
+3. **Named messages** (§4.7). Removes header coordination; needs nothing above. Done (`docs/plugin-messages.md`).
 4. **Plugin web routes for players** (§4.8): the hotel's session and permissions on plugin HTTP
    endpoints, `api.http` in the client. Unlocks site/API features a hotel today runs as a separate
    web app beside the emulator (values, toplists, profiles, news, shop pages).
