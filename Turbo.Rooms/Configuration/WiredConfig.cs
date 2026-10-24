@@ -80,6 +80,15 @@ public class WiredConfig
     /// </summary>
     public bool PeriodicTriggersFireOnRoomLoad { get; init; } = true;
 
+    /// <summary>
+    /// Whether an "at given time" box placed after the room timer already passed its time waits
+    /// for the timer to start again (the next room load or Reset Timers), as on Habbo: a new box
+    /// saved at 1 s in a room loaded 72 minutes earlier never fired, and fired about 1.45 s after
+    /// the next load (official client capture 2026-10-24, wired matrix trigger.3.R5, 4/4). Off
+    /// fires it at once.
+    /// </summary>
+    public bool AtGivenTimeWaitsForTimerRestart { get; init; } = true;
+
     /// <summary>Delayed executions run per tick; the rest wait for the next one.</summary>
     public int MaxScheduledPerTick { get; init; } = 64;
     public int MaxEventsPerTick { get; init; } = 64;
