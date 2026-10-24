@@ -76,7 +76,9 @@ public class WiredAddonChestItemTypeScanner(
             return;
 
         var key = new WiredVariableKey(snapshot.VariableId, snapshot.TargetType, 0);
-        var amount = Count(ctx);
+
+        if (Count(ctx) is not { } amount)
+            return;
 
         if (variable.TryGetValue(key, out _))
             await variable.SetValueAsync(new WiredExecutionContext(_roomGrain), key, amount);
@@ -84,8 +86,14 @@ public class WiredAddonChestItemTypeScanner(
             await variable.GiveValueAsync(key, amount, true);
     }
 
-    /// <summary>The items of the picked types in the picked chests, as the scanning option counts them.</summary>
-    internal int Count(IWiredProcessingContext ctx)
+    /// <summary>
+    /// The items of the picked types in the picked chests, as the scanning option counts them, or
+    /// null when the chests hold nothing: the context variable then gets no value, as with no
+    /// scanner on the stack (official client capture 2026-10-24, W7 lab addon.18.R1, a Variable
+    /// Placeholder printed "SC=null" for an empty chest, 4/4 all items, 1/1 previewed). No chest
+    /// picked counts as nothing held (inferred, not measured).
+    /// </summary>
+    internal int? Count(IWiredProcessingContext ctx)
     {
         var types = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, SLOT_ITEM_TYPES))
             .Select(x => ChestItemTypes.Of(x.Definition, x.Logic.StuffData.GetSnapshot()))
@@ -93,7 +101,11 @@ public class WiredAddonChestItemTypeScanner(
         var chests = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, SLOT_CHESTS))
             .Select(x => x.Logic)
             .OfType<FurnitureWiredChestLogic>()
-            .Where(x => x.Kind == WiredChestKind.Furni);
+            .Where(x => x.Kind == WiredChestKind.Furni)
+            .ToList();
+
+        if (chests.All(x => x.Summary.ItemCount == 0))
+            return null;
 
         if (types.Count == 0)
             return 0;

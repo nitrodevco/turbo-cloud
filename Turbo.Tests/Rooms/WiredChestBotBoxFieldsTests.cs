@@ -489,12 +489,14 @@ public sealed class WiredChestBotBoxFieldsTests
         new[] { 0, 1, 0, -20, 1, 0 },
         1
     )]
+    // The editor writes one slot, Habbo keeps three (W7 lab action.47.E9: ["<id>","0","0"]).
     [InlineData(
         "action.47.E15",
         typeof(WiredActionInitiateTransaction),
         "wf_act_init_transaction",
         new[] { 0, 10, 0, -20, 0, 300 },
-        1
+        1,
+        3
     )]
     [InlineData(
         "addon.20.E14",
@@ -522,7 +524,8 @@ public sealed class WiredChestBotBoxFieldsTests
         Type logic,
         string name,
         int[] ints,
-        int slots
+        int slots,
+        int? stored = null
     )
     {
         var box = AddBox(logic, name);
@@ -532,7 +535,7 @@ public sealed class WiredChestBotBoxFieldsTests
             .BeTrue(caseId);
         box.GetSnapshot()
             .VariableIds.Should()
-            .Equal(Enumerable.Repeat(new WiredVariableId(0), slots), caseId);
+            .Equal(Enumerable.Repeat(new WiredVariableId(0), stored ?? slots), caseId);
     }
 
     /// <summary>Adds the rows of one int field: each accepted value saved, each refused one not.</summary>

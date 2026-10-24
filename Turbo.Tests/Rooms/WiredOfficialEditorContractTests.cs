@@ -75,12 +75,7 @@ public sealed class WiredOfficialEditorContractTests
     /// Where ours still differs, each named until it is fixed; the test fails once one is, so
     /// the entry goes with the fix.
     /// </summary>
-    private static readonly Dictionary<string, string[]> KnownDifferences = new()
-    {
-        // Habbo sends three variable slots though its editor writes one (AS3 actiontypes/chests/
-        // _-D13.as:48-51); what the other two hold is not known yet.
-        ["wf_act_init_transaction"] = ["variableIds: official [\"0\",\"0\",\"0\"], ours [\"0\"]"],
-    };
+    private static readonly Dictionary<string, string[]> KnownDifferences = new();
 
     /// <summary>The fields the fixture holds that ours does not match: "field: official X, ours Y".</summary>
     private static List<string> Differences(JsonElement official, Dictionary<string, object?> ours)
