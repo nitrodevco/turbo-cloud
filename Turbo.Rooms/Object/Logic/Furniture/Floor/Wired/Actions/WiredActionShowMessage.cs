@@ -30,7 +30,6 @@ public class WiredActionShowMessage(
     // A fresh box opens on bubble style 202 on the official server (defaults [0,202,-1], 6/6
     // opens, e.g. 2026-10-18T08-26-07-Open-wait), not the editor's first style (34).
     private const int DEFAULT_STYLE_ID = 202;
-    private const int MAX_STYLE_ID = 1000;
 
     public override int WiredCode => (int)WiredActionType.CHAT;
 
@@ -39,7 +38,7 @@ public class WiredActionShowMessage(
             new WiredEnumParamRule<WiredChatVisibilityType>(
                 WiredChatVisibilityType.SelectedUsersOnly
             ),
-            new WiredRangeParamRule(0, MAX_STYLE_ID, DEFAULT_STYLE_ID),
+            new WiredSetParamRule(DEFAULT_STYLE_ID, WiredConfig.ShowMessageStyleIds),
             new WiredRangeParamRule(-1, 2, -1),
         ];
 

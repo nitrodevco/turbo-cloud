@@ -21,7 +21,10 @@ public class WiredConditionHabboHasEffect(
 {
     public override int WiredCode => (int)WiredConditionType.ACTOR_IS_WEARING_EFFECT;
 
-    public override List<IWiredParamRule> GetIntParamRules() => [WiredRules.Effect(WiredConfig)];
+    // The editor's effect id is a number input over the whole int range
+    // (NumberInputParam(0, -2147483648, 2147483647), conditions/_-w1h.as:38, AS3
+    // WIN63-202610201032), so any id it sends is kept; one nobody wears matches nobody.
+    public override List<IWiredParamRule> GetIntParamRules() => [WiredRules.AnyInt()];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 

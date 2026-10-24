@@ -1,8 +1,10 @@
 using FluentAssertions;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Wired;
+using Turbo.Rooms.Wired.Variables.User;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -107,5 +109,80 @@ public sealed class WiredPlaceholderSyntaxTests
         (await ctx.FormatTextAsync("$(triggering) clicked $(target)", Ct))
             .Should()
             .Be("Alice clicked Bob");
+    }
+
+    /// <summary>
+    /// Wired matrix W3 action.7.R7 / addon.14.R4 / addon.15.R5 / addon.19.R4 (measured, text
+    /// substitution and capture): the triggering user's name, a user's numeric variable and the
+    /// picked furni's name were all put in one message, and "%name%" stayed as it was written.
+    /// </summary>
+    [Fact]
+    public async Task Username_variable_and_furni_name_fill_one_message_and_percent_stays_literal()
+    {
+        var avatar = _room.Enter(PLAYER_INDEX, 1, 1, "Alice");
+
+        avatar.SetRotation((Rotation)3);
+
+        var direction = new UserDirectionVariable(_room.Harness.Room);
+        var directionId = direction.GetVarSnapshot().VariableId;
+
+        _room.Harness.Room.WiredSystem.VariablesById()[directionId] = direction;
+        _room.AddFloorItem(9, 4, 4, className: "throne");
+
+        var user = _room.AddBox<WiredAddonUsernamePlaceholder>(
+            1,
+            0,
+            0,
+            "wf_xtra_text_output_username"
+        );
+        var variable = _room.AddBox<WiredAddonVariablePlaceholder>(
+            2,
+            0,
+            0,
+            "wf_xtra_text_output_variable"
+        );
+        var furni = _room.AddBox<WiredAddonFurniNamePlaceholder>(
+            3,
+            0,
+            0,
+            "wf_xtra_text_output_furni_name"
+        );
+
+        (await _room.SaveAsync<UpdateAddonMessage>(1, intParams: [0], stringParam: "user"))
+            .Should()
+            .BeTrue();
+        (
+            await _room.SaveAsync<UpdateAddonMessage>(
+                2,
+                intParams: [0, (int)WiredVariableTargetType.User, 0],
+                stringParam: "dir",
+                variableIds: [directionId.ToString()]
+            )
+        )
+            .Should()
+            .BeTrue();
+        (
+            await _room.SaveAsync<UpdateAddonMessage>(
+                3,
+                intParams: [0],
+                stringParam: "furni",
+                stuffIds: [9],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+
+        var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
+
+        ctx.Selected.SelectedAvatarIds.Add(PLAYER_INDEX);
+        ctx.Policy.TextPlaceholders.Add(user);
+        ctx.Policy.TextPlaceholders.Add(variable);
+        ctx.Policy.TextPlaceholders.Add(furni);
+
+        (await ctx.FormatTextAsync("$(user) faces $(dir) by $(furni), not %user%", Ct))
+            .Should()
+            .Be("Alice faces 3 by throne, not %user%");
     }
 }

@@ -299,6 +299,36 @@ public class WiredConfig
     public int ShowMessageMaxLength { get; init; } = 400;
 
     /// <summary>
+    /// The bubble styles Show Message may be saved with: the editor's style list
+    /// (<c>NOTIFICATION_STYLES</c>, actiontypes/_-21t.as:22, AS3 WIN63-202610201032). Any other
+    /// style is refused, so a room cannot speak in a bubble its users could not pick. Empty
+    /// takes any style.
+    /// </summary>
+    public int[] ShowMessageStyleIds { get; init; } =
+    [
+        34,
+        200,
+        201,
+        202,
+        210,
+        211,
+        212,
+        220,
+        221,
+        222,
+        223,
+        224,
+        225,
+        226,
+        227,
+        228,
+        229,
+        250,
+        251,
+        252,
+    ];
+
+    /// <summary>
     /// The longest text a WIRED label keeps: its bubble's input takes 1000 characters
     /// (layout <c>furniture_label</c>, <c>max_chars</c> 1000); longer text is cut there.
     /// </summary>

@@ -28,10 +28,14 @@ public class WiredActionMoveRotateUser(
     private const int ROTATE_CLOCKWISE = 9;
     private const int ROTATE_COUNTER_CLOCKWISE = 10;
 
+    // The rotation radio offers none, the eight directions and the two turns; there is no 8
+    // (official editor contract, actiontypes/_-j2J.as:62-70, AS3 WIN63-202610201032).
+    private static readonly int[] ROTATIONS = [NONE, 0, 1, 2, 3, 4, 5, 6, 7, 9, 10];
+
     public override int WiredCode => (int)WiredActionType.MOVE_USER;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredRangeParamRule(-1, 7, -1), new WiredRangeParamRule(-1, 10, -1)];
+        [new WiredRangeParamRule(-1, 7, -1), new WiredSetParamRule(NONE, ROTATIONS)];
 
     public override List<WiredPlayerSourceType[]> GetAllowedPlayerSources() => [WiredSources.Users];
 

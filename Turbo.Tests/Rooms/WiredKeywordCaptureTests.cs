@@ -133,6 +133,25 @@ public sealed class WiredKeywordCaptureTests
         PriceValue().Should().Be(price);
     }
 
+    /// <summary>
+    /// Wired matrix W3 trigger.0 / addon.15.R5 (measured, text substitution and capture): the
+    /// pattern "probe_capture #(n)" captured 42 from "probe_capture 42", while "%n%" stayed
+    /// literal and did not match the same line.
+    /// </summary>
+    [Theory]
+    [InlineData("probe_capture #(p)", 42, true)]
+    [InlineData("probe_capture %p%", 0, false)]
+    public async Task Only_the_hash_marker_captures_a_value(string keyword, int price, bool fires)
+    {
+        await BuildAsync(0, keyword);
+
+        (await _trigger.MatchesEventAsync(Chat("probe_capture 42"), Ct)).Should().Be(fires);
+
+        await SayAsync("probe_capture 42");
+
+        PriceValue().Should().Be(price);
+    }
+
     /// <summary>Every marker needs its own capturer; one without stops the trigger (official client capture).</summary>
     [Fact]
     public async Task A_marker_without_a_capturer_stops_the_trigger()
