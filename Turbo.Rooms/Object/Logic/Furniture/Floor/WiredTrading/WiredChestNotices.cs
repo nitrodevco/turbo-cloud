@@ -43,6 +43,12 @@ public static class WiredChestNotices
     {
         var kinds = new List<string>();
 
+        // Running empty is told first: give furni "all" emptying a chest sent the owner
+        // chest_empty, then chest_wired_transaction, 1 ms apart (official client capture
+        // 2026-10-24T16-15-50, two accounts, wired matrix action.46.R3c).
+        if (!deposit && amountBefore > 0 && amountAfter <= 0)
+            kinds.Add(CHEST_EMPTY);
+
         if (type == WiredTransactionType.Manual)
         {
             if (!byOwner)
@@ -53,9 +59,6 @@ public static class WiredChestNotices
 
         if (deposit && capacity > 0 && amountBefore < capacity && amountAfter >= capacity)
             kinds.Add(CHEST_FULL);
-
-        if (!deposit && amountBefore > 0 && amountAfter <= 0)
-            kinds.Add(CHEST_EMPTY);
 
         return kinds;
     }
