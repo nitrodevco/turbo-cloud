@@ -29,6 +29,10 @@ public class WiredConditionVariableValueMatch(
 
     protected override bool AllowsWallFurni => true;
 
+    // "Match condition if: All match / Any match" (official client capture: quantifierType 3;
+    // with values 20 and 5 against ">= 10", all blocks and any passes).
+    protected override WiredQuantifierType QuantifierType => WiredQuantifierType.Variables;
+
     public override int GetMaxVariableIds() => 2;
 
     // The variable and its reference by position: the same variable may be both (official client
@@ -94,7 +98,7 @@ public class WiredConditionVariableValueMatch(
                     && (!sameHolder || TryReadOperandOnHolder(1, targetType, id, out own))
                     && WiredComparison.Compare(comparison, value, own);
             }),
-            true
+            QuantifierRequiresAll
         );
     }
 }

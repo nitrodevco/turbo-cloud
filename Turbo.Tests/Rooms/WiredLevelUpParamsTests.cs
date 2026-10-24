@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
+using Turbo.Rooms.Wired;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -23,6 +24,35 @@ public sealed class WiredLevelUpParamsTests
 
     public WiredLevelUpParamsTests() =>
         _box = _room.AddBox<WiredAddonVariableLevelUp>(BOX, 0, 0, "wf_xtra_var_lvlup_system");
+
+    // Wired matrix addon.1001.R4 / addon.1202.R4: linear, step 10, 5 levels. Habbo's level fx
+    // showed level 1 at 9 xp, 2 at 10 and 11, 4 at 39, 5 at 40 and 41, and level 3 at 20 and 21
+    // between 20 and 30 (official client capture, measured).
+    [Theory]
+    [InlineData(9, 1, 0, 10, false)]
+    [InlineData(10, 2, 10, 20, false)]
+    [InlineData(11, 2, 10, 20, false)]
+    [InlineData(20, 3, 20, 30, false)]
+    [InlineData(21, 3, 20, 30, false)]
+    [InlineData(39, 4, 30, 40, false)]
+    [InlineData(40, 5, 40, 40, true)]
+    [InlineData(41, 5, 40, 40, true)]
+    public async Task Linear_levels_start_at_each_step(
+        long xp,
+        int level,
+        long levelStart,
+        long nextLevel,
+        bool maxed
+    )
+    {
+        (await _room.SaveAsync<UpdateAddonMessage>(BOX, intParams: [255, 1, 10, 5]))
+            .Should()
+            .BeTrue();
+        await _box.LoadWiredAsync(TestContext.Current.CancellationToken);
+
+        _box.TryGetLevelProgress(xp, out var progress).Should().BeTrue();
+        progress.Should().Be(new WiredLevelProgress(level, 5, levelStart, nextLevel, maxed));
+    }
 
     [Fact]
     public void A_fresh_box_holds_the_linear_defaults_in_five_ints() =>

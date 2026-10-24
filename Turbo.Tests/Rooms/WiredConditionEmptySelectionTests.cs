@@ -27,6 +27,9 @@ public sealed class WiredConditionEmptySelectionTests
     private const int BOX = 2;
     private const int HOLDER = 30;
     private const int EMPTY = 31;
+    private const int RICH = 32;
+    private const int QUANTIFIER_ALL = 0;
+    private const int QUANTIFIER_ANY = 1;
     private const int FURNI = (int)WiredVariableTargetType.Furni;
 
     private readonly WiredRoom _room = new(8, 8);
@@ -85,7 +88,125 @@ public sealed class WiredConditionEmptySelectionTests
         condition.Evaluate(Context(HOLDER, EMPTY)).Should().BeFalse();
     }
 
-    private async Task<T> HasVariableAsync<T>(string interaction)
+    // Wired matrix condition.40/42/43.E1: the variable conditions show the "Match condition if:"
+    // radio with the variables wording (official client capture: Variable Value opens with
+    // quantifierType 3).
+    [Fact]
+    public async Task The_variable_conditions_offer_the_variables_quantifier()
+    {
+        await BuildAsync();
+
+        _room
+            .AddBox<WiredConditionHasVariable>(BOX, 0, 0, "wf_cnd_has_var")
+            .GetQuantifierType()
+            .Should()
+            .Be((byte)WiredQuantifierType.Variables);
+        _room
+            .AddBox<WiredConditionVariableValueMatch>(3, 0, 1, "wf_cnd_var_val_match")
+            .GetQuantifierType()
+            .Should()
+            .Be((byte)WiredQuantifierType.Variables);
+        _room
+            .AddBox<WiredConditionVariableAgeMatch>(4, 0, 2, "wf_cnd_var_age_match")
+            .GetQuantifierType()
+            .Should()
+            .Be((byte)WiredQuantifierType.Variables);
+    }
+
+    // Wired matrix condition.40.R (empty set): "any" over nothing blocks (official client
+    // capture: quantifier 1 with an empty selector source did not move the marker).
+    [Fact]
+    public async Task Has_variable_with_any_does_not_hold_over_an_empty_selection()
+    {
+        var condition = await HasVariableAsync<WiredConditionHasVariable>(
+            "wf_cnd_has_var",
+            QUANTIFIER_ANY
+        );
+
+        condition.Evaluate(Context()).Should().BeFalse();
+        condition.Evaluate(Context(EMPTY)).Should().BeFalse();
+        condition.Evaluate(Context(HOLDER, EMPTY)).Should().BeTrue();
+    }
+
+    // "None match" (quantifier.variables.neg.1): the not-twin with "any" holds only when no
+    // target has the variable.
+    [Fact]
+    public async Task Not_has_variable_with_any_holds_when_none_match()
+    {
+        var condition = await HasVariableAsync<WiredNegativeConditionHasVariable>(
+            "wf_cnd_not_has_var",
+            QUANTIFIER_ANY
+        );
+
+        condition.Evaluate(Context(EMPTY)).Should().BeTrue();
+        condition.Evaluate(Context(HOLDER, EMPTY)).Should().BeFalse();
+    }
+
+    // Wired matrix condition.42.R (quantifier): picked furni holding 20 and 5 against ">= 10":
+    // "all" blocks and "any" passes (official client capture, measured).
+    [Theory]
+    [InlineData(QUANTIFIER_ALL, false)]
+    [InlineData(QUANTIFIER_ANY, true)]
+    public async Task Variable_value_quantifier_decides_a_mixed_set(int quantifier, bool holds)
+    {
+        await BuildAsync();
+        var condition = _room.AddBox<WiredConditionVariableValueMatch>(
+            BOX,
+            0,
+            0,
+            "wf_cnd_var_val_match"
+        );
+
+        (
+            await _room.SaveAsync<UpdateConditionMessage>(
+                BOX,
+                intParams: [FURNI, (int)WiredComparisonType.GreaterTHanOrEquals, 0, 0, 10, FURNI],
+                definitionSpecifics: [quantifier],
+                variableIds: [LevelId]
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        condition.Evaluate(Context(HOLDER, RICH)).Should().Be(holds);
+        condition.Evaluate(Context(RICH)).Should().BeTrue();
+    }
+
+    // Wired matrix condition.43.R (quantifier): one fresh holder and one without the variable.
+    [Theory]
+    [InlineData(QUANTIFIER_ALL, false)]
+    [InlineData(QUANTIFIER_ANY, true)]
+    public async Task Variable_age_quantifier_decides_a_mixed_set(int quantifier, bool holds)
+    {
+        await BuildAsync();
+        var condition = _room.AddBox<WiredConditionVariableAgeMatch>(
+            BOX,
+            0,
+            0,
+            "wf_cnd_var_age_match"
+        );
+
+        // target, less than, creation, 120 (hi, lo) seconds
+        (
+            await _room.SaveAsync<UpdateConditionMessage>(
+                BOX,
+                intParams: [FURNI, 0, 0, 0, 120, (int)WiredTimeUnitType.Seconds],
+                furniSources:
+                [
+                    [WiredFurniSourceType.TriggeredItem],
+                    [WiredFurniSourceType.SelectorItems],
+                ],
+                definitionSpecifics: [quantifier],
+                variableIds: [LevelId]
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        condition.Evaluate(Context(HOLDER, EMPTY)).Should().Be(holds);
+    }
+
+    private async Task<T> HasVariableAsync<T>(string interaction, int quantifier = QUANTIFIER_ALL)
         where T : FurnitureWiredConditionLogic
     {
         await BuildAsync();
@@ -100,7 +221,7 @@ public sealed class WiredConditionEmptySelectionTests
                 [
                     [WiredFurniSourceType.TriggeredItem],
                 ],
-                definitionSpecifics: [0],
+                definitionSpecifics: [quantifier],
                 variableIds: [LevelId]
             )
         ).Should().BeTrue();
@@ -112,6 +233,7 @@ public sealed class WiredConditionEmptySelectionTests
     {
         _room.AddFloorItem(HOLDER, 1, 5);
         _room.AddFloorItem(EMPTY, 2, 5);
+        _room.AddFloorItem(RICH, 3, 5);
         _level = _room.AddBox<WiredVariableFurni>(LEVEL_BOX, 4, 4, "wf_var_furni");
 
         (
@@ -145,6 +267,19 @@ public sealed class WiredConditionEmptySelectionTests
                     HOLDER
                 ),
                 5,
+                true
+            )
+        )
+            .Should()
+            .BeTrue();
+        (
+            await _level.GiveValueAsync(
+                new WiredVariableKey(
+                    _level.GetVarSnapshot().VariableId,
+                    WiredVariableTargetType.Furni,
+                    RICH
+                ),
+                20,
                 true
             )
         )

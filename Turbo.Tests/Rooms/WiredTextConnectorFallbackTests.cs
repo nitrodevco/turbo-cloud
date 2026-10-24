@@ -77,6 +77,43 @@ public sealed class WiredTextConnectorFallbackTests
             .Be("You have Some other number.");
     }
 
+    // Wired matrix addon.1000.R1/R2: lines are split on "\n" only. The official client capture
+    // read "0=zero\n1=one\n2=two" back as three entries and the same text with "\r" as one, the
+    // rest of the lines folded into its text.
+    [Fact]
+    public async Task Lines_are_split_on_line_feeds_only()
+    {
+        var byLineFeed = await UserVariableWithConnectorAsync("0=zero\n1=one\n2=two");
+
+        byLineFeed
+            .GetVarSnapshot()
+            .TextConnectors.Should()
+            .BeEquivalentTo(
+                new Dictionary<WiredVariableValue, string>
+                {
+                    [new WiredVariableValue(0)] = "zero",
+                    [new WiredVariableValue(1)] = "one",
+                    [new WiredVariableValue(2)] = "two",
+                }
+            );
+    }
+
+    [Fact]
+    public async Task A_carriage_return_does_not_start_a_line()
+    {
+        var byCarriageReturn = await UserVariableWithConnectorAsync("0=zero\r1=one\r2=two");
+
+        byCarriageReturn
+            .GetVarSnapshot()
+            .TextConnectors.Should()
+            .BeEquivalentTo(
+                new Dictionary<WiredVariableValue, string>
+                {
+                    [new WiredVariableValue(0)] = "zero\r1=one\r2=two",
+                }
+            );
+    }
+
     [Fact]
     public async Task The_client_reads_the_fallback_after_the_pairs()
     {

@@ -96,6 +96,17 @@ public abstract class FurnitureWiredConditionLogic(
     /// <summary>The client "require all" radio, stored as int param 0 on most conditions.</summary>
     protected bool RequiresAll(int paramIndex = 0) => GetIntParamOrDefault(paramIndex, false);
 
+    /// <summary>
+    /// What the shared quantifier radio asks for: "all match" (code 0) or "any matches" (1). A box
+    /// that shows no radio (<see cref="WiredQuantifierType.None"/>) requires all. Read from the
+    /// saved box, so a save counts from the next evaluation on.
+    /// </summary>
+    protected bool QuantifierRequiresAll =>
+        QuantifierType == WiredQuantifierType.None || GetSavedQuantifierCode() == 0;
+
+    private int GetSavedQuantifierCode() =>
+        _wiredData?.DefinitionSpecifics is [int code, ..] ? code : _quantifierCode;
+
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
         await base.FillInternalDataAsync(ct);
