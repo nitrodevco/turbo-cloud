@@ -79,9 +79,18 @@ public abstract class FurnitureWiredNamePlaceholderLogic(
             return Task.FromResult(text);
 
         var names = GetNames(ctx);
+        var showsAll = GetIntParamOrDefault(0, false);
+
+        // With nothing to name, "show all" prints nothing and a single name leaves the
+        // placeholder as written: "W= end" and "W=$(fw) end" (official client capture 2026-10-24,
+        // W3 lab addon.19.B4, Furni Name with no furni, 2/2 each). That Username does the same
+        // is inferred.
+        if (names.Count == 0 && !showsAll)
+            return Task.FromResult(text);
+
         var replacement =
             names.Count == 0 ? string.Empty
-            : GetIntParamOrDefault(0, false) ? string.Join(delimiter, names)
+            : showsAll ? string.Join(delimiter, names)
             : names[0];
 
         return Task.FromResult(

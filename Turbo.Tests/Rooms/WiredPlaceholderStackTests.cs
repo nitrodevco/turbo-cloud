@@ -174,4 +174,40 @@ public sealed class WiredPlaceholderStackTests
 
         furni.GetStuffIds().Should().BeEmpty();
     }
+
+    // addon.19.B4: with no furni, "show all" prints nothing ("W= end") and a single name leaves the
+    // placeholder as written ("W=$(fw) end"), 2/2 each. Ours printed nothing for both.
+    [Theory]
+    [InlineData(1, "W= end")]
+    [InlineData(0, "W=$(fw) end")]
+    public async Task Furni_name_with_no_furni_prints_nothing_or_stays_as_written_addon_19_B4(
+        int showsAll,
+        string shown
+    )
+    {
+        var furni = _room.AddBox<WiredAddonFurniNamePlaceholder>(
+            1,
+            0,
+            0,
+            "wf_xtra_text_output_furni_name"
+        );
+
+        (
+            await _room.SaveAsync<UpdateAddonMessage>(
+                1,
+                intParams: [showsAll],
+                stringParam: "fw\t,",
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+
+        var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
+
+        ctx.Policy.TextPlaceholders.Add(furni);
+
+        (await ctx.FormatTextAsync("W=$(fw) end", Ct)).Should().Be(shown);
+    }
 }
