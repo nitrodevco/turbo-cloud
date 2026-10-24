@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -79,8 +80,54 @@ public class WiredActionMoveRotateFurni(
 
             var (targetX, targetY) = MapModule.GetTileXY(nextIdx);
 
+            // A user on the tiles it would move to blocks it, and raises no collision (official
+            // client capture 2026-10-24, W1 lab action.4.B1, 4/4); "move through users" lets it
+            // pass (inferred from the add-on's name).
+            if (IsBlockedByUser(ctx, floorItem, targetX, targetY, moveRotation))
+            {
+                plan.Block();
+
+                continue;
+            }
+
             plan.Move(floorItem, targetX, targetY, null, moveRotation);
         }
+    }
+
+    private bool IsBlockedByUser(
+        IWiredContext ctx,
+        IRoomFloorItem item,
+        int x,
+        int y,
+        Rotation rotation
+    )
+    {
+        if (
+            !MapModule.GetTileIdForSize(
+                x,
+                y,
+                rotation,
+                item.Definition.Width,
+                item.Definition.Length,
+                out var tileIds
+            )
+        )
+            return false;
+
+        // Every user, unless the movement physics add-on lets the furni through them (all, or
+        // the ones its user source names). A user on the furni itself is not in its way.
+        var throughUsers = ctx.Policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.MoveThroughUsers);
+        var passable = ctx.Policy.MoveThroughUserIds;
+        var onIt = AvatarModule.GetAvatarsOnItem(item, standingOnIt: false).ToHashSet();
+
+        return tileIds.Any(idx =>
+            AvatarModule
+                .GetAvatarsOnTile(idx)
+                .Any(avatar =>
+                    !onIt.Contains(avatar)
+                    && !(throughUsers && (passable?.Contains(avatar.ObjectId) ?? true))
+                )
+        );
     }
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)
