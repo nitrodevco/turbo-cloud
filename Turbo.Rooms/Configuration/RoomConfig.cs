@@ -402,7 +402,13 @@ public class RoomConfig
 
     /// <summary>A game timer's time before anyone sets it: the official Banzai counter shows 00:30.</summary>
     public int GameDefaultDurationSeconds { get; init; } = 30;
-    public int[] GameTeamEffectIds { get; init; } = [0, 33, 34, 35, 36];
+
+    /// <summary>
+    /// The team effects "Join Team" puts on for a wired team, by team (none, red, green, blue,
+    /// yellow): Habbo's "Wired Red/Green/Blue/Yellow Team" (<c>fx_223_name</c> to <c>fx_226_name</c>;
+    /// official client capture 2026-10-24, red 223 and green 226 on joining).
+    /// </summary>
+    public int[] GameTeamEffectIds { get; init; } = [0, 223, 226, 224, 225];
 
     /// <summary>
     /// Whether points only count while a game runs, from a game counter's or game timer's start

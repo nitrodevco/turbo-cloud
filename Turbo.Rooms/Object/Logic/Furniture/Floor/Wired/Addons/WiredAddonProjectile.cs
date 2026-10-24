@@ -134,6 +134,11 @@ public class WiredAddonProjectile(
         if (projectiles.Count == 0 && !allMoved)
             return Task.FromResult(true);
 
+        // Two Projectiles: the lower box's applies, curve 50 below 300 curved 50 (official
+        // client capture 2026-10-24, W1 lab addon.21.R2, 1/1; each alone 50 / 300).
+        if (!IsFirstOfKind(ctx))
+            return Task.FromResult(true);
+
         var distance = GetIntParamOrDefault(
             PARAM_DISTANCE_MODE,
             WiredProjectileDistanceType.Normal

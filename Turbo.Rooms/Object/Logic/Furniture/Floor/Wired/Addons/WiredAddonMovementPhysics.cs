@@ -56,18 +56,23 @@ public class WiredAddonMovementPhysics(
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
-        var flags = WiredMovePhysicsFlags.None;
+        // Two Movement Physics add up: keep altitude holds when either box has it, in both stack
+        // orders (official client capture 2026-10-24, W1 lab addon.7.R2/R3, 7/7; both off drops).
+        // The other flags are taken the same way (inference); a flag the lower box already set
+        // keeps that box's furni/users.
+        var had = IsFirstOfKind(ctx) ? WiredMovePhysicsFlags.None : ctx.Policy.MovePhysics;
+        var flags = had;
 
         if (GetIntParamOrDefault(0, false))
             flags |= WiredMovePhysicsFlags.KeepAltitude;
 
-        if (GetIntParamOrDefault(1, false))
+        if (GetIntParamOrDefault(1, false) && !had.HasFlag(WiredMovePhysicsFlags.MoveThroughFurni))
         {
             flags |= WiredMovePhysicsFlags.MoveThroughFurni;
             ctx.Policy.MoveThroughFurniIds = FurniOfSlot(ctx, SLOT_THROUGH_FURNI);
         }
 
-        if (GetIntParamOrDefault(2, false))
+        if (GetIntParamOrDefault(2, false) && !had.HasFlag(WiredMovePhysicsFlags.MoveThroughUsers))
         {
             flags |= WiredMovePhysicsFlags.MoveThroughUsers;
             ctx.Policy.MoveThroughUserIds = WiredSlotSelection
@@ -75,7 +80,7 @@ public class WiredAddonMovementPhysics(
                 .SelectedAvatarIds;
         }
 
-        if (GetIntParamOrDefault(3, false))
+        if (GetIntParamOrDefault(3, false) && !had.HasFlag(WiredMovePhysicsFlags.BlockedByFurni))
         {
             flags |= WiredMovePhysicsFlags.BlockedByFurni;
             ctx.Policy.BlockedByFurniIds = FurniOfSlot(ctx, SLOT_BLOCKING_FURNI);

@@ -28,4 +28,5 @@ public sealed class WiredPolicy : IWiredPolicy
     public WiredProjectileSettings? Projectile { get; set; }
     public IWiredContractSource? CustomContract { get; set; }
     public List<IWiredTextPlaceholder> TextPlaceholders { get; } = [];
+    public ISet<int> AppliedAddons { get; } = new HashSet<int>();
 }

@@ -84,4 +84,10 @@ public interface IWiredPolicy
 
     /// <summary>Text transforms (username and variable placeholders) applied to outgoing text.</summary>
     public List<IWiredTextPlaceholder> TextPlaceholders { get; }
+
+    /// <summary>
+    /// The kinds of add-on (their wired codes) that have already changed this firing, the lowest
+    /// box first, so a second box of a kind can add to the first or leave it be.
+    /// </summary>
+    public ISet<int> AppliedAddons { get; }
 }

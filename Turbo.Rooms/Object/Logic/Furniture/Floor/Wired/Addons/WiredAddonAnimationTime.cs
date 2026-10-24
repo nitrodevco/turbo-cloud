@@ -35,7 +35,11 @@ public class WiredAddonAnimationTime(
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
-        ctx.Policy.AnimationTimeMs = _animationTimeMs;
+        // A second Animation Time adds to the first: 175 and 2000 on one stack move in 2175 ms
+        // (official client capture 2026-10-24, W1 lab addon.9.R2, 1/1; each alone 175 / 2000).
+        ctx.Policy.AnimationTimeMs = IsFirstOfKind(ctx)
+            ? _animationTimeMs
+            : ctx.Policy.AnimationTimeMs + _animationTimeMs;
 
         return Task.FromResult(true);
     }

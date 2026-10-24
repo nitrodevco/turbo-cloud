@@ -43,13 +43,36 @@ public class EffectConfig
     /// <item>77: a rider (<see cref="PetRiding.RIDER_EFFECT_ID"/>).</item>
     /// <item>95, 96, 98: snow war, which the client applies itself in the arena.</item>
     /// <item>97, 218: a snowboard and a freeze, which the client draws without a shadow.</item>
+    /// <item>223 to 226: the wired teams "Join Team" puts on (<c>fx_223_name</c> "Wired Red Team").</item>
     /// </list>
     /// Entries a hotel lists are added to these, never instead of them. Add any team ids it
     /// changed (<c>Turbo:Rooms:GameTeamEffectIds</c>). The wired freeze paints the effects its
     /// editor names (<c>WiredActionFreezeUser.FREEZE_EFFECT_IDS</c>).
     /// </summary>
     public HashSet<int> ReservedEffectIds { get; init; } =
-    [28, 29, 30, 33, 34, 35, 36, 38, 39, PetRiding.RIDER_EFFECT_ID, 95, 96, 97, 98, 184, 185, 218];
+    [
+        28,
+        29,
+        30,
+        33,
+        34,
+        35,
+        36,
+        38,
+        39,
+        PetRiding.RIDER_EFFECT_ID,
+        95,
+        96,
+        97,
+        98,
+        184,
+        185,
+        218,
+        223,
+        224,
+        225,
+        226,
+    ];
 
     /// <summary>The highest effect id a player can be given or ask for; the client has none past it.</summary>
     public int MaxEffectId { get; init; } = 10000;
