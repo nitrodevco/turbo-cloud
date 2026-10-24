@@ -37,13 +37,9 @@ public class WiredActionToggleToRandomState(
                 continue;
 
             var totalStates = Math.Max(1, item.Definition.TotalStates);
-            var state = Random.Shared.Next(totalStates);
-
-            // The draw may land on the state the furni is already in: Habbo then sends no state
-            // update and "Furni state changes" does not fire (official client capture, 5 of 12
-            // draws on a 2-state lamp).
-            if (state != item.Logic.GetState())
-                await ctx.ProcessItemStateUpdateAsync(item, state);
+            // The draw may be the state the furni is in, which changes nothing
+            // (WiredExecutionContext.ProcessItemStateUpdateAsync).
+            await ctx.ProcessItemStateUpdateAsync(item, Random.Shared.Next(totalStates));
 
             changed = true;
         }
