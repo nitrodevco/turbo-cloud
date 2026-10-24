@@ -715,7 +715,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 ct
             );
 
-        foreach (var addon in ctx.Stack.Addons)
+        foreach (var addon in AddonsInRunOrder(ctx.Stack.Addons))
         {
             if (!await addon.MutatePolicyAsync(ctx, ct))
                 return null;
@@ -755,6 +755,31 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             return null;
 
         return passed;
+    }
+
+    /// <summary>
+    /// The add-ons in the order they narrow the selection: the stack's, except that two or more
+    /// "filter by variable" boxes take their places in a random order on every firing. Habbo runs
+    /// them one after the other, not as an intersection, in an order that changes between runs
+    /// (official client capture 2026-10-24, W4 lab addon.12.R2: highest-1 then lowest-2 gave "30"
+    /// 5 of 10, the other order "20" 5 of 10; addon.13.R2, two accounts: highest-1 and lowest-1
+    /// kept one user or the other, 5 and 3 of 8).
+    /// </summary>
+    internal static IReadOnlyList<IWiredAddon> AddonsInRunOrder(List<IWiredAddon> addons)
+    {
+        if (addons.Count(x => x is WiredAddonVariableFilter) < 2)
+            return addons;
+
+        var filters = addons.OfType<WiredAddonVariableFilter>().ToArray();
+
+        Random.Shared.Shuffle(filters);
+
+        var next = 0;
+
+        return
+        [
+            .. addons.Select(addon => addon is WiredAddonVariableFilter ? filters[next++] : addon),
+        ];
     }
 
     /// <summary>
