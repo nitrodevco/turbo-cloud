@@ -1223,7 +1223,11 @@ public sealed class PluginManager(
 
         SerializerCaches.Clear();
 
-        if (!await AssemblyMemoryLoader.WaitForUnloadAsync(alc, 5000, ct).ConfigureAwait(false))
+        if (
+            !await AssemblyMemoryLoader
+                .WaitForUnloadAsync(alc, _config.UnloadWaitMs, ct, _config.UnloadMinCollections)
+                .ConfigureAwait(false)
+        )
             _logger.LogWarning(
                 "ALC for plugin {Key} did not unload within timeout. Possible memory leak from retained type references.",
                 key

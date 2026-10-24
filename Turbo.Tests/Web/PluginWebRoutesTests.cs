@@ -450,6 +450,9 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
     [Fact]
     public async Task A_plugin_whose_routes_answered_reloads_and_unloads_without_a_leak()
     {
+        // Collections, not time, decide: the suite beside it slows each one down (merge gates
+        // 10-24 reported it held after 5 seconds of them).
+        _unloadMinCollections = 50;
         await StartAsync();
 
         // Its answers are its own types (anonymous ones here), which the serializer learns: the host
@@ -552,6 +555,8 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
             }
             """;
 
+    private int _unloadMinCollections;
+
     private async Task<PluginSnapshot> LoadAsync(
         string key,
         string source,
@@ -563,7 +568,13 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
         _manager = new PluginManager(
             new ServiceCollection().AddSingleton(_routes).BuildServiceProvider(),
             new AssemblyProcessor(processors),
-            Options.Create(new PluginConfig { PluginFolderPath = _folder }),
+            Options.Create(
+                new PluginConfig
+                {
+                    PluginFolderPath = _folder,
+                    UnloadMinCollections = _unloadMinCollections,
+                }
+            ),
             _managerLog
         );
 

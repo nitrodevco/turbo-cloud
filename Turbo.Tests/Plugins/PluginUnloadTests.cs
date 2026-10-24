@@ -1,4 +1,6 @@
 using System.IO;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -95,7 +97,16 @@ public sealed class PluginUnloadTests : IDisposable
         var manager = new PluginManager(
             host,
             new AssemblyProcessor([]),
-            Options.Create(new PluginConfig { PluginFolderPath = _folder }),
+            // No time at all: only the collections it is given decide (merge gates 10-24 reported
+            // it held after 5 seconds of collections slowed by the machine's load).
+            Options.Create(
+                new PluginConfig
+                {
+                    PluginFolderPath = _folder,
+                    UnloadWaitMs = 0,
+                    UnloadMinCollections = 50,
+                }
+            ),
             _log
         );
 
@@ -118,6 +129,51 @@ public sealed class PluginUnloadTests : IDisposable
         await manager.UnloadAllAsync(Ct);
 
         _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_context_freed_a_step_per_collection_is_waited_for_however_long_they_take()
+    {
+        // Like the methods generated for a plugin's types: a finalizer per collection lets go.
+        var alc = HeldByFinalizers(steps: 10);
+
+        (await AssemblyMemoryLoader.WaitForUnloadAsync(alc, maxMs: 0, Ct, minCollections: 50))
+            .Should()
+            .BeTrue();
+    }
+
+    [Fact]
+    public async Task A_context_something_holds_is_reported_however_many_collections_it_is_given()
+    {
+        var held = new object();
+        var alc = new WeakReference(held);
+
+        (await AssemblyMemoryLoader.WaitForUnloadAsync(alc, maxMs: 0, Ct, minCollections: 50))
+            .Should()
+            .BeFalse();
+
+        GC.KeepAlive(held);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static WeakReference HeldByFinalizers(int steps)
+    {
+        var context = new object();
+
+        _ = new FinalizerStep(steps, GCHandle.Alloc(context));
+
+        return new WeakReference(context);
+    }
+
+    private sealed class FinalizerStep(int left, GCHandle held)
+    {
+        ~FinalizerStep()
+        {
+            if (left > 0)
+                _ = new FinalizerStep(left - 1, held);
+            else
+                held.Free();
+        }
     }
 
     /// <summary>A plugin with tables of its own: its context's model is built as it starts.</summary>
