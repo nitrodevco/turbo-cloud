@@ -69,7 +69,11 @@ public class WiredActionInitiateTransaction(
 
     protected override bool HasPositionalVariableIds => true;
 
-    public override int GetMaxVariableIds() => 1;
+    // Three slots, though the editor writes only the first, the multiplier's variable (AS3
+    // actiontypes/chests/_-D13.as:48-51): Habbo opens a fresh box with ["0","0","0"] and stores
+    // a save of one id as ["<id>","0","0"] (official client capture 2026-10-24, W7 lab
+    // action.47.E9). What the other two are for is not known; they stay empty.
+    public override int GetMaxVariableIds() => 3;
 
     // A fresh box asks x10 and reads the multiplier from a context variable (official client
     // capture: defaultIntParams [0,10,0,-20,0,300]).

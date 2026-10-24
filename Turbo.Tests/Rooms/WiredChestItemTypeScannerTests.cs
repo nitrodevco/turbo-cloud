@@ -14,6 +14,7 @@ using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
+using Turbo.Rooms.Wired;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -70,6 +71,31 @@ public sealed class WiredChestItemTypeScannerTests
         Global().Should().Be(2);
     }
 
+    // addon.18.R1: on an empty chest the context variable gets no value at all, as with no
+    // scanner on the stack: a Variable Placeholder printed "SC=null" in both scan modes (official
+    // client capture 2026-10-24, W7 lab 4/4 all items, 1/1 previewed). Ours stored 0, which the
+    // copy below writes over the global's 7.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_empty_chest_leaves_the_context_variable_without_a_value(bool previewedOnly)
+    {
+        await BuildAsync(previewedOnly, empty: true);
+
+        var snapshot = _global.GetVarSnapshot();
+
+        await _global.SetValueAsync(
+            new WiredExecutionContext(_room.Harness.Room),
+            new WiredVariableKey(snapshot.VariableId, WiredVariableTargetType.Global, 0),
+            7
+        );
+        Global().Should().Be(7);
+        await ClickAsync();
+        await TickAsync(4);
+
+        Global().Should().Be(7);
+    }
+
     private int Global()
     {
         var snapshot = _global.GetVarSnapshot();
@@ -85,7 +111,7 @@ public sealed class WiredChestItemTypeScannerTests
         return (int)value;
     }
 
-    private async Task BuildAsync(bool previewedOnly)
+    private async Task BuildAsync(bool previewedOnly, bool empty = false)
     {
         var chest = (FurnitureWiredChestLogic)
             _room
@@ -190,14 +216,16 @@ public sealed class WiredChestItemTypeScannerTests
             .GetProperty(nameof(FurnitureWiredChestLogic.Summary))!
             .SetValue(
                 chest,
-                WiredChestSummarySnapshot.Empty with
-                {
-                    ItemCount = 5,
-                    CountsByType = ImmutableDictionary<ChestItemTypeSnapshot, int>
-                        .Empty.Add(Type(500), 3)
-                        .Add(Type(600), 2),
-                    Preview = [Type(500), Type(600), Type(500)],
-                }
+                empty
+                    ? WiredChestSummarySnapshot.Empty
+                    : WiredChestSummarySnapshot.Empty with
+                    {
+                        ItemCount = 5,
+                        CountsByType = ImmutableDictionary<ChestItemTypeSnapshot, int>
+                            .Empty.Add(Type(500), 3)
+                            .Add(Type(600), 2),
+                        Preview = [Type(500), Type(600), Type(500)],
+                    }
             );
     }
 

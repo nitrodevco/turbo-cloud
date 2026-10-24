@@ -78,15 +78,16 @@ public sealed partial class RoomBotModule
             ct
         );
 
-    /// <summary>Sends a bot walking to a furni; arrival raises the "bot reached furni" trigger.</summary>
+    /// <summary>Sends a bot walking to a furni; its step onto it fires "bot reached furni".</summary>
     public async Task<bool> WalkToItemAsync(IRoomBot bot, IRoomFloorItem item, CancellationToken ct)
     {
         bot.FollowObjectId = -1;
         bot.TargetItemId = item.ObjectId;
 
+        // Already on it: no step onto it, so "bot reached furni" does not fire.
         if (IsOnItem(bot, item))
         {
-            await BotTickSystem.NotifyItemReachedAsync(bot, ct);
+            bot.TargetItemId = -1;
 
             return true;
         }

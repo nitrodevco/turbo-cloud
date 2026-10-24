@@ -71,6 +71,65 @@ public sealed class WiredEffectOrderTests
         endedAt.Should().BeEquivalentTo([0, 1]);
     }
 
+    // action.0.X1: Toggle and Match Snapshot (state only, snapshot "0") on one lamp. The lamp
+    // ended at the snapshot on every click, the snapshot box below or above the toggle (official
+    // client capture 2026-10-24, W2 lab 6/6 + W1 lab 6/6 reversed). Ours ran the two in a random
+    // order and left the lamp on about half the clicks.
+    [Fact]
+    public async Task Match_snapshot_runs_after_a_toggle_of_the_same_furni()
+    {
+        _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
+        _room.AddBox<WiredActionMatchToSnapshot>(2, 0, 0, "wf_act_match_to_sshot");
+        _room.AddBox<WiredActionToggleItemState>(3, 0, 0, "wf_act_toggle_state");
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                1,
+                stuffIds: [CLICK_ME],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+
+        foreach (var (box, ints) in new[] { (2, new[] { 1, 0, 0, 0, 0 }), (3, new[] { 0 }) })
+        {
+            (
+                await _room.SaveAsync<UpdateActionMessage>(
+                    box,
+                    intParams: ints,
+                    stuffIds: [LAMP],
+                    furniSources:
+                    [
+                        [WiredFurniSourceType.SelectedItems],
+                    ],
+                    definitionSpecifics: [0]
+                )
+            ).Should().BeTrue();
+        }
+
+        await Wired.OnRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForSystem(1),
+                StackIds = [_room.Map.ToIdx(0, 0)],
+            },
+            Ct
+        );
+        await TickAsync(1);
+
+        var endedIn = new HashSet<int>();
+
+        for (var i = 0; i < 20; i++)
+        {
+            await ClickFromAsync(0);
+            endedIn.Add(_room.FloorItem(LAMP).Logic.GetState());
+        }
+
+        endedIn.Should().Equal(0);
+    }
+
     [Fact]
     public async Task Execute_in_order_runs_them_in_stacking_order()
     {

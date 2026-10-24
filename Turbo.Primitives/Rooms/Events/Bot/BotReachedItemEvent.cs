@@ -3,7 +3,7 @@ using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Rooms.Events.Bot;
 
-/// <summary>A bot sent to a furni by wired arrived on its tile.</summary>
+/// <summary>A bot stepped onto a furni from a tile the furni does not cover.</summary>
 [GenerateSerializer]
 public sealed record BotReachedItemEvent : RoomEvent
 {

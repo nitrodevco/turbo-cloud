@@ -6,8 +6,10 @@ using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Bot;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
+using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Avatars.Bot;
+using Turbo.Rooms.Object.Logic.Avatar;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
@@ -121,6 +123,75 @@ public sealed class WiredBotBoxesTests
                 Ct
             )
         ).Should().Be(fires);
+    }
+
+    // trigger.13.R1: Bot Reached Furni fires for a bot's first step onto any tile of the furni,
+    // once per bot, not again for its further steps on the furni (2 fires per run, 2/2), and for
+    // a Bot Teleport onto it (R1b). Ours fired only when a bot sent there by Bot Move stopped on
+    // it. Here the bot walks there on its own: across the 2x2 rug, then back onto it.
+    [Fact]
+    public async Task Bot_reached_furni_fires_for_any_bots_step_onto_it()
+    {
+        var frank = AddBot(FRANK, "Frank", 1, 1);
+        frank.SetLogic(new BotLogic(new RoomBotContext(_room.Harness.Room, frank)));
+        _room.AddFloorItem(FURNI, 4, 1, width: 2, length: 2);
+        _room.AddBox<WiredTriggerBotReachesItem>(BOX, 0, 11, "wf_trg_bot_reached_stf");
+        _room.AddBox<WiredActionBotTalk>(2, 0, 11, "wf_act_bot_talk");
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                BOX,
+                stringParam: "Frank",
+                stuffIds: [FURNI],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                2,
+                intParams: [0, -1, 0],
+                playerSources:
+                [
+                    [WiredPlayerSourceType.BotByName],
+                ],
+                stringParam: "Frank\treached",
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await Wired.OnRoomEventAsync(
+            new Turbo.Primitives.Rooms.Events.Wired.RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = Turbo.Primitives.Action.ActionContext.CreateForSystem(1),
+                StackIds = [_room.Map.ToIdx(0, 11)],
+            },
+            Ct
+        );
+
+        var now = 10_000L;
+
+        async Task<int> WalkToAsync(int x, int y)
+        {
+            (await _room.Harness.Module<RoomAvatarModule>().WalkAvatarToAsync(frank, x, y, Ct))
+                .Should()
+                .BeTrue();
+
+            for (var i = 0; i < 20; i++)
+            {
+                now += 500;
+                await _room.Harness.Room.AvatarTickSystem.ProcessAvatarsAsync(now, Ct);
+                await Wired.ProcessWiredAsync(now, dormant: false, Ct);
+            }
+
+            (frank.X, frank.Y).Should().Be((x, y));
+
+            return _room.Harness.Fakes.SentToRoom<ChatMessageComposer>().Count();
+        }
+
+        (await WalkToAsync(8, 1)).Should().Be(1);
+        (await WalkToAsync(4, 2)).Should().Be(2);
     }
 
     // action.21.B2 (onto the user's tile, 2/2) and action.21.R3 (effect 4 at the fire, set on the

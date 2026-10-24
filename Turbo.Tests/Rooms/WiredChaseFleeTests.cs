@@ -16,7 +16,7 @@ namespace Turbo.Tests.Rooms;
 /// (action.11.R3, 31 firings); an orthogonal neighbour is caught, no move (action.11.B1, 3/3).
 /// Flee steps away from a user 2 tiles away in line (action.12.R1, 8/8); with nobody in reach it
 /// keeps the way it last fled (action.12.R2, 15/15), turning when that way is blocked
-/// (action.12.R3, 5/5: blocked E went N); a neighbour is caught (action.12.B1, 3/3). Ours chased
+/// (action.12.B14, blocked E went N 5 / S 3 of 8); a neighbour is caught (action.12.B1, 3/3). Ours chased
 /// anyone anywhere in the room and fled only when someone was near.
 /// </summary>
 public sealed class WiredChaseFleeTests
@@ -157,22 +157,25 @@ public sealed class WiredChaseFleeTests
         Block().Should().Be((8, 5));
     }
 
-    // action.12.R3: the way it fled runs into the wall; it turns.
+    // action.12.R3 / B14: the way it fled runs into the map's edge; it turns a quarter to a
+    // random side, N 5 and S 3 of 8 wherever the user stood, never back (ours always turned N).
     [Fact]
-    public async Task Flee_turns_when_the_way_it_fled_is_blocked()
+    public async Task Flee_turns_to_a_random_side_when_the_way_it_fled_is_blocked()
     {
-        var user = _room.Enter(USER, 8, 5);
-        var flee = await PlaceAsync<WiredActionFleeHabbo>("wf_act_flee", 10, 5);
+        _room.Enter(USER, 3, 9);
+        var flee = await PlaceAsync<WiredActionFleeHabbo>("wf_act_flee", 11, 5);
+        var turnedTo = new HashSet<(int, int)>();
 
-        await RunAsync(flee);
+        for (var i = 0; i < 30; i++)
+        {
+            _room.Map.MoveFloorItem(_room.FloorItem(BLOCK), _room.Map.ToIdx(11, 5));
+            await flee.LoadWiredAsync(Ct);
+            await RunAsync(flee);
 
-        Block().Should().Be((11, 5));
+            turnedTo.Add(Block());
+        }
 
-        Relocate(user, 3, 9);
-
-        await RunAsync(flee);
-
-        Block().Should().Be((11, 4));
+        turnedTo.Should().BeEquivalentTo([(11, 4), (11, 6)]);
     }
 
     // action.12.B1

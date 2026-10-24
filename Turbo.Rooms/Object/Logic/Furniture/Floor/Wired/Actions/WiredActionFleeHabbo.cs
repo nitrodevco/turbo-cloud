@@ -18,10 +18,11 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 /// <summary>
 /// Moves the picked furni one tile away from the nearest player within reach on its row
 /// or column (<see cref="NOTICE_RANGE"/>). With nobody in reach it keeps going the way it last fled
-/// (east if it never fled), turning left when that way is blocked; an adjacent player is caught: no move, the collision
-/// trigger fires (official client capture 2026-10-24, W1 lab: away from a player 2 tiles off
-/// 8/8, the last way N 5/5 then E 10/10, also after the furni was moved by hand; blocked E ->
-/// N 5/5, left or away from a far player not separable; adjacent 3/3).
+/// (east if it never fled), turning a random quarter left or right when that way is blocked; an
+/// adjacent player is caught: no move, the collision trigger fires (official client capture
+/// 2026-10-24, W1 lab: away from a player 2 tiles off 8/8, the last way N 5/5 then E 10/10, also
+/// after the furni was moved by hand; blocked E at the map edge -> N 5 / S 3 of 8, whichever
+/// side the player stood, never back W (action.12.B14); adjacent 3/3).
 /// </summary>
 [RoomObjectLogic("wf_act_flee")]
 public class WiredActionFleeHabbo(
@@ -92,17 +93,19 @@ public class WiredActionFleeHabbo(
             }
             else
             {
-                // The way it last fled, then each way a quarter turn further left. A furni that
-                // never fled heads east (+x): a fresh box on a fresh block moved E first with
-                // nobody in line (official client capture 2026-10-24, W1 lab action.12.R11,
-                // 3/3 first moves, 11/11 moves).
+                // The way it last fled, then a quarter turn to a random side, then the other side,
+                // then back (back is inferred: Habbo never went back while a side was open). A
+                // furni that never fled heads east (+x): a fresh box on a fresh block moved E
+                // first with nobody in line (official client capture 2026-10-24, W1 lab
+                // action.12.R11, 3/3 first moves, 11/11 moves).
                 var heading = _headingByItemId.GetValueOrDefault(item.ObjectId, Rotation.East);
+                var side = Random.Shared.Next(2) == 0 ? -2 : 2;
 
                 candidates = [];
 
-                for (var turn = 0; turn < 4; turn++)
+                foreach (var turn in new[] { 0, side, -side, 4 })
                 {
-                    if (map.TryGetTileInFront(itemIdx, heading.Rotate(-2 * turn), out var next))
+                    if (map.TryGetTileInFront(itemIdx, heading.Rotate(turn), out var next))
                         candidates.Add(next);
                 }
             }

@@ -1546,8 +1546,12 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     /// In the random order Set Furni Altitude comes after the other effects: a furni moved and
     /// given an altitude in one firing always ended at that altitude, the altitude box below or
     /// above the mover (official client capture 2026-10-24, W1 lab action.29.X1, 16/16; the move
-    /// alone drops the furni to the target tile's top). Nothing is remembered until
-    /// <see cref="CommitPick"/>.
+    /// alone drops the furni to the target tile's top). Match Snapshot comes after the others too:
+    /// a lamp toggled and matched to its snapshot in one firing always ended in the snapshot's
+    /// state, the snapshot box below or above the toggle (official client capture 2026-10-24, W2
+    /// lab action.0.X1, 12/12 and W1 lab 6/6). Whether a snapshot goes before or after an altitude
+    /// box was not measured; it goes before, so the altitude still comes last. Nothing is
+    /// remembered until <see cref="CommitPick"/>.
     /// </summary>
     private WiredActionPick ChooseActions(
         List<IWiredAction> actions,
@@ -1561,16 +1565,23 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         {
             Random.Shared.Shuffle(CollectionsMarshal.AsSpan(pick.Actions));
 
-            var altitudes = pick.Actions.FindAll(x => x is WiredActionSetAltitude);
-
-            if (altitudes.Count > 0 && altitudes.Count < pick.Actions.Count)
-            {
-                pick.Actions.RemoveAll(x => x is WiredActionSetAltitude);
-                pick.Actions.AddRange(altitudes);
-            }
+            MoveToEnd<WiredActionMatchToSnapshot>(pick.Actions);
+            MoveToEnd<WiredActionSetAltitude>(pick.Actions);
         }
 
         return pick;
+    }
+
+    private static void MoveToEnd<T>(List<IWiredAction> actions)
+        where T : IWiredAction
+    {
+        var late = actions.FindAll(x => x is T);
+
+        if (late.Count == 0 || late.Count == actions.Count)
+            return;
+
+        actions.RemoveAll(x => x is T);
+        actions.AddRange(late);
     }
 
     private WiredActionPick PickActions(
