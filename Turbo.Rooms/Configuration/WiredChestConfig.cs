@@ -104,6 +104,16 @@ public class WiredChestConfig
     public int ContractReceiveTextMaxLength { get; init; } = 60;
     public int ContractRewardTextMaxLength { get; init; } = 200;
 
+    /// <summary>
+    /// Whether a player who may not trade (<see cref="Turbo.Primitives.Trading.IPlayerTradePolicy"/>:
+    /// no <c>trade</c> permission, or no trading pass where the hotel asks for one) is refused
+    /// every chest give, transaction and deposit with <c>WiredTransactionFail</c> 8, as Habbo
+    /// does, before the chests' contents are looked at (official client capture 2026-10-24: an
+    /// account without the pass, 13 of 13 gives, transactions and deposits). Off, wired chests
+    /// leave the trade rules aside.
+    /// </summary>
+    public bool RefuseWhoMayNotTrade { get; init; } = true;
+
     /// <summary>The most times one transaction may repeat its contract.</summary>
     public int MaxTransactionMultiplier { get; init; } = 500;
 

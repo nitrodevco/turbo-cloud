@@ -50,6 +50,9 @@ internal static class RoomSetup
     public static void UseWiredConfig(this RoomGrain room, WiredConfig config) =>
         Replace(room, nameof(RoomGrain._wiredConfig), config);
 
+    public static void UseWiredChestConfig(this RoomGrain room, WiredChestConfig config) =>
+        Replace(room, nameof(RoomGrain._wiredChestConfig), config);
+
     public static void UsePetConfig(this RoomGrain room, PetConfig config) =>
         Replace(room, nameof(RoomGrain._petConfig), config);
 

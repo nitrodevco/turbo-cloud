@@ -178,6 +178,29 @@ public class WiredChestRoomTests
     }
 
     [Fact]
+    public async Task A_player_who_may_not_trade_is_told_8_and_gets_no_deposit_window()
+    {
+        // Official client capture 2026-10-24 (wired matrix W7, 2 of 2): the chest's owner without
+        // the trading pass pressed "Start deposit" and got WiredTransactionFail 8, no window.
+        var (room, _) = CreateRoomWithChest();
+        AddPlayer(room, OWNER);
+        room.Fakes.Handlers["MayTradeAsync"] = _ => Task.FromResult(false);
+
+        await room.Room.InteractWithItemAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            CHEST,
+            new StartChestDepositInteraction(),
+            Ct
+        );
+
+        room.Fakes.Sent<WiredTransactionFailMessageComposer>(SendRoute.Direct)
+            .Select(x => x.FailureType)
+            .Should()
+            .Equal(WiredTransactionFailureType.UserCantTrade);
+        room.Fakes.Log.Of(nameof(IWiredTradeGrain.StartChestDepositAsync)).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Opening_a_chest_closes_the_one_the_player_had_open()
     {
         const int OTHER_CHEST = 8;

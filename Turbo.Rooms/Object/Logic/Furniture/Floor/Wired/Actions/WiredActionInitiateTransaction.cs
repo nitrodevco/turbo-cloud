@@ -9,6 +9,7 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -126,33 +127,66 @@ public class WiredActionInitiateTransaction(
     {
         var players = GetPlayers(WiredSlotSelection.ForUserSlot(this, ctx, SLOT_USERS));
 
-        if (players.Count == 0)
-            return false;
-
         var (contract, sourceId) = ResolveContract(ctx);
         var chestIds = WiredSlotSelection
             .ForSlot(this, ctx, SLOT_CHESTS)
             .SelectedFurniIds.Select(RoomObjectId.Parse)
             .ToImmutableArray();
-        var chests = WiredTransactionSystem.UsableChests(chestIds);
-        var failure =
-            contract is null ? WiredTransactionFailureType.Misconfig
-            : chests.Count == 0 ? WiredTransactionFailureType.NoOrLockedChests
-            : (WiredTransactionFailureType?)null;
+        var anyChest = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, SLOT_CHESTS))
+            .Any(x => x.Logic is FurnitureWiredChestLogic);
 
-        if (failure is { } refused || contract is null)
+        // Nothing picked, no chest, or a contract that cannot make a transaction: no transaction
+        // starts, so no player is told and Transaction Failed does not fire; only the room hears
+        // of it (official client capture 2026-10-24, wired matrix action.47.R1/R1b/B3). With no
+        // user it is inferred to be the same, as for the give boxes (action.45.R1).
+        if (
+            players.Count == 0
+            || contract is null
+            || !anyChest
+            || !WiredContractOffers.CanMakeTransaction(contract)
+        )
         {
-            foreach (var player in players)
-                await WiredTransactionSystem.FailAsync(
-                    player.PlayerId,
-                    sourceId,
-                    failure ?? WiredTransactionFailureType.Misconfig,
-                    notify: true,
-                    ct
-                );
+            WiredTransactionSystem.ReportMisconfigured();
 
             return false;
         }
+
+        var chests = WiredTransactionSystem.UsableChests(chestIds);
+
+        // Only locked chests: told as the give boxes tell it (action.45.B1); inferred for this box.
+        if (chests.Count == 0)
+        {
+            await WiredTransactionSystem.RefuseLockedChestsAsync(
+                players.Select(x => x.PlayerId),
+                ct
+            );
+
+            return false;
+        }
+
+        var givingAway = contract.Type != WiredContractType.Reward;
+        var traders = new List<IRoomPlayer>();
+
+        // The transaction started: a user who may not trade fails it with 8, which Transaction
+        // Failed hears, before whether the chests can cover it (action.47.B1/B4, 7 of 7).
+        foreach (var player in players)
+        {
+            if (await WiredTransactionSystem.MayTradeAsync(player.PlayerId, givingAway, ct))
+                traders.Add(player);
+            else
+                await WiredTransactionSystem.FailAsync(
+                    player.PlayerId,
+                    sourceId,
+                    WiredTransactionFailureType.UserCantTrade,
+                    notify: true,
+                    ct
+                );
+        }
+
+        if (traders.Count == 0)
+            return false;
+
+        players = traders;
 
         var mode = GetIntParamOrDefault(PARAM_MODE, TradeRequirementRulesType.Single);
         var multiplier = mode == TradeRequirementRulesType.Single ? 1 : ResolveMultiplier(ctx);

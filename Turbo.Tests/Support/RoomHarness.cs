@@ -59,6 +59,8 @@ public sealed class RoomHarness
         State = new RoomLiveState { RoomId = 1 };
         Room.UseState(State);
         Room.UseClock(Clock);
+        // Players may trade (IPlayerTradePolicy) unless a test says otherwise.
+        Fakes.Handlers["MayTradeAsync"] = _ => Task.FromResult(true);
 
         FillServices();
 

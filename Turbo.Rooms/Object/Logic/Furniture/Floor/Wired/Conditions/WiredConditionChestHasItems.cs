@@ -16,9 +16,9 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 /// <summary>
-/// Compares what the picked chests hold, together, with a number or a variable: furni in a
-/// furni chest, credits in a credit chest. Reads the counts the room already keeps, so it
-/// waits on nothing.
+/// Compares what each picked chest holds with a number or a variable: furni in a furni chest,
+/// credits in a credit chest. The quantifier folds the chests: all of them, or any one. Reads the
+/// counts the room already keeps, so it waits on nothing.
 /// <para>
 /// Int params, as the client's editor writes them: the number, the value-or-variable switch,
 /// the variable's target, and the comparison. Furni slot <see cref="ChestSlot"/> is the
@@ -43,6 +43,10 @@ public class WiredConditionChestHasItems(
     private const int MAX_VALUE = 1_000_000;
 
     public override int WiredCode => (int)WiredConditionType.CHEST_HAS_ITEMS;
+
+    // Both chest conditions open with the furni quantifier (official client capture 2026-10-24,
+    // quantifierType 1 on 6 of 6 opens).
+    protected override WiredQuantifierType QuantifierType => WiredQuantifierType.Furni;
 
     protected override bool AllowsWallFurni => true;
 
@@ -88,9 +92,6 @@ public class WiredConditionChestHasItems(
             .OfType<FurnitureWiredChestLogic>()
             .ToList();
 
-        if (chests.Count == 0)
-            return false;
-
         long reference = GetIntParamOrDefault(PARAM_VALUE, 0);
 
         if (GetIntParamOrDefault(PARAM_VALUE_IS_VARIABLE, false))
@@ -111,14 +112,28 @@ public class WiredConditionChestHasItems(
                 return false;
         }
 
-        return WiredComparison.Compare(
-            GetIntParamOrDefault(PARAM_COMPARISON, WiredComparisonType.GreaterThan),
-            chests.Sum(x => (long)Count(ctx, x)),
-            reference
+        var comparison = GetIntParamOrDefault(PARAM_COMPARISON, WiredComparisonType.GreaterThan);
+
+        return Quantify(
+            Counts(ctx, chests)
+                .Select(count => WiredComparison.Compare(comparison, count, reference)),
+            QuantifierRequiresAll
         );
     }
 
-    /// <summary>What one chest counts as holding.</summary>
-    protected virtual int Count(IWiredProcessingContext ctx, FurnitureWiredChestLogic chest) =>
-        chest.Kind == WiredChestKind.Coins ? chest.Summary.Coins : chest.Summary.ItemCount;
+    /// <summary>
+    /// The counts the quantifier folds: one per chest. With no chest picked "all" holds and "any"
+    /// does not, whatever the comparison, while a picked empty chest counts 0 (official client
+    /// capture 2026-10-24, wired matrix condition.45.R1 8 of 8, R1b 8 of 8). That each chest is
+    /// compared alone, not their sum, is inferred from the quantifier: one chest was recorded.
+    /// </summary>
+    protected virtual IEnumerable<long> Counts(
+        IWiredProcessingContext ctx,
+        List<FurnitureWiredChestLogic> chests
+    ) =>
+        chests.Select(chest =>
+            (long)(
+                chest.Kind == WiredChestKind.Coins ? chest.Summary.Coins : chest.Summary.ItemCount
+            )
+        );
 }

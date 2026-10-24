@@ -164,6 +164,19 @@ public abstract class FurnitureWiredChestLogic(
                 if (!await CanDepositAsync(ctx))
                     return Reject(ctx, interaction, "may not deposit");
 
+                // Habbo answers a player who may not trade with 8 and opens no window
+                // (official client capture 2026-10-24, the chest's owner without the pass, 2 of 2).
+                if (!await WiredTransactionSystem.MayTradeAsync(ctx.PlayerId, true, ct))
+                {
+                    await WiredTransactionSystem.TellFailureAsync(
+                        ctx.PlayerId,
+                        WiredTransactionFailureType.UserCantTrade,
+                        ct
+                    );
+
+                    return false;
+                }
+
                 // A tell: the trade grain awaits this room when the deposit is confirmed.
                 _roomGrain
                     ._grainFactory.GetWiredTradeGrain(ctx.PlayerId)
