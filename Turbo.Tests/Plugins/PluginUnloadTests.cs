@@ -1,6 +1,7 @@
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -36,7 +37,8 @@ public sealed class PluginUnloadTests : IDisposable
         "turbo-plugin-unload-" + Guid.NewGuid().ToString("N")
     );
 
-    private readonly CapturingLogger<PluginManager> _log = new();
+    // The errors' text only, as a server's log keeps them: one thrown in a plugin's code holds it.
+    private readonly CapturingLogger<PluginManager> _log = new(keepExceptions: false);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -132,6 +134,51 @@ public sealed class PluginUnloadTests : IDisposable
     }
 
     [Fact]
+    public async Task A_plugin_that_fails_to_start_stops_what_it_started_and_unloads()
+    {
+        var events = new List<string>();
+        var host = new ServiceCollection().AddSingleton(events).BuildServiceProvider();
+
+        PluginBuilder.Write(_folder, "starts", FAILS_TO_START);
+
+        var manager = new PluginManager(
+            host,
+            new AssemblyProcessor([]),
+            Options.Create(
+                new PluginConfig
+                {
+                    PluginFolderPath = _folder,
+                    UnloadWaitMs = 0,
+                    UnloadMinCollections = 50,
+                }
+            ),
+            _log
+        );
+
+        await manager.LoadAllAsync(ct: Ct);
+
+        var status = manager.Snapshot().Single();
+
+        status.State.Should().Be(PluginStateType.Failed);
+        status.Error.Should().Contain("cannot start");
+
+        // As the server stops: the wait for the failed load's context is done by then.
+        await manager.UnloadAllAsync(Ct);
+
+        // Its hosted service ran on, and its context was never unloaded: only a live plugin's was.
+        events.Should().Equal("started", "stopped");
+        Loaded("starts").Should().Be(0);
+        _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
+    }
+
+    /// <summary>The plugin contexts not asked to unload that hold an assembly of this name.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static int Loaded(string assembly) =>
+        AssemblyLoadContext
+            .All.OfType<ByteLoadingAlc>()
+            .Count(x => x.Assemblies.Any(a => a.GetName().Name == assembly));
+
+    [Fact]
     public async Task A_context_freed_a_step_per_collection_is_waited_for_however_long_they_take()
     {
         // Like the methods generated for a plugin's types: a finalizer per collection lets go.
@@ -175,6 +222,38 @@ public sealed class PluginUnloadTests : IDisposable
                 held.Free();
         }
     }
+
+    /// <summary>A plugin whose hosted service starts and whose own start then throws.</summary>
+    private const string FAILS_TO_START = """
+        using System;
+        using System.Collections.Generic;
+        using System.Threading;
+        using System.Threading.Tasks;
+        using Microsoft.Extensions.DependencyInjection;
+        using Microsoft.Extensions.Hosting;
+        using Turbo.Contracts.Plugins;
+        using Turbo.Contracts.Plugins.Exports;
+
+        public sealed class StartsPlugin : ITurboPlugin
+        {
+            public string Key => "starts";
+            public string Version => "1.0.0";
+            public void ConfigureServices(IServiceCollection services, PluginManifest manifest) =>
+                services.AddHostedService(sp => new Ticker(
+                    sp.GetRequiredService<IHostServices>().GetRequiredService<List<string>>()));
+            public Task StartAsync(IServiceProvider services, CancellationToken ct) =>
+                throw new InvalidOperationException("The plugin cannot start.");
+            public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
+            public Task BindExportsAsync(IExportBinder binder, IServiceProvider services) => Task.CompletedTask;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+
+        public sealed class Ticker(List<string> events) : IHostedService
+        {
+            public Task StartAsync(CancellationToken ct) { events.Add("started"); return Task.CompletedTask; }
+            public Task StopAsync(CancellationToken ct) { events.Add("stopped"); return Task.CompletedTask; }
+        }
+        """;
 
     /// <summary>A plugin with tables of its own: its context's model is built as it starts.</summary>
     private const string STORED = """

@@ -11,6 +11,7 @@ namespace Turbo.Rooms.Providers;
 public sealed class RoomWiredVariablesProvider(IServiceProvider host) : IRoomWiredVariablesProvider
 {
     private readonly IServiceProvider _host = host;
+    private readonly IServiceProvider _hostForPlugins = new PluginHostServiceProvider(host);
     private readonly List<WiredVariableReg> _variables = [];
 
     public IDisposable RegisterVariable(
@@ -32,7 +33,7 @@ public sealed class RoomWiredVariablesProvider(IServiceProvider host) : IRoomWir
             var sp = reg.ServiceProvider;
 
             if (sp != _host)
-                sp = new CompositeServiceProvider(sp, _host);
+                sp = new CompositeServiceProvider(sp, _hostForPlugins);
 
             yield return reg.Factory(sp, roomGrain);
         }

@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.IO;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Orleans.Serialization;
@@ -48,6 +49,7 @@ namespace Turbo.Tests.Plugins;
 public sealed class PluginMessageTests : IDisposable
 {
     private const int PLAYER = 103;
+    private const string LEAK = "did not unload";
 
     private readonly string _folder = Path.Combine(
         Path.GetTempPath(),
@@ -56,6 +58,7 @@ public sealed class PluginMessageTests : IDisposable
     private readonly Fakes _fakes = new();
     private readonly ExtensionPacketRegistry _extensions = new();
     private readonly PluginMessageDirectory _directory;
+    private readonly CapturingLogger<PluginManager> _log = new();
 
     public PluginMessageTests()
     {
@@ -328,6 +331,7 @@ public sealed class PluginMessageTests : IDisposable
         sent.Should().HaveCount(2);
         sent[0].Messages.Should().HaveCount(3);
         sent[1].Messages.Should().BeEmpty("the whole set, without the plugin's");
+        _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
 
         await broadcast.StopAsync(Ct);
     }
@@ -353,6 +357,8 @@ public sealed class PluginMessageTests : IDisposable
         _extensions.HasHeader(32767).Should().BeFalse("no header was kept for the refused load");
 
         await manager.UnloadAllAsync(Ct);
+
+        _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
     }
 
     // ---- Sending ----
@@ -593,8 +599,11 @@ public sealed class PluginMessageTests : IDisposable
                     HostServices()
                 ),
             ]),
-            Options.Create(new PluginConfig { PluginFolderPath = _folder }),
-            NullLogger<PluginManager>.Instance
+            // A context still held after 50 collections is a leak, however slow the machine.
+            Options.Create(
+                new PluginConfig { PluginFolderPath = _folder, UnloadMinCollections = 50 }
+            ),
+            _log
         );
 
     private async Task<LoadedHotel> LoadSkillsAsync()
@@ -665,7 +674,13 @@ public sealed class PluginMessageTests : IDisposable
             ];
         }
 
-        public async ValueTask DisposeAsync() => await manager.UnloadAllAsync(Ct);
+        public async ValueTask DisposeAsync()
+        {
+            // The test's own hold on the plugin's types goes first: it is not the host's.
+            test._loadedTypes.Clear();
+
+            await manager.UnloadAllAsync(Ct);
+        }
 
         private static RevisionManager Revisions(Fakes fakes)
         {

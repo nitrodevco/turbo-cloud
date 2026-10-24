@@ -33,6 +33,7 @@ public sealed class RoomObjectLogicProvider(
     private const string WIRED_CLASSNAME_PREFIX = "wf_";
 
     private readonly IServiceProvider _host = host;
+    private readonly IServiceProvider _hostForPlugins = new PluginHostServiceProvider(host);
     private readonly ILogger<IRoomObjectLogicProvider> _logger = logger;
     private readonly ConcurrentDictionary<string, RoomObjectLogicReg> _logics = [];
     private readonly RoomConfig _roomConfig = roomConfig.Value;
@@ -160,7 +161,7 @@ public sealed class RoomObjectLogicProvider(
         var sp = reg.ServiceProvider;
 
         if (sp != _host)
-            sp = new CompositeServiceProvider(sp, _host);
+            sp = new CompositeServiceProvider(sp, _hostForPlugins);
 
         var logic = reg.Factory(sp, ctx);
 

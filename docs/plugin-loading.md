@@ -30,8 +30,14 @@ public sealed class HelloCommand(IGrainFactory grains, ILogger<HelloCommand> log
 }
 ```
 
-A service the plugin registers itself wins over the host's of the same type. Two host services are
-handed out per plugin and are only right through `IHostServices` (from `StartAsync` or a factory in
+A service the plugin registers itself wins over the host's of the same type. A type of the plugin's
+own, or one built from it (`IOptions<ItsSettings>`, `IEnumerable<IItsThing>`), is never asked of
+the host: the host's container keeps every type it is asked for, found or not, for as long as the
+server runs, and with it the plugin's whole assembly. Register such a service in `ConfigureServices`
+(its settings with `services.AddOptions<T>()`); one not registered is not there, so an optional
+constructor parameter of it gets its default.
+
+Two host services are handed out per plugin and are only right through `IHostServices` (from `StartAsync` or a factory in
 `ConfigureServices`): `IExtensionPacketRegistry` (it notes the plugin's headers for the admin panel)
 and `IClientModuleRegistry` (it serves the plugin's own folder). The plugin's `StartAsync` and
 `BindExportsAsync` get its own container only; reach a host service there with
@@ -65,9 +71,9 @@ is marked **Failed** with the reason, which the admin panel's plugin list shows,
 the rest of the plugins carry on. A plugin that depends on it is marked Failed too ("dependency
 inactive") and is loaded again with it once it loads.
 
-A failed load leaves nothing of the plugin behind: what it registered in steps 3 to 5 is taken back
-and its assembly context unloaded, so loading it again once fixed (an upload, a reload, a rescan)
-does not find its commands or permission nodes registered twice. A failed new version of a plugin
+A failed load leaves nothing of the plugin behind: what it registered in steps 3 to 5 is taken back,
+the hosted services it started are stopped and its assembly context unloaded, whichever step failed,
+so loading it again once fixed (an upload, a reload, a rescan) does not find its commands or permission nodes registered twice. A failed new version of a plugin
 does not keep the old one running: the old version was stopped to make way for it. The panel's
 upload puts the kept earlier version back when the new one fails.
 
