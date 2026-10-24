@@ -4,6 +4,7 @@ using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains.Modules;
@@ -113,14 +114,89 @@ public sealed class WiredGiveVariableTests
             );
     }
 
-    private async Task<WiredVariableUser> PlaceMarkAsync()
+    // action.39.B2 / variable.1.B2: a delayed Give Variable (override on) whose user left the
+    // room before the delay ended gives nothing: after re-entering, the permanent variable still
+    // holds its old value and the while-in-room one is gone (official client capture 2026-10-24,
+    // WIN63-202610201032, 2/2). Ours made the while-in-room value a store of its own again under
+    // the room index the user had left, which the next avatar given that index read.
+    [Theory]
+    [InlineData(WiredAvailabilityType.UserActive, null)]
+    [InlineData(WiredAvailabilityType.Persistent, 7L)]
+    public async Task Action39B2_AGiveReachingAUserWhoLeftIsLost(
+        WiredAvailabilityType availability,
+        long? afterReentry
+    )
+    {
+        var mark = await PlaceMarkAsync(availability);
+        var give = _room.AddBox<WiredActionGiveVariable>(BOX, 0, 0, "wf_act_give_var");
+        var key = new WiredVariableKey(
+            mark.GetVarSnapshot().VariableId,
+            WiredVariableTargetType.User,
+            PLAYER_INDEX
+        );
+
+        async Task GiveAsync(int value)
+        {
+            (
+                await _room.SaveAsync<UpdateActionMessage>(
+                    BOX,
+                    intParams: [(int)WiredVariableTargetType.User, 0, value, 1],
+                    definitionSpecifics: [0],
+                    variableIds: [mark.GetVarSnapshot().VariableId.ToString()]
+                )
+            )
+                .Should()
+                .BeTrue();
+
+            // The user the box picked when it fired, still in the selection after the delay.
+            var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
+
+            ctx.Selected.SelectedAvatarIds.Add(PLAYER_INDEX);
+            await give.ExecuteAsync(ctx, Ct);
+        }
+
+        await GiveAsync(7);
+
+        var avatar = _room.Avatars[PLAYER_INDEX];
+
+        _room.Map.RemoveAvatar(avatar, false);
+        _room.Harness.State.AvatarsByObjectId.Remove(PLAYER_INDEX);
+        _room.Harness.State.AvatarsByPlayerId.Remove(avatar.PlayerId);
+        await _room
+            .Harness.Module<RoomWiredSystem>()
+            .OnRoomEventAsync(
+                new PlayerLeftEvent
+                {
+                    RoomId = 1,
+                    CausedBy = ActionContext.CreateForSystem(1),
+                    PlayerId = avatar.PlayerId,
+                    ObjectId = PLAYER_INDEX,
+                },
+                Ct
+            );
+
+        await GiveAsync(17);
+        _room.Enter(PLAYER_INDEX, 1, 1);
+
+        if (afterReentry is { } kept)
+        {
+            mark.TryGetValue(key, out var value).Should().BeTrue();
+            value.Should().Be(new WiredVariableValue(kept));
+        }
+        else
+            mark.TryGetValue(key, out _).Should().BeFalse();
+    }
+
+    private async Task<WiredVariableUser> PlaceMarkAsync(
+        WiredAvailabilityType availability = WiredAvailabilityType.UserActive
+    )
     {
         _room.Enter(PLAYER_INDEX, 1, 1);
         var mark = _room.AddBox<WiredVariableUser>(MARK, 6, 6, "wf_var_user");
         (
             await _room.SaveAsync<UpdateVariableMessage>(
                 MARK,
-                intParams: [(int)WiredAvailabilityType.UserActive, 1],
+                intParams: [(int)availability, 1],
                 stringParam: "mark"
             )
         )

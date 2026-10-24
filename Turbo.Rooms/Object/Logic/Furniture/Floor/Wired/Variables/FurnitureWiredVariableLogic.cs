@@ -893,7 +893,10 @@ public abstract class FurnitureWiredVariableLogic
     /// variable is otherwise keyed by is handed out afresh each time they enter, so a value kept
     /// under it was lost when they left and found by whoever got that index next. A pet or bot
     /// has no id of its own that cannot collide with a player's, so its values stay in the
-    /// room-active store and last as long as it is in the room.
+    /// room-active store and last as long as it is in the room. A user who is not in the room has
+    /// no store here: a delayed Give Variable reaching a user who left before it ran is lost,
+    /// a permanent value keeps what it held and one held while in the room is not given (official
+    /// client capture 2026-10-24, WIN63-202610201032, action.39.B2 2/2).
     /// </summary>
     private bool TryGetStore(
         WiredVariableKey key,
@@ -910,20 +913,21 @@ public abstract class FurnitureWiredVariableLogic
             return true;
         }
 
-        if (_storage is not null)
+        store = null;
+        IRoomAvatar? avatar = null;
+
+        if (
+            key.TargetType == WiredVariableTargetType.User
+            && !AvatarModule.TryGetAvatar(RoomObjectId.Parse(key.TargetId), out avatar)
+        )
+            return false;
+
+        if (_storage is not null && avatar is IRoomPlayer player)
         {
-            store = null;
+            storedKey = key with { TargetId = player.PlayerId.Value };
+            store = _storage;
 
-            if (!AvatarModule.TryGetAvatar(RoomObjectId.Parse(key.TargetId), out var avatar))
-                return false;
-
-            if (avatar is IRoomPlayer player)
-            {
-                storedKey = key with { TargetId = player.PlayerId.Value };
-                store = _storage;
-
-                return true;
-            }
+            return true;
         }
 
         return WiredSystem.TryGetStoreForKey(key, out store);
