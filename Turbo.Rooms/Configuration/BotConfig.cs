@@ -21,8 +21,11 @@ public class BotConfig
     public int FreeRoamMaxIntervalMs { get; init; } = 15000;
     public int FreeRoamMaxDistance { get; init; } = 6;
 
-    /// <summary>Chat bubble style bots speak with.</summary>
-    public int ChatStyleId { get; init; } = 2;
+    /// <summary>
+    /// Chat bubble style bots speak with: 31 on Habbo, for every bot Chat, Shout and Whisper and
+    /// the placement greeting (official client capture 2026-10-24, W8 labs, 100+ packets).
+    /// </summary>
+    public int ChatStyleId { get; init; } = 31;
 
     /// <summary>Skills every player-owned bot offers in its menu.</summary>
     public BotSkillType[] Skills { get; init; } =

@@ -32,6 +32,12 @@ public interface IRoomBot : IRoomAvatar<IRoomBot, IRoomBotLogic, IRoomBotContext
     /// <summary>The avatar the bot is taking the hand item it carries to, or -1.</summary>
     public RoomObjectId HandOverObjectId { get; set; }
 
+    /// <summary>
+    /// The avatar the bot last arrived beside while following it, or -1 once it walks after it
+    /// again: Bot Reached Avatar fires once per arrival.
+    /// </summary>
+    public RoomObjectId ReachedObjectId { get; set; }
+
     public void SetName(string name);
     public void SetMotto(string motto);
     public void SetFigure(string figure, AvatarGenderType gender);
