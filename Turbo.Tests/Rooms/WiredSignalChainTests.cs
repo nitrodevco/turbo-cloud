@@ -28,6 +28,7 @@ public sealed class WiredSignalChainTests
     private const int WALK_ON = 20;
     private const int ANTENNA = 21;
     private const int TARGET = 22;
+    private const int OTHER_ANTENNA = 24;
 
     private readonly WiredRoom _room = new(8, 8);
     private long _now = 10_000;
@@ -45,6 +46,7 @@ public sealed class WiredSignalChainTests
         _room.AddFloorItem(CLICK_ME, 7, 4);
         _room.AddFloorItem(ANTENNA, 6, 1, "wf_antenna1");
         _room.AddFloorItem(TARGET, 5, 5);
+        _room.AddFloorItem(OTHER_ANTENNA, 6, 2, "wf_antenna2");
     }
 
     [Fact]
@@ -158,6 +160,42 @@ public sealed class WiredSignalChainTests
         _room.Positions().Should().Equal("5@1,1", "6@1,3", "7@3,1");
     }
 
+    // trigger.17.E4: the receiver's antennas may come from its stack's selectors (official client
+    // capture: a fresh box offers furni [[100,200,201]], default [100]).
+    [Fact]
+    public async Task Trigger17E4_TheReceiverListensOnTheAntennaItsSelectorPicks()
+    {
+        await BuildSenderAsync(sendersUsers: WiredPlayerSourceType.SelectorUsers);
+        await BuildReceiverAsync(
+            receiversUsers: WiredPlayerSourceType.SignalUsers,
+            antennaSource: WiredFurniSourceType.SelectorItems,
+            selectorAntenna: ANTENNA
+        );
+        await StartAsync();
+
+        await WalkOntoAsync(5);
+        await TickAsync(6);
+
+        _room.Positions().Should().Equal("5@5,5", "6@5,5", "7@5,5");
+    }
+
+    [Fact]
+    public async Task Trigger17E4_TheReceiverIgnoresASignalToAnAntennaItsSelectorDoesNotPick()
+    {
+        await BuildSenderAsync(sendersUsers: WiredPlayerSourceType.SelectorUsers);
+        await BuildReceiverAsync(
+            receiversUsers: WiredPlayerSourceType.SignalUsers,
+            antennaSource: WiredFurniSourceType.SelectorItems,
+            selectorAntenna: OTHER_ANTENNA
+        );
+        await StartAsync();
+
+        await WalkOntoAsync(5);
+        await TickAsync(6);
+
+        _room.Positions().Should().Equal("5@6,6", "6@1,3", "7@3,1");
+    }
+
     [Fact]
     public async Task NothingHappens_WhenNobodyWalksOntoTheFurni()
     {
@@ -234,19 +272,43 @@ public sealed class WiredSignalChainTests
         ).Should().BeTrue();
     }
 
-    /// <summary>Stack two, on tile (0,4): receives the signal, teleports users onto the target.</summary>
-    private async Task BuildReceiverAsync(WiredPlayerSourceType receiversUsers)
+    /// <summary>
+    /// Stack two, on tile (0,4): receives the signal, teleports users onto the target. The
+    /// receiver listens on the antenna it picked, or on the one a "furni picks" selector picks.
+    /// </summary>
+    private async Task BuildReceiverAsync(
+        WiredPlayerSourceType receiversUsers,
+        WiredFurniSourceType antennaSource = WiredFurniSourceType.SelectedItems,
+        int selectorAntenna = ANTENNA
+    )
     {
         _room.AddBox<WiredTriggerReceiveSignal>(4, 0, 4, "wf_trg_recv_signal");
         _room.AddBox<WiredActionTeleportTo>(5, 0, 4, "wf_act_teleport_to");
 
+        if (antennaSource == WiredFurniSourceType.SelectorItems)
+        {
+            _room.AddBox<WiredSelectorSelectedItems>(6, 0, 4, "wf_slc_furni_picks");
+
+            (
+                await _room.SaveAsync<UpdateSelectorMessage>(
+                    6,
+                    stuffIds: [selectorAntenna],
+                    furniSources:
+                    [
+                        [WiredFurniSourceType.SelectedItems],
+                    ],
+                    definitionSpecifics: [false, false]
+                )
+            ).Should().BeTrue();
+        }
+
         (
             await _room.SaveAsync<UpdateTriggerMessage>(
                 4,
-                stuffIds: [ANTENNA],
+                stuffIds: antennaSource == WiredFurniSourceType.SelectedItems ? [ANTENNA] : [],
                 furniSources:
                 [
-                    [WiredFurniSourceType.SelectedItems],
+                    [antennaSource],
                 ]
             )
         ).Should().BeTrue();
