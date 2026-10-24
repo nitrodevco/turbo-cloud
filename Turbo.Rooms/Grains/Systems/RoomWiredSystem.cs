@@ -294,8 +294,20 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         {
             await start();
 
-            while (!execution.IsStopped && execution.Ready.TryDequeue(out var next))
+            while (!execution.IsStopped)
             {
+                // What the last chain's effects changed reaches the stacks watching it before
+                // the next chain runs, as a signal's receivers do.
+                if (execution.TryTakeRaised(out var raised))
+                {
+                    await ProcessRoomEventAsync(raised, now, ct);
+
+                    continue;
+                }
+
+                if (!execution.Ready.TryDequeue(out var next))
+                    break;
+
                 if (await ExecuteStackChainAsync(next.Key, next.Pending, now, ct))
                     _pendingStackExecutions.Remove(next.Key);
             }
@@ -412,6 +424,13 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 ForgetProjectileFlight(detatchedEvt.ObjectId);
                 ForgetTimedTrigger(detatchedEvt.ObjectId);
                 ForgetFurniVisualization(detatchedEvt.ObjectId);
+                break;
+            // A furni state or variable value an effect changed is delivered inside the
+            // execution that changed it, where the stacks it fires count their visits.
+            case not null
+                when _execution is { IsStopped: false } running
+                    && _stackIdsByEventType.ContainsKey(evt.GetType()):
+                running.Raise(evt);
                 break;
             default:
                 QueueEvent(evt);
@@ -623,10 +642,15 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         )
             return;
 
-        if (
+        // Every run counts as a visit of its stack; a signal, a call or a change an effect of
+        // this execution made is dropped past the limit. The run that started it counts too: a
+        // stack toggling the furni its own trigger watches ran 100 times in all, the hand's use
+        // that started it included (official client capture 2026-10-24, WIN63-202610201032).
+        var reentry =
             ctx.Event is WiredSignalEvent or WiredStackCalledEvent
-            && !TryVisitReceiver(ctx.Stack.StackId, now)
-        )
+            || _execution?.WasRaisedInIt(ctx.Event) == true;
+
+        if (!TryVisitStack(ctx.Stack.StackId, now, reentry))
             return;
 
         if (_execution is { } execution)
@@ -977,12 +1001,13 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     }
 
     /// <summary>
-    /// Counts a signal or stack call running a stack; false once the stack had
-    /// <c>WiredConfig.MaxStackVisitsPerWindow</c> of them in the current window. Windows are fixed
+    /// Counts a run of a stack; false for a <paramref name="reentry"/> (a signal, a stack call or
+    /// a change made inside the execution) once the stack had
+    /// <c>WiredConfig.MaxStackVisitsPerWindow</c> runs in the current window. Windows are fixed
     /// <c>StackVisitWindowMs</c> slices of room time, so a chain that used up a stack's visits runs
     /// again in the next one and a delay of half a second always finds fresh visits.
     /// </summary>
-    private bool TryVisitReceiver(int stackId, long now)
+    private bool TryVisitStack(int stackId, long now, bool reentry)
     {
         var limit = WiredConfig.MaxStackVisitsPerWindow;
 
@@ -1000,7 +1025,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         _visitsByStackId.TryGetValue(stackId, out var visits);
 
-        if (visits >= limit)
+        if (reentry && visits >= limit)
             return false;
 
         _visitsByStackId[stackId] = visits + 1;

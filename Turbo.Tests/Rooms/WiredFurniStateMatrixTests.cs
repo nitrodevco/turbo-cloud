@@ -14,6 +14,7 @@ using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
@@ -542,6 +543,59 @@ public sealed class WiredFurniStateMatrixTests
             .Any(x => x.ObjectId == chair.ObjectId)
             .Should()
             .Be(fires);
+    }
+
+    // action.0.B2 / trigger.4.B2: an open gate with a user standing in it is neither closed by
+    // wired (no state update, the box still flashes) nor by a use; an empty one toggles
+    // (official client capture 2026-10-24, WIN63-202610201032, bc_gothic: empty 3/3, user inside
+    // 0/2, use from inside 0/2). Ours closed it on the user.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Action0B2_AGateWithAUserInItIsNotToggled(bool userInside)
+    {
+        const int GATE = 33;
+        const int EFFECT = 2;
+        const int AVATAR = 5;
+        const int OPEN = 1;
+
+        var gate = _room.AddFloorItem(
+            GATE,
+            3,
+            3,
+            createLogic: (stuffData, ctx) => new FurnitureGateLogic(stuffData, ctx)
+        );
+
+        await gate.Logic.SetStateAsync(OPEN);
+        _room.Enter(AVATAR, 3, userInside ? 3 : 4);
+        var toggle = _room.AddBox<WiredActionToggleItemState>(EFFECT, 0, 0, "wf_act_toggle_state");
+
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                EFFECT,
+                intParams: [0],
+                stuffIds: [GATE],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+
+        var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
+
+        await toggle.ExecuteAsync(ctx, Ct);
+
+        gate.Logic.GetState().Should().Be(userInside ? OPEN : 0);
+        ctx.FloorItemStateUpdates.Should().HaveCount(userInside ? 0 : 1);
+
+        if (!userInside)
+            return;
+
+        await _room.Harness.Room.UseItemByIdAsync(_room.ContextFor(AVATAR), GATE, Ct);
+
+        gate.Logic.GetState().Should().Be(OPEN, "a use from inside changes nothing either");
     }
 
     // condition.0.E13 / action.3.E13: the snapshot boxes write their snapshot into the editor's

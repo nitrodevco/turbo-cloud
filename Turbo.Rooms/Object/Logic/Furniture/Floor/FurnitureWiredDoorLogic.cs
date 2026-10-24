@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
@@ -39,10 +38,4 @@ public class FurnitureWiredDoorLogic(IStuffDataFactory stuffDataFactory, IRoomFl
 
         await base.OnUseAsync(ctx, param, ct);
     }
-
-    private bool IsStoodOn() =>
-        FloorFootprint
-            .Of(_ctx.RoomObject)
-            .Tiles()
-            .Any(tile => AvatarModule.GetAvatarsOnTile(MapModule.ToIdx(tile.X, tile.Y)).Any());
 }

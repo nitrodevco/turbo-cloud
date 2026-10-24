@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
@@ -74,6 +75,13 @@ public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorI
 
         return FloorFootprint.Of(_ctx.RoomObject).IsOnOrNextTo(avatar.X, avatar.Y);
     }
+
+    /// <summary>Whether a user, bot or pet stands on one of this item's tiles.</summary>
+    protected bool IsStoodOn() =>
+        FloorFootprint
+            .Of(_ctx.RoomObject)
+            .Tiles()
+            .Any(tile => AvatarModule.GetAvatarsOnTile(MapModule.ToIdx(tile.X, tile.Y)).Any());
 
     public virtual Task OnWalkOnAsync(IRoomAvatarContext ctx, CancellationToken ct) =>
         _ctx.PublishRoomEventAsync(
