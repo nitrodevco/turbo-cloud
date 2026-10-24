@@ -127,8 +127,8 @@ public sealed class WiredFurniStateMatrixTests
     }
 
     // condition.8 quantifier: the furni to match (slot 0) are lamp A and a chair, the furni to
-    // compare with (slot 1) another lamp of A's kind. Habbo's default (code 0) is "all of the furni
-    // match"; ours always took "any".
+    // compare with (slot 1) lamp A. Habbo's default (code 0) is "all of the furni match"; ours
+    // always took "any". (Slot 0's picks read both pick lists, so lamp A is picked there too.)
     [Theory]
     [InlineData(false, QUANTIFIER_ALL, false)]
     [InlineData(false, QUANTIFIER_ANY, true)]
@@ -140,11 +140,9 @@ public sealed class WiredFurniStateMatrixTests
         bool passes
     )
     {
-        const int LAMP_KIND = 500;
         const int CHAIR = 32;
 
-        _room.AddFloorItem(LAMP_A, 3, 3, definitionId: LAMP_KIND);
-        _room.AddFloorItem(LAMP_B, 4, 4, definitionId: LAMP_KIND);
+        _room.AddFloorItem(LAMP_A, 3, 3);
         _room.AddFloorItem(CHAIR, 5, 5);
 
         var condition = negative
@@ -155,7 +153,7 @@ public sealed class WiredFurniStateMatrixTests
             await _room.SaveAsync<UpdateConditionMessage>(
                 BOX,
                 stuffIds: [LAMP_A, CHAIR],
-                stuffIds2: [LAMP_B],
+                stuffIds2: [LAMP_A],
                 furniSources:
                 [
                     [WiredFurniSourceType.SelectedItems],
@@ -166,6 +164,41 @@ public sealed class WiredFurniStateMatrixTests
         ).Should().BeTrue();
 
         condition.Evaluate(Context()).Should().Be(passes);
+    }
+
+    // condition.8.R5: "Furni Matches" compares the furni themselves. The triggering lamp matches
+    // a pick list holding it, and not one holding another lamp of the same kind (official client
+    // capture 2026-10-24: same furni 4/4 true, another furni of the same kind, colour, state and
+    // direction 8/8 false). Ours compared the kind.
+    [Theory]
+    [InlineData(LAMP_A, true)]
+    [InlineData(LAMP_B, false)]
+    public async Task Furni_matches_compares_the_furni_not_its_kind(int picked, bool passes)
+    {
+        const int LAMP_KIND = 500;
+
+        _room.AddFloorItem(LAMP_A, 3, 3, definitionId: LAMP_KIND);
+        _room.AddFloorItem(LAMP_B, 4, 4, definitionId: LAMP_KIND);
+
+        var condition = _room.AddBox<WiredConditionItemPerType>(BOX, 0, 0, "wf_cnd_stuff_is");
+
+        (
+            await _room.SaveAsync<UpdateConditionMessage>(
+                BOX,
+                stuffIds: [picked],
+                furniSources:
+                [
+                    [WiredFurniSourceType.TriggeredItem],
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [QUANTIFIER_ALL]
+            )
+        ).Should().BeTrue();
+
+        var ctx = Context();
+        ctx.Selected.SelectedFurniIds.Add(LAMP_A);
+
+        condition.Evaluate(ctx).Should().Be(passes);
     }
 
     // action.15.R3: the random draw may be the furni's current state (measured 5 of 12 draws on a

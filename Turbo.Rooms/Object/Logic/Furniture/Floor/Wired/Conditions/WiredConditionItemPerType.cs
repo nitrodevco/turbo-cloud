@@ -11,9 +11,12 @@ using Turbo.Rooms.Wired;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
 /// <summary>
-/// True when the furni to match (slot 0, the triggering furni by default) are of the type of one
-/// of the furni to compare with (slot 1, the picks by default): <c>sources.furni.title.match.0/1</c>
+/// "Furni Matches": true when the furni to match (slot 0, the triggering furni by default) are
+/// among the furni to compare with (slot 1, the picks by default): <c>sources.furni.title.match.0/1</c>
 /// (AS3 <c>StuffTypeMatches.furniSelectionTitle</c>), official client capture of the box's sources.
+/// It compares the furni themselves, not their kind: on Habbo a furni matched itself 4 of 4 times
+/// and another furni of the same kind, colour, state and direction 0 of 8 times (official client
+/// capture 2026-10-24, wired lab, build WIN63-202610201032).
 /// </summary>
 [RoomObjectLogic("wf_cnd_stuff_is")]
 public class WiredConditionItemPerType(
@@ -41,27 +44,21 @@ public class WiredConditionItemPerType(
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
-        var wantedDefinitions = new HashSet<int>();
+        var compareWith = Existing(WiredSlotSelection.ForSlot(this, ctx, 1)).ToHashSet();
 
-        foreach (var id in WiredSlotSelection.ForSlot(this, ctx, 1).SelectedFurniIds)
-        {
-            if (TryGetFloorItem(id, out var picked))
-                wantedDefinitions.Add(picked.Definition.Id);
-        }
-
-        if (wantedDefinitions.Count == 0)
+        if (compareWith.Count == 0)
             return false;
 
-        var subjects = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0));
+        var subjects = Existing(WiredSlotSelection.ForSlot(this, ctx, 0)).ToList();
 
         // No furni to match is no match whatever the quantifier (inference: the measured
         // empty-set rule covers the variable conditions only).
         if (subjects.Count == 0)
             return false;
 
-        return Quantify(
-            subjects.Select(x => wantedDefinitions.Contains(x.Definition.Id)),
-            QuantifierRequiresAll
-        );
+        return Quantify(subjects.Select(compareWith.Contains), QuantifierRequiresAll);
     }
+
+    private IEnumerable<int> Existing(IWiredSelectionSet selection) =>
+        selection.SelectedFurniIds.Where(id => FurniModule.TryGetItem(id, out _));
 }
