@@ -329,19 +329,13 @@ public sealed partial class RoomWiredSystem
     }
 
     /// <summary>
-    /// A stored furni variable outlives the furni that holds it, which is right for a furni
-    /// somebody owns and wrong for one nobody does. A temporary furni's id is handed out again
-    /// the next time the room loads, and a borrowed one's as soon as the room needs another, so
-    /// in both cases the next furni to get that id would inherit these values.
+    /// A furni taken out of the room loses every furni variable it held, permanent ones too: a
+    /// chest given a variable available while the room is active and a permanent one, picked up
+    /// to the inventory and placed again, held neither (official client capture 2026-10-24,
+    /// WIN63-202610201032, explore 17-45-05 / 17-45-29, wired matrix action.39.B3, 2/2).
     /// </summary>
-    private void ForgetStoredValuesOfUnownedFurni(RoomObjectId objectId)
+    private void ForgetFurniValues(RoomObjectId objectId)
     {
-        if (
-            !FurniIdBands.IsBuildersClub(objectId.Value)
-            && !FurniIdBands.IsTemporary(objectId.Value)
-        )
-            return;
-
         foreach (var variable in _variableById.Values)
         {
             var snapshot = variable.GetVarSnapshot();
@@ -355,6 +349,22 @@ public sealed partial class RoomWiredSystem
                     )
                 );
         }
+    }
+
+    /// <summary>
+    /// A temporary furni's id is handed out again the next time the room loads, and a borrowed
+    /// one's as soon as the room needs another, so whatever takes such a furni away, the next
+    /// furni to get that id would otherwise inherit its stored values.
+    /// </summary>
+    private void ForgetStoredValuesOfUnownedFurni(RoomObjectId objectId)
+    {
+        if (
+            !FurniIdBands.IsBuildersClub(objectId.Value)
+            && !FurniIdBands.IsTemporary(objectId.Value)
+        )
+            return;
+
+        ForgetFurniValues(objectId);
     }
 
     /// <summary>

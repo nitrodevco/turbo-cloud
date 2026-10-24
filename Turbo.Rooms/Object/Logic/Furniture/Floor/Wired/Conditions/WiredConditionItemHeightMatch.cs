@@ -4,6 +4,7 @@ using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
@@ -39,11 +40,18 @@ public class WiredConditionItemHeightMatch(
     {
         var altitude = GetIntParamOrDefault(0, 0);
         var comparison = GetIntParamOrDefault(1, 0);
-        var items = GetFloorItems(ctx.GetSelection(this));
+        var results = new List<bool>();
 
-        return Quantify(
-            items.Select(x => WiredComparison.CompareThreeWay(comparison, x.Z.ToInt(), altitude)),
-            QuantifierRequiresAll
-        );
+        // A picked wall item stays picked but has no altitude: it never matches (official client
+        // capture 2026-10-24T17-49-51, wired matrix condition.36.B11, 0/3 with "all" and "any").
+        foreach (var itemId in ctx.GetSelection(this).SelectedFurniIds)
+        {
+            if (TryGetFloorItem(itemId, out var item))
+                results.Add(WiredComparison.CompareThreeWay(comparison, item.Z.ToInt(), altitude));
+            else if (FurniModule.TryGetItem(itemId, out var other) && other is IRoomWallItem)
+                results.Add(false);
+        }
+
+        return Quantify(results, QuantifierRequiresAll);
     }
 }

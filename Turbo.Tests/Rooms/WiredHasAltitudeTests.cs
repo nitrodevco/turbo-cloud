@@ -25,6 +25,7 @@ public sealed class WiredHasAltitudeTests
     private const int BOX = 1;
     private const int BLOCK_A = 30;
     private const int BLOCK_B = 31;
+    private const int WALL_ITEM = 32;
     private const int ALL = 0;
     private const int ANY = 1;
     private const int EQUALS = 1;
@@ -76,6 +77,21 @@ public sealed class WiredHasAltitudeTests
         condition.Evaluate(Context()).Should().Be(passes);
     }
 
+    // condition.36.B11: a wall item stays picked but never has an altitude, "all" or "any" (official
+    // client capture 2026-10-24T17-49-51, WIN63-202610201032, ints [0,0] any / all, [3,0] any: 0/3).
+    [Theory]
+    [InlineData(0, ANY)]
+    [InlineData(0, ALL)]
+    [InlineData(3, ANY)]
+    public async Task A_picked_wall_item_never_has_the_altitude(int altitude, int quantifier)
+    {
+        _room.AddWallItem(WALL_ITEM);
+
+        var condition = await SaveAsync(altitude, 0, quantifier, [-WALL_ITEM]);
+
+        condition.Evaluate(Context(WALL_ITEM)).Should().BeFalse();
+    }
+
     private async Task<WiredConditionItemHeightMatch> SaveAsync(
         int altitude,
         int comparison,
@@ -106,8 +122,9 @@ public sealed class WiredHasAltitudeTests
         return condition;
     }
 
-    private WiredProcessingContext Context() =>
-        new(_room.Harness.Room)
+    private WiredProcessingContext Context(params int[] selected)
+    {
+        var ctx = new WiredProcessingContext(_room.Harness.Room)
         {
             Event = new RoomWiredStackChangedEvent
             {
@@ -117,4 +134,8 @@ public sealed class WiredHasAltitudeTests
             },
             Stack = _room.Harness.Fakes.Create<IWiredStack>(),
         };
+        ctx.Selected.SelectedFurniIds.UnionWith(selected);
+
+        return ctx;
+    }
 }

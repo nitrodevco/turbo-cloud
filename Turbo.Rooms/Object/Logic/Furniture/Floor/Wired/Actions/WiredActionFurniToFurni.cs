@@ -34,6 +34,11 @@ public class WiredActionFurniToFurni(
     // One destination drawn at random each firing; a blocked one is no move, not a retry
     // (official client capture 2026-10-24, W1 lab action.34.R8, 8 firings over 3 destinations;
     // action.34.B1, 3/3).
-    protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan) =>
+    protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
+    {
+        if (GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 1)).Count > 0)
+            PlanWallItemsInPlace(WiredSlotSelection.ForSlot(this, ctx, 0), plan);
+
         PlanOntoTargetFurni(ctx, plan, 0, 0, anyTarget: true);
+    }
 }
