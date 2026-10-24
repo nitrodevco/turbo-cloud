@@ -102,6 +102,14 @@ public class WiredActionMoveRotateFurni(
 
             plan.Move(floorItem, targetX, targetY, null, moveRotation);
         }
+
+        // A wall pick moves along its wall, a rotation turning it onto the other side (W1 lab
+        // action.4.B11: [4,1,1], 2/2; action.4.X11: [4,0,0] and [5,0,0], 2/2 each).
+        var (dx, dy) = MapModule.GetDirectionOffset(GetMoveDirection(_movementType));
+        var turn = _rotationType != 0;
+
+        if (dx != 0 || dy != 0 || turn)
+            PlanWallItemSteps(ctx.GetSelection(this), plan, dx, dy, turn);
     }
 
     protected override async Task FillInternalDataAsync(CancellationToken ct)

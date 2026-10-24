@@ -1308,6 +1308,20 @@ public abstract partial class FurnitureWiredLogic(
         return items;
     }
 
+    /// <summary>The wall items of a selection that are still in the room.</summary>
+    protected List<IRoomWallItem> GetWallItems(IWiredSelectionSet selection)
+    {
+        var items = new List<IRoomWallItem>();
+
+        foreach (var itemId in selection.SelectedFurniIds)
+        {
+            if (FurniModule.TryGetItem(itemId, out var item) && item is IRoomWallItem wallItem)
+                items.Add(wallItem);
+        }
+
+        return items;
+    }
+
     /// <summary>
     /// An int param, or the default when the box has fewer params than expected.
     /// <typeparamref name="T"/> is the type the param's rule declares: an enum rule is read as

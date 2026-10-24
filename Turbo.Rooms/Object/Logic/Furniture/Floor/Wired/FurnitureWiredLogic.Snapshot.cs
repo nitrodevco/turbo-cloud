@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Linq;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
@@ -20,6 +21,20 @@ public abstract partial class FurnitureWiredLogic
     /// condition (which share no other base) do not each repeat that lifecycle.
     /// </summary>
     protected virtual bool KeepsFurniSnapshot => false;
+
+    /// <summary>
+    /// Set by the boxes that also remember the picked wall items (Match Snapshot restores one,
+    /// official client capture 2026-10-24T17-49-51, W1 lab action.3.B11, 2/2). Kept in a section
+    /// of its own, so the boxes that copy or compare floor furni never meet a wall item there.
+    /// </summary>
+    protected virtual bool KeepsWallSnapshot => false;
+
+    protected Dictionary<int, WiredWallSnapshotEntry> GetWallSnapshot() =>
+        FurnitureExtraDataSections.Read<Dictionary<int, WiredWallSnapshotEntry>>(
+            _ctx.RoomObject.ExtraData,
+            WiredWallSnapshotEntry.SECTION,
+            Logger
+        ) ?? [];
 
     protected Dictionary<int, WiredFurniSnapshotEntry> GetFurniSnapshot() =>
         FurnitureExtraDataSections.Read<Dictionary<int, WiredFurniSnapshotEntry>>(
@@ -53,6 +68,31 @@ public abstract partial class FurnitureWiredLogic
         }
 
         _ctx.RoomObject.ExtraData.UpdateSection(WiredFurniSnapshotEntry.SECTION, snapshot);
+
+        if (KeepsWallSnapshot)
+            CaptureWallSnapshot(itemIds);
+    }
+
+    private void CaptureWallSnapshot(IEnumerable<int> itemIds)
+    {
+        var snapshot = new Dictionary<int, WiredWallSnapshotEntry>();
+
+        foreach (var itemId in itemIds)
+        {
+            if (!FurniModule.TryGetItem(itemId, out var found) || found is not IRoomWallItem item)
+                continue;
+
+            snapshot[itemId] = new(
+                item.Logic.GetState(),
+                item.X,
+                item.Y,
+                item.WallOffset,
+                (int)item.Z.Value,
+                (int)item.Rotation
+            );
+        }
+
+        _ctx.RoomObject.ExtraData.UpdateSection(WiredWallSnapshotEntry.SECTION, snapshot);
     }
 
     /// <summary>
@@ -108,6 +148,11 @@ public abstract partial class FurnitureWiredLogic
         );
     }
 
-    private void DeleteFurniSnapshot() =>
+    private void DeleteFurniSnapshot()
+    {
         _ctx.RoomObject.ExtraData.DeleteSection(WiredFurniSnapshotEntry.SECTION);
+
+        if (KeepsWallSnapshot)
+            _ctx.RoomObject.ExtraData.DeleteSection(WiredWallSnapshotEntry.SECTION);
+    }
 }

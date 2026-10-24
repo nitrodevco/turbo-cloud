@@ -59,6 +59,8 @@ public class WiredActionMatchToSnapshot(
 
     protected override bool KeepsFurniSnapshot => true;
 
+    protected override bool KeepsWallSnapshot => true;
+
     // The snapshot in the editor's text, the parts this box leaves out as "N" (official client
     // capture 2026-10-24).
     protected override string GetEditorStringParam() =>
@@ -118,6 +120,65 @@ public class WiredActionMatchToSnapshot(
             }
 
             plan.Move(item, targetX, targetY, targetZ, targetRotation);
+        }
+
+        PlanWallItems(ctx, plan, restoreState, restoreRotation, restorePosition);
+    }
+
+    /// <summary>
+    /// A picked wall item goes back to where it was saved, sent as a wall move every firing (also
+    /// when it is there already), and its state with it, sent every firing too (official client
+    /// capture 2026-10-24T17-49-51, W1 lab action.3.B11, [1,1,1,0,1], 2/2: 7,11 back to 4,8
+    /// offsets 0,89, then 4,8 to 4,8). Inferred: a saved wall side the item is no longer on is
+    /// turned back as Move and Rotate turns one.
+    /// </summary>
+    private void PlanWallItems(
+        IWiredContext ctx,
+        WiredMovePlan plan,
+        bool restoreState,
+        bool restoreRotation,
+        bool restorePosition
+    )
+    {
+        var snapshot = GetWallSnapshot();
+
+        foreach (var wallItem in GetWallItems(ctx.GetSelection(this)))
+        {
+            if (!snapshot.TryGetValue(wallItem.ObjectId, out var saved))
+                continue;
+
+            var to = WiredWallMoves.At(wallItem);
+
+            if (restorePosition)
+                to = to with
+                {
+                    X = saved.X,
+                    Y = saved.Y,
+                    WallOffset = saved.WallOffset,
+                    Z = saved.Height,
+                };
+
+            if (restoreRotation && (Rotation)saved.Rotation != to.Rotation)
+                plan.TurnWallItem(
+                    wallItem,
+                    restorePosition
+                        ? to with
+                        {
+                            Rotation = (Rotation)saved.Rotation,
+                        }
+                        : WiredWallMoves.Turned(to)
+                );
+            else if (restorePosition)
+                plan.MoveWallItem(wallItem, to);
+
+            if (restoreState)
+                plan.Then(async execution =>
+                {
+                    if (wallItem.Logic.GetState() != saved.State)
+                        await execution.ProcessItemStateUpdateAsync(wallItem, saved.State);
+                    else
+                        (execution as WiredExecutionContext)?.AnnounceWallItemState(wallItem);
+                });
         }
     }
 }

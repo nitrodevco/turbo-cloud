@@ -55,5 +55,7 @@ public class WiredActionRelativeMove(
 
             plan.Move(item, at.X + dx, at.Y + dy);
         }
+
+        PlanWallItemSteps(ctx.GetSelection(this), plan, dx, dy);
     }
 }
