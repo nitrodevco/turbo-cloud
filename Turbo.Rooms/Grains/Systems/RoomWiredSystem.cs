@@ -396,6 +396,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 ForgetUserVisualization(playerLeftEvt.ObjectId);
                 QueueEvent(evt);
                 break;
+            case RoomItemPickupEvent pickupEvt:
+                ForgetFurniValues(pickupEvt.ObjectId);
+                QueueEvent(evt);
+                break;
             case RoomItemDetachedEvent detatchedEvt:
                 _furnitureActiveStore.RemoveFurnitureStore(detatchedEvt.ObjectId);
                 ForgetStoredValuesOfUnownedFurni(detatchedEvt.ObjectId);
