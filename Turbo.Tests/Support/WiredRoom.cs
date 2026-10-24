@@ -161,7 +161,8 @@ public sealed class WiredRoom
             canLay,
             customParams,
             totalStates,
-            className
+            className,
+            publicName: publicName
         );
 
         var context = new RoomFloorItemContext(Harness.Room, item);
@@ -197,7 +198,8 @@ public sealed class WiredRoom
         string? customParams = null,
         int totalStates = 2,
         string? className = null,
-        string? extraData = null
+        string? extraData = null,
+        string? publicName = null
     )
     {
         var item = new RoomFloorItem
