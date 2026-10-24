@@ -84,6 +84,26 @@ public sealed class WiredNeighborhoodParamsTests
         set.SelectedFurniIds.Order().Should().Equal(selected);
     }
 
+    // selector.6.R5: a mask of the tile one step +X of the picked furni selects the furni there,
+    // the tile one step -X (spiral rank 5) selects nothing when it is empty (confidential capture,
+    // measured: relative neighbourhood masks).
+    [Theory]
+    [InlineData(1 << 1, new[] { NEXT_TO_IT })]
+    [InlineData(1 << 5, new int[0])]
+    public async Task Selector6R5_OneMaskedTileBesideTheFurni_SelectsWhatStandsThere(
+        int mask,
+        int[] selected
+    )
+    {
+        (await SaveAsync([0, 0, 0, mask, .. new int[13]], stuffIds: [CENTRE]))
+            .IsSaved.Should()
+            .BeTrue();
+
+        var set = await _selector.SelectAsync(Context(), Ct);
+
+        set.SelectedFurniIds.Order().Should().Equal(selected);
+    }
+
     private Task<WiredSaveResult> SaveAsync(int[] intParams, int[]? stuffIds = null) =>
         _room.SaveWithResultAsync<UpdateSelectorMessage>(
             BOX,

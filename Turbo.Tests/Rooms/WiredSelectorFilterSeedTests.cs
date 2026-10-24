@@ -98,6 +98,69 @@ public sealed class WiredSelectorFilterSeedTests
         _room.Positions().Should().Equal("5@5,5", "6@5,5");
     }
 
+    // selector.11.R6: an inverted "users by name" picks everyone but the named user, and everyone
+    // when nobody has the name (confidential capture, measured: selector inversion).
+    [Theory]
+    [InlineData("Ann", new[] { "5@1,1", "6@5,5" })]
+    [InlineData("Zed", new[] { "5@5,5", "6@5,5" })]
+    public async Task Selector11R6_AnInvertedNameSelector_PicksEveryoneButTheNamedUser(
+        string name,
+        string[] positions
+    )
+    {
+        NameUsers();
+        await AddTriggerAsync();
+        await AddUsersByNameAsync(name, invert: true);
+        await AddTeleportAsync();
+
+        await RunAsync(clickedBy: 5);
+
+        _room.Positions().Should().Equal(positions);
+    }
+
+    // selector.11.R5 / selector.2.R5: a "users by type" filter keeps a named Habbo and removes it
+    // when filtering for pets (confidential capture, measured: a filter needs a seed selection).
+    [Theory]
+    [InlineData(1, new[] { "5@5,5", "6@1,3" })]
+    [InlineData(2, new[] { "5@1,1", "6@1,3" })]
+    public async Task Selector11R5_ATypeFilter_NarrowsTheUserTheNameSelectorPicked(
+        int kinds,
+        string[] positions
+    )
+    {
+        NameUsers();
+        await AddTriggerAsync();
+        await AddUsersByNameAsync("Ann", invert: false);
+        await AddUsersByTypeAsync(filter: true, invert: false, kinds: kinds);
+        await AddTeleportAsync();
+
+        await RunAsync(clickedBy: 6);
+
+        _room.Positions().Should().Equal(positions);
+    }
+
+    private void NameUsers()
+    {
+        _room.Avatars[5].UseName("Ann");
+        _room.Avatars[6].UseName("Bob");
+    }
+
+    private async Task AddUsersByNameAsync(string names, bool invert)
+    {
+        var id = _nextBox++;
+
+        _room.AddBox<WiredSelectorEntitiesByName>(id, 0, 0, "wf_slc_users_byname");
+        (
+            await _room.SaveAsync<UpdateSelectorMessage>(
+                id,
+                stringParam: names,
+                definitionSpecifics: [false, invert]
+            )
+        )
+            .Should()
+            .BeTrue();
+    }
+
     private async Task AddTriggerAsync()
     {
         var id = _nextBox++;
