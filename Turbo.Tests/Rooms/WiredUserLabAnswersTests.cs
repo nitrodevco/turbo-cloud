@@ -202,6 +202,25 @@ public sealed class WiredUserLabAnswersTests
         user.EffectId.Should().Be(effectAfter);
     }
 
+    /// <summary>action.8.B3: a sitter teleported stands on the target.</summary>
+    [Fact]
+    public async Task A_sitter_teleported_stands_on_the_target_action_8_B3()
+    {
+        var user = _room.Enter(USER, 1, 1);
+        user.Sit(true);
+        _room.AddFloorItem(TARGET, 5, 5);
+        var teleport = await PlaceTeleportAsync(WiredFurniSourceType.SelectedItems);
+        await Wired.ProcessWiredAsync(FIRED_AT, dormant: false, Ct);
+
+        (await teleport.ExecuteAsync(Triggered(USER), Ct)).Should().BeTrue();
+        await Wired.ProcessWiredAsync(FIRED_AT + 2_000, dormant: false, Ct);
+        // The room tick invokes an avatar that was put down: its seat, or none, decides its posture.
+        await _room.Map.InvokeAvatarAsync(user, Ct);
+
+        _room.Positions().Should().Equal($"{USER}@5,5");
+        user.HasStatus(AvatarStatusType.Sit).Should().BeFalse();
+    }
+
     /// <summary>action.8.R1: Teleport To on a selector source with no selector is a no-op.</summary>
     [Fact]
     public async Task Teleport_to_an_empty_selection_does_nothing_action_8_R1()
