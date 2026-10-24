@@ -15,6 +15,7 @@ using Turbo.Primitives.WiredTrading.Snapshots;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 using Turbo.Rooms.Wired;
@@ -289,6 +290,22 @@ public sealed class WiredChestLabAnswersTests
         _room.Harness.Fakes.Sent<WiredTransactionFailMessageComposer>().Should().BeEmpty();
         heard.OfType<WiredTransactionFailedEvent>().Should().BeEmpty();
         Notices().Should().Equal(TRANSACTION_FAILURE);
+    }
+
+    // addon.20.E9 (1 of 1): the fresh defaults, both sides off, are refused.
+    [Fact]
+    public async Task A_custom_contract_with_both_sides_off_is_refused_as_misconfigured()
+    {
+        _room.AddBox<WiredAddonCustomContract>(BOX, 0, 0, "wf_xtra_custom_contract");
+
+        var result = await _room.SaveWithResultAsync<UpdateAddonMessage>(
+            BOX,
+            intParams: [0, 0, 0, 1, -20, 0, 0, 0, 1, -20],
+            variableIds: ["n", "n"]
+        );
+
+        result.IsSaved.Should().BeFalse();
+        result.ErrorKey.Should().Be("wiredfurni.error.misconfigured_contract");
     }
 
     private void AddChest(bool locked, int coins)

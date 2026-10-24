@@ -234,8 +234,10 @@ public class WiredActionInitiateTransaction(
     }
 
     /// <summary>
-    /// A custom contract addon on the stack wins over the picked contracts, a picked custom
-    /// contract counting as one of them. The transaction is
+    /// The one picked contract, a custom contract addon counting as one. A custom contract that
+    /// only stands on the stack is not offered: Habbo started no transaction with it unpicked,
+    /// and one picked still worked moved off the stack (official client capture 2026-10-24, wired
+    /// matrix addon.20.R1, 7 of 7). The transaction is
     /// the contract's, the custom one's too ("Contracts are special furniture that define the
     /// contents of a transaction", <c>special_items.chests.body.wf_xtra_custom_contract.desc</c>),
     /// and this box's only when no contract was involved, as
@@ -247,9 +249,6 @@ public class WiredActionInitiateTransaction(
         IWiredExecutionContext ctx
     )
     {
-        if (ctx.Policy.CustomContract is { } custom)
-            return (custom.BuildContract(ctx), custom.ContractFurniId);
-
         var contracts = GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, SLOT_CONTRACTS))
             .Select(x => x.Logic)
             .Where(x => x is FurnitureWiredContractLogic or IWiredContractSource)

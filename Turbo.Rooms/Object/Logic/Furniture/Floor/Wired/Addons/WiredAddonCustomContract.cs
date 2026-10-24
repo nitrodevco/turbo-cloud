@@ -4,7 +4,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -79,6 +81,18 @@ public class WiredAddonCustomContract(
 
     public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
         AllVariablesContext();
+
+    // Both sides off is refused (official client capture 2026-10-24, the fresh defaults
+    // [0,0,0,1,-20,0,0,0,1,-20]: wiredfurni.error.misconfigured_contract, wired matrix addon.20.E9).
+    public override Task<bool> ApplyWiredUpdateAsync(
+        ActionContext ctx,
+        UpdateWiredMessage update,
+        CancellationToken ct
+    ) =>
+        update.IntParams.ElementAtOrDefault(PAYMENT_PARAMS + ENABLED) == 0
+        && update.IntParams.ElementAtOrDefault(REWARD_PARAMS + ENABLED) == 0
+            ? throw new WiredSaveRefusedException(WiredSaveErrors.MISCONFIGURED_CONTRACT)
+            : base.ApplyWiredUpdateAsync(ctx, update, ct);
 
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {

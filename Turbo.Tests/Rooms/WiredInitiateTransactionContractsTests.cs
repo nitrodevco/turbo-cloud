@@ -98,8 +98,14 @@ public sealed class WiredInitiateTransactionContractsTests
             .Equal(started ? [WiredTransactionFailureType.UserCantTrade] : []);
     }
 
-    [Fact]
-    public async Task A_custom_contract_transaction_is_the_custom_contracts_for_the_triggers()
+    // Official client capture 2026-10-24 (wired matrix addon.20.R1, 7 of 7): a custom contract
+    // acts only when picked as the contract; standing on the stack unpicked starts nothing.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_custom_contract_transaction_is_the_custom_contracts_for_the_triggers(
+        bool picked
+    )
     {
         _room.Enter(PLAYER_INDEX, 1, 1);
         await AddChestAsync();
@@ -126,10 +132,11 @@ public sealed class WiredInitiateTransactionContractsTests
                 BOX,
                 intParams: [0, 1, 0, 0, 0, 300],
                 stuffIds: [CHEST],
+                stuffIds2: picked ? [CUSTOM_CONTRACT] : [],
                 furniSources:
                 [
                     [WiredFurniSourceType.SelectedItems],
-                    [WiredFurniSourceType.TriggeredItem],
+                    [WiredFurniSourceType.SecondaryItems],
                     [WiredFurniSourceType.SelectedItems],
                 ],
                 playerSources:
@@ -164,6 +171,13 @@ public sealed class WiredInitiateTransactionContractsTests
         ctx.Policy.CustomContract = custom;
 
         await action.ExecuteAsync(ctx, Ct);
+
+        if (!picked)
+        {
+            heard.Events.OfType<WiredTransactionFailedEvent>().Should().BeEmpty();
+
+            return;
+        }
 
         var failed = heard.Events.OfType<WiredTransactionFailedEvent>().Single();
         failed.SourceId.Should().Be((RoomObjectId)CUSTOM_CONTRACT);
