@@ -4,29 +4,36 @@ on:
   push:
     branches: [main]
   pull_request:
+  merge_group:
+  # Windows and macOS once a day, beside every main push (see platform).
+  schedule:
+    - cron: "23 4 * * *"
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: Also build and test on Windows and macOS
+        type: boolean
+        default: true
 
 permissions:
   contents: read
 
-# Replace obsolete PR runs; main pushes and manual runs keep their own run groups.
+# Replace obsolete PR runs; main pushes keep one run per commit.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+
 jobs:
-  quality:
-    name: quality-${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+  # Analyzers and code style on everything the tests compile, beside the test shards.
+  build:
+    name: build-ubuntu-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      # Analyzers and code style are platform-independent: the Linux build and the lint job check
-      # them, so Windows and macOS compile and test without them.
-      ANALYZERS: ${{ matrix.os != 'ubuntu-latest' && '-p:RunAnalyzers=false -p:EnforceCodeStyleInBuild=false' || '' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -38,12 +45,12 @@ jobs:
         id: scope
         run: python scripts/ci_scope.py
 
-      - name: Check documentation classifier
-        if: runner.os == 'Linux' && steps.scope.outputs.docs_only != 'true'
+      - name: Check CI scripts
+        if: steps.scope.outputs.docs_only != 'true'
         run: python -m unittest discover -s scripts/tests -v
 
       - name: Lint workflows
-        if: runner.os == 'Linux' && steps.scope.outputs.docs_only != 'true'
+        if: steps.scope.outputs.docs_only != 'true'
         shell: bash
         run: |
           archive="$RUNNER_TEMP/actionlint.tar.gz"
@@ -69,7 +76,6 @@ jobs:
           restore-keys: |
             nuget-v1-${{ runner.os }}-${{ runner.arch }}-
 
-
       - name: Prepare build diagnostics
         if: steps.scope.outputs.docs_only != 'true'
         shell: python
@@ -82,28 +88,124 @@ jobs:
         id: restore
         if: steps.scope.outputs.docs_only != 'true'
         # Package downloads are cached; dependency resolution still runs on every build.
-        run: dotnet restore Turbo.Main/Turbo.Main.csproj "-bl:${{ runner.temp }}/turbo-build-logs/restore.binlog;ProjectImports=None"
+        run: dotnet restore Turbo.Tests/Turbo.Tests.csproj "-bl:${{ runner.temp }}/turbo-build-logs/restore.binlog;ProjectImports=None"
 
-      # Compilation and Orleans generators on every platform; analyzers on Linux (see ANALYZERS).
+      # The test project references every project, Turbo.Main included.
       - name: Build
         id: build
         if: steps.scope.outputs.docs_only != 'true'
-        run: dotnet build Turbo.Main/Turbo.Main.csproj --no-restore -p:TurboAIPolicyPhase=1 ${{ env.ANALYZERS }} "-bl:${{ runner.temp }}/turbo-build-logs/build.binlog;ProjectImports=None"
-
-      - name: Test
-        if: steps.scope.outputs.docs_only != 'true'
-        run: dotnet test Turbo.Tests/Turbo.Tests.csproj -p:TurboAIPolicyPhase=1 ${{ env.ANALYZERS }}
+        run: dotnet build Turbo.Tests/Turbo.Tests.csproj --no-restore -p:TurboAIPolicyPhase=1 "-bl:${{ runner.temp }}/turbo-build-logs/build.binlog;ProjectImports=None"
 
       - name: Upload failed build diagnostics
         if: failure() && (steps.restore.outcome == 'failure' || steps.build.outcome == 'failure')
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: build-diagnostics-${{ matrix.os }}
+          name: build-diagnostics-ubuntu-latest
           path: ${{ runner.temp }}/turbo-build-logs/*.binlog
           if-no-files-found: warn
           retention-days: 3
 
-  # Platform-independent checks, beside the build matrix instead of after the Linux tests.
+  # The suite split by namespace (scripts/ci_test_shards.py). Each shard compiles without
+  # analyzers; the build job runs them.
+  test:
+    name: test-ubuntu-latest (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Classify changes and check documentation
+        id: scope
+        run: python scripts/ci_scope.py
+
+      - name: Select tests
+        id: shard
+        if: steps.scope.outputs.docs_only != 'true'
+        run: python scripts/ci_test_shards.py ${{ matrix.shard }}
+
+      - name: Setup .NET
+        if: steps.scope.outputs.docs_only != 'true'
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        if: steps.scope.outputs.docs_only != 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('global.json', '**/*.csproj', '**/*.props', '**/*.targets', '.config/dotnet-tools.json', '**/packages.lock.json', '**/nuget.config', '**/NuGet.Config') }}
+          restore-keys: |
+            nuget-v1-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Build
+        if: steps.scope.outputs.docs_only != 'true'
+        run: dotnet build Turbo.Tests/Turbo.Tests.csproj -p:TurboAIPolicyPhase=1 -p:RunAnalyzers=false -p:EnforceCodeStyleInBuild=false
+
+      - name: Test
+        if: steps.scope.outputs.docs_only != 'true'
+        run: >-
+          dotnet test Turbo.Tests/Turbo.Tests.csproj --no-build
+          --filter "${{ steps.shard.outputs.filter }}"
+          --logger "trx;LogFileName=shard-${{ matrix.shard }}.trx"
+          --results-directory "${{ runner.temp }}/test-results"
+
+      # Per-test durations, to rebalance the shards.
+      - name: Upload test results
+        if: always() && steps.scope.outputs.docs_only != 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results-${{ matrix.shard }}
+          path: ${{ runner.temp }}/test-results/*.trx
+          if-no-files-found: warn
+          retention-days: 7
+
+  # Windows and macOS on main pushes, the nightly run and a manual run (workflow_dispatch, also on
+  # a PR branch). In the 1000 runs from 2026-08-28 to 2026-10-24 they failed alone 29 times, each
+  # a timing-sensitive test that failed on Linux too or a runner timeout, never a platform bug; on
+  # PRs they made every push wait for the slowest runner.
+  platform:
+    name: quality-${{ matrix.os }}
+    if: github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.platforms)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('global.json', '**/*.csproj', '**/*.props', '**/*.targets', '.config/dotnet-tools.json', '**/packages.lock.json', '**/nuget.config', '**/NuGet.Config') }}
+          restore-keys: |
+            nuget-v1-${{ runner.os }}-${{ runner.arch }}-
+
+      # Analyzers and code style are platform-independent: the Linux build and lint check them.
+      - name: Build
+        run: dotnet build Turbo.Tests/Turbo.Tests.csproj -p:TurboAIPolicyPhase=1 -p:RunAnalyzers=false -p:EnforceCodeStyleInBuild=false
+
+      - name: Test
+        run: dotnet test Turbo.Tests/Turbo.Tests.csproj --no-build
+
+  # Platform-independent checks, beside the build and the tests.
   lint:
     name: lint
     runs-on: ubuntu-latest
