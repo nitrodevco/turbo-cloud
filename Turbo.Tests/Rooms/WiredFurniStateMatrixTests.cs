@@ -247,6 +247,47 @@ public sealed class WiredFurniStateMatrixTests
         condition.Evaluate(ctx).Should().Be(passes);
     }
 
+    // condition.1.R5: Furnis Have Avatars counts a user anywhere on a picked furni's tile, with
+    // furni stacked between them (official client capture 2026-10-24: user on A, A on B, B
+    // picked: true). condition.14.R3: the not twin is its exact inverse, over an empty selection
+    // too: int 0 ("all have no avatars") true, int 1 ("any has no avatar") false.
+    [Theory]
+    [InlineData(false, 1, true, true)]
+    [InlineData(false, 0, true, true)]
+    [InlineData(true, 0, true, false)]
+    [InlineData(true, 1, true, false)]
+    [InlineData(true, 0, false, true)]
+    [InlineData(true, 1, false, false)]
+    public async Task Furnis_have_avatars_counts_users_above_the_picked_furni(
+        bool negative,
+        int requireAll,
+        bool picked,
+        bool passes
+    )
+    {
+        _room.AddFloorItem(LAMP_B, 3, 3);
+        _room.AddFloorItem(LAMP_A, 3, 3);
+        _room.Enter(5, 3, 3);
+
+        var condition = negative
+            ? _room.AddBox<WiredNegativeConditionItemHasHabbo>(BOX, 0, 0, "wf_cnd_not_hv_avtrs")
+            : _room.AddBox<WiredConditionItemHasHabbo>(BOX, 0, 0, "wf_cnd_furnis_hv_avtrs");
+
+        (
+            await _room.SaveAsync<UpdateConditionMessage>(
+                BOX,
+                intParams: [requireAll],
+                stuffIds: picked ? [LAMP_B] : [],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+
+        condition.Evaluate(Context()).Should().Be(passes);
+    }
+
     // action.0.B1: Toggle Furni State on a furni without states (a sofa) and a 2-state lamp:
     // the sofa is skipped, no state update for it (official client capture 2026-10-24).
     [Theory]
