@@ -247,6 +247,40 @@ public sealed class WiredFurniStateMatrixTests
         condition.Evaluate(ctx).Should().Be(passes);
     }
 
+    // action.0.B1: Toggle Furni State on a furni without states (a sofa) and a 2-state lamp:
+    // the sofa is skipped, no state update for it (official client capture 2026-10-24).
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public async Task Toggling_skips_a_furni_without_states(int sofaStates)
+    {
+        const int SOFA = 32;
+
+        var lamp = _room.AddFloorItem(LAMP_A, 3, 3);
+        _room.AddFloorItem(SOFA, 5, 5, totalStates: sofaStates);
+        var box = _room.AddBox<WiredActionToggleItemState>(BOX, 0, 0, "wf_act_toggle_state");
+
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                BOX,
+                intParams: [0],
+                stuffIds: [LAMP_A, SOFA],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+
+        var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
+
+        await box.ExecuteAsync(ctx, Ct);
+
+        lamp.Logic.GetState().Should().Be(1);
+        ctx.FloorItemStateUpdates.Select(x => x.Item1.Value).Should().Equal(LAMP_A);
+    }
+
     // action.15.R3: the random draw may be the furni's current state (measured 5 of 12 draws on a
     // 2-state lamp); Habbo then sends no state update and "Furni state changes" does not fire.
     // A 1-state furni always draws the state it is in.

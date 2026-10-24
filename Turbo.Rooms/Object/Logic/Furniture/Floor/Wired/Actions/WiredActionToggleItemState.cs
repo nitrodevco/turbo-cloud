@@ -48,7 +48,11 @@ public class WiredActionToggleItemState(
                     true => item.Logic.GetPrevToggleableState(),
                 };
 
-                await ctx.ProcessItemStateUpdateAsync(item, state);
+                // A furni without states has nothing to toggle to: Habbo skips it, sending no
+                // state update for it (official client capture 2026-10-24, a 2x1 sofa picked
+                // with a block).
+                if (state != item.Logic.GetState())
+                    await ctx.ProcessItemStateUpdateAsync(item, state);
             }
             catch (Exception ex)
             {
