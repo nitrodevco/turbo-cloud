@@ -1,11 +1,16 @@
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 using System.Xml.Linq;
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Turbo.Commands;
+using Turbo.Database.Configuration;
+using Turbo.Database.Migrations;
 using Turbo.Gamedata;
 using Turbo.Gamedata.ClientModules;
 using Turbo.Gamedata.Configuration;
@@ -15,13 +20,22 @@ using Turbo.Gamedata.Variables;
 using Turbo.Messages.PluginMessages;
 using Turbo.Messages.Registry;
 using Turbo.Networking.Extensions;
+using Turbo.Players.Permissions;
 using Turbo.Plugins;
 using Turbo.Plugins.Configuration;
 using Turbo.Primitives.ClientModules;
+using Turbo.Primitives.Commands;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Networking.Extensions;
+using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Plugins;
+using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Providers;
+using Turbo.Primitives.Settings;
 using Turbo.Primitives.Texts;
+using Turbo.Rooms;
+using Turbo.Rooms.Object.Logic;
 using Turbo.Runtime.AssemblyProcessing;
 using Turbo.Tests.Support;
 using Xunit;
@@ -31,9 +45,9 @@ namespace Turbo.Tests.Plugins;
 /// <summary>
 /// <c>templates/turbo-plugin</c> is what <c>dotnet new turbo-plugin</c> generates, and a template's
 /// files are a working plugin as they stand (its default name is <c>Skills</c>). So its server half
-/// is compiled and loaded here as a hotel would load it, and what its project builds against is
-/// checked against the server's own assemblies: a change to the server that breaks a new plugin
-/// fails here, not in an author's first build.
+/// is compiled and loaded here as a hotel would load it, with what its <c>npm run make</c> adds, and
+/// what its project builds against is checked against the server's own assemblies: a change to the
+/// server that breaks a new plugin fails here, not in an author's first build.
 /// </summary>
 public sealed class PluginTemplateTests : IDisposable
 {
@@ -63,105 +77,48 @@ public sealed class PluginTemplateTests : IDisposable
     [Fact]
     public async Task The_template_plugin_loads_registers_its_messages_and_module_and_gives_the_hotel_its_texts()
     {
-        var manifest = JsonDocument
-            .Parse(await File.ReadAllTextAsync(Path.Combine(Template, "manifest.json"), Ct))
-            .RootElement;
-        var key = manifest.GetProperty("Key").GetString()!;
-        var sources = Directory
-            .EnumerateFiles(Path.Combine(Template, "server"), "*.cs")
-            .Select(File.ReadAllText)
-            .ToList();
+        var key = TemplateKey();
 
-        PluginBuilder.Write(_folder, key, sources);
+        PluginBuilder.Write(_folder, key, ServerSources(Template));
+        CopyPluginFiles(Template, Path.Combine(_folder, key), key);
 
-        foreach (var sub in new[] { "wwwroot", "gamedata" })
-        foreach (var file in Directory.EnumerateFiles(Path.Combine(Template, sub)))
-        {
-            Directory.CreateDirectory(Path.Combine(_folder, key, sub));
-            File.Copy(file, Path.Combine(_folder, key, sub, Path.GetFileName(file)));
-        }
-
-        // The module the client half builds (npm run dev); only its being there matters here.
-        await File.WriteAllTextAsync(
-            Path.Combine(_folder, key, "wwwroot", $"{key}.js"),
-            "export default { activate() {} };",
-            Ct
-        );
-
-        var config = Options.Create(new GamedataConfig());
-        var files = _fakes.Create<IGamedataFileService>();
-        var texts = new GamedataTextService(
-            _db,
-            config,
-            files,
-            new GamedataWriteLock(),
-            TimeProvider.System,
-            _fakes.Create<IHotelTextProvider>(),
-            NullLogger<GamedataTextService>.Instance
-        );
-        var modules = new ClientModuleRegistry(
-            new TestOptionsMonitor<GamedataConfig>(new GamedataConfig()),
-            NullLogger<ClientModuleRegistry>.Instance
-        );
-        var packets = new ExtensionPacketRegistry();
-        var messages = new PluginMessageDirectory(packets);
-        var loaded = new LoadedPluginGamedata();
-        var host = new ServiceCollection()
-            .AddSingleton<IClientModuleDirectory>(modules)
-            .AddSingleton<IExtensionPacketRegistry>(packets)
-            .AddSingleton<IPluginGamedataSeeds>(
-                new PluginGamedataSeeds(
-                    _db,
-                    _fakes.Create<IGamedataVariableService>(),
-                    texts,
-                    files,
-                    loaded,
-                    modules,
-                    NullLogger<PluginGamedataSeeds>.Instance
-                )
-            )
-            .BuildServiceProvider();
-        var manager = new PluginManager(
-            host,
-            new AssemblyProcessor([
-                new PluginMessageFeatureProcessor(
-                    new MessageRegistry(host, NullLogger<MessageRegistry>.Instance),
-                    messages,
-                    NullLoggerFactory.Instance,
-                    host
-                ),
-            ]),
-            Options.Create(new PluginConfig { PluginFolderPath = _folder }),
-            NullLogger<PluginManager>.Instance
-        );
+        var host = new PluginTestHost(_db, _fakes);
+        var manager = host.Manager(_folder);
 
         await manager.LoadAllAsync(ct: Ct);
 
         var status = manager.Snapshot().Single();
         status.State.Should().Be(PluginStateType.Loaded, status.Error);
 
-        modules
-            .Modules.Should()
+        // The plugin class registers neither: the module is wwwroot/<key>.js, the settings class
+        // is [PluginSettings].
+        host.Modules.Modules.Should()
             .ContainSingle()
             .Which.Url.Should()
             .StartWith($"/gamedata/plugins/{key}/{key}.js?v=");
-        modules.FindFile(key, $"{key}.png").Should().NotBeNull("the module's toolbar icon");
-        messages
-            .Messages.Select(x => x.Name)
+        host.Modules.FindFile(key, $"{key}.png").Should().NotBeNull("the module's toolbar icon");
+        _fakes
+            .Log.Of(nameof(IPluginSettingSections.Add))
+            .Should()
+            .ContainSingle()
+            .Which.Args[1]
+            .As<IReadOnlyList<Type>>()
+            .Select(t => t.Name)
+            .Should()
+            .Equal("SkillsSettings");
+        host.Messages.Messages.Select(x => x.Name)
             .Should()
             .Equal($"{key}.get", $"{key}.state", $"{key}.train");
-        messages
-            .Messages.Single(x => x.Name == $"{key}.state")
+        host.Messages.Messages.Single(x => x.Name == $"{key}.state")
             .Schema.Should()
             .Be(
                 """[["level","int"],["experience","int"],["needed","int"]]""",
                 "client/src/skill.ts reads these"
             );
-        (await texts.GetValuesAsync([$"{key}.window.title"], Ct))
+        (await host.Texts.GetValuesAsync([$"{key}.window.title"], Ct))
             .Should()
             .ContainKey($"{key}.window.title");
-        loaded
-            .OwnedPartsOf(ExternalVariablesFile.TEMPLATE_PATCHES)
+        host.Loaded.OwnedPartsOf(ExternalVariablesFile.TEMPLATE_PATCHES)
             .Should()
             .ContainSingle("its wwwroot/template-patches.json is listed for clients")
             .Which.Plugin.Should()
@@ -169,8 +126,113 @@ public sealed class PluginTemplateTests : IDisposable
 
         await manager.UnloadAllAsync(Ct);
 
-        modules.Modules.Should().BeEmpty();
-        messages.Messages.Should().BeEmpty();
+        host.Modules.Modules.Should().BeEmpty();
+        host.Messages.Messages.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Each kind <c>npm run make</c> (tools/make.mjs) writes, into a copy of the template, loads
+    /// with the plugin and is found by the scan that finds it on a hotel.
+    /// </summary>
+    [Fact]
+    public async Task Every_make_recipe_writes_a_piece_the_plugin_loads_with()
+    {
+        var source = Path.Combine(_folder, "source");
+        var plugins = Path.Combine(_folder, "plugins");
+        var key = TemplateKey();
+
+        CopyTemplate(source);
+
+        foreach (
+            var recipe in new[]
+            {
+                "command hug",
+                "message levelled --to client --fields level:int,name:string",
+                "message ping",
+                "logic skill_stove",
+                "listener entered",
+                "setting rate --type int --default 5",
+                "route rares/values --anonymous",
+                "window news",
+                "patch habbo-friend-list-com/friend_list_xml",
+                "migration AddPrizes",
+            }
+        )
+            await MakeAsync(source, recipe);
+
+        PluginBuilder.Write(plugins, key, ServerSources(source));
+        CopyPluginFiles(source, Path.Combine(plugins, key), key);
+
+        var host = new PluginTestHost(_db, _fakes);
+        var manager = host.Manager(plugins);
+
+        await manager.LoadAllAsync(ct: Ct);
+
+        var status = manager.Snapshot().Single();
+        status.State.Should().Be(PluginStateType.Loaded, status.Error);
+
+        _fakes
+            .Log.On<ICommandRegistryProvider>()
+            .SelectMany(c => (IEnumerable<ICommand>)c.Args[0]!)
+            .Select(c => c.GetType().Name)
+            .Should()
+            .BeEquivalentTo("SkillsCommand", "HugCommand");
+        _fakes
+            .Log.On<IPermissionRegistryProvider>()
+            .SelectMany(c => ((IPermissionNodeSource)c.Args[0]!).Nodes)
+            .Select(n => n.Node)
+            .Should()
+            .Contain($"{key}.command.hug");
+        _fakes
+            .Log.On<IRoomObjectLogicProvider>()
+            .Select(c => c.Args[0])
+            .Should()
+            .Equal("skill_stove");
+        _fakes
+            .Log.On<IRoomEventListenerRegistry>()
+            .SelectMany(c => (IEnumerable<IRoomEventListener>)c.Args[0]!)
+            .Select(l => l.GetType().Name)
+            .Should()
+            .Equal("EnteredListener");
+        host.Messages.Messages.Single(x => x.Name == $"{key}.levelled")
+            .Schema.Should()
+            .Be("""[["level","int"],["name","string"]]""");
+        host.Messages.Messages.Select(x => x.Name).Should().Contain($"{key}.ping");
+        host.WebRoutes.MethodsAt(key, "rares/values").Should().Equal("GET");
+        host.MigratorLog.Entries.Select(e => e.Message)
+            .Should()
+            .Contain(
+                m =>
+                    m.StartsWith("Database SkillsDb: migrations are off", StringComparison.Ordinal),
+                "the context was found and its migrations asked for as the plugin loaded"
+            );
+        (await host.Texts.GetValuesAsync([$"{key}.news.title"], Ct))
+            .Should()
+            .ContainKey($"{key}.news.title");
+        _fakes
+            .Log.Of(nameof(IPluginSettingSections.Add))
+            .Should()
+            .ContainSingle()
+            .Which.Args[2]
+            .As<Func<Type, object?>>()
+            .Invoke(
+                host.SettingsType ?? throw new InvalidOperationException("no settings were listed")
+            )
+            .Should()
+            .BeEquivalentTo(new { Rate = 5 }, o => o.ExcludingMissingMembers());
+        (await File.ReadAllTextAsync(Path.Combine(source, "wwwroot", "template-patches.json"), Ct))
+            .Should()
+            .Contain("habbo-friend-list-com/friend_list_xml");
+        (await File.ReadAllTextAsync(Path.Combine(source, "client", "src", "made", "index.ts"), Ct))
+            .Should()
+            .Contain("from './NewsWindow'")
+            .And.Contain($"from './{key}.levelled'")
+            .And.NotContain(
+                $"from './{key}.ping'",
+                "a message to the server has nothing to activate"
+            );
+
+        await manager.UnloadAllAsync(Ct);
     }
 
     [Fact]
@@ -217,6 +279,85 @@ public sealed class PluginTemplateTests : IDisposable
 
         File.Exists(Path.Combine(Template, "server", "Skills.csproj")).Should().BeTrue();
         File.Exists(Path.Combine(Template, "wwwroot", "skills.png")).Should().BeTrue();
+    }
+
+    private static string TemplateKey() =>
+        JsonDocument
+            .Parse(File.ReadAllText(Path.Combine(Template, "manifest.json")))
+            .RootElement.GetProperty("Key")
+            .GetString()!;
+
+    /// <summary>The server half's sources, as its project compiles them.</summary>
+    private static List<string> ServerSources(string plugin) =>
+        [
+            .. Directory
+                .EnumerateFiles(Path.Combine(plugin, "server"), "*.cs", SearchOption.AllDirectories)
+                .Where(f => !IsBuildOutput(Path.GetRelativePath(plugin, f)))
+                .Select(File.ReadAllText),
+        ];
+
+    /// <summary>The plugin's files beside its assembly, and the module its client half builds.</summary>
+    private static void CopyPluginFiles(string plugin, string folder, string key)
+    {
+        foreach (var sub in new[] { "wwwroot", "gamedata" })
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(plugin, sub)))
+        {
+            Directory.CreateDirectory(Path.Combine(folder, sub));
+            File.Copy(file, Path.Combine(folder, sub, Path.GetFileName(file)));
+        }
+
+        // npm run dev builds it; only its being there matters here.
+        File.WriteAllText(
+            Path.Combine(folder, "wwwroot", $"{key}.js"),
+            "export default { activate() {} };"
+        );
+    }
+
+    private static void CopyTemplate(string to)
+    {
+        foreach (var file in Directory.EnumerateFiles(Template, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(Template, file);
+
+            if (IsBuildOutput(relative))
+                continue;
+
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(to, relative))!);
+            File.Copy(file, Path.Combine(to, relative));
+        }
+    }
+
+    private static bool IsBuildOutput(string relative) =>
+        relative
+            .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            .Any(part => part is "bin" or "obj" or "node_modules" or "dist");
+
+    private static async Task MakeAsync(string plugin, string recipe)
+    {
+        var start = new ProcessStartInfo("node")
+        {
+            WorkingDirectory = plugin,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+
+        start.ArgumentList.Add(Path.Combine("tools", "make.mjs"));
+
+        foreach (var part in recipe.Split(' '))
+            start.ArgumentList.Add(part);
+
+        // The migration recipe runs dotnet ef once it has written the context; not here. It reads
+        // the server's EF Core version from the server it builds against: these tests' own.
+        start.Environment["TURBO_MAKE_EF"] = "0";
+        start.Environment["TurboBin"] = AppContext.BaseDirectory;
+
+        using var node = Process.Start(start)!;
+        var output = node.StandardOutput.ReadToEndAsync(Ct);
+        var errors = node.StandardError.ReadToEndAsync(Ct);
+
+        await node.WaitForExitAsync(Ct);
+
+        node.ExitCode.Should().Be(0, $"make {recipe}: {await errors}{await output}");
     }
 
     private static string RepositoryRoot()

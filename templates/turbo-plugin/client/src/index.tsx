@@ -1,6 +1,6 @@
 /**
  * The plugin's client module: built by `npm run dev` / `npm run build` into one file,
- * `wwwroot/skills.js`, which the server half registers and every client that runs modules loads.
+ * `wwwroot/skills.js`, which the server lists for every client that runs modules.
  *
  * - a window of its own (`SkillsWindow`), opened from a toolbar icon and the `skills/open` link;
  * - the plugin's messages, read and sent by name (`skill.ts`);
@@ -8,6 +8,7 @@
  */
 import { assetUrl, defineModule } from '@nitrodevco/client-module-sdk';
 
+import { activateMade } from './made';
 import { SKILL, toSkill } from './skill';
 import { skillStore } from './skillStore';
 import { SkillsWindow } from './SkillsWindow';
@@ -39,5 +40,8 @@ export default defineModule({
             { element: '', set: { height: 77 + 21 } },
         ]);
         api.templates.bind(PURSE, 'skills', { onPointerTap: () => api.windows.toggle('skills') });
+
+        // What `npm run make` added (windows, message listeners).
+        activateMade(api);
     },
 });
