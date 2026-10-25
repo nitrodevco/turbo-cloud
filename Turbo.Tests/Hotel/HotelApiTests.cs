@@ -45,7 +45,7 @@ public sealed class HotelApiTests : IDisposable
                 .Where(x => x.Namespace == typeof(IHotel).Namespace && x.IsInterface),
         ];
 
-        areas.Should().HaveCount(7);
+        areas.Should().HaveCount(8);
 
         var unmarked = areas
             .SelectMany(area => area.GetMethods().Select(m => $"{area.Name}.{m.Name}"))
@@ -54,6 +54,12 @@ public sealed class HotelApiTests : IDisposable
                     area.GetMethods()
                         .Where(m => m.GetCustomAttribute<HotelCallAttribute>() is not null)
                         .Select(m => $"{area.Name}.{m.Name}")
+                        // A property says it once, for its getter.
+                        .Concat(
+                            area.GetProperties()
+                                .Where(p => p.GetCustomAttribute<HotelCallAttribute>() is not null)
+                                .Select(p => $"{area.Name}.get_{p.Name}")
+                        )
                 )
             );
 

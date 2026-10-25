@@ -77,6 +77,7 @@ Every member carries `[HotelCall(...)]`, and its guide is this table. The rule t
 | `Catalog` | `Offers(page)` (the live catalog), `CirculationAsync(definitions)` (held by players, system accounts left out), `MoveOfferAsync`, `SetPageExpiryAsync`, `PublishAsync` (the panel's catalog editor, with its checks and history) |
 | `Notify` | `AlertAsync(player, textKey, defaultText, parameters)` (the hotel's alert, its text from the hotel's texts), `NotificationAsync(player, type, parameters)` (a client notification whose `notification.<type>` variable the hotel or the plugin's `external_variables.json` has), `StaffNoticeAsync(notice)` (`docs/plugin-notices.md`) |
 | `Wired` | `FireAsync(room, event, triggerer)` and `FireForPlayerAsync(player, event)`: a plugin's wired event for its own triggers (`docs/plugin-wired.md`); false, and the room not loaded, when no one is in it |
+| `Status` | `Current`: whether the hotel is open (`HotelAvailabilitySnapshot`: `Phase` `Open`, `MaintenanceScheduled`, `Maintenance`, `ShutdownScheduled` or `ShuttingDown`, `AtUtc` when a countdown ends, its `Reason`, `BlocksLogin` while it is closed to players without `hotel.maintenance.bypass`), in memory; each change (scheduled, called off, run out) is a `HotelAvailabilityChangedEvent` (`Previous`, `Current`) a plugin's `IEventHandler<T>` hears (`docs/plugin-policies.md`) |
 | `Clock` | a `TimeProvider`: the hotel's time; `FakeHotel.Clock` moves only when the test moves it |
 
 Reads are query methods with their own limits, not `DbSet`s: a plugin never builds a query on a
@@ -124,7 +125,7 @@ plugin does:
   `AchievementScore`, `Club`, `LastLoginAt` and `Permissions` the test sets; it passes as its `PlayerId`),
   `Rooms.Add(name, owner, isPublic)`, `Rooms.Enter(room, player)`, `Wallet.Set(player, currency,
   amount)`, `Wallet.AddCurrency(name)` (credits, duckets and diamonds are there), `Inventory.AddFurniture(name)`,
-  `Inventory.Hold(...)`, `Catalog.AddOffer(...)`; ids count up from 1, or from `Players.NextId`,
+  `Inventory.Hold(...)`, `Catalog.AddOffer(...)`, `Status.Set(snapshot)` (open until then); ids count up from 1, or from `Players.NextId`,
   `Rooms.NextId` and `Inventory.NextFurnitureId` when the test sets them;
 - fail: `Wallet.FailNext(count, throws)` and `Inventory.FailNext(count, throws)` make the next
   credits, debits, grants or badge gifts fail as a hotel write that failed does (refused, nothing

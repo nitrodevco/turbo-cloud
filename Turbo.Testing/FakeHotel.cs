@@ -41,6 +41,9 @@ public sealed class FakeHotel : IHotel
 
     public FakeWired Wired { get; }
 
+    /// <summary>Open until the test says otherwise (<see cref="FakeStatus.Set"/>).</summary>
+    public FakeStatus Status { get; } = new();
+
     public ManualClock Clock { get; }
 
     IHotelPlayers IHotel.Players => Players;
@@ -56,6 +59,8 @@ public sealed class FakeHotel : IHotel
     IHotelNotify IHotel.Notify => Notify;
 
     IHotelWired IHotel.Wired => Wired;
+
+    IHotelStatus IHotel.Status => Status;
 
     TimeProvider IHotel.Clock => Clock;
 
