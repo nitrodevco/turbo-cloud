@@ -19,6 +19,10 @@ public class WiredAddonUnseenActions(
 {
     public override int WiredCode => (int)WiredAddonType.INEDITED_ACTION;
 
+    // Never flashes, also when it picked an effect (official client capture 2026-10-24T10-52-39,
+    // 2026-10-25T01-51-02, wired matrix addon.2.R3 2/2; golden replay fixture 0/2).
+    public override bool FlashesWithStack => false;
+
     public override Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
         ctx.Policy.EffectMode = WiredEffectModeType.Unseen;

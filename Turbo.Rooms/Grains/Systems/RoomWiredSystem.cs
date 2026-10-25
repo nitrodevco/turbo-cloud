@@ -699,6 +699,12 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         {
             foreach (var condition in ctx.Stack.Conditions)
                 Flash(condition);
+
+            foreach (var addon in ctx.Stack.Addons)
+            {
+                if (addon.FlashesWithStack)
+                    Flash(addon);
+            }
         }
 
         // A stack call runs the positive actions; a trigger runs the side its conditions chose.

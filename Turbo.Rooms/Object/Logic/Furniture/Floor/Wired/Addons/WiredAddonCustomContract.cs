@@ -53,6 +53,10 @@ public class WiredAddonCustomContract(
 
     public override int WiredCode => (int)WiredAddonType.CUSTOM_CONTRACT;
 
+    // The transaction effects read it; it did not flash with its stack (official client capture,
+    // golden replay fixture of the chest labs wlab10/wlabbuy/wlabduo 2026-10-24/25, 0/8).
+    public override bool FlashesWithStack => false;
+
     public RoomObjectId ContractFurniId => _ctx.ObjectId;
 
     protected override bool AllowsWallFurni => true;

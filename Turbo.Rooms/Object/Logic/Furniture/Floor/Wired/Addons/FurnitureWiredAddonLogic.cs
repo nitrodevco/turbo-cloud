@@ -45,6 +45,17 @@ public abstract class FurnitureWiredAddonLogic(
         return reference?.ImportedAddons.OfType<TLogic>().FirstOrDefault();
     }
 
+    /// <summary>
+    /// An add-on flashes with its stack's conditions each time the stack passes, and not when
+    /// they fail, whether or not an effect then runs (official client capture, golden replay
+    /// fixture of the W1-W8 labs 2026-10-24/25: Username 267/267 and Variable Placeholder 76/76
+    /// with the stack passing, 0/5 failing; Furni Name 150/150, Execute In Order 21/21, Movement
+    /// Physics 12/12, Animation Time 12/12, the filters 56/56, Chest Item Type Scanner 23/23,
+    /// Random 10/10, two of them on a stack without an effect, wired matrix addon.1.R3 and
+    /// addon.18.R3). The few that never flash say so.
+    /// </summary>
+    public virtual bool FlashesWithStack => true;
+
     public virtual Task<bool> MutatePolicyAsync(
         IWiredProcessingContext ctx,
         CancellationToken ct
