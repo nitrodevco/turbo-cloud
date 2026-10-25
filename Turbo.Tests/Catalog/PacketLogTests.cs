@@ -6,7 +6,7 @@ using Xunit;
 namespace Turbo.Tests.Catalog;
 
 /// <summary>
-/// Reading a G-Earth packet log: a packet's bytes are read exactly, by the name the log gives
+/// Reading a packet log: a packet's bytes are read exactly, by the name the log gives
 /// it; its expression says the same bytes, and stands in for bytes that do not come to the
 /// length they start with; a packet with neither readable says why. The log is a real one, of
 /// Habbo's client being sent its gift wrapping, from a release whose header for it (377) is not
