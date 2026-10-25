@@ -30,7 +30,7 @@ public sealed class UserTeamColorVariable(RoomGrain roomGrain)
             .ToDictionary(v => WiredVariableValue.Parse((int)v), v => v.ToString());
 
     protected override WiredVariableValue GetValueForAvatar(IRoomPlayer avatar) =>
-        WiredVariableValue.Parse((int)GameSystem.GetTeam(avatar.PlayerId));
+        WiredVariableValue.Parse((int)GameSystem.GetTeam(avatar.ObjectId));
 
     // Held only while the player is on a team: the official client lists no team variables for
     // a player who is on none.
@@ -39,5 +39,5 @@ public sealed class UserTeamColorVariable(RoomGrain roomGrain)
         [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out IRoomPlayer? avatar
     ) =>
         base.TryGetAvatarForKey(key, out avatar)
-        && GameSystem.GetTeam(avatar.PlayerId) != GameTeamType.None;
+        && GameSystem.GetTeam(avatar.ObjectId) != GameTeamType.None;
 }

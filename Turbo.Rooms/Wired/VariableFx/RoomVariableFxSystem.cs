@@ -365,7 +365,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
                 if (!variable.TryGetValue(key, out var value))
                     continue;
 
-                var teamColor = VariableFxStyles.GetTeamColor(GameSystem.GetTeam(holder.PlayerId));
+                var teamColor = VariableFxStyles.GetTeamColor(GameSystem.GetTeam(holder.ObjectId));
                 var status = box.ResolveStatus(
                     new VariableFxStatusKeySnapshot(
                         binding.Config.ConfigId,
@@ -495,9 +495,9 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
                 if (holder is null || holder.PlayerId == viewer.PlayerId)
                     return holder is not null;
 
-                var team = GameSystem.GetTeam(holder.PlayerId);
+                var team = GameSystem.GetTeam(holder.ObjectId);
 
-                return team != GameTeamType.None && team == GameSystem.GetTeam(viewer.PlayerId);
+                return team != GameTeamType.None && team == GameSystem.GetTeam(viewer.ObjectId);
             }
             default:
                 return true;

@@ -1,6 +1,6 @@
 using Orleans;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Primitives.Rooms.Events.Game;
 
@@ -17,7 +17,10 @@ public sealed record GameScoreChangedEvent : RoomEvent
     [Id(2)]
     public required int PreviousScore { get; init; }
 
-    /// <summary>The player Give Score scored for; none for a team score (Give Score To Team) or a set.</summary>
+    /// <summary>
+    /// The avatar (a player or a bot) Give Score scored for; none for a team score (Give Score To
+    /// Team) or a set.
+    /// </summary>
     [Id(3)]
-    public PlayerId ScoredBy { get; init; }
+    public RoomObjectId ScoredBy { get; init; }
 }

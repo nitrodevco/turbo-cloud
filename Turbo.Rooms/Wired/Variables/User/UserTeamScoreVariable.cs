@@ -33,13 +33,13 @@ public sealed class UserTeamScoreVariable(RoomGrain roomGrain)
         if (!CanBind(key) || !TryGetAvatarForKey(key, out var avatar))
             return false;
 
-        var team = GameSystem.GetTeam(avatar.PlayerId);
+        var team = GameSystem.GetTeam(avatar.ObjectId);
 
         return await GameSystem.SetScoreAsync(team, value.ClampToInt(), CancellationToken.None);
     }
 
     protected override WiredVariableValue GetValueForAvatar(IRoomPlayer avatar) =>
-        WiredVariableValue.Parse(GameSystem.GetScore(GameSystem.GetTeam(avatar.PlayerId)));
+        WiredVariableValue.Parse(GameSystem.GetScore(GameSystem.GetTeam(avatar.ObjectId)));
 
     // Held only while the player is on a team: the official client lists no team variables for
     // a player who is on none.
@@ -48,5 +48,5 @@ public sealed class UserTeamScoreVariable(RoomGrain roomGrain)
         [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out IRoomPlayer? avatar
     ) =>
         base.TryGetAvatarForKey(key, out avatar)
-        && GameSystem.GetTeam(avatar.PlayerId) != GameTeamType.None;
+        && GameSystem.GetTeam(avatar.ObjectId) != GameTeamType.None;
 }

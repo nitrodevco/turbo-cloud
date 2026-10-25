@@ -40,10 +40,10 @@ public class WiredActionGiveScore(
         var selection = ctx.GetSelection(this);
         var scored = false;
 
-        foreach (var player in GetPlayers(selection))
+        foreach (var user in GetUsers(selection))
         {
-            var playerId = player.PlayerId;
-            var team = GameSystem.GetTeam(playerId);
+            var scorerId = user.ObjectId;
+            var team = GameSystem.GetTeam(scorerId);
 
             if (team == GameTeamType.None)
                 continue;
@@ -52,7 +52,7 @@ public class WiredActionGiveScore(
                 team,
                 points,
                 ObjectId,
-                playerId,
+                scorerId,
                 timesPerGame,
                 ct
             );

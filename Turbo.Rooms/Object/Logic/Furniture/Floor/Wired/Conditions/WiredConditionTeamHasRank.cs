@@ -60,8 +60,8 @@ public class WiredConditionTeamHasRank(
             return matches(configured);
 
         return Quantify(
-            GetPlayers(WiredSlotSelection.ForUserSlot(this, ctx, 0))
-                .Select(x => GameSystem.GetTeam(x.PlayerId))
+            GetUsers(WiredSlotSelection.ForUserSlot(this, ctx, 0))
+                .Select(x => GameSystem.GetTeam(x.ObjectId))
                 .Select(team => team != GameTeamType.None && matches(team)),
             QuantifierRequiresAll
         );

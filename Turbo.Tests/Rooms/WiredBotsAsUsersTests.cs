@@ -294,6 +294,99 @@ public sealed class WiredBotsAsUsersTests
         Block().Should().Be((8, 9));
     }
 
+    // W6 lab action.9.B3: Join Team red with Users By Name "Frank" put the bot in red, wearing the
+    // team effect 223 (1/1). Ours put players only in a team.
+    [Fact]
+    public async Task A_bot_joins_a_team_wearing_the_team_effect()
+    {
+        var (frank, _) = AddBots();
+        await BuildJoinRedAsync();
+
+        await Bots.TalkAsync(frank, "join", false, null, false, Ct);
+        await TickAsync(2);
+
+        Game.GetTeamMembers(GameTeamType.Red).Should().ContainSingle();
+        frank.EffectId.Should().Be(223);
+    }
+
+    // W6 lab trigger.10.R2: bot Frank in red, Give Score 15 for Frank in a running game fired
+    // Score Achieved 10, its effect flashing in the same update (1/1). Ours scored for players only.
+    [Fact]
+    public async Task A_bot_scoring_fires_score_achieved_with_the_bot_triggering()
+    {
+        var (frank, _) = AddBots();
+        await BuildOnBotLineAsync<WiredActionGiveScore>("wf_act_give_score", [15, 0]);
+        await BuildAsync<WiredTriggerScoreAchieved>(
+            "wf_trg_score_achieved",
+            [10, (int)GameTeamType.None],
+            ""
+        );
+        await BuildJoinRedAsync();
+        await Bots.TalkAsync(frank, "join", false, null, false, Ct);
+        await TickAsync(2);
+        await Game.StartGameAsync(Ct);
+
+        await Bots.TalkAsync(frank, "hello", false, null, false, Ct);
+        await TickAsync(3);
+
+        Game.GetScore(GameTeamType.Red).Should().Be(15);
+        frank.IsFrozen.Should().BeTrue();
+        _room.Avatars[OWNER].IsFrozen.Should().BeFalse();
+    }
+
+    private RoomGameSystem Game => _room.Harness.Module<RoomGameSystem>();
+
+    private Task BuildJoinRedAsync() =>
+        BuildOnBotLineAsync<WiredActionJoinTeam>(
+            "wf_act_join_team",
+            [(int)GameTeamType.Red, (int)WiredTeamType.Wired],
+            "join",
+            8
+        );
+
+    /// <summary>A bot's <paramref name="keyword"/> runs <typeparamref name="T"/> on it, on tile x,7.</summary>
+    private async Task BuildOnBotLineAsync<T>(
+        string logic,
+        int[] ints,
+        string keyword = "hello",
+        int x = 7
+    )
+        where T : FurnitureWiredActionLogic
+    {
+        _room.AddBox<WiredTriggerHabboSaysKeyword>(40 + x * 2, x, 7, "wf_trg_says_something");
+        _room.AddBox<T>(41 + x * 2, x, 7, logic);
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                40 + x * 2,
+                intParams: [0, 0, 0],
+                stringParam: keyword
+            )
+        )
+            .Should()
+            .BeTrue();
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                41 + x * 2,
+                intParams: ints,
+                playerSources:
+                [
+                    [WiredPlayerSourceType.TriggeredUser],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await Wired.OnRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForSystem(1),
+                StackIds = [_room.Map.ToIdx(x, 7)],
+            },
+            Ct
+        );
+        await TickAsync(1);
+    }
+
     private const int BLOCK = 30;
     private const int MOVER = 10;
 

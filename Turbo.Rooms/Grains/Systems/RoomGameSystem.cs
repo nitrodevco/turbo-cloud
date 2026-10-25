@@ -11,9 +11,11 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
+using Turbo.Primitives.Rooms.Events.Bot;
 using Turbo.Primitives.Rooms.Events.Game;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Highscore;
 
 namespace Turbo.Rooms.Grains.Systems;
@@ -22,6 +24,10 @@ namespace Turbo.Rooms.Grains.Systems;
 /// The room's game: who is on which team, the team scores, and whether a game is running.
 /// Joining a team wears the team effect, scores reset when a game starts, and the start, the end
 /// and every score change are published as room events.
+///
+/// A team is kept by avatar, not by player: a bot joins a team and scores like a player (Join Team
+/// on the bot Frank put the red team effect on it, and its Give Score fired Score Achieved;
+/// official client capture 2026-10-25, wired matrix action.9.B3, trigger.10.R2).
 ///
 /// It knows nothing of who drives it. A game counter furni starts and ends the game, wired boxes
 /// move players between teams and hand out points, and wired triggers listen for the events;
@@ -33,19 +39,20 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
 {
     private const int NO_EFFECT = 0;
 
-    private readonly Dictionary<PlayerId, GameTeamType> _teamByPlayerId = [];
+    private readonly Dictionary<RoomObjectId, GameTeamType> _teamByAvatarId = [];
 
-    /// <summary>The team effect each player was put in, so leaving takes off that one.</summary>
-    private readonly Dictionary<PlayerId, int> _teamEffectByPlayerId = [];
+    /// <summary>The team effect each avatar was put in, so leaving takes off that one.</summary>
+    private readonly Dictionary<RoomObjectId, int> _teamEffectByAvatarId = [];
 
-    /// <summary>The kind of team each player joined, which <c>@team.type</c> reports.</summary>
-    private readonly Dictionary<PlayerId, WiredTeamType> _teamTypeByPlayerId = [];
+    /// <summary>The kind of team each avatar joined, which <c>@team.type</c> reports.</summary>
+    private readonly Dictionary<RoomObjectId, WiredTeamType> _teamTypeByAvatarId = [];
     private readonly int[] _teamScores = new int[(int)GameTeamType.Yellow + 1];
 
     /// <summary>When each team's score last changed, in the order the changes came; 0 for never.</summary>
     private readonly long[] _teamScoredAt = new long[(int)GameTeamType.Yellow + 1];
     private long _scoreChanges;
-    private readonly Dictionary<(RoomObjectId sourceId, PlayerId playerId), int> _scoreGrants = [];
+    private readonly Dictionary<(RoomObjectId sourceId, RoomObjectId avatarId), int> _scoreGrants =
+    [];
 
     public bool IsGameRunning { get; private set; }
 
@@ -55,16 +62,24 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct)
     {
         if (evt is PlayerLeftEvent left)
-            ForgetPlayer(left.PlayerId);
+            ForgetAvatar(left.ObjectId);
+        else if (evt is BotRemovedEvent removed)
+            ForgetAvatar(removed.ObjectId);
 
         return Task.CompletedTask;
     }
 
-    public GameTeamType GetTeam(PlayerId playerId) =>
-        _teamByPlayerId.TryGetValue(playerId, out var team) ? team : GameTeamType.None;
+    public GameTeamType GetTeam(RoomObjectId avatarId) =>
+        _teamByAvatarId.TryGetValue(avatarId, out var team) ? team : GameTeamType.None;
 
-    public WiredTeamType GetTeamType(PlayerId playerId) =>
-        _teamTypeByPlayerId.TryGetValue(playerId, out var type) ? type : WiredTeamType.Wired;
+    /// <summary>The team of a player in the room; none for a player who is not here.</summary>
+    public GameTeamType GetTeam(PlayerId playerId) =>
+        AvatarModule.TryGetPlayer(playerId, out var player)
+            ? GetTeam(player.ObjectId)
+            : GameTeamType.None;
+
+    public WiredTeamType GetTeamType(RoomObjectId avatarId) =>
+        _teamTypeByAvatarId.TryGetValue(avatarId, out var type) ? type : WiredTeamType.Wired;
 
     public int GetScore(GameTeamType team) => IsTeam(team) ? _teamScores[(int)team] : 0;
 
@@ -108,18 +123,29 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
         _teamScoredAt[(int)team] = ++_scoreChanges;
     }
 
-    public IEnumerable<PlayerId> GetTeamMembers(GameTeamType team) =>
-        _teamByPlayerId.Where(x => x.Value == team).Select(x => x.Key);
+    /// <summary>The avatars on a team: players and bots.</summary>
+    public IEnumerable<RoomObjectId> GetTeamMembers(GameTeamType team) =>
+        _teamByAvatarId.Where(x => x.Value == team).Select(x => x.Key);
 
     public Task<bool> JoinTeamAsync(PlayerId playerId, GameTeamType team, CancellationToken ct) =>
         JoinTeamAsync(playerId, team, WiredTeamType.Wired, ct);
 
+    public Task<bool> JoinTeamAsync(
+        PlayerId playerId,
+        GameTeamType team,
+        WiredTeamType teamType,
+        CancellationToken ct
+    ) =>
+        AvatarModule.TryGetPlayer(playerId, out var player)
+            ? JoinTeamAsync(player.ObjectId, team, teamType, ct)
+            : Task.FromResult(false);
+
     /// <summary>
-    /// Puts the player in <paramref name="team"/>, wearing the team effect of the kind of team
+    /// Puts the avatar in <paramref name="team"/>, wearing the team effect of the kind of team
     /// (<see cref="WiredTeamType"/>): the colours are one set of teams, the game they look like is not.
     /// </summary>
     public async Task<bool> JoinTeamAsync(
-        PlayerId playerId,
+        RoomObjectId avatarId,
         GameTeamType team,
         WiredTeamType teamType,
         CancellationToken ct
@@ -128,48 +154,64 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
         if (!IsTeam(team))
             return false;
 
-        if (!AvatarModule.TryGetPlayer(playerId, out var player))
+        if (!AvatarModule.TryGetAvatar(avatarId, out var avatar))
             return false;
 
-        if (GetTeam(playerId) == team)
+        if (GetTeam(avatarId) == team)
             return true;
 
-        _teamByPlayerId[playerId] = team;
-        _teamTypeByPlayerId[playerId] = teamType;
+        _teamByAvatarId[avatarId] = team;
+        _teamTypeByAvatarId[avatarId] = teamType;
 
         var effectId = GetTeamEffectId(team, teamType);
 
-        _teamEffectByPlayerId[playerId] = effectId;
+        _teamEffectByAvatarId[avatarId] = effectId;
 
-        await AvatarModule.SetAvatarEffectAsync(player.ObjectId, effectId, ct);
-        await PublishTeamChangedAsync(playerId, team, ct);
+        await AvatarModule.SetAvatarEffectAsync(avatarId, effectId, ct);
+        await PublishTeamChangedAsync(avatar, team, ct);
 
         return true;
     }
 
-    public async Task<bool> LeaveTeamAsync(PlayerId playerId, CancellationToken ct)
+    public Task<bool> LeaveTeamAsync(PlayerId playerId, CancellationToken ct)
     {
+        if (AvatarModule.TryGetPlayer(playerId, out var player))
+            return LeaveTeamAsync(player.ObjectId, ct);
+
+        SendPlayingGame(playerId, false);
+
+        return Task.FromResult(false);
+    }
+
+    public async Task<bool> LeaveTeamAsync(RoomObjectId avatarId, CancellationToken ct)
+    {
+        AvatarModule.TryGetAvatar(avatarId, out var avatar);
+
         // A player in no team is still told they are not playing, and nothing else: Leave Team on
         // a user in no team sent YouArePlayingGame false and no AvatarEffect (official client
         // capture 2026-10-24, wired matrix action.10.B1, 2/2).
-        if (!_teamByPlayerId.Remove(playerId, out var team))
+        if (!_teamByAvatarId.Remove(avatarId, out var team))
         {
-            SendPlayingGame(playerId, false);
+            if (avatar is IRoomPlayer player)
+                SendPlayingGame(player.PlayerId, false);
 
             return false;
         }
 
-        _teamTypeByPlayerId.Remove(playerId);
+        _teamTypeByAvatarId.Remove(avatarId);
 
-        var effectId = _teamEffectByPlayerId.Remove(playerId, out var worn)
+        var effectId = _teamEffectByAvatarId.Remove(avatarId, out var worn)
             ? worn
             : GetTeamEffectId(team, WiredTeamType.Wired);
 
-        // Only the team colour is taken off. An effect the player put on since is theirs.
-        if (AvatarModule.TryGetPlayer(playerId, out var player) && player.EffectId == effectId)
-            await AvatarModule.SetAvatarEffectAsync(player.ObjectId, NO_EFFECT, ct);
+        if (avatar is null)
+            return true;
 
-        await PublishTeamChangedAsync(playerId, GameTeamType.None, ct);
+        // Only the team colour is taken off. An effect the avatar put on since is theirs.
+        if (avatar.EffectId == effectId)
+            await AvatarModule.SetAvatarEffectAsync(avatarId, NO_EFFECT, ct);
+
+        await PublishTeamChangedAsync(avatar, GameTeamType.None, ct);
 
         return true;
     }
@@ -212,14 +254,15 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     /// end: on Habbo, Give Score to a team with no game started added nothing (official client
     /// capture 2026-10-24, action.6.B1).
     /// <paramref name="timesPerGame"/> caps how often one source (the
-    /// furni handing out the points) may score for one player during a game; zero means
-    /// unlimited.
+    /// furni handing out the points) may score for one avatar during a game; zero means
+    /// unlimited. <paramref name="scorerId"/> is the avatar the points were given for, none for a
+    /// team score.
     /// </summary>
     public async Task<bool> GiveScoreAsync(
         GameTeamType team,
         int points,
         RoomObjectId sourceId,
-        PlayerId playerId,
+        RoomObjectId scorerId,
         int timesPerGame,
         CancellationToken ct
     )
@@ -232,7 +275,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
 
         if (timesPerGame > 0)
         {
-            var key = (sourceId, playerId);
+            var key = (sourceId, scorerId);
 
             _scoreGrants.TryGetValue(key, out var granted);
 
@@ -254,7 +297,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
                 Team = team,
                 Score = _teamScores[(int)team],
                 PreviousScore = previous,
-                ScoredBy = playerId,
+                ScoredBy = scorerId,
             },
             ct
         );
@@ -351,9 +394,12 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
 
         for (var team = GameTeamType.Red; team <= GameTeamType.Yellow; team++)
         {
+            // The players' names (inference: no capture of a bot on a team when a game ended).
             var users = GetTeamMembers(team)
-                .Select(playerId =>
-                    AvatarModule.TryGetPlayer(playerId, out var player) ? player.Name : null
+                .Select(avatarId =>
+                    AvatarModule.TryGetAvatar(avatarId, out var avatar) && avatar is IRoomPlayer
+                        ? avatar.Name
+                        : null
                 )
                 .OfType<string>()
                 .ToList();
@@ -369,17 +415,25 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
             await board.RecordGameAsync(teams, seconds, now, ct);
     }
 
-    private Task PublishTeamChangedAsync(PlayerId playerId, GameTeamType team, CancellationToken ct)
+    private Task PublishTeamChangedAsync(
+        IRoomAvatar avatar,
+        GameTeamType team,
+        CancellationToken ct
+    )
     {
+        var playerId = avatar is IRoomPlayer player ? player.PlayerId : default;
+
         // The client has a playing mode of its own (it hides what gets in the way of a game);
         // being on a team is what puts a player in it.
-        SendPlayingGame(playerId, team != GameTeamType.None);
+        if (playerId != default)
+            SendPlayingGame(playerId, team != GameTeamType.None);
 
         return _roomGrain.PublishRoomEventAsync(
             new GameTeamChangedEvent
             {
                 RoomId = _roomGrain.RoomId,
                 CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
+                AvatarId = avatar.ObjectId,
                 PlayerId = playerId,
                 Team = team,
             },
@@ -411,13 +465,13 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
         return (int)team < effectIds.Length ? effectIds[(int)team] : NO_EFFECT;
     }
 
-    private void ForgetPlayer(PlayerId playerId)
+    private void ForgetAvatar(RoomObjectId avatarId)
     {
-        _teamByPlayerId.Remove(playerId);
-        _teamEffectByPlayerId.Remove(playerId);
-        _teamTypeByPlayerId.Remove(playerId);
+        _teamByAvatarId.Remove(avatarId);
+        _teamEffectByAvatarId.Remove(avatarId);
+        _teamTypeByAvatarId.Remove(avatarId);
 
-        foreach (var key in _scoreGrants.Keys.Where(x => x.playerId == playerId).ToList())
+        foreach (var key in _scoreGrants.Keys.Where(x => x.avatarId == avatarId).ToList())
             _scoreGrants.Remove(key);
     }
 }
