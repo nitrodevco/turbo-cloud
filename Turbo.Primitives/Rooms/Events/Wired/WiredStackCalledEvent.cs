@@ -25,4 +25,11 @@ public sealed record WiredStackCalledEvent : RoomEvent
 
     [Id(4)]
     public required bool IsNegative { get; init; }
+
+    /// <summary>
+    /// What is left of a delayed call's wait: the call is made when its stack fires, and the
+    /// called stack's effects wait this long before their own delays.
+    /// </summary>
+    [Id(5)]
+    public long DelayMs { get; init; }
 }

@@ -35,4 +35,7 @@ internal sealed class WiredPendingStackExecution
     /// trigger fired; an action not in it had no save since and runs as it is.
     /// </summary>
     public Dictionary<IWiredAction, IWiredData>? HeldConfigs { get; set; }
+
+    /// <summary>The delayed calls already made when the stack fired; they only wait here.</summary>
+    public HashSet<IWiredAction>? MadeCalls { get; set; }
 }

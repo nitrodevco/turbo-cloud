@@ -17,6 +17,9 @@ public sealed class WiredProcessingContext(RoomGrain roomGrain)
 
     public bool IsDryRun { get; init; }
 
+    /// <summary>How long a delayed call that ran this stack waits before the stack's effects.</summary>
+    internal long CallDelayMs { get; init; }
+
     /// <summary>
     /// The furni moves of one random order of the stack's effects, worked out before its
     /// conditions are asked; what "Can Perform Movements" reads. The effects that run if they pass
