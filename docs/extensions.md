@@ -94,8 +94,8 @@ say which in its guide. One kind per problem keeps the surface learnable.
 
 | Kind | Use it to | May change the outcome? | Runs |
 | --- | --- | --- | --- |
-| **Event** | observe something that happened (`PurchaseCompletedEvent`, `PlayerLoggedInEvent`, `PlayerRegisteredEvent`, `RoomEnteredEvent`: `docs/plugin-policies.md`) | no | after the fact |
-| **Pipeline / policy** | allow, refuse or adjust an action before it commits (`IPurchasePolicy`, `IRoomEntryPolicy`, `IPlacementPolicy`: `docs/plugin-policies.md`) | yes, explicitly | before commit, in the owner's context |
+| **Event** | observe something that happened (`PurchaseCompletedEvent`, `PlayerLoggedInEvent`, `PlayerLoginFailedEvent`, `PlayerRegisteredEvent`, `PlayerRegistrationFailedEvent`, `PlayerIdentityLinkedEvent`, `RoomEnteredEvent`: `docs/plugin-policies.md`) | no | after the fact |
+| **Pipeline / policy** | allow, refuse or adjust an action before it commits (`IPurchasePolicy` incl. room ads, `IRoomEntryPolicy`, `IPlacementPolicy`, `IRegistrationPolicy`: `docs/plugin-policies.md`) | yes, explicitly | before commit, in the owner's context |
 | **Service contract** | replace or add an implementation of a named contract | yes, the whole behaviour | wherever the contract is called |
 | **Registry** | add a new thing of a known kind (command, logic, game, message, web route) | n/a | as registered |
 | **Template patch** | change or extend an existing window, as data | presentation only | where the template is read |
@@ -134,9 +134,12 @@ than inventing a second mechanism.
 
 The first post-commit events are on the event bus: `DomainEvent` (an `EventId` for idempotency and
 `OccurredAtUtc`) published by `EventSystem.PublishCommitted` once the change is saved, on the thread
-pool and not awaited, never for a refused action; a plugin's `IEventHandler<T>` hears them.
-`PurchaseCompletedEvent`, `PlayerLoggedInEvent`, `PlayerRegisteredEvent` and `RoomEnteredEvent`
-are raised today (`docs/plugin-policies.md`). They are delivered in memory: one raised as a server
+pool and not awaited, never for a refused action (save the two that tell of a refusal); a plugin's
+`IEventHandler<T>` hears them. `PurchaseCompletedEvent` (room ads included), `PlayerLoggedInEvent`,
+`PlayerLoginFailedEvent`, `PlayerRegisteredEvent`, `PlayerRegistrationFailedEvent`,
+`PlayerIdentityLinkedEvent` and `RoomEnteredEvent` are raised today; the login and registration
+ones carry the client's address, personal data their text leaves out (`docs/plugin-policies.md`,
+"Addresses"). They are delivered in memory: one raised as a server
 stops is not kept, as the asset movement outbox's are.
 
 ### 4.2 Pipelines and policies
@@ -155,8 +158,9 @@ and the marketplace before a sale (locked: no trading privilege; no pass or rece
 trading pass).
 Replacing it in the host's container changes all three; a plugin cannot replace it yet (§4.3).
 
-Purchase, room entry and placement (floor plan saves included) have plugin policies:
-`IPurchasePolicy`, `IRoomEntryPolicy` and `IPlacementPolicy`, found in a plugin's assembly as it
+Purchase (room ads included), room entry, placement (floor plan saves included) and registration
+have plugin policies: `IPurchasePolicy`, `IRoomEntryPolicy`, `IPlacementPolicy` and
+`IRegistrationPolicy` (asked before an account is made, with its name, look and address), found in a plugin's assembly as it
 loads and removed as it unloads, run in `Order`, then plugin key. A purchase's policies compose
 (each takes the decision of the ones before, the offer's own price first); for the others the first
 refusal is the answer. Two plugins with a policy of one kind both run and are reported as a conflict
@@ -268,7 +272,10 @@ attached by the client), so a module never handles tokens itself.
 
 Beside the routes, a **play policy** (`IPlayPolicy`, a policy of §4.2) lets a plugin allow or refuse a
 player asking to play - the site's Play and the client's login - with a reason and an address to send
-them to; with none, everyone plays as before (`docs/plugin-web-routes.md` §3).
+them to; with none, everyone plays as before (`docs/plugin-web-routes.md` §3). Both ask with the
+address the player came from (the client's through `Turbo:Networking:TrustedProxies`). A plugin
+links a Discord account it has proven to an existing player through `IHotel.Players.LinkIdentityAsync`
+(`docs/hotel-api.md`, "Identity links"), and the site then signs that player in.
 
 ## 5. Stability
 
@@ -316,8 +323,9 @@ noted.
    `useApi` and a bundler preset are nitro-next's `packages/client-module-sdk`, kept equal to the
    client's API by its type check; the store API, links and layouts are next.
 7. **Policies** for trade, purchase, room entry and placement (§4.2), then post-commit domain events
-   (§4.1). Purchase, room entry and placement done, with `npm run make policy <kind>`, and the first
-   four post-commit events (`docs/plugin-policies.md`); trade's policy is not a plugin's yet.
+   (§4.1). Purchase (room ads included), room entry, placement and registration done, with
+   `npm run make policy <kind>`, and seven post-commit events (`docs/plugin-policies.md`); trade's
+   policy is not a plugin's yet.
 8. **Data-only plugins** (themes without an assembly) and per-asset overlays (§4.6).
 9. **Scaffolding and dev loop**: `dotnet new turbo-plugin` generating both halves and their tests,
    one command that rebuilds and hot-reloads both while a player is online, one that packages the

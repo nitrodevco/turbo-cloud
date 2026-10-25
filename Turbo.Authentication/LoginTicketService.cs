@@ -13,8 +13,9 @@ namespace Turbo.Authentication;
 
 /// <summary>
 /// <see cref="ILoginTicketService"/> over <c>security_tickets</c>, one row a player. A ticket is
-/// 32 random bytes as hex, so it can't be guessed; it is not bound to an address. Only its hash is
-/// stored: the ticket itself is returned once, to whoever issued it.
+/// 32 random bytes as hex, so it can't be guessed; it is not bound to an address, but the address
+/// it was asked for from is kept beside it (<c>ip_address</c>). Only its hash is stored: the
+/// ticket itself is returned once, to whoever issued it.
 /// </summary>
 public sealed class LoginTicketService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -27,9 +28,11 @@ public sealed class LoginTicketService(
         PlayerId player,
         TimeSpan? lifetime,
         bool reusable,
+        string issuedTo,
         CancellationToken ct
     )
     {
+        var address = issuedTo ?? string.Empty;
         var ticket = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(TICKET_BYTES));
         DateTime? expires = lifetime is { } span
             ? timeProvider.GetUtcNow().UtcDateTime.Add(span)
@@ -50,7 +53,7 @@ public sealed class LoginTicketService(
                 {
                     PlayerEntityId = player.Value,
                     Ticket = SecurityTicketEntity.Hash(ticket),
-                    IpAddress = string.Empty,
+                    IpAddress = address,
                     IsLocked = reusable,
                     ExpiresAt = expires,
                     PlayerEntity = null!,
@@ -60,7 +63,7 @@ public sealed class LoginTicketService(
         else
         {
             row.Ticket = SecurityTicketEntity.Hash(ticket);
-            row.IpAddress = string.Empty;
+            row.IpAddress = address;
             row.IsLocked = reusable;
             row.ExpiresAt = expires;
         }

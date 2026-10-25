@@ -222,7 +222,9 @@ public sealed class VoteFirst(VoteBook votes) : IPlayPolicy
     (`NotificationDialog`, type `turbo.play.refused`, its `message` and, with an address, `linkUrl`),
     then closes the connection. A hotel styles it with the external variable
     `notification.turbo.play.refused` as any notification type.
-  `RemoteAddress` is the caller's address on the site (empty at login).
+  `RemoteAddress` is the caller's address: the site visitor's, or at login the game connection's
+  (through a proxy the hotel trusts, `Turbo:Networking:TrustedProxies`; empty when not known).
+  It is personal data: decide on it, don't log it (`docs/plugin-policies.md`, "Addresses").
 - **Order.** Policies run by `Order` (lower first), then by plugin key, then as registered; the
   first refusal is the answer and the rest are not asked. With none, everyone plays: the default is
   core's behaviour, unchanged.

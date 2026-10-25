@@ -98,11 +98,15 @@ public sealed class WebAccounts(
         );
     }
 
-    /// <summary>A new player for the Discord account, linked to it; or why not.</summary>
+    /// <summary>
+    /// A new player for the Discord account, linked to it; or why not. <paramref name="address"/>
+    /// is where the visitor signs up from, for the registration policies and events.
+    /// </summary>
     public async Task<NewPlayerResult> CreateAsync(
         DiscordUser discord,
         string name,
         AvatarGenderType gender,
+        string address,
         CancellationToken ct
     )
     {
@@ -117,7 +121,14 @@ public sealed class WebAccounts(
             return NewPlayerResult.Refused("This Discord account already has a player.");
 
         var created = await accounts
-            .CreateAsync(new NewPlayer(name, null, gender, null), ct)
+            .CreateAsync(
+                new NewPlayer(name, null, gender, null)
+                {
+                    Source = RegistrationSource.Site,
+                    RemoteAddress = address,
+                },
+                ct
+            )
             .ConfigureAwait(false);
 
         if (created.Created is not { } player)

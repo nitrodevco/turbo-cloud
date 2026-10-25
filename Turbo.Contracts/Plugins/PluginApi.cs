@@ -33,8 +33,15 @@ public static class PluginApi
     /// (<c>Hotel.GrantOutcome</c>) and the fake hotel's <c>FailNext</c> and starting ids. A plugin
     /// built for 1 to 3 loads as before.
     /// </para>
+    /// <para>
+    /// 5: who plays and from where: the client's address on the login's play policies and on the
+    /// login and registration events, the login and registration failure events, registration
+    /// policies (<c>Policies.IRegistrationPolicy</c>), room ads through the purchase policies and
+    /// <c>PurchaseCompletedEvent.RoomAd</c>, and <c>Hotel.IHotel.Players</c>' recent players and
+    /// identity links. A plugin built for 1 to 4 loads as before.
+    /// </para>
     /// </summary>
-    public const int VERSION = 4;
+    public const int VERSION = 5;
 
     /// <summary>The oldest plugin API this server still loads.</summary>
     public const int OLDEST = 1;

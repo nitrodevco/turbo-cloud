@@ -22,7 +22,7 @@
  *   migration <Name>                    the plugin's tables (server/Database) and a migration (dotnet ef)
  *   schedule <name> [--cron "0 18 * * MON" | --every 00:05:00] [--per-server]
  *                                       a scheduled task, run once per cluster (server/Tasks)
- *   policy <purchase|room-entry|placement> [<name>]
+ *   policy <purchase|room-entry|placement|registration> [<name>]
  *                                       a game policy: allow, refuse or change the action (server/Policies)
  *
  * A file that is there already is left alone (the command says so and stops).
@@ -440,6 +440,13 @@ public sealed class ${type} : IScheduledTask
                 parameters: 'PlacementRequest request, CancellationToken ct',
                 body: 'ValueTask.FromResult(PlacementDecision.Allow)',
                 summary: 'Asked before a player places a furni or saves a floor plan: PlacementDecision.Allow or\n/// .Refuse("why").',
+            },
+            registration: {
+                contract: 'IRegistrationPolicy',
+                decision: 'RegistrationDecision',
+                parameters: 'RegistrationRequest request, CancellationToken ct',
+                body: 'ValueTask.FromResult(RegistrationDecision.Allow)',
+                summary: 'Asked before a new account is made (its name, look, source and address): RegistrationDecision.Allow\n/// or .Refuse("why").',
             },
         };
         const policy = kinds[name];

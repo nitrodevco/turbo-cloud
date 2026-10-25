@@ -65,6 +65,8 @@ public sealed class NetworkManager(
         pluginMessages
     );
 
+    private readonly ClientAddresses _addresses = new(config.Value.TrustedProxies);
+
     private readonly object _tcpGate = new();
     private readonly object _wsGate = new();
 
@@ -79,6 +81,14 @@ public sealed class NetworkManager(
 
     public async Task StartAsync(CancellationToken ct)
     {
+        foreach (var invalid in _addresses.Invalid)
+            _loggerFactory
+                .CreateLogger<NetworkManager>()
+                .LogWarning(
+                    "Turbo:Networking:TrustedProxies has {Entry}, which is neither an address nor a range; it is ignored",
+                    invalid
+                );
+
         bool needTcpStart = false;
         bool needsWsStart = false;
 
@@ -187,6 +197,7 @@ public sealed class NetworkManager(
         services.AddSingleton<IPackageHandler<IClientPacket>>(_packageHandler);
         services.AddSingleton<IClientPacketDecoder>(_packetDecoder);
         services.AddSingleton(_packageEncoder);
+        services.AddSingleton(_addresses);
         services.AddSingleton<IPackageEncoder<OutgoingPackage>>(_packageEncoder);
     }
 }

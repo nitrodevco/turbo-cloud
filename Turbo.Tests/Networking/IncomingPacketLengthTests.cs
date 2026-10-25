@@ -102,6 +102,20 @@ public sealed class IncomingPacketLengthTests : IAsyncDisposable
         session.ReceiveBuffer.Should().BeNull("the refused frame is never copied");
     }
 
+    /// <summary>
+    /// The session reads the forwarded address from the WebSocket upgrade a proxy on the same
+    /// machine sent (<see cref="ClientAddresses"/> has the rule): what the login's policies get.
+    /// </summary>
+    [Fact]
+    public async Task A_WebSocket_session_behind_a_local_proxy_has_the_forwarded_address()
+    {
+        _webSocket.Options.SetRequestHeader(ClientAddresses.FORWARDED_FOR, "198.51.100.4");
+
+        var session = await ConnectWebSocketAsync();
+
+        session.RemoteAddress.Should().Be("198.51.100.4");
+    }
+
     [Fact]
     public async Task ALargeButLegalPacketSplitAcrossFrames_IsHandled_AndTheBufferShrinksBack()
     {

@@ -305,6 +305,108 @@ public class LoginAdmissionTests
             .Equal(Enumerable.Repeat(PLAYER, raised));
     }
 
+    private const string ADDRESS = "198.51.100.4";
+
+    /// <summary>
+    /// An address ban or a VPN check at login needs the address the
+    /// client connected from; the login's play policies and its event carry the session's, and the
+    /// event's text leaves it out (personal data).
+    /// </summary>
+    [Fact]
+    public async Task The_login_policies_and_PlayerLoggedIn_carry_the_clients_address()
+    {
+        var asked = new List<PlayRequest>();
+
+        _fakes.Handlers["get_RemoteAddress"] = _ => ADDRESS;
+        _policies.Register("vpn", new Policy(_ => Task.FromResult(PlayDecision.Allow), asked));
+
+        await Record.ExceptionAsync(LogInAsync);
+        await _events.WhenPublishedAsync<Turbo.Primitives.Players.Events.PlayerLoggedInEvent>(1);
+
+        asked.Should().ContainSingle().Which.RemoteAddress.Should().Be(ADDRESS);
+        var loggedIn = _events.Of<Turbo.Primitives.Players.Events.PlayerLoggedInEvent>().Single();
+        loggedIn.RemoteAddress.Should().Be(ADDRESS);
+        loggedIn.ToString().Should().NotContain(ADDRESS);
+    }
+
+    /// <summary>
+    /// An auth log counts failed logins by player and address; every
+    /// way a login is turned away raises PlayerLoginFailed with why, whose and from where.
+    /// </summary>
+    [Theory]
+    [InlineData("ticket")]
+    [InlineData("ban")]
+    [InlineData("maintenance")]
+    [InlineData("policy")]
+    public async Task A_refused_login_raises_PlayerLoginFailed_with_why_and_the_address(
+        string refusal
+    )
+    {
+        _fakes.Handlers["get_RemoteAddress"] = _ => ADDRESS;
+        _events.Record<Turbo.Primitives.Players.Events.PlayerLoginFailedEvent>();
+
+        switch (refusal)
+        {
+            case "ticket":
+                _fakes.Handlers["GetPlayerIdFromTicketAsync"] = _ => Task.FromResult(0);
+                break;
+            case "ban":
+                _ban = Ban(null);
+                break;
+            case "maintenance":
+                _admitted = false;
+                break;
+            default:
+                _policies.Register(
+                    "gate",
+                    new Policy(_ => Task.FromResult(PlayDecision.Refuse("Vote first.")), [])
+                );
+                break;
+        }
+
+        await LogInAsync();
+        await _events.WhenPublishedAsync<Turbo.Primitives.Players.Events.PlayerLoginFailedEvent>(1);
+
+        var failed = _events
+            .Of<Turbo.Primitives.Players.Events.PlayerLoginFailedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+
+        (failed.Failure, failed.PlayerId?.Value, failed.Reason, failed.RemoteAddress)
+            .Should()
+            .Be(
+                refusal switch
+                {
+                    "ticket" => (
+                        Turbo.Primitives.Players.Events.LoginFailure.InvalidTicket,
+                        (int?)null,
+                        (string?)null,
+                        ADDRESS
+                    ),
+                    "ban" => (
+                        Turbo.Primitives.Players.Events.LoginFailure.Banned,
+                        PLAYER,
+                        null,
+                        ADDRESS
+                    ),
+                    "maintenance" => (
+                        Turbo.Primitives.Players.Events.LoginFailure.Maintenance,
+                        PLAYER,
+                        null,
+                        ADDRESS
+                    ),
+                    _ => (
+                        Turbo.Primitives.Players.Events.LoginFailure.RefusedByPolicy,
+                        PLAYER,
+                        "Vote first.",
+                        ADDRESS
+                    ),
+                }
+            );
+        _events.Of<Turbo.Primitives.Players.Events.PlayerLoggedInEvent>().Should().BeEmpty();
+    }
+
     [Fact]
     public async Task SuccessfulLoginDeliversPendingRewardsAfterEnablingNotifications()
     {

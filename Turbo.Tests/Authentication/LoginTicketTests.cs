@@ -55,7 +55,7 @@ public sealed class LoginTicketTests : IDisposable
     [Fact]
     public async Task ATicket_LogsInOnce_AndIsUsedUp()
     {
-        var issued = await _tickets.IssueAsync(ALICE, TimeSpan.FromHours(1), false, Ct);
+        var issued = await _tickets.IssueAsync(ALICE, TimeSpan.FromHours(1), false, "", Ct);
 
         issued.Ticket.Should().HaveLength(64);
         issued.ExpiresAtUtc.Should().Be(NOW.AddHours(1));
@@ -69,7 +69,7 @@ public sealed class LoginTicketTests : IDisposable
     [Fact]
     public async Task ATicketWhoseTimeRanOut_IsRefused_AndRemoved()
     {
-        var issued = await _tickets.IssueAsync(ALICE, TimeSpan.FromMinutes(15), true, Ct);
+        var issued = await _tickets.IssueAsync(ALICE, TimeSpan.FromMinutes(15), true, "", Ct);
 
         _clock.Advance(TimeSpan.FromMinutes(15));
 
@@ -81,7 +81,7 @@ public sealed class LoginTicketTests : IDisposable
     [Fact]
     public async Task AReusableTicketWithNoEnd_LogsInEveryTime()
     {
-        var issued = await _tickets.IssueAsync(ALICE, null, true, Ct);
+        var issued = await _tickets.IssueAsync(ALICE, null, true, "", Ct);
 
         issued.ExpiresAtUtc.Should().BeNull();
         _clock.Advance(TimeSpan.FromDays(3650));
@@ -99,8 +99,8 @@ public sealed class LoginTicketTests : IDisposable
     [Fact]
     public async Task ANewTicket_Replaces_TheOneThePlayerHad()
     {
-        var first = await _tickets.IssueAsync(ALICE, null, true, Ct);
-        var second = await _tickets.IssueAsync(ALICE, TimeSpan.FromHours(1), false, Ct);
+        var first = await _tickets.IssueAsync(ALICE, null, true, "", Ct);
+        var second = await _tickets.IssueAsync(ALICE, TimeSpan.FromHours(1), false, "", Ct);
 
         second.Ticket.Should().NotBe(first.Ticket);
         (await _login.GetPlayerIdFromTicketAsync(first.Ticket, Ct)).Should().Be(0);
@@ -110,7 +110,7 @@ public sealed class LoginTicketTests : IDisposable
     [Fact]
     public async Task ATicketTakenAway_NoLongerLogsIn()
     {
-        var issued = await _tickets.IssueAsync(ALICE, null, true, Ct);
+        var issued = await _tickets.IssueAsync(ALICE, null, true, "", Ct);
 
         (await _tickets.RevokeAsync(ALICE, Ct)).Should().BeTrue();
         (await _tickets.RevokeAsync(ALICE, Ct)).Should().BeFalse();
@@ -125,7 +125,7 @@ public sealed class LoginTicketTests : IDisposable
     [Fact]
     public async Task AnIssuedTicket_IsStoredOnlyAsItsHash_AndTheHashDoesNotLogIn()
     {
-        var issued = await _tickets.IssueAsync(ALICE, null, true, Ct);
+        var issued = await _tickets.IssueAsync(ALICE, null, true, "", Ct);
 
         string stored;
         await using (var db = await _db.CreateDbContextAsync(Ct))

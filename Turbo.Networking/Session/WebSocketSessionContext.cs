@@ -12,10 +12,11 @@ using Turbo.Primitives.Rooms;
 
 namespace Turbo.Networking.Session;
 
-public class WebSocketSessionContext(PackageEncoder packageEncoder, ILogger<ISessionContext> logger)
-    : WebSocketSession(),
-        ISessionContext,
-        ISessionOutbound
+public class WebSocketSessionContext(
+    PackageEncoder packageEncoder,
+    ILogger<ISessionContext> logger,
+    ClientAddresses? addresses = null
+) : WebSocketSession(), ISessionContext, ISessionOutbound
 {
     // A buffer, sending or receiving, that grew past this for one large packet is dropped
     // afterwards rather than kept for the life of the connection.
@@ -40,6 +41,16 @@ public class WebSocketSessionContext(PackageEncoder packageEncoder, ILogger<ISes
     public IRc4Engine? CryptoIn => _state.CryptoIn;
     public IRc4Engine? CryptoOut => _state.CryptoOut;
     public RoomId ActiveRoomId => _state.ActiveRoomId;
+
+    // Read once the upgrade's headers are in, which they are before any packet is.
+    public string RemoteAddress =>
+        _remoteAddress ??= (addresses ?? ClientAddresses.LoopbackOnly).Resolve(
+            RemoteEndPoint,
+            HttpHeader?.Items[ClientAddresses.FORWARDED_FOR]
+        );
+
+    private string? _remoteAddress;
+
     public DateTime LastReceivedUtc => _state.LastReceivedUtc;
 
     public void MarkReceived() => _state.MarkReceived();

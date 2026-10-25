@@ -17,6 +17,12 @@ public sealed class MessageContext(ISessionContext session, PlayerId playerId, R
     public RoomId RoomId => _roomId;
     public SessionKey SessionKey => _session.SessionKey;
 
+    /// <summary>
+    /// The address the client connected from (<see cref="ISessionContext.RemoteAddress"/>); empty
+    /// when it is not known. Personal data: for the login's policies and events, not for logs.
+    /// </summary>
+    public string RemoteAddress => _session.RemoteAddress ?? string.Empty;
+
     /// <summary>Whether this session has completed its key exchange.</summary>
     public bool IsEncrypted => _session.CryptoIn is not null;
 

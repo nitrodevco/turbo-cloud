@@ -164,6 +164,7 @@ public sealed class PluginTemplateTests : IDisposable
                 "policy purchase club-discount",
                 "policy room-entry",
                 "policy placement",
+                "policy registration",
             }
         )
             await MakeAsync(source, recipe);
@@ -220,6 +221,7 @@ public sealed class PluginTemplateTests : IDisposable
                 ("purchase", "ClubDiscountPolicy"),
                 ("room-entry", "RoomEntryPolicy"),
                 ("placement", "PlacementPolicy"),
+                ("registration", "RegistrationPolicy"),
             ]);
         host.Schedules.Keys.Should()
             .BeEquivalentTo($"{key}.SkillsWeeklyReset", $"{key}.WeeklyRotation");
@@ -371,6 +373,7 @@ public sealed class PluginTemplateTests : IDisposable
                 "policy purchase club-discount",
                 "policy room-entry",
                 "policy placement",
+                "policy registration",
             }
         )
             await MakeAsync(source, recipe);

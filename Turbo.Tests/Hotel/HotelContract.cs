@@ -20,7 +20,8 @@ public interface IHotelWorld : IAsyncDisposable
         string name,
         bool online = false,
         bool systemAccount = false,
-        int respects = 0
+        int respects = 0,
+        DateTime? lastLogin = null
     );
 
     void SetBalance(PlayerId player, string currency, int amount);
@@ -307,6 +308,91 @@ public abstract class HotelContract
 
         (await wired.FireAsync(den, new HotelWiredPing(2), null, Ct)).Should().BeTrue();
         (await wired.FireForPlayerAsync(owner, new HotelWiredPing(3), Ct)).Should().BeTrue();
+    }
+
+    /// <summary>
+    /// A hotel's front door shows how many were about lately and who, with
+    /// their looks. About since a time is logged in then or later, or online now; the hotel's own
+    /// accounts are never counted; the last to log in come first.
+    /// </summary>
+    [Fact]
+    public async Task Players_about_lately_are_counted_and_listed_last_login_first()
+    {
+        var now = new DateTime(2026, 10, 25, 12, 0, 0, DateTimeKind.Utc);
+        await using var world = NewWorld();
+        var alice = world.AddPlayer("Alice", lastLogin: now.AddDays(-1));
+        world.AddPlayer("Bob", lastLogin: now.AddDays(-40));
+        var carl = world.AddPlayer("Carl", online: true, lastLogin: now.AddDays(-60));
+        world.AddPlayer("Frank", systemAccount: true, lastLogin: now.AddHours(-1));
+        var dana = world.AddPlayer("Dana", lastLogin: now.AddHours(-2));
+        world.AddPlayer("Erin");
+        await world.StartAsync(Ct);
+        var players = world.Hotel.Players;
+
+        (await players.CountAsync(now.AddDays(-31), Ct)).Should().Be(3);
+        (await players.CountAsync(null, Ct)).Should().Be(5);
+
+        var first = await players.RecentAsync(now.AddDays(-31), 2, 0, Ct);
+        var rest = await players.RecentAsync(now.AddDays(-31), 2, 2, Ct);
+
+        first
+            .Concat(rest)
+            .Select(x => (x.Player.Id, x.Online))
+            .Should()
+            .Equal((dana, false), (alice, false), (carl, true));
+        first[0].Player.Figure.Should().NotBeEmpty();
+    }
+
+    /// <summary>
+    /// A returning player's old account: a plugin links a Discord account to an imported
+    /// player after its own proof. One identity is one player and a player has one of each
+    /// service; only staff's replacing link moves one.
+    /// </summary>
+    [Fact]
+    public async Task An_identity_links_to_one_player_and_only_a_replacing_link_moves_it()
+    {
+        await using var world = NewWorld();
+        var alice = world.AddPlayer("Alice");
+        var bob = world.AddPlayer("Bob");
+        await world.StartAsync(Ct);
+        var players = world.Hotel.Players;
+        var discord = HotelIdentity.Discord("111", "alice#1");
+
+        (await players.LinkIdentityAsync(alice, discord, false, Ct))
+            .Should()
+            .Be(IdentityLinkOutcome.Linked);
+        (await players.LinkIdentityAsync(alice, discord, false, Ct))
+            .Should()
+            .Be(IdentityLinkOutcome.AlreadyLinked);
+        (await players.LinkIdentityAsync(bob, discord, false, Ct))
+            .Should()
+            .Be(IdentityLinkOutcome.TakenByAnother);
+        (await players.LinkIdentityAsync(alice, HotelIdentity.Discord("222", "alt"), false, Ct))
+            .Should()
+            .Be(IdentityLinkOutcome.PlayerHasAnother);
+        (
+            await players.LinkIdentityAsync(
+                new PlayerId(99),
+                HotelIdentity.Discord("333", "x"),
+                false,
+                Ct
+            )
+        )
+            .Should()
+            .Be(IdentityLinkOutcome.NoSuchPlayer);
+        (await players.LinkIdentityAsync(alice, new HotelIdentity("steam", "1", "a"), false, Ct))
+            .Should()
+            .Be(IdentityLinkOutcome.Unsupported);
+        (await players.FindByIdentityAsync(HotelIdentity.DISCORD, "111", Ct)).Should().Be(alice);
+
+        // Staff move it: Bob has it now, Alice has none.
+        (await players.LinkIdentityAsync(bob, discord, true, Ct))
+            .Should()
+            .Be(IdentityLinkOutcome.Linked);
+        (await players.FindByIdentityAsync(HotelIdentity.DISCORD, "111", Ct)).Should().Be(bob);
+        (await players.UnlinkIdentityAsync(alice, HotelIdentity.DISCORD, Ct)).Should().BeFalse();
+        (await players.UnlinkIdentityAsync(bob, HotelIdentity.DISCORD, Ct)).Should().BeTrue();
+        (await players.FindByIdentityAsync(HotelIdentity.DISCORD, "111", Ct)).Should().BeNull();
     }
 }
 

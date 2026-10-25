@@ -23,6 +23,13 @@ public interface ISessionContext : IAppSession
     public RoomId ActiveRoomId { get; }
 
     /// <summary>
+    /// The address the client connected from, through any proxy the hotel trusts
+    /// (<c>Turbo:Networking:TrustedProxies</c>); empty when it is not known. It is a player's
+    /// personal data: it goes to the login's policies and events, never to a log.
+    /// </summary>
+    public string RemoteAddress { get; }
+
+    /// <summary>
     /// When a packet last arrived on this connection (UTC). The heartbeat closes a connection that
     /// has been silent too long: a client that slept or lost its network never sends a close, so
     /// without this its player would stay online and standing in their room.

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Orleans.Runtime;
 using Turbo.Catalog;
+using Turbo.Catalog.Exceptions;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Messages.Registry;
 using Turbo.Navigator;
@@ -161,6 +162,132 @@ public sealed class RoomAdPurchaseTests : IDisposable
     [Fact]
     public async Task AnAdBought_GivesTheOffersBadge()
     {
+        var (grain, fakes) = await AdGrainAsync();
+
+        await BuyAdAsync(grain);
+
+        fakes.Log.Of("TryDebitAsync").Should().ContainSingle("the ad is paid once");
+        fakes.Log.Of("GiveBadgeAsync").Should().ContainSingle().Which.Args[0].Should().Be("RADZZ");
+    }
+
+    /// <summary>
+    /// A hotel's own room ads: it prices or refuses room ads through its
+    /// purchase policies like any offer, seeing the ad asked for, and hears of every ad bought
+    /// after it is paid and running.
+    /// </summary>
+    [Fact]
+    public async Task A_room_ad_goes_through_the_purchase_policies_and_raises_PurchaseCompleted()
+    {
+        var (grain, fakes) = await AdGrainAsync();
+        var policies = Turbo.Players.Policies.GamePolicies.None;
+        var events = new TestEventBus();
+        var asked = new List<Turbo.Primitives.Policies.PurchaseRequest>();
+
+        policies.Register("events", new HalfPriceAds(asked));
+        GrainHarness.Replace<Turbo.Primitives.Policies.IGamePolicies>(grain, policies);
+        GrainHarness.Replace(grain, events.System);
+        events.Record<Turbo.Primitives.Catalog.Events.PurchaseCompletedEvent>();
+
+        await BuyAdAsync(grain);
+        await events.WhenPublishedAsync<Turbo.Primitives.Catalog.Events.PurchaseCompletedEvent>(1);
+
+        asked
+            .Should()
+            .ContainSingle()
+            .Which.RoomAd.Should()
+            .Be(
+                new Turbo.Primitives.Policies.RoomAdRequest(
+                    ROOM,
+                    2,
+                    "Party at agent5",
+                    "Come and dance",
+                    false,
+                    TimeSpan.FromMinutes(120)
+                )
+            );
+        var debit = (
+            (IEnumerable<WalletDebitRequest>)fakes.Log.Of("TryDebitAsync").Single().Args[0]!
+        )
+            .Should()
+            .ContainSingle()
+            .Subject;
+        debit.Amount.Should().Be(7, "the policy halved the 15 the offer costs");
+        var bought = events
+            .Of<Turbo.Primitives.Catalog.Events.PurchaseCompletedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        (bought.OfferId, bought.CostActivityPoints, bought.RoomAd?.EventId, bought.RoomAdExtended)
+            .Should()
+            .Be((AD_OFFER, 7, 1, false));
+    }
+
+    [Fact]
+    public async Task A_room_ad_a_purchase_policy_refuses_is_not_paid_for_or_made()
+    {
+        var (grain, fakes) = await AdGrainAsync();
+        var policies = Turbo.Players.Policies.GamePolicies.None;
+
+        policies.Register("events", new NoAds());
+        GrainHarness.Replace<Turbo.Primitives.Policies.IGamePolicies>(grain, policies);
+
+        var refused = await Record.ExceptionAsync(() => BuyAdAsync(grain));
+
+        refused.Should().BeOfType<CatalogPurchaseException>();
+        fakes.Log.Of("TryDebitAsync").Should().BeEmpty();
+        fakes.Log.Of("CreateEventAsync").Should().BeEmpty();
+    }
+
+    public sealed class HalfPriceAds(List<Turbo.Primitives.Policies.PurchaseRequest> asked)
+        : Turbo.Primitives.Policies.IPurchasePolicy
+    {
+        public ValueTask<Turbo.Primitives.Policies.PurchaseDecision> DecideAsync(
+            Turbo.Primitives.Policies.PurchaseRequest request,
+            Turbo.Primitives.Policies.PurchaseDecision proposed,
+            CancellationToken ct
+        )
+        {
+            asked.Add(request);
+
+            return ValueTask.FromResult(
+                request.RoomAd is null
+                    ? proposed
+                    : proposed with
+                    {
+                        CostActivityPoints = proposed.CostActivityPoints / 2,
+                    }
+            );
+        }
+    }
+
+    public sealed class NoAds : Turbo.Primitives.Policies.IPurchasePolicy
+    {
+        public ValueTask<Turbo.Primitives.Policies.PurchaseDecision> DecideAsync(
+            Turbo.Primitives.Policies.PurchaseRequest request,
+            Turbo.Primitives.Policies.PurchaseDecision proposed,
+            CancellationToken ct
+        ) =>
+            ValueTask.FromResult(
+                request.RoomAd is null
+                    ? proposed
+                    : Turbo.Primitives.Policies.PurchaseDecision.Refuse("No ads this week.")
+            );
+    }
+
+    private static Task BuyAdAsync(object grain) =>
+        ((ICatalogPurchaseGrain)grain).PurchaseRoomAdAsync(
+            AD_OFFER,
+            ROOM,
+            2,
+            "Party at agent5",
+            "Come and dance",
+            false,
+            TimeSpan.FromMinutes(120),
+            Ct
+        );
+
+    private async Task<(object Grain, Fakes Fakes)> AdGrainAsync()
+    {
         _catalog.Db.Insert(
             new CatalogOfferEntity
             {
@@ -244,19 +371,7 @@ public sealed class RoomAdPurchaseTests : IDisposable
                 ]
             );
 
-        await ((ICatalogPurchaseGrain)grain).PurchaseRoomAdAsync(
-            AD_OFFER,
-            ROOM,
-            2,
-            "Party at agent5",
-            "Come and dance",
-            false,
-            TimeSpan.FromMinutes(120),
-            Ct
-        );
-
-        fakes.Log.Of("TryDebitAsync").Should().ContainSingle("the ad is paid once");
-        fakes.Log.Of("GiveBadgeAsync").Should().ContainSingle().Which.Args[0].Should().Be("RADZZ");
+        return (grain, fakes);
     }
 
     private NavigatorService Navigator() =>

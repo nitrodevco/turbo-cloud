@@ -70,7 +70,7 @@ Every member carries `[HotelCall(...)]`, and its guide is this table. The rule t
 
 | Area | Members |
 | --- | --- |
-| `Players` | `GetAsync(id)`, `FindAsync(name)` (any case), `NamesAsync(ids)`, `SearchAsync(prefix, take)` (at most 50), `OnlineIds()`, `CurrentRoomAsync(id)`, `ClubAsync(id)` (active, streak days), `HasPermissionAsync(id, node)`, `TopByAsync(stat, take, skip)` (respects, achievement score or a currency's balance; at most 100; system accounts never ranked), `SendAsync(id, message or composer)` (false when offline) |
+| `Players` | `GetAsync(id)`, `FindAsync(name)` (any case), `NamesAsync(ids)`, `SearchAsync(prefix, take)` (at most 50), `OnlineIds()`, `CurrentRoomAsync(id)`, `ClubAsync(id)` (active, streak days), `HasPermissionAsync(id, node)`, `TopByAsync(stat, take, skip)` (respects, achievement score or a currency's balance; at most 100; system accounts never ranked), `CountAsync(activeSince)` (logged in since then or online now; all with null; system accounts not counted), `RecentAsync(activeSince, take, skip)` (the same players, last login first, at most 100, each with their look and whether online), `FindByIdentityAsync(provider, id)`, `LinkIdentityAsync(id, identity, replace)` and `UnlinkIdentityAsync(id, provider)` (see below), `SendAsync(id, message or composer)` (false when offline) |
 | `Rooms` | `GetAsync(id)` (name, owner, owner's name, on the public list), `PublicIdsAsync()`, `PlayersAsync(id)`, `SendAsync(id, message or composer)` and `WhisperAsync(id, player, text)` (false, and the room not loaded, when no one is in it), `LoadAsync(id)` |
 | `Wallet` | `CurrencyExists(name)`, `BalanceAsync`, `CreditAsync` and `DebitAsync(player, currency, amount, reference, cause)` |
 | `Inventory` | `FindFurniture(name)`, `Furniture(id)`, `GrantFurnitureAsync(player, definition, cause)`, `GrantFurnitureAsync(player, definition, reference, cause)` (once per reference: `Granted`, `AlreadyGranted`, `Refused`), `HasBadgeAsync`, `GiveBadgeAsync` (false when they had it) |
@@ -81,6 +81,21 @@ Every member carries `[HotelCall(...)]`, and its guide is this table. The rule t
 
 Reads are query methods with their own limits, not `DbSet`s: a plugin never builds a query on a
 core table, so a core table can change without breaking it.
+
+### Identity links
+
+A player signs in to the public site with the Discord account linked to them (`docs/public-site.md`).
+A plugin that proves a Discord account belongs to an existing player (an imported account's
+returning owner: a code shown in the hotel, a staff check) links it with
+`LinkIdentityAsync(player, HotelIdentity.Discord(id, name), replace: false)`: `Linked`,
+`AlreadyLinked`, `TakenByAnother` (another player has it), `PlayerHasAnother` (the player has
+another Discord account), `NoSuchPlayer` or `Unsupported` (a service the hotel keeps no links for;
+`discord` is the one). An identity is one player's and a player has one of each service, as the
+database's unique indexes keep it. `replace: true` is staff's override: it moves the identity from
+whoever had it and drops the player's other one; the plugin gates the route or command that asks
+for it with a permission node (`docs/permissions.md`). A link made raises
+`PlayerIdentityLinkedEvent`, and the hotel's configured owner (`Turbo:Owner:DiscordId`) is made
+owner as at sign-up. The plugin's proof is its own: the hotel takes the link as given.
 
 ### Wallet rules
 
@@ -106,7 +121,7 @@ without a reference stays for things given once per call.
 plugin does:
 
 - set up: `Players.Add(name, online)` (a `FakePlayer` whose `IsSystemAccount`, `Respects`,
-  `AchievementScore`, `Club` and `Permissions` the test sets; it passes as its `PlayerId`),
+  `AchievementScore`, `Club`, `LastLoginAt` and `Permissions` the test sets; it passes as its `PlayerId`),
   `Rooms.Add(name, owner, isPublic)`, `Rooms.Enter(room, player)`, `Wallet.Set(player, currency,
   amount)`, `Wallet.AddCurrency(name)` (credits, duckets and diamonds are there), `Inventory.AddFurniture(name)`,
   `Inventory.Hold(...)`, `Catalog.AddOffer(...)`; ids count up from 1, or from `Players.NextId`,
@@ -115,7 +130,7 @@ plugin does:
   credits, debits, grants or badge gifts fail as a hotel write that failed does (refused, nothing
   changed, no receipt kept, so a retry under the same reference goes through), or throw the
   exception given, as a crash mid-call does;
-- read back: `Players.SentTo(player)`, `Rooms.SentTo(room)`, `Rooms.WhispersTo(player)`,
+- read back: `Players.SentTo(player)`, `Players.Identities`, `Rooms.SentTo(room)`, `Rooms.WhispersTo(player)`,
   `Wallet.Movements`, `Inventory.Grants`, `Notify.Alerts`, `Notify.StaffNotices`,
   `Catalog.Publishes`, `Wired.Fired`;
 - assert: `Wallet.AssertCredited/AssertDebited/AssertUntouched`, `Players.AssertSent<T>/AssertNothingSent`,
