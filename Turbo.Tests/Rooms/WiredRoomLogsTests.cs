@@ -8,6 +8,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Tests.Support;
 using Xunit;
@@ -119,6 +120,31 @@ public sealed class WiredRoomLogsTests
         filtered.TotalEntries.Should().Be(1);
     }
 
+    // Each effect waits its own delay from the firing: a Show Message without a delay whispered
+    // 90 ms after the click, 5 of 5, though one delayed 10 s stood below it in the stack
+    // (official client capture 2026-10-25T02-50-51, golden replay wlab9/0 t=1477851..1650558).
+    // Ours ran the effects in a random order and the delayed one held those after it.
+    [Fact]
+    public async Task An_effect_without_a_delay_is_not_held_by_a_delayed_one()
+    {
+        await BuildAsync("D");
+        _room.AddBox<WiredActionWriteToLogs>(3, 0, 0, "wf_act_log");
+        await SaveLogAsync("D", delay: 10);
+        await SaveLogAsync("N", delay: 0, box: 3);
+
+        for (var i = 1; i <= 12; i++)
+        {
+            await _room.FloorItem(CLICK_ME).Logic.OnClickAsync(_room.ContextFor(5), 0, Ct);
+            await TickAsync(1);
+
+            Wired.GetRoomLogs().Count(x => x.Message == "N").Should().Be(i);
+        }
+
+        await TickAsync(5);
+
+        Wired.GetRoomLogs().Count(x => x.Message == "D").Should().Be(12);
+    }
+
     private async Task BuildAsync(string text)
     {
         _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
@@ -138,14 +164,14 @@ public sealed class WiredRoomLogsTests
         await SaveLogAsync(text);
     }
 
-    private async Task SaveLogAsync(string text)
+    private async Task SaveLogAsync(string text, int delay = 2, int box = 2)
     {
         (
             await _room.SaveAsync<UpdateActionMessage>(
-                2,
+                box,
                 intParams: [(int)WiredLogLevelType.Warning],
                 stringParam: text,
-                definitionSpecifics: [2]
+                definitionSpecifics: [delay]
             )
         )
             .Should()
