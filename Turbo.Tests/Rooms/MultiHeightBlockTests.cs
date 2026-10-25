@@ -170,10 +170,13 @@ public sealed class MultiHeightBlockTests
         var top = AddBlock(TOP);
 
         for (var use = 0; use < 2; use++)
+        {
             await UseAndRunWiredAsync(BLOCK);
 
+            lamp.Logic.GetState().Should().Be(0, "Furni Is Used does not fire for a refused use");
+        }
+
         block.Logic.GetState().Should().Be(4);
-        lamp.Logic.GetState().Should().Be(0, "Furni Is Used does not fire for a refused use");
 
         await UseAndRunWiredAsync(TOP);
 
@@ -198,12 +201,7 @@ public sealed class MultiHeightBlockTests
         const int EFFECT = 51;
         var ct = TestContext.Current.CancellationToken;
 
-        _room.AddBox<WiredTriggerHabboChangesItemState>(
-            TRIGGER,
-            0,
-            0,
-            "wf_trg_state_changed"
-        );
+        _room.AddBox<WiredTriggerHabboChangesItemState>(TRIGGER, 0, 0, "wf_trg_state_changed");
         _room.AddBox<WiredActionToggleItemState>(EFFECT, 0, 0, "wf_act_toggle_state");
         (
             await _room.SaveAsync<UpdateTriggerMessage>(
@@ -248,7 +246,11 @@ public sealed class MultiHeightBlockTests
         for (var i = 0; i < 10; i++)
         {
             _now += 50;
-            await wired.ProcessWiredAsync(_now, dormant: false, TestContext.Current.CancellationToken);
+            await wired.ProcessWiredAsync(
+                _now,
+                dormant: false,
+                TestContext.Current.CancellationToken
+            );
         }
     }
 
