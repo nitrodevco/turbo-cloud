@@ -163,6 +163,14 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
         {
             Persist(bot);
 
+            // Placed onto a furni, the bot walks on it (official client capture 2026-10-25T08-44-21,
+            // wired matrix trigger.1.R8, 3/3: Walks On fired, the bot the walker). It came from
+            // no other tile, so it has not reached the furni: Bot Reaches Furni is not told (not
+            // recorded).
+            var tileIdx = MapModule.ToIdx(bot.X, bot.Y);
+
+            await AvatarModule.NotifyWalkOnAsync(bot, tileIdx, ct, fromTileIdx: tileIdx);
+
             // Wired hears a placed bot as a user entering, the bot triggering (official client
             // capture 2026-10-24, W3 lab trigger.7.R2: Enter Room fired 3/3, triggerer the bot).
             await _roomGrain.PublishRoomEventAsync(
@@ -324,6 +332,11 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
     private async Task<bool> ReturnBotAsync(ActionContext ctx, IRoomBot bot, CancellationToken ct)
     {
         var botId = bot.BotId;
+
+        // Picked up from a furni, the bot walks off it (official client capture
+        // 2026-10-25T08-46-35, wired matrix trigger.2.R8, 3/3).
+        if (MapModule.InBounds(bot.X, bot.Y))
+            await AvatarModule.NotifyWalkOffAsync(bot, MapModule.ToIdx(bot.X, bot.Y), ct);
 
         await ObjectModule.RemoveObjectAsync(ctx, bot, ct);
 

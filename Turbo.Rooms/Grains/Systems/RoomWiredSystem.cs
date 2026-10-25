@@ -487,12 +487,20 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             if (!_stacksById.TryGetValue(stackId, out var stack) || stack is null)
                 continue;
 
+            // A stack runs once per event, fired by its lowest trigger that hears it: two Click
+            // Furni triggers with the same pick ran their stack once per click and only the
+            // bottom one flashed (official client capture 2026-10-25T09-00-44, wired matrix
+            // trigger.18.L4, 4/4). The same for other triggers is inferred.
             foreach (var trigger in stack.Triggers)
-                await FireTriggerWithEventAsync(trigger, evt, stack, now, ct);
+            {
+                if (await FireTriggerWithEventAsync(trigger, evt, stack, now, ct))
+                    break;
+            }
         }
     }
 
-    private async Task FireTriggerWithEventAsync(
+    /// <summary>Runs the stack when <paramref name="trigger"/> hears <paramref name="evt"/>; whether it did.</summary>
+    private async Task<bool> FireTriggerWithEventAsync(
         IWiredTrigger trigger,
         RoomEvent evt,
         IWiredStack stack,
@@ -507,11 +515,13 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             || _disabledBy.Count > 0
             || !await trigger.MatchesEventAsync(evt, ct)
         )
-            return;
+            return false;
 
         var ctx = await CreateFiringContextAsync(trigger, evt, stack, dryRun: false, ct);
 
         await RunStackAsync(ctx, now, calledByStack: false, ct);
+
+        return true;
     }
 
     /// <summary>
@@ -1659,7 +1669,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                         _stackIdsByEventType[eventType] = list;
                     }
 
-                    list.Add(stack.StackId);
+                    if (!list.Contains(stack.StackId))
+                        list.Add(stack.StackId);
                 }
             }
         }
