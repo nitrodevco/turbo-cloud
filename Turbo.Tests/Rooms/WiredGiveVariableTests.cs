@@ -242,7 +242,12 @@ public sealed class WiredGiveVariableTests
                 Ct
             );
 
+        mark.GetState().Should().Be(6);
         await GiveAsync(17);
+
+        // Yet the variable box flashes as for a give (ObjectsDataUpdate 7 at the delay end,
+        // 2026-10-24T18-17-45, 2/2); a give over an empty selection does not (wlab11 3/3).
+        mark.GetState().Should().Be(7);
         _room.Enter(PLAYER_INDEX, 1, 1);
 
         if (afterReentry is { } kept)

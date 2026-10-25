@@ -5,6 +5,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
@@ -170,6 +171,56 @@ public sealed class WiredBoxFlashTests
         global.GetState().Should().Be(4);
         await ClickAsync();
         global.GetState().Should().Be(5);
+    }
+
+    // Wired matrix action.40.R3: Remove Variable flashes the variable box to 8, for a furni and a
+    // user variable alike (official client capture 2026-10-25T01-22-35, 1/1 each; a give 6, a
+    // change +1 2 in the same run).
+    [Fact]
+    public async Task A_variable_box_flashes_8_when_a_value_is_removed()
+    {
+        _room.AddFloorItem(CLICK_ME, 7, 4);
+        _room.AddBox<WiredTriggerClickFurni>(TRIGGER, 0, 0, "wf_trg_click_furni");
+        var furni = _room.AddBox<WiredVariableFurni>(GLOBAL, 4, 4, "wf_var_furni");
+        (
+            await _room.SaveAsync<UpdateVariableMessage>(
+                GLOBAL,
+                intParams: [(int)WiredAvailabilityType.RoomActive, 1],
+                stringParam: "hp"
+            )
+        )
+            .Should()
+            .BeTrue();
+        await furni.LoadWiredAsync(Ct);
+        await StartAsync(4, 4);
+        var furniId = furni.GetVarSnapshot().VariableId;
+
+        _room.AddBox<WiredActionRemoveVariable>(EFFECT, 0, 0, "wf_act_remove_var");
+        await SaveTriggerAsync();
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                EFFECT,
+                intParams: [(int)WiredVariableTargetType.Furni],
+                stuffIds: [CLICK_ME],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                variableIds: [furniId.ToString()]
+            )
+        ).Should().BeTrue();
+        await StartAsync();
+
+        var key = new WiredVariableKey(furniId, WiredVariableTargetType.Furni, CLICK_ME);
+
+        (await furni.GiveValueAsync(key, new WiredVariableValue(5))).Should().BeTrue();
+        await TickAsync(1);
+        furni.GetState().Should().Be(6);
+
+        await ClickAsync();
+
+        furni.TryGetValue(key, out _).Should().BeFalse();
+        furni.GetState().Should().Be(8);
     }
 
     private async Task SaveChangeAsync(string variableId, WiredVariableOperationType operation) =>

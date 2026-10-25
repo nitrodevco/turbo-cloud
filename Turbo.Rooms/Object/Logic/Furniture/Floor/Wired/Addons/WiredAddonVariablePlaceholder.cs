@@ -120,9 +120,13 @@ public class WiredAddonVariablePlaceholder(
 
             if (!variable.TryGetValue(key, out var value))
             {
-                // Habbo prints "null" for a sub-variable without a value, a Level Up's is_maxed
-                // (official client capture 2026-10-24, wired matrix addon.1001.R1, 18/18).
-                if (variable is not WiredSubVariable sub || !sub.HoldsNoValueFor(key))
+                // Habbo prints "null" for a holder without a value: a context variable nobody gave
+                // ("C=null", official client capture 2026-10-25, wired matrix variable.3.X1 4/4,
+                // addon.16.R3 2/2), a selected user who left ("V=null" in text mode, the connector
+                // does not map it, addon.1000.B2 2/2), a Level Up's is_maxed (addon.1001.R1, 18/18).
+                // Each such holder of a "show all" list printing "null" is inferred. A sub-variable
+                // whose parent holds nothing on the target is not read there at all.
+                if (variable is WiredSubVariable sub && !sub.HoldsNoValueFor(key))
                     continue;
 
                 values.Add("null");
