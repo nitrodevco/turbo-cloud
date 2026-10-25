@@ -31,6 +31,11 @@ public class FurnitureOneWayDoorLogic(IStuffDataFactory stuffDataFactory, IRoomF
 
     public override bool CanWalk() => _passing is not null;
 
+    // It has no state for wired to change either: Toggle Furni State and Toggle To Random State
+    // picking it only flashed, no ObjectDataUpdate (official client capture 2026-10-24, wired
+    // matrix action.0.B2b / action.15.B2, 2/2 + 3/3).
+    public override bool CanChangeState() => false;
+
     public override Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct) =>
         Task.CompletedTask;
 
