@@ -77,11 +77,18 @@ internal static class ExternalVariablesFile
     public const string TEMPLATE_STYLES = "templates.styles";
 
     /// <summary>
+    /// The loading screen's look, read by the client before any module loads (nitro-next
+    /// <c>docs/client-modules.md</c>): <c>{ "background": "#202020", "logo": "...", "bar": { ... } }</c>,
+    /// each key a theme leaves out Habbo's own. Each plugin brings its keys; the hotel's own win.
+    /// </summary>
+    public const string LOADING_SCREEN = "loading.screen";
+
+    /// <summary>
     /// The variables a plugin brings a part of rather than the whole: a JSON object whose entries
     /// several plugins add to (<c>asset.bundles.templates.overrides</c>, a url per template
     /// library; <see cref="TEMPLATE_PATCHES"/>, a url per plugin; <see cref="FRAME_OVERRIDES"/>, a
     /// style per window; <see cref="ASSET_OVERLAYS"/>, a url per bitmap; <see cref="TEMPLATE_STYLES"/>,
-    /// a value per theme style). Each loaded plugin's entries are written into the client's file
+    /// a value per theme style; <see cref="LOADING_SCREEN"/>, a look per key of the loading screen). Each loaded plugin's entries are written into the client's file
     /// with the hotel's own (<see cref="Merge"/>); none is ever given to the hotel.
     /// </summary>
     public static readonly IReadOnlyList<string> MERGED =
@@ -91,6 +98,7 @@ internal static class ExternalVariablesFile
         FRAME_OVERRIDES,
         ASSET_OVERLAYS,
         TEMPLATE_STYLES,
+        LOADING_SCREEN,
     ];
 
     public static bool IsLinkable(string file) => LINKABLE.Contains(file, StringComparer.Ordinal);

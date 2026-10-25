@@ -556,6 +556,31 @@ public sealed class PluginOwnedGamedataTests : IDisposable
         await _manager.UnloadAllAsync(Ct);
     }
 
+    // A theme's loading.screen was sent whole and alone (a hotel restyling one part lost the rest), though
+    // nitro-next docs/client-modules.md says Turbo merges it as it does the other theme variables.
+    [Fact]
+    public async Task Each_plugin_adds_its_own_loading_screen_parts_and_the_hotels_entries_win()
+    {
+        WriteTheme(
+            """{ "loading.screen": { "background": "#202020", "logo": "/c_images/loading/theme.png" } }""",
+            string.Empty
+        );
+        WritePlugin("view", """{ "loading.screen": { "logo": "/other.png", "percent": false } }""");
+
+        await _manager.LoadAllAsync(ct: Ct);
+        await _variables.SaveAsync("loading.screen", """{"background":"#000000"}""", STAFF, Ct);
+
+        (await SentVariablesAsync())["loading.screen"]!
+            .ToJsonString()
+            .Should()
+            .Be(
+                """{"background":"#000000","logo":"/c_images/loading/theme.png","percent":false}""",
+                "each plugin's parts, the first one's where two name one, the hotel's over them"
+            );
+
+        await _manager.UnloadAllAsync(Ct);
+    }
+
     [Fact]
     public async Task A_plugins_bitmap_overlay_names_a_file_of_its_wwwroot_and_clients_get_its_address()
     {
