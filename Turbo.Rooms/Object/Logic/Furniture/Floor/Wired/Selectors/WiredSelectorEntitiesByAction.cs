@@ -26,11 +26,6 @@ public class WiredSelectorEntitiesByAction(
 
     public override bool SelectsUsers => true;
 
-    // Ascending room index, bots included, not the user who entered last first (official client
-    // capture 2026-10-24T18-20-40, W4 lab selector.9.R4: "Frank,Hutch.,frank,results!" for
-    // indices 0,2,3,6 with results! re-entered last, 2/2).
-    public override WiredUserOrderType UserOrder => WiredUserOrderType.RoomIndex;
-
     public override List<IWiredParamRule> GetIntParamRules() =>
         [new WiredEnumParamRule<WiredAvatarActionType>(WiredAvatarActionType.Wave)];
 

@@ -28,7 +28,6 @@ namespace Turbo.Tests.Rooms;
 public sealed class WiredLab6AnswersTests
 {
     private const int CLICK_ME = 20;
-    private const int FLOOR = 21;
     private const int LOG = 2;
 
     private readonly WiredRoom _room = new(8, 8);
@@ -108,42 +107,6 @@ public sealed class WiredLab6AnswersTests
         }
 
         offenders.Should().BeEmpty();
-    }
-
-    // selector.8.R4: Users On Furni lists the users by the furni's tiles, (5,10), (5,9), (6,9),
-    // (6,10) for a 2x2 at 5,9 (here 2,3): Frank on 5,9, frank on 5,10, Hutch. on 6,9 gave
-    // "frank,Frank,Hutch."; Frank 5,9, frank 6,9, Hutch. 6,10 gave "Frank,frank,Hutch." (10/10).
-    [Theory]
-    [InlineData(3, 3, 2, 3, 2, 4, new[] { 12, 11, 10 })]
-    [InlineData(3, 4, 2, 3, 3, 3, new[] { 11, 12, 10 })]
-    public async Task Selector8R4_UsersOnFurniFollowTheFurnisTiles(
-        int hutchX,
-        int hutchY,
-        int bigFrankX,
-        int bigFrankY,
-        int smallFrankX,
-        int smallFrankY,
-        int[] expected
-    )
-    {
-        _room.AddFloorItem(FLOOR, 2, 3, width: 2, length: 2);
-        _room.Enter(10, hutchX, hutchY, "Hutch.");
-        _room.Enter(11, bigFrankX, bigFrankY, "Frank");
-        _room.Enter(12, smallFrankX, smallFrankY, "frank");
-        var box = _room.AddBox<WiredSelectorEntitiesOnItem>(3, 7, 7, "wf_slc_users_onfurni");
-        (
-            await _room.SaveAsync<UpdateSelectorMessage>(
-                3,
-                stuffIds: [FLOOR],
-                furniSources:
-                [
-                    [WiredFurniSourceType.SelectedItems],
-                ],
-                definitionSpecifics: [false, false]
-            )
-        ).Should().BeTrue();
-
-        (await RunChainAsync([box], new WiredSelectionSet())).Should().Equal(expected);
     }
 
     // selector.10.R4: Users From Signal keeps the order the sender's selection had (4/4).

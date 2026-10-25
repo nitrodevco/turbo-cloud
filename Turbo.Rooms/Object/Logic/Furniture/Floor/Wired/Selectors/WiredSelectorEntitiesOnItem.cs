@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -49,7 +48,7 @@ public class WiredSelectorEntitiesOnItem(
             if (!FurniModule.GetTileIdForFloorItem(item, out var tileIds))
                 continue;
 
-            foreach (var tileIdx in InTileOrder(tileIds))
+            foreach (var tileIdx in tileIds)
             {
                 foreach (var avatar in AvatarModule.GetAvatarsOnTile(tileIdx))
                     output.SelectedAvatarIds.Add(avatar.ObjectId);
@@ -58,26 +57,4 @@ public class WiredSelectorEntitiesOnItem(
 
         return Task.FromResult<IWiredSelectionSet>(output);
     }
-
-    /// <summary>
-    /// The users come in the order of the furni's tiles they stand on, not by room index, entry or
-    /// name: on a 2x2 at 5,9 that is (5,10), (5,9), (6,9), (6,10) (official client capture
-    /// 2026-10-24, wired matrix selector.8.R4, 5 layouts of a user and two bots, 10/10 firings).
-    /// Inference: the walk goes column by column from the left, the first down from the far end
-    /// and the next back up; one 2x2 furni was measured.
-    /// </summary>
-    public override WiredUserOrderType UserOrder => WiredUserOrderType.AsSelected;
-
-    private IEnumerable<int> InTileOrder(List<int> tileIds) =>
-        tileIds
-            .Select(MapModule.GetTileXY)
-            .GroupBy(tile => tile.x)
-            .OrderBy(column => column.Key)
-            .SelectMany(
-                (column, index) =>
-                    index % 2 == 0
-                        ? column.OrderByDescending(tile => tile.y)
-                        : column.OrderBy(tile => tile.y)
-            )
-            .Select(tile => MapModule.ToIdx(tile.x, tile.y));
 }

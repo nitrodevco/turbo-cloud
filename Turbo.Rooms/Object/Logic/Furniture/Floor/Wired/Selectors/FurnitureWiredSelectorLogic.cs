@@ -90,10 +90,11 @@ public abstract class FurnitureWiredSelectorLogic(
 
     public virtual bool SelectsUsers => false;
 
-    // Users By Type, By Name and In Area list the user who entered last first (official client
-    // capture 2026-10-24, two accounts, W4 lab selector.2/11/13.R4 and R4b). The other user
-    // selectors were not measured with two users and list the same way (inference).
-    public virtual WiredUserOrderType UserOrder => WiredUserOrderType.NewestFirst;
+    // Every user selector lists in the room's one user order (official client capture 2026-10-25,
+    // W4 lab wlab9: ten user selectors, On Furni and By Name included, gave one shared order in
+    // each of 3 room states, 50/50). Habbo's order itself follows no rule (not room index, not
+    // entry order); ours is ascending room index, an inference that keeps the measured property.
+    public virtual WiredUserOrderType UserOrder => WiredUserOrderType.RoomIndex;
 
     public virtual Task<IWiredSelectionSet> SelectAsync(
         IWiredProcessingContext ctx,

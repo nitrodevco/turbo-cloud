@@ -58,59 +58,66 @@ public sealed class WiredSelectorLabAnswersTests
         var set = await RemoteAsync(picked);
 
         set.SelectedFurniIds.Should().Equal(B, C);
-        set.SelectedAvatarIds.Select(x => x.Value).Should().Equal(6, 5);
+        set.SelectedAvatarIds.Select(x => x.Value).Should().BeEquivalentTo([5, 6]);
     }
 
-    // selector.11.R4 / R4b (two accounts): Users By Name lists the user who entered last first,
-    // whatever the order of its name list, and a user who leaves and comes back moves to the
-    // front (official client capture 2026-10-24T16-02-03 / 16-03-46, 2/2 each).
-    [Theory]
-    [InlineData("Ann\tBob")]
-    [InlineData("Bob\tAnn")]
-    public async Task Selector11R4_TheUserWhoEnteredLastComesFirst(string names)
+    // selector.2/3/8/9/11/12/13/14.R4e: every user selector lists in ONE shared order per room
+    // state (official client capture 2026-10-25, W4 lab wlab9: ten user selectors, 3 states,
+    // 50/50). Habbo's order itself follows no rule, so the test pins only that they agree.
+    // Ann, Bob and Cid enter out of name order onto a 3x2 floor beside the middle furni.
+    [Fact]
+    public async Task SelectorR4e_EveryUserSelectorListsInTheOneSharedOrder()
     {
-        var box = await AddSelectorAsync<WiredSelectorEntitiesByName>(
-            "wf_slc_users_byname",
-            stringParam: names
-        );
-
-        (await RunChainAsync(box)).Should().Equal(6, 5);
-
-        _room.Harness.State.AvatarsByObjectId.Remove(5);
-        _room.Enter(7, 1, 1, "Ann", playerId: 105);
-
-        (await RunChainAsync(box)).Should().Equal(7, 6);
-    }
-
-    // selector.9.R4 / selector.12.R4: Users Performing Action (stand) and Users In Neighborhood
-    // list by ascending room index, the user who entered last LAST: "Frank,Hutch.,frank,results!"
-    // for indices 0,2,3,6 with results! re-entered last (official client capture
-    // 2026-10-24T18-20-40, 2/2 each). Ann and Bob re-enter beside the middle furni, Bob first.
-    [Theory]
-    [InlineData("wf_slc_users_byaction")]
-    [InlineData("wf_slc_users_neighborhood")]
-    public async Task Selector9R4_12R4_ActionAndNeighborhoodListByAscendingRoomIndex(
-        string logicName
-    )
-    {
-        IWiredSelector box =
-            logicName == "wf_slc_users_byaction"
-                ? await AddSelectorAsync<WiredSelectorEntitiesByAction>(
-                    logicName,
-                    intParams: [(int)WiredAvatarActionType.Stand]
-                )
-                : await AddSelectorAsync<WiredSelectorEntitiesInNeighborhood>(
-                    logicName,
-                    intParams: [0, 0, 0, 33554431],
-                    stuffIds: [B]
-                );
-
         _room.Harness.State.AvatarsByObjectId.Remove(5);
         _room.Harness.State.AvatarsByObjectId.Remove(6);
-        _room.Enter(7, 4, 4, "Bob", playerId: 106);
-        _room.Enter(8, 4, 6, "Ann", playerId: 105);
+        _room.AddFloorItem(40, 3, 3, width: 3, length: 2);
+        _room.Enter(7, 4, 3, "Bob", playerId: 106);
+        _room.Enter(8, 3, 4, "Cid", playerId: 107);
+        _room.Enter(9, 5, 4, "Ann", playerId: 105);
 
-        (await RunChainAsync(box)).Should().Equal(7, 8);
+        IWiredSelector[] boxes =
+        [
+            await AddSelectorAsync<WiredSelectorEntitiesByType>(
+                "wf_slc_users_bytype",
+                intParams: [1]
+            ),
+            await AddSelectorAsync<WiredSelectorEntitiesByName>(
+                "wf_slc_users_byname",
+                stringParam: "Ann\tCid\tBob"
+            ),
+            await AddSelectorAsync<WiredSelectorEntitiesInArea>(
+                "wf_slc_users_area",
+                intParams: [0, 0, 8, 8]
+            ),
+            await AddSelectorAsync<WiredSelectorEntitiesByAction>(
+                "wf_slc_users_byaction",
+                intParams: [(int)WiredAvatarActionType.Stand]
+            ),
+            await AddSelectorAsync<WiredSelectorEntitiesInNeighborhood>(
+                "wf_slc_users_neighborhood",
+                intParams: [0, 0, 0, 33554431],
+                stuffIds: [B]
+            ),
+            await AddSelectorAsync<WiredSelectorEntitiesWithHanditem>(
+                "wf_slc_users_handitem",
+                intParams: [0]
+            ),
+            await AddSelectorAsync<WiredSelectorEntitiesOnItem>(
+                "wf_slc_users_onfurni",
+                stuffIds: [40]
+            ),
+        ];
+        var orders = new List<string>();
+
+        foreach (var box in boxes)
+            orders.Add($"{box.GetType().Name}: {string.Join(",", await RunChainAsync(box))}");
+
+        var first = await RunChainAsync(boxes[0]);
+        first.Order().Should().Equal(7, 8, 9);
+        orders
+            .Where(x => !x.EndsWith($": {string.Join(",", first)}"))
+            .Should()
+            .BeEmpty($"every user selector lists like {boxes[0].GetType().Name}");
     }
 
     // selector.19.R7: with an inverted selector in the pile the union is the whole room.
