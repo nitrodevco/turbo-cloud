@@ -15,6 +15,7 @@ using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 using Turbo.Rooms.Wired.Variables;
 using Turbo.Rooms.Wired.Variables.Context;
 using Turbo.Tests.Support;
@@ -34,6 +35,7 @@ public sealed class WiredContextEventVariableTests
 {
     private const int PLAYER_INDEX = 5;
     private const int ANTENNA = 21;
+    private const int CONTRACT = 40;
 
     private readonly WiredRoom _room = new(8, 8);
     private long _now = 10_000;
@@ -157,7 +159,7 @@ public sealed class WiredContextEventVariableTests
             RoomId = 1,
             CausedBy = ActionContext.CreateForWired(1),
             PlayerId = (PlayerId)(100 + PLAYER_INDEX),
-            SourceId = 40,
+            SourceId = CONTRACT,
             Multiplier = 3,
             DepositFurniCount = 2,
             DepositCoinsCount = 15,
@@ -179,6 +181,37 @@ public sealed class WiredContextEventVariableTests
             .Be(expected);
     }
 
+    // trigger.25.R1: Transaction Completed with no contract picked never fires, neither for a
+    // Give Furni From Chest nor for a paid payment contract (official client capture 2026-10-24
+    // 15:26Z, 0/2); picking the contract it fired (1/1, the test above).
+    [Fact]
+    public async Task Trigger25R1_ACompletedTransactionTriggerWithNoPicksNeverFires()
+    {
+        _room.Enter(PLAYER_INDEX, 1, 1);
+        var completed = new WiredTransactionCompletedEvent
+        {
+            RoomId = 1,
+            CausedBy = ActionContext.CreateForWired(1),
+            PlayerId = (PlayerId)(100 + PLAYER_INDEX),
+            SourceId = CONTRACT,
+            Multiplier = 3,
+        };
+
+        (
+            await RunAsync(
+                new ContextTransactionMultiplierVariable(_room.Harness.Room),
+                () =>
+                    TransactionTriggerAsync<WiredTriggerTransactionCompleted>(
+                        "wf_trg_transaction_complete",
+                        pickContract: false
+                    ),
+                completed
+            )
+        )
+            .Should()
+            .Be(0);
+    }
+
     [Fact]
     public async Task A_failed_transaction_gives_why_it_failed()
     {
@@ -189,7 +222,7 @@ public sealed class WiredContextEventVariableTests
             RoomId = 1,
             CausedBy = ActionContext.CreateForWired(1),
             PlayerId = (PlayerId)(100 + PLAYER_INDEX),
-            SourceId = 40,
+            SourceId = CONTRACT,
             Reason = WiredTransactionFailureType.Timeout,
         };
 
@@ -300,11 +333,28 @@ public sealed class WiredContextEventVariableTests
         (await _room.SaveAsync<UpdateTriggerMessage>(1)).Should().BeTrue();
     }
 
-    private async Task TransactionTriggerAsync<TTrigger>(string name)
+    // The trigger picks the payment contract (object 40) the transactions are for.
+    private async Task TransactionTriggerAsync<TTrigger>(string name, bool pickContract = true)
         where TTrigger : class, Turbo.Primitives.Rooms.Object.Logic.IRoomObjectLogic
     {
+        _room.AddFloorItem(
+            CONTRACT,
+            6,
+            6,
+            "wired_contract_payment",
+            createLogic: (factory, ctx) => new FurnitureWiredPaymentContractLogic(factory, ctx)
+        );
         _room.AddBox<TTrigger>(1, 0, 0, name);
-        (await _room.SaveAsync<UpdateTriggerMessage>(1)).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                1,
+                stuffIds: pickContract ? [CONTRACT] : [],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
     }
 
     private async Task ReceiveAsync()

@@ -17,8 +17,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 /// <summary>
 /// The two transaction triggers: they fire for the user whose transaction it was, when it was
-/// for one of the picked contracts (custom contract addons too), or for any transaction when
-/// nothing is picked.
+/// for one of the picked contracts (custom contract addons too), or, for those that do, for any
+/// transaction when nothing is picked (<see cref="FiresWithoutPicks"/>).
 /// </summary>
 public abstract class FurnitureWiredTransactionTriggerLogic<TEvent>(
     IGrainFactory grainFactory,
@@ -43,13 +43,20 @@ public abstract class FurnitureWiredTransactionTriggerLogic<TEvent>(
 
     protected abstract RoomObjectId SourceOf(TEvent evt);
 
+    /// <summary>Whether the trigger fires for any transaction while it picks no contract.</summary>
+    protected virtual bool FiresWithoutPicks => true;
+
     public override Task<bool> MatchesEventAsync(RoomEvent evt, CancellationToken ct)
     {
         var picked = GetStuffIds();
 
         return Task.FromResult(
             evt is TEvent transaction
-                && (picked.Count == 0 || picked.Contains(SourceOf(transaction).Value))
+                && (
+                    picked.Count == 0
+                        ? FiresWithoutPicks
+                        : picked.Contains(SourceOf(transaction).Value)
+                )
         );
     }
 

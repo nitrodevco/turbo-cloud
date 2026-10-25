@@ -155,6 +155,32 @@ public sealed class WiredGiveVariableTests
             );
     }
 
+    // variable.0.R3 / variable.1.R3: a give flashes the variable box to 6, the +1 changes after
+    // it 2 then 3 (official client capture 2026-10-24T15-54-49 user variable, 22-59-11 furni
+    // variable: ObjectsDataUpdate 6, 2, 3, 2).
+    [Fact]
+    public async Task A_give_flashes_the_variable_box_to_6()
+    {
+        var mark = await PlaceMarkAsync();
+        var key = new WiredVariableKey(
+            mark.GetVarSnapshot().VariableId,
+            WiredVariableTargetType.User,
+            PLAYER_INDEX
+        );
+        var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
+
+        (await mark.GiveValueAsync(key, new WiredVariableValue(5), replace: true))
+            .Should()
+            .BeTrue();
+        mark.GetState().Should().Be(6);
+
+        (await mark.SetValueAsync(ctx, key, new WiredVariableValue(6))).Should().BeTrue();
+        mark.GetState().Should().Be(2);
+
+        (await mark.SetValueAsync(ctx, key, new WiredVariableValue(7))).Should().BeTrue();
+        mark.GetState().Should().Be(3);
+    }
+
     // action.39.B2 / variable.1.B2: a delayed Give Variable (override on) whose user left the
     // room before the delay ended gives nothing: after re-entering, the permanent variable still
     // holds its old value and the while-in-room one is gone (official client capture 2026-10-24,

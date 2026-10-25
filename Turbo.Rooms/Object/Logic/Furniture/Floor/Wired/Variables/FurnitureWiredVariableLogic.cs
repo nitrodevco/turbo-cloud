@@ -522,11 +522,19 @@ public abstract class FurnitureWiredVariableLogic
     {
         // A value going up flashes the box between 2 and 3, going down between 4 and 5 (recorded on
         // hhus, WIN63-202610121709: a room variable counted down 5,4,5,4 then up 2,3,2,3).
+        // A give flashes it to 6 (official client capture 2026-10-24T15-54-49 user variable and
+        // 22-59-11 furni variable, 1/1 each, the +1 changes after it 2,3,2); 7 for the next give
+        // follows the pairs above (inference).
         if (changeType == WiredVariableChangeType.Updated && value.Value != previous.Value)
         {
             var resting = value.Value > previous.Value ? 2 : 4;
 
             FlashWithinAsync(resting, resting + 1)
+                .LogAndForget(Logger, "flash a wired box in room {RoomId}", _roomGrain.RoomId);
+        }
+        else if (changeType == WiredVariableChangeType.Created)
+        {
+            FlashWithinAsync(6, 7)
                 .LogAndForget(Logger, "flash a wired box in room {RoomId}", _roomGrain.RoomId);
         }
 

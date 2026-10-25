@@ -826,6 +826,13 @@ public abstract partial class FurnitureWiredLogic(
         || antennas.Contains(item.Definition.Name, StringComparer.OrdinalIgnoreCase)
         || antennas.Contains(item.Definition.LogicName, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Whether the furni is one of the configured antennas; unlike <see cref="IsAntenna"/>, an
+    /// empty list names none.
+    /// </summary>
+    protected bool IsListedAntenna(IRoomItem item) =>
+        WiredConfig.AntennaLogicNames is { Length: > 0 } && IsAntenna(item);
+
     private void RefuseUnpickableFurni(
         List<int> proposed,
         bool secondary,
