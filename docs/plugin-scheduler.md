@@ -96,10 +96,25 @@ it is fixed.
 
 ## Testing a task
 
-A task is a class with a method: build it with fakes of what it takes and call
-`RunAsync(new ScheduledTaskRun("rares.WeeklyRotation", DateTimeOffset.UtcNow, Manual: false), ct)`.
-To check a schedule, `TaskSchedule.Parse("0 18 * * MON").Next(after)` (in `Turbo.Primitives`) gives
-the run after any time, and `.Describe()` the words the panel shows.
+A task takes what it needs by constructor like any plugin class, the hotel API included
+(`IHotel`, `docs/hotel-api.md`), so its test builds it over a `FakeHotel` from `Turbo.Testing`.
+Two helpers there read the fake hotel's clock (`hotel.Clock`, which stands still until the test
+moves it):
+
+```csharp
+var hotel = new FakeHotel(new DateTimeOffset(2026, 10, 24, 12, 0, 0, TimeSpan.Zero));
+var job = new WeeklyRotation(shop, hotel);
+
+Assert.Equal(mondayEvening, hotel.NextRunOf(job));   // by its Schedule, else its attribute
+hotel.Clock.Set(mondayEvening);
+await hotel.RunAsync(job);                            // one run, due now
+hotel.Notify.AssertAlerted(alice, WeeklyRotation.ROTATED);
+```
+
+`NextRunOf` reads the schedule as the server does (`ScheduledTasks.ScheduleOf`), so a schedule
+from a setting is tested with the setting's value. The template's
+`tests/Skills.Tests/SkillsWeeklyResetTests.cs` is a working example. `TaskSchedule.Parse(text)
+.Next(after)` and `.Describe()` (in `Turbo.Primitives`) check a schedule on its own.
 
 ## The admin API
 

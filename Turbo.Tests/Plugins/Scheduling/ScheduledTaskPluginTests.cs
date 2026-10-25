@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Turbo.Contracts.Hotel;
 using Turbo.Operations.Grains;
 using Turbo.Operations.Scheduling;
 using Turbo.Plugins;
@@ -14,6 +15,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Scheduling.Grains;
 using Turbo.Runtime.AssemblyProcessing;
+using Turbo.Testing;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -22,7 +24,8 @@ namespace Turbo.Tests.Plugins.Scheduling;
 /// <summary>
 /// A plugin's scheduled tasks as a hotel loads them: found by the scan, run through the scheduler
 /// grain's run now, and cancelled when the plugin unloads mid-run, before the plugin's services
-/// are disposed (docs/plugin-scheduler.md). The template's example job runs the same way.
+/// are disposed (docs/plugin-scheduler.md). The template's example job, whose SkillBook takes the
+/// hotel API (IHotel) by constructor, runs the same way.
 /// </summary>
 public sealed class ScheduledTaskPluginTests : IDisposable
 {
@@ -138,7 +141,8 @@ public sealed class ScheduledTaskPluginTests : IDisposable
         );
         var collection = new ServiceCollection()
             .AddSingleton<IPluginStopping>(host)
-            .AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+            .AddSingleton<IConfiguration>(new ConfigurationBuilder().Build())
+            .AddSingleton<IHotel>(new FakeHotel());
 
         services(collection);
 

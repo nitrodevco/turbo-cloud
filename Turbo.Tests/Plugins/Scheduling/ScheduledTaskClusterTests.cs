@@ -117,6 +117,7 @@ public sealed class ScheduledTaskClusterTests : IAsyncDisposable
         (await done()).Should().BeTrue();
     }
 
+    [Every("00:00:01")]
     private sealed class Reprice(int silo, ConcurrentQueue<(int, DateTimeOffset)> runs)
         : IScheduledTask
     {

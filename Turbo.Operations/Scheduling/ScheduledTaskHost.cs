@@ -210,9 +210,7 @@ internal sealed class ScheduledTaskHost(
     {
         try
         {
-            return local.Definition.Task.Schedule is { Length: > 0 } fromSetting
-                ? fromSetting
-                : local.Definition.Attribute?.Expression;
+            return ScheduledTasks.ScheduleOf(local.Definition.Task);
         }
         catch (Exception ex)
         {
