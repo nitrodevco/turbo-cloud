@@ -20,8 +20,8 @@ namespace Turbo.Admin.Api;
 
 /// <summary>
 /// The broken assets page (<c>/api/assets/broken</c>): every asset players can't load, with the
-/// fixes that apply, for staff with <c>admin.gamedata.view</c>; ignoring one (with a note) and
-/// bringing it back need <c>gamedata.manage</c> as well. The fixes themselves are the asset and
+/// fixes that apply, for staff with <c>admin.gamedata.view</c>; ignoring some (with a note) and
+/// bringing them back need <c>gamedata.manage</c> as well. The fixes themselves are the asset and
 /// catalog picture endpoints' own (sync, upload, publish), but for a badge's picture, which had no
 /// upload: <c>POST /assets/broken/badge-picture</c>.
 /// </summary>
@@ -29,7 +29,7 @@ internal sealed class BrokenAssetEndpoints(IGrainFactory grainFactory, AdminBrok
 {
     private const string NO_ACCESS = "You can't see the asset bundles.";
     private const string NO_MANAGE = "You can't change the asset bundles.";
-    private const string NO_SUCH = "Name the source and the asset.";
+    private const string NO_SUCH = "Name the source and the asset of each.";
 
     // Room for the upload form's other fields and boundaries, beside the file itself.
     private const long FORM_OVERHEAD_BYTES = 64 * 1024;
@@ -127,13 +127,7 @@ internal sealed class BrokenAssetEndpoints(IGrainFactory grainFactory, AdminBrok
         try
         {
             return await broken
-                .IgnoreAsync(
-                    input.Source ?? "",
-                    input.Key ?? "",
-                    input.Note ?? "",
-                    AdminIdentity.Of(http).PlayerId,
-                    ct
-                )
+                .IgnoreAsync(KeysOf(input), input.Note ?? "", AdminIdentity.Of(http).PlayerId, ct)
                 .ConfigureAwait(false)
                 ? Results.NoContent()
                 : AdminResults.Error(StatusCodes.Status400BadRequest, NO_SUCH);
@@ -150,10 +144,13 @@ internal sealed class BrokenAssetEndpoints(IGrainFactory grainFactory, AdminBrok
         CancellationToken ct
     ) =>
         await broken
-            .UnignoreAsync(input.Source ?? "", input.Key ?? "", AdminIdentity.Of(http).PlayerId, ct)
+            .UnignoreAsync(KeysOf(input), AdminIdentity.Of(http).PlayerId, ct)
             .ConfigureAwait(false)
             ? Results.NoContent()
-            : AdminResults.Error(StatusCodes.Status404NotFound, "It is not ignored.");
+            : AdminResults.Error(StatusCodes.Status404NotFound, "None of them is ignored.");
+
+    private static List<(string Source, string Key)> KeysOf(BrokenAssetIgnoreInput input) =>
+        [.. (input.Assets ?? []).Select(x => (x.Source ?? "", x.Key ?? ""))];
 
     /// <summary>The names of the staff who ignored assets, by id.</summary>
     private async Task<IReadOnlyDictionary<int, string>?> NamesAsync(

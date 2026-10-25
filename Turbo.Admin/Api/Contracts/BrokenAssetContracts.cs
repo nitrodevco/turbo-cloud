@@ -39,5 +39,8 @@ public sealed record BrokenAssetSource(string Id, string Title, bool Read, strin
 /// <summary>Every broken asset (ignored ones included, marked) and the sources they came from.</summary>
 public sealed record BrokenAssetsResponse(BrokenAssetSource[] Sources, BrokenAssetItem[] Items);
 
-/// <summary>A broken asset to ignore, with why; or, to bring back, without.</summary>
-public sealed record BrokenAssetIgnoreInput(string? Source, string? Key, string? Note);
+/// <summary>A broken asset by where it was found and what it is there.</summary>
+public sealed record BrokenAssetKey(string? Source, string? Key);
+
+/// <summary>Broken assets to ignore, with one why; or, to bring back, without.</summary>
+public sealed record BrokenAssetIgnoreInput(BrokenAssetKey[]? Assets, string? Note);

@@ -237,10 +237,17 @@ public sealed class BrokenAssetsTests : IDisposable
 
         var staff = new PlayerId(7);
 
-        (await _broken.IgnoreAsync(AdminBrokenAssets.BADGE, "ACH_Lost1", " Retired ", staff, Ct))
+        (
+            await _broken.IgnoreAsync(
+                [(AdminBrokenAssets.BADGE, "ACH_Lost1")],
+                " Retired ",
+                staff,
+                Ct
+            )
+        )
             .Should()
             .BeTrue();
-        (await _broken.IgnoreAsync("nowhere", "ACH_Lost1", "", staff, Ct)).Should().BeFalse();
+        (await _broken.IgnoreAsync([("nowhere", "ACH_Lost1")], "", staff, Ct)).Should().BeFalse();
 
         var list = await ListAsync();
         var badge = list.Items.Single(x => x.Source == AdminBrokenAssets.BADGE);
@@ -249,7 +256,7 @@ public sealed class BrokenAssetsTests : IDisposable
         badge.Ignored.PlayerName.Should().Be("staff7");
         list.Sources.Single(x => x.Id == AdminBrokenAssets.BADGE).Count.Should().Be(0);
 
-        (await _broken.UnignoreAsync(AdminBrokenAssets.BADGE, "ACH_Lost1", staff, Ct))
+        (await _broken.UnignoreAsync([(AdminBrokenAssets.BADGE, "ACH_Lost1")], staff, Ct))
             .Should()
             .BeTrue();
 
@@ -257,6 +264,43 @@ public sealed class BrokenAssetsTests : IDisposable
 
         back.Items.Single(x => x.Source == AdminBrokenAssets.BADGE).Ignored.Should().BeNull();
         back.Sources.Single(x => x.Id == AdminBrokenAssets.BADGE).Count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Several_assets_are_ignored_with_one_note_and_brought_back_together()
+    {
+        await _hotel.Store.WriteAsync(AssetBundleKind.Badge, "placeholder.gif", [1], Ct);
+        Badge(1, 1, "ACH_Lost1");
+        Badge(2, 1, "ACH_Lost2");
+        Badge(3, 1, "ACH_Lost3");
+
+        var staff = new PlayerId(7);
+        (string, string)[] two =
+        [
+            (AdminBrokenAssets.BADGE, "ACH_Lost1"),
+            (AdminBrokenAssets.BADGE, "ACH_Lost2"),
+        ];
+
+        // One that can't be kept spoils the lot: none of them is ignored.
+        (await _broken.IgnoreAsync([.. two, ("nowhere", "x")], "Retired", staff, Ct))
+            .Should()
+            .BeFalse();
+        (await ListAsync()).Items.Should().OnlyContain(x => x.Ignored == null);
+
+        (await _broken.IgnoreAsync(two, "Retired", staff, Ct)).Should().BeTrue();
+
+        var list = await ListAsync();
+
+        list.Items.Where(x => x.Ignored?.Note == "Retired")
+            .Select(x => x.Key)
+            .Should()
+            .BeEquivalentTo("ACH_Lost1", "ACH_Lost2");
+        list.Items.Single(x => x.Key == "ACH_Lost3").Ignored.Should().BeNull();
+        list.Sources.Single(x => x.Id == AdminBrokenAssets.BADGE).Count.Should().Be(1);
+
+        (await _broken.UnignoreAsync(two, staff, Ct)).Should().BeTrue();
+        (await ListAsync()).Items.Should().OnlyContain(x => x.Ignored == null);
+        (await _broken.UnignoreAsync(two, staff, Ct)).Should().BeFalse();
     }
 
     private Task<BrokenAssetsResponse> ListAsync() =>

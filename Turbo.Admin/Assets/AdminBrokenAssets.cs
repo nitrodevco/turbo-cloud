@@ -125,18 +125,20 @@ public sealed class AdminBrokenAssets(
     }
 
     /// <summary>
-    /// Ignores a broken asset with why, or changes why; false for a source that isn't one or a
-    /// key that can't be kept. Throws <see cref="ArgumentException"/> with why for a note too long.
+    /// Ignores broken assets with one why, or changes why, all or none: false when none is named
+    /// or one has a source that isn't one or a key that can't be kept. Throws
+    /// <see cref="ArgumentException"/> with why for a note too long.
     /// </summary>
     public async Task<bool> IgnoreAsync(
-        string source,
-        string key,
+        IReadOnlyCollection<(string Source, string Key)> assets,
         string note,
         PlayerId player,
         CancellationToken ct
     )
     {
-        if (!IsKey(source, key))
+        var named = assets.Distinct().ToList();
+
+        if (named.Count == 0 || named.Any(x => !IsKey(x.Source, x.Key)))
             return false;
 
         note = note.Trim();
@@ -149,33 +151,40 @@ public sealed class AdminBrokenAssets(
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
-        var row = await db
-            .AssetBrokenIgnores.SingleOrDefaultAsync(x => x.Source == source && x.Key == key, ct)
-            .ConfigureAwait(false);
+        var sources = named.Select(x => x.Source).Distinct().ToList();
+        var keys = named.Select(x => x.Key).Distinct().ToList();
+        var rows = (
+            await db
+                .AssetBrokenIgnores.Where(x => sources.Contains(x.Source) && keys.Contains(x.Key))
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+        ).ToDictionary(x => (x.Source, x.Key));
 
-        if (row is null)
-            db.AssetBrokenIgnores.Add(
-                new AssetBrokenIgnoreEntity
-                {
-                    Source = source,
-                    Key = key,
-                    Note = note,
-                    PlayerId = player.Value,
-                }
-            );
-        else
+        foreach (var (source, key) in named)
         {
-            row.Note = note;
-            row.PlayerId = player.Value;
+            if (rows.TryGetValue((source, key), out var row))
+            {
+                row.Note = note;
+                row.PlayerId = player.Value;
+            }
+            else
+                db.AssetBrokenIgnores.Add(
+                    new AssetBrokenIgnoreEntity
+                    {
+                        Source = source,
+                        Key = key,
+                        Note = note,
+                        PlayerId = player.Value,
+                    }
+                );
         }
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
         logger.LogInformation(
-            "Player {PlayerId} ignored the broken asset {Source} {Key}: {Note}",
+            "Player {PlayerId} ignored {Count} broken assets: {Note}",
             player,
-            source,
-            key,
+            named.Count,
             note
         );
 
@@ -254,10 +263,9 @@ public sealed class AdminBrokenAssets(
         || data.StartsWith("GIF89a"u8)
         || data.StartsWith((ReadOnlySpan<byte>)[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
 
-    /// <summary>Brings an ignored broken asset back into the list; false when it was not ignored.</summary>
+    /// <summary>Brings ignored broken assets back into the list; false when none of them was ignored.</summary>
     public async Task<bool> UnignoreAsync(
-        string source,
-        string key,
+        IReadOnlyCollection<(string Source, string Key)> assets,
         PlayerId player,
         CancellationToken ct
     )
@@ -265,17 +273,23 @@ public sealed class AdminBrokenAssets(
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
-        var removed = await db
-            .AssetBrokenIgnores.Where(x => x.Source == source && x.Key == key)
-            .ExecuteDeleteAsync(ct)
-            .ConfigureAwait(false);
+        var removed = 0;
+
+        foreach (var bySource in assets.GroupBy(x => x.Source, x => x.Key))
+        {
+            var keys = bySource.Distinct().ToList();
+
+            removed += await db
+                .AssetBrokenIgnores.Where(x => x.Source == bySource.Key && keys.Contains(x.Key))
+                .ExecuteDeleteAsync(ct)
+                .ConfigureAwait(false);
+        }
 
         if (removed > 0)
             logger.LogInformation(
-                "Player {PlayerId} brought back the broken asset {Source} {Key}",
+                "Player {PlayerId} brought back {Count} broken assets",
                 player,
-                source,
-                key
+                removed
             );
 
         return removed > 0;
