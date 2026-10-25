@@ -143,6 +143,7 @@ public sealed class GamedataModule : IHostPluginModule
             sp.GetRequiredService<PluginGamedataSeeds>()
         );
         services.AddSingleton<IPluginDataOwner>(sp => sp.GetRequiredService<PluginGamedataSeeds>());
+        services.AddSingleton<IPluginStyles, PluginStyleService>();
         services.AddHostedService<GamedataServer>();
     }
 }

@@ -8,7 +8,13 @@ public sealed class PluginManifest
     public required string Key { get; init; }
     public required string Version { get; init; }
     public required string Author { get; init; }
-    public required string AssemblyFile { get; init; }
+
+    /// <summary>
+    /// Its server code. A plugin without one is a <b>data plugin</b>: its folder's files only
+    /// (<c>wwwroot/</c>, <c>gamedata/</c>, <c>theme.json</c>), loaded, listed and unloaded as any
+    /// other, and running no code (<c>docs/plugin-data.md</c>).
+    /// </summary>
+    public string? AssemblyFile { get; init; }
     public List<PluginDependency> Dependencies { get; init; } = [];
     public string? TablePrefix { get; init; }
     public bool? ExplicitlyNoTablePrefix { get; init; }

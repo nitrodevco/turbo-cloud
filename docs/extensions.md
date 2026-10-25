@@ -287,9 +287,9 @@ links a Discord account it has proven to an existing player through `IHotel.Play
   targets a new client release removed, so a release can be checked against installed plugins
   before it ships.
 - **Trust**: plugins run in-process with full trust (server assembly, client JS in the page). The
-  manifest's declarations are for compatibility and review, not a sandbox. Data-only plugins
-  (patches, styles, art) are the safe kind; making them installable without an assembly is on the
-  roadmap.
+  manifest's declarations are for compatibility and review, not a sandbox. Data plugins (patches,
+  styles, art; no `AssemblyFile`) are the safe kind: they run no code on either side
+  (`docs/plugin-data.md`).
 
 ## 6. Roadmap
 
@@ -326,7 +326,10 @@ noted.
    (§4.1). Purchase (room ads included), room entry, placement and registration done, with
    `npm run make policy <kind>`, and seven post-commit events (`docs/plugin-policies.md`); trade's
    policy is not a plugin's yet.
-8. **Data-only plugins** (themes without an assembly) and per-asset overlays (§4.6).
+8. **Data-only plugins** (themes without an assembly) and per-asset overlays (§4.6). Done: a
+   manifest with no `AssemblyFile` loads its files only, `theme.json` style properties reach
+   patches as `${style:name}` with staff's values from the panel, staff's own patches live in the
+   hotel's data plugin, and the panel packages either as a data plugin (`docs/plugin-data.md`).
 9. **Scaffolding and dev loop**: `dotnet new turbo-plugin` generating both halves and their tests,
    one command that rebuilds and hot-reloads both while a player is online, one that packages the
    zip the panel installs: `templates/turbo-plugin` (`docs/client-modules.md`, "Start from the

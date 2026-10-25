@@ -16,4 +16,15 @@ public sealed record TextEntrySnapshot
     /// <summary>Habbo's value as last taken in; null for the hotel's own text.</summary>
     [Id(2)]
     public string? Habbo { get; init; }
+
+    /// <summary>The plugin that brought the text; null for one no plugin brought.</summary>
+    [Id(3)]
+    public string? Plugin { get; init; }
+
+    /// <summary>
+    /// The text as <see cref="Plugin"/> gives it, its default: staff changed it when
+    /// <see cref="Value"/> is another.
+    /// </summary>
+    [Id(4)]
+    public string? PluginValue { get; init; }
 }

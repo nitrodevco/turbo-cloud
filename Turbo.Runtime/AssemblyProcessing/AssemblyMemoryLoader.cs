@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -41,6 +42,27 @@ public static class AssemblyMemoryLoader
         var asm = alc.LoadFromAssemblyName(new AssemblyName(entryName));
 
         return new LoadedAssembly(asm, alc, baseDir);
+    }
+
+    /// <summary>
+    /// An assembly with no types, in a collectible context of its own over
+    /// <paramref name="baseDir"/>: what a plugin with no code is loaded as, so it is held, scanned
+    /// (finding nothing) and unloaded as any other.
+    /// </summary>
+    public static LoadedAssembly Empty(string baseDir, string name)
+    {
+        var alc = new ByteLoadingAlc(baseDir, new Dictionary<string, (byte[] asm, byte[]? pdb)>());
+
+        // A dynamic assembly goes into the contextual reflection context, so it unloads with it.
+        using (alc.EnterContextualReflection())
+        {
+            var asm = AssemblyBuilder.DefineDynamicAssembly(
+                new AssemblyName(name),
+                AssemblyBuilderAccess.RunAndCollect
+            );
+
+            return new LoadedAssembly(asm, alc, baseDir);
+        }
     }
 
     /// <summary>

@@ -143,7 +143,12 @@ internal sealed class GamedataTextService(
         hotelTexts.Invalidate();
     }
 
-    public async Task<TextSearchResult> SearchAsync(string? query, int page, CancellationToken ct)
+    public async Task<TextSearchResult> SearchAsync(
+        string? query,
+        int page,
+        CancellationToken ct,
+        string? plugin = null
+    )
     {
         var size = Math.Max(1, Config.TextPageSize);
         var words = (query ?? string.Empty).Trim();
@@ -154,6 +159,17 @@ internal sealed class GamedataTextService(
 
         if (words.Length > 0)
             texts = texts.Where(x => x.Key.Contains(words) || x.Value.Contains(words));
+
+        var brought = dbCtx
+            .GamedataPluginValues.AsNoTracking()
+            .Where(x => x.RecordType == GamedataRecordType.Text);
+
+        if (!string.IsNullOrWhiteSpace(plugin))
+        {
+            var owned = brought.Where(x => x.PluginKey == plugin).Select(x => x.Key);
+
+            texts = texts.Where(x => owned.Contains(x.Key));
+        }
 
         var total = await texts.CountAsync(ct).ConfigureAwait(false);
         var rows = await texts
@@ -169,6 +185,10 @@ internal sealed class GamedataTextService(
             .Where(x => keys.Contains(x.Key))
             .ToDictionaryAsync(x => x.Key, x => x.Value, ct)
             .ConfigureAwait(false);
+        var plugins = await brought
+            .Where(x => keys.Contains(x.Key))
+            .ToDictionaryAsync(x => x.Key, x => (x.PluginKey, x.Value), ct)
+            .ConfigureAwait(false);
 
         return new TextSearchResult
         {
@@ -179,6 +199,8 @@ internal sealed class GamedataTextService(
                     Key = x.Key,
                     Value = x.Value,
                     Habbo = habbo.GetValueOrDefault(x.Key),
+                    Plugin = plugins.TryGetValue(x.Key, out var owner) ? owner.PluginKey : null,
+                    PluginValue = plugins.TryGetValue(x.Key, out var given) ? given.Value : null,
                 }),
             ],
             Total = total,

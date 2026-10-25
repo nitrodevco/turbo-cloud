@@ -57,13 +57,6 @@ internal static partial class PluginHelpers
                     nameof(manifest.Version)
                 );
 
-            if (string.IsNullOrWhiteSpace(manifest.AssemblyFile))
-                throw new PluginManifestException(
-                    PluginManifestErrorType.MissingField,
-                    path,
-                    nameof(manifest.AssemblyFile)
-                );
-
             return manifest;
         }
         catch (Exception ex) when (ex is not PluginManifestException)
@@ -170,6 +163,13 @@ internal static partial class PluginHelpers
 
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));
     }
+
+    /// <summary>
+    /// A plugin with no <see cref="PluginManifest.AssemblyFile"/>: its files only, no code
+    /// (<c>docs/plugin-data.md</c>).
+    /// </summary>
+    public static bool IsDataOnly(PluginManifest manifest) =>
+        string.IsNullOrWhiteSpace(manifest.AssemblyFile);
 
     public static string GetAssemblyPath(string pluginDir, PluginManifest manifest)
     {

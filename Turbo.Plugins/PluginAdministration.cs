@@ -536,7 +536,10 @@ internal sealed partial class PluginAdministration(
             try
             {
                 manifest = PluginHelpers.ReadManifest(staging);
-                PluginHelpers.GetAssemblyPath(staging, manifest);
+
+                // A data plugin has no assembly to find.
+                if (!PluginHelpers.IsDataOnly(manifest))
+                    PluginHelpers.GetAssemblyPath(staging, manifest);
             }
             catch (PluginException ex)
             {

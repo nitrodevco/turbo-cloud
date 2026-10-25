@@ -40,8 +40,13 @@ public static class PluginApi
     /// <c>PurchaseCompletedEvent.RoomAd</c>, and <c>Hotel.IHotel.Players</c>' recent players and
     /// identity links. A plugin built for 1 to 4 loads as before.
     /// </para>
+    /// <para>
+    /// 6: data plugins - a manifest with no <see cref="PluginManifest.AssemblyFile"/> loads its files
+    /// only - and theme style properties (<c>theme.json</c>, <c>docs/plugin-data.md</c>). A server
+    /// before 6 refuses a manifest with no assembly; a plugin built for 1 to 5 loads as before.
+    /// </para>
     /// </summary>
-    public const int VERSION = 5;
+    public const int VERSION = 6;
 
     /// <summary>The oldest plugin API this server still loads.</summary>
     public const int OLDEST = 1;
