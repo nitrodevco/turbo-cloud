@@ -352,6 +352,9 @@ public sealed class PluginTemplateTests : IDisposable
                 "route rares/values",
                 "migration AddPrizes",
                 "schedule weekly-rotation",
+                "policy purchase club-discount",
+                "policy room-entry",
+                "policy placement",
             }
         )
             await MakeAsync(source, recipe);
