@@ -24,6 +24,10 @@ public class WiredActionRemoveVariable(
 {
     public override int WiredCode => (int)WiredActionType.REMOVE_VARIABLE;
 
+    // After Give Variable (official client capture 2026-10-25T03-40-22, LAB-W5 wlab9
+    // action.39.X1b, 8/8) and, an inference, after Change Variable too.
+    public override int RunOrder => (int)WiredActionType.CHANGE_VARIABLE * 10 + 2;
+
     protected override bool AllowsWallFurni => true;
 
     public override int GetMaxVariableIds() => 1;

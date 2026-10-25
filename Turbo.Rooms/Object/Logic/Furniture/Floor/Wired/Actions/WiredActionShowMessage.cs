@@ -65,6 +65,11 @@ public class WiredActionShowMessage(
 
     public override int WiredCode => (int)WiredActionType.CHAT;
 
+    // After Change Variable: without Execute In Order the message shows the changed value, the
+    // Show box below or above the change (official client capture 2026-10-25T04-08-08, LAB-W5
+    // wlab9 action.40.X3b, 8/8; with Execute In Order and Show below it shows the old one, 3/3).
+    public override int RunOrder => (int)WiredActionType.CHANGE_VARIABLE * 10 + 5;
+
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredEnumParamRule<WiredChatVisibilityType>(
