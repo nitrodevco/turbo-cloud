@@ -1,0 +1,8 @@
+{
+    "frame.overrides": {
+        "wired-setup": { "variant": "3", "color": "#2e7d32" }
+    },
+    "asset.overlays": {
+        "habbo-window-manager-com/theme-habbo-frame-frame-default": "frame.png"
+    }
+}

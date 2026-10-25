@@ -514,6 +514,86 @@ public sealed class PluginOwnedGamedataTests : IDisposable
         await _manager.UnloadAllAsync(Ct);
     }
 
+    [Fact]
+    public async Task Each_plugin_adds_its_own_frame_styles_and_the_hotels_entries_win()
+    {
+        WriteTheme(
+            """{ "frame.overrides": { "wired-setup": { "variant": "102", "color": "#336699" } } }""",
+            string.Empty
+        );
+        WritePlugin(
+            "view",
+            """{ "frame.overrides": { "wired-setup": { "color": "#000000" }, "navigator": { "color": "#aa0000" } } }"""
+        );
+
+        await _manager.LoadAllAsync(ct: Ct);
+
+        var sent = (await SentVariablesAsync())[ExternalVariablesFile.FRAME_OVERRIDES]!.AsObject();
+        sent.Select(x => x.Key).Should().BeEquivalentTo(["wired-setup", "navigator"]);
+        sent["wired-setup"]!["variant"]!
+            .GetValue<string>()
+            .Should()
+            .Be("102", "the first plugin's entry is used whole");
+        (await _variables.GetValuesAsync([ExternalVariablesFile.FRAME_OVERRIDES], Ct))
+            .Should()
+            .BeEmpty("the hotel is given none of it");
+
+        // Staff restyle one window; turning the theme off takes its entry with it, so the other
+        // plugin's is used.
+        await _variables.SaveAsync(
+            ExternalVariablesFile.FRAME_OVERRIDES,
+            """{"navigator":{"color":"#00aa00"}}""",
+            STAFF,
+            Ct
+        );
+        (await _plugins.SetEnabledAsync("theme", false, Ct))!.Ok.Should().BeTrue();
+
+        (await SentVariablesAsync())[ExternalVariablesFile.FRAME_OVERRIDES]!
+            .ToJsonString()
+            .Should()
+            .Be("""{"wired-setup":{"color":"#000000"},"navigator":{"color":"#00aa00"}}""");
+
+        await _manager.UnloadAllAsync(Ct);
+    }
+
+    [Fact]
+    public async Task A_plugins_bitmap_overlay_names_a_file_of_its_wwwroot_and_clients_get_its_address()
+    {
+        WriteTheme(
+            """{ "asset.overlays": { "habbo-window-manager-com/theme-habbo-frame-frame-default": "art/frame.png", "habbo-room-ui-com/roomtools_gear": "/shared/gear.png", "habbo-toolbar-com/icon": "missing.png" } }""",
+            string.Empty
+        );
+
+        var art = Path.Combine(_folder, "theme", "wwwroot", "art");
+
+        Directory.CreateDirectory(art);
+        File.WriteAllBytes(Path.Combine(art, "frame.png"), [1, 2, 3]);
+
+        await _manager.LoadAllAsync(ct: Ct);
+
+        var sent = (await SentVariablesAsync())[ExternalVariablesFile.ASSET_OVERLAYS]!
+            .AsObject()
+            .ToDictionary(x => x.Key, x => x.Value!.GetValue<string>());
+
+        sent.Keys.Should()
+            .BeEquivalentTo(
+                [
+                    "habbo-window-manager-com/theme-habbo-frame-frame-default",
+                    "habbo-room-ui-com/roomtools_gear",
+                ],
+                "an overlay whose file is not there is left out"
+            );
+        sent["habbo-window-manager-com/theme-habbo-frame-frame-default"]
+            .Should()
+            .MatchRegex(
+                @"^/gamedata/plugins/theme/art/frame\.png\?v=[0-9a-f]{16}$",
+                "served from its wwwroot by hash"
+            );
+        sent["habbo-room-ui-com/roomtools_gear"].Should().Be("/shared/gear.png", "a url is kept");
+
+        await _manager.UnloadAllAsync(Ct);
+    }
+
     private void WritePatches(string key)
     {
         var wwwroot = Path.Combine(_folder, key, "wwwroot");

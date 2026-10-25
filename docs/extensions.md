@@ -192,22 +192,40 @@ Nitro draws windows from Habbo's own window layouts (`TemplateElement` trees in 
 (`findChildByName`), so they are the stable identifiers a patch uses too: an author targets
 `habbo-friend-list-com/friend_list_xml`, element `search`, exactly as the client's code does.
 
-A patch is data: `set` layout properties (colour, style, caption, visibility, rect, vars),
-`remove` an element, or `insert` a new one before/after/inside another. Patches from every plugin
-apply where the client reads a template, in a deterministic order, with a report of conflicts (two
-owners setting one property) and of targets a client release no longer has. A theme recolours a
-window and an add-on adds a button to the same window, and neither ships a copy of the library.
+A patch is data: `set` layout properties (colour, style, caption, visibility, rect, vars, layout
+params), `remove` an element, `insert` a new one before/after/inside another, or `move` one there
+keeping its name (so the window's code still reaches it). Patches from every plugin apply where the
+client reads a template, in a deterministic order, with a report of conflicts (two owners setting one
+property), of targets a client release no longer has, and of extension code that threw. A theme
+recolours a window and an add-on adds a button to the same window, and neither ships a copy of the
+library.
 
 Client modules patch through `api.templates.patch(id, ops)`; a plugin with no code ships
-`wwwroot/template-patches.json` and the host lists it for clients. Client detail:
-nitro-next `docs/template-patches.md`.
+`wwwroot/template-patches.json` and the host lists it for clients (`templates.patches`). A module
+can also: give ops and bindings as a function of the window's read-only context (the infostand's
+user id, figure, whether it is the own user - each window's keys are documented client side), cached
+per context rather than rebuilt per render; `bind` an element the window's code binds itself with
+`{ override: true }`, its value winning for the fields it sets and reported as a conflict; and run a
+post-layout hook after the window's own (`api.templates.arrange`), isolated from errors and removed
+when the module stops. Client detail: nitro-next `docs/template-patches.md`; worked examples in
+`docs/examples/template-patches`.
 
 ### 4.6 Theme layers
 
 A theme is a plugin whose contribution is presentation: template patches, text styles, font faces,
-frame art. Whole-library overrides remain for what patches cannot express (new art sheets), with
-first-wins conflicts reported rather than silent. Next: per-asset overlays (replace one bitmap of a
-library) and text-style sources per plugin, so a theme stops being a frozen copy of the stock UI.
+frame art. Each is a merged variable a plugin brings its entries of (in its
+`gamedata/external_variables.json`; never given to the hotel, the first plugin's entry used where two
+name one, the hotel's own entries over all, collisions logged):
+
+| Variable | Entries |
+| --- | --- |
+| `asset.bundles.templates.overrides` | a whole library's bundle url, for what nothing finer expresses (new art sheets) |
+| `templates.patches` | a patch file's url per plugin - its `wwwroot/template-patches.json`, listed without it naming it |
+| `frame.overrides` | `{ "<frame id or window name>": { "variant", "color" } }`: the style of a window drawn without a template (the wired setup window) |
+| `asset.overlays` | `{ "<library>/<asset>": "<url>" }`: one bitmap of a library - one frame's art in the theme sheet (`theme-...`), one icon. A plugin names a file of its `wwwroot/` by its path (`"frame.png"`); clients are given its address by hash, and one that is not there is logged and left out |
+
+So a theme replaces the one frame or icon it changes rather than shipping a copy of the window
+manager library. Next: text-style sources per plugin.
 
 ### 4.7 Messages
 

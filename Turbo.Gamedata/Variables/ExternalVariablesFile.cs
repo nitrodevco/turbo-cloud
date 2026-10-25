@@ -57,16 +57,32 @@ internal static class ExternalVariablesFile
     public const string TEMPLATE_PATCHES = "templates.patches";
 
     /// <summary>
+    /// The style of windows the client draws with a frame of its own rather than from a template
+    /// (nitro-next <c>docs/template-patches.md</c>): <c>{ "&lt;frame id or window name&gt;": { "variant": "&lt;style&gt;", "color": "#rrggbb" } }</c>.
+    /// </summary>
+    public const string FRAME_OVERRIDES = "frame.overrides";
+
+    /// <summary>
+    /// Single bitmaps of a template library a theme replaces (nitro-next <c>docs/template-patches.md</c>):
+    /// <c>{ "&lt;library&gt;/&lt;asset&gt;": "&lt;url&gt;" }</c>. A plugin names a file of its <c>wwwroot/</c>
+    /// by its path there, which clients are given its address for (<see cref="Plugins.PluginGamedataSeeds"/>).
+    /// </summary>
+    public const string ASSET_OVERLAYS = "asset.overlays";
+
+    /// <summary>
     /// The variables a plugin brings a part of rather than the whole: a JSON object whose entries
     /// several plugins add to (<c>asset.bundles.templates.overrides</c>, a url per template
-    /// library; <see cref="TEMPLATE_PATCHES"/>, a url per plugin). Each loaded plugin's entries are
-    /// written into the client's file with the hotel's own (<see cref="Merge"/>); none is ever
-    /// given to the hotel.
+    /// library; <see cref="TEMPLATE_PATCHES"/>, a url per plugin; <see cref="FRAME_OVERRIDES"/>, a
+    /// style per window; <see cref="ASSET_OVERLAYS"/>, a url per bitmap). Each loaded plugin's
+    /// entries are written into the client's file with the hotel's own (<see cref="Merge"/>); none
+    /// is ever given to the hotel.
     /// </summary>
     public static readonly IReadOnlyList<string> MERGED =
     [
         "asset.bundles.templates.overrides",
         TEMPLATE_PATCHES,
+        FRAME_OVERRIDES,
+        ASSET_OVERLAYS,
     ];
 
     public static bool IsLinkable(string file) => LINKABLE.Contains(file, StringComparer.Ordinal);
