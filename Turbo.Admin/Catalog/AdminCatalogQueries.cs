@@ -272,7 +272,9 @@ public sealed class AdminCatalogQueries(
                     ]
                 )),
             ],
-            page.FolderOnly
+            page.FolderOnly,
+            page.MinRank,
+            page.RequiredNode
         );
     }
 

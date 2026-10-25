@@ -23,7 +23,9 @@ public class GetCatalogPageMessageHandler(ICatalogService catalogService, TimePr
         CancellationToken ct
     )
     {
-        var snapshot = _catalogService.GetCatalogSnapshot(message.CatalogType);
+        var snapshot = await _catalogService
+            .GetCatalogSnapshotForPlayerAsync(message.CatalogType, ctx.PlayerId, ct)
+            .ConfigureAwait(false);
 
         if (!snapshot.PagesById.TryGetValue(message.PageId, out var page))
             return;

@@ -12,5 +12,7 @@ public sealed record CatalogPageDetail(
     string[] TextData,
     string Display,
     CatalogOfferItem[] Offers,
-    bool FolderOnly
+    bool FolderOnly,
+    int MinRank = 1,
+    string? RequiredNode = null
 );

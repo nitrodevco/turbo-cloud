@@ -1193,6 +1193,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("varchar(50)")
                         .HasColumnName("localization");
 
+                    b.Property<int>("MinRank")
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasColumnName("min_rank");
+
                     b.Property<string>("Name")
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)")
@@ -1201,6 +1206,11 @@ namespace Turbo.Database.Migrations
                     b.Property<int?>("ParentEntityId")
                         .HasColumnType("int")
                         .HasColumnName("parent_id");
+
+                    b.Property<string>("RequiredNode")
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("required_node");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("int")

@@ -111,7 +111,12 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
     {
         quantity = Math.Max(1, quantity);
 
-        var snapshot = _catalogService.GetCatalogSnapshot(catalogType);
+        // An offer on a page the buyer may not see is one the catalog does not have for them.
+        var snapshot = await _catalogService.GetCatalogSnapshotForPlayerAsync(
+            catalogType,
+            this.GetPlayerId(),
+            ct
+        );
 
         if (!snapshot.OffersById.TryGetValue(offerId, out var offer))
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.OfferNotFound);
@@ -699,7 +704,11 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
     )
     {
         var playerId = this.GetPlayerId();
-        var snapshot = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
+        var snapshot = await _catalogService.GetCatalogSnapshotForPlayerAsync(
+            CatalogType.Normal,
+            playerId,
+            ct
+        );
 
         if (!snapshot.OffersById.TryGetValue(offerId, out var offer))
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.OfferNotFound);

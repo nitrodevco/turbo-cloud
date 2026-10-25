@@ -26,7 +26,9 @@ public class GetIsOfferGiftableMessageHandler(ICatalogService catalogService)
         CancellationToken ct
     )
     {
-        var snapshot = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
+        var snapshot = await _catalogService
+            .GetCatalogSnapshotForPlayerAsync(CatalogType.Normal, ctx.PlayerId, ct)
+            .ConfigureAwait(false);
 
         if (!snapshot.OffersById.TryGetValue(message.OfferId, out var offer))
             return;

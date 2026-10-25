@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
@@ -212,7 +213,11 @@ public sealed partial class RoomFurniModule
 
         // The offer id is the only thing taken from the client, and only the Builders Club
         // catalog is asked, so nothing outside the warehouse can be borrowed.
-        var catalog = _roomGrain._catalogService.GetCatalogSnapshot(CatalogType.BuildersClub);
+        var catalog = await _roomGrain._catalogService.GetCatalogSnapshotForPlayerAsync(
+            CatalogType.BuildersClub,
+            ctx.PlayerId,
+            ct
+        );
 
         if (!catalog.OffersById.TryGetValue(offerId, out var offer) || !offer.Visible)
             return Refuse(ctx, offerId, "the warehouse has no such offer");

@@ -12,6 +12,14 @@ namespace Turbo.Primitives.Catalog.Editing;
 /// Whether the page is a heading with no page of its own; null leaves a saved page as it is and
 /// makes a new one a page.
 /// </param>
+/// <param name="MinRank">
+/// The lowest rank that sees the page and what is under it (1 is everyone); null leaves a saved
+/// page as it is and makes a new one everyone's.
+/// </param>
+/// <param name="RequiredNode">
+/// A permission node a player must hold to see the page and what is under it; null leaves a saved
+/// page as it is, empty takes it off.
+/// </param>
 public sealed record CatalogPageDraft(
     string Localization,
     string? Name,
@@ -20,5 +28,7 @@ public sealed record CatalogPageDraft(
     IReadOnlyList<string> ImageData,
     IReadOnlyList<string> TextData,
     CatalogPageDisplay Display,
-    bool? FolderOnly = null
+    bool? FolderOnly = null,
+    int? MinRank = null,
+    string? RequiredNode = null
 );

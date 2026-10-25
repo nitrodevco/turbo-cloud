@@ -198,7 +198,9 @@ public sealed class PurchaseOkTests : IDisposable
             normal,
             _catalog.BuildersClubProvider(),
             _catalog.Db,
-            Options.Create(new PlayerConfig())
+            Options.Create(new PlayerConfig()),
+            _catalog.Fakes.Create<Orleans.IGrainFactory>(),
+            _catalog.Fakes.Create<Turbo.Primitives.Players.Providers.IPermissionRegistryProvider>()
         );
 
         service

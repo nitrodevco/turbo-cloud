@@ -50,6 +50,13 @@ public sealed record CatalogSnapshot
     public ImmutableArray<CatalogFrontPageItemSnapshot> FrontPageItems { get; init; } = [];
 
     /// <summary>
+    /// Whether any page asks more than being a player (a rank or a node,
+    /// <see cref="CatalogPageAccess"/>). Without one, every player is sent this catalog as it is.
+    /// </summary>
+    [Id(10)]
+    public bool HasGatedPages { get; init; }
+
+    /// <summary>
     /// The featured items a page is sent with at <paramref name="now"/>: none unless its layout
     /// draws them, and of those only the ones that have not ended, each counting down to its
     /// end. The client keeps the items of the last page that brought any, so every other page

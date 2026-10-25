@@ -238,6 +238,11 @@ hotel-wide grain in section 5.
 - `GetCatalogIndexMessageHandler` and `GetCatalogPageMessageHandler` already dispatch on
   `message.CatalogType`; neither needs a change.
 - Builders Club offers carry a zero price. The client never draws one for this catalog type.
+- A page is a Builders Club page by its `display` (`bc_only` or `both`), never by its layout. The
+  `builders_club_frontpage`, `builders_club_addons` and `builders_club_loyalty` layouts
+  (`PageLocalization.as:37-39`) are pages of the *normal* catalog that sell the membership and its
+  add-ons, so they stay `regular`. An import from a retro emulator maps its `catalog_pages_bc` rows
+  to `bc_only` pages and leaves its `catalog_pages` rows, those layouts included, `regular`.
 
 ## 5. Builders Club furni
 

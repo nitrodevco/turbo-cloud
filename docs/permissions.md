@@ -746,6 +746,19 @@ category left at the retro default of `min_rank = 1` is everyone's. `required_no
 `AddPermissions`.
 set's derived level, never by comparing groups.
 
+### Catalog pages: `min_rank` and `required_node`
+
+`catalog_pages` has the same two columns, read the same way (`CatalogPageAccess.CanSee`): a page
+above the player's rank, or naming a node they do not hold, is not in their catalog, and neither is
+anything under it. Not in it means left out of the index the client is sent, not sent hidden: a
+hidden page (`display = invisible`, `NodeData.visible` false) still opens by name, which a staff
+page must not. `ICatalogService.GetCatalogSnapshotForPlayerAsync` cuts the catalog for the player,
+once per combination of gates a hotel's pages use, and the index, a page, a product offer, the
+giftable check, a purchase (a gift and an LTD entry included), a room ad and a Builders Club
+placement all ask it, so a page that is not shown cannot be bought from either. A hotel with no
+gated page is sent the catalog as it is, without a permission lookup. The panel's page editor sets
+both (`minRank`, `requiredNode`).
+
 ## 17. Audit against LuckPerms and the clients (2026-09-28)
 
 Read against the LuckPerms wiki source (`LuckPerms/wiki`, `pages/*.md`), the AS3 clients

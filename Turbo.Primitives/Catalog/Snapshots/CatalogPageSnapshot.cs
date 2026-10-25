@@ -43,4 +43,15 @@ public sealed record CatalogPageSnapshot
     /// <summary>A heading with no page of its own; the index sends it as page -1.</summary>
     [Id(11)]
     public bool FolderOnly { get; init; }
+
+    /// <summary>
+    /// The lowest rank that sees the page and what is under it (retro <c>min_rank</c>; 1 is
+    /// everyone). See <see cref="CatalogPageAccess"/>.
+    /// </summary>
+    [Id(12)]
+    public int MinRank { get; init; } = 1;
+
+    /// <summary>A permission node the player must hold to see the page and what is under it, or null.</summary>
+    [Id(13)]
+    public string? RequiredNode { get; init; }
 }

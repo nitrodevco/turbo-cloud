@@ -37,6 +37,12 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
 {
     private static readonly string[] METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
+    /// <summary>What signs the caller in, which a route is handed only when it asks.</summary>
+    private static readonly HashSet<string> CREDENTIAL_HEADERS = new(
+        ["Authorization", "Cookie", "Proxy-Authorization"],
+        StringComparer.OrdinalIgnoreCase
+    );
+
     private readonly IPluginWebRoutes _routes;
     private readonly IPlayerWebTokens _tokens;
     private readonly WebSessions _sessions;
@@ -195,7 +201,7 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
                 return playerLimited;
         }
 
-        var (body, problem) = await ReadBodyAsync(http, ct).ConfigureAwait(false);
+        var (body, raw, problem) = await ReadBodyAsync(http, ct).ConfigureAwait(false);
 
         if (problem is not null)
             return problem;
@@ -218,7 +224,11 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
             body,
             player?.Value,
             address
-        );
+        )
+        {
+            Headers = HeadersFor(http, endpoint.Route.CredentialHeaders),
+            RawBody = raw,
+        };
 
         PluginWebResult result;
 
@@ -314,11 +324,30 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
         return Error(StatusCodes.Status429TooManyRequests, "Slow down a little.");
     }
 
-    /// <summary>The JSON body, if any; an answer instead when it is too large or not JSON.</summary>
-    private async Task<(JsonElement? Body, IResult? Problem)> ReadBodyAsync(
-        HttpContext http,
-        CancellationToken ct
-    )
+    /// <summary>
+    /// The request's headers by lower-case name; the caller's credentials only for a route that
+    /// asks for them.
+    /// </summary>
+    private static Dictionary<string, string> HeadersFor(HttpContext http, bool credentials)
+    {
+        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (name, value) in http.Request.Headers)
+            if (credentials || !CREDENTIAL_HEADERS.Contains(name))
+                headers[name.ToLowerInvariant()] = value.ToString();
+
+        return headers;
+    }
+
+    /// <summary>
+    /// The JSON body, if any, and its bytes as sent; an answer instead when it is too large or
+    /// not JSON.
+    /// </summary>
+    private async Task<(
+        JsonElement? Body,
+        ReadOnlyMemory<byte> Raw,
+        IResult? Problem
+    )> ReadBodyAsync(HttpContext http, CancellationToken ct)
     {
         var cap = Math.Max(0, _config.MaxBodyBytes);
         var tooLarge = Error(
@@ -327,7 +356,7 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
         );
 
         if (http.Request.ContentLength > cap)
-            return (null, tooLarge);
+            return (null, default, tooLarge);
 
         using var buffer = new MemoryStream();
         var chunk = new byte[16 * 1024];
@@ -336,23 +365,29 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
         while ((read = await http.Request.Body.ReadAsync(chunk, ct).ConfigureAwait(false)) > 0)
         {
             if (buffer.Length + read > cap)
-                return (null, tooLarge);
+                return (null, default, tooLarge);
 
             await buffer.WriteAsync(chunk.AsMemory(0, read), ct).ConfigureAwait(false);
         }
 
         if (buffer.Length == 0)
-            return (null, null);
+            return (null, default, null);
+
+        var raw = buffer.ToArray();
 
         try
         {
-            using var document = JsonDocument.Parse(buffer.ToArray());
+            using var document = JsonDocument.Parse(raw);
 
-            return (document.RootElement.Clone(), null);
+            return (document.RootElement.Clone(), raw, null);
         }
         catch (JsonException)
         {
-            return (null, Error(StatusCodes.Status400BadRequest, "The request body is not JSON."));
+            return (
+                null,
+                default,
+                Error(StatusCodes.Status400BadRequest, "The request body is not JSON.")
+            );
         }
     }
 

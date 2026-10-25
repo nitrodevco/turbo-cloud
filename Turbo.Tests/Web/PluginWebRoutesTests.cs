@@ -125,6 +125,53 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
             }
         }
 
+        // A webhook: the sender signs the body's bytes and says so in a header.
+        public sealed class HookRoute : IPluginWebRoute
+        {
+            public string Method => "POST";
+            public string Pattern => "hook";
+            public bool Anonymous => true;
+            public Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct) =>
+                Task.FromResult(Hooks.Answer(request));
+        }
+
+        public sealed class CredentialHookRoute : IPluginWebRoute
+        {
+            public string Method => "POST";
+            public string Pattern => "hook/credentials";
+            public bool Anonymous => true;
+            public bool CredentialHeaders => true;
+            public Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct) =>
+                Task.FromResult(Hooks.Answer(request));
+        }
+
+        public static class Hooks
+        {
+            public static PluginWebResult Answer(PluginWebRequest request)
+            {
+                var expected = Convert.ToHexString(
+                    System.Security.Cryptography.HMACSHA256.HashData(
+                        System.Text.Encoding.UTF8.GetBytes("hook-secret"),
+                        request.RawBody.Span
+                    )
+                );
+                var sent = request.Headers.TryGetValue("X-Hook-Signature", out var signature)
+                    ? signature
+                    : "";
+
+                if (!string.Equals(expected, sent, StringComparison.OrdinalIgnoreCase))
+                    return PluginWebResult.Forbidden("Bad signature.");
+
+                return PluginWebResult.Ok(new
+                {
+                    eventType = request.Body?.GetProperty("event").GetString(),
+                    names = string.Join(",", request.Headers.Keys),
+                    cookie = request.Headers.ContainsKey("cookie"),
+                    authorization = request.Headers.ContainsKey("Authorization"),
+                });
+            }
+        }
+
         public sealed class BrokenRoute : IPluginWebRoute
         {
             public string Method => "GET";
@@ -291,6 +338,57 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
         broken.Status.Should().Be(500);
         broken.Json.GetProperty("error").GetString().Should().NotContain("secret");
         _log.AtLeast(LogLevel.Error).Should().Contain(x => x.Message.Contains("board"));
+    }
+
+    [Fact]
+    public async Task A_webhook_route_is_handed_the_headers_and_the_body_as_sent_without_the_callers_credentials()
+    {
+        await StartAsync();
+
+        var token = _tokens!.Issue(PLAYER)!.Token;
+        // Spacing JSON would lose: a signature over the parsed body would not match.
+        const string BODY = "{ \"event\" :  \"PAYMENT.CAPTURE.COMPLETED\" }";
+        var signature = Convert.ToHexString(
+            System.Security.Cryptography.HMACSHA256.HashData(
+                Encoding.UTF8.GetBytes("hook-secret"),
+                Encoding.UTF8.GetBytes(BODY)
+            )
+        );
+        var headers = new Dictionary<string, string>
+        {
+            ["X-Hook-Signature"] = signature,
+            ["Cookie"] = "turbo_session=abc",
+        };
+
+        var hook = await SendRawAsync(HttpMethod.Post, "hook", BODY, token, headers: headers);
+
+        hook.Status.Should().Be(200);
+        hook.Json.GetProperty("eventType").GetString().Should().Be("PAYMENT.CAPTURE.COMPLETED");
+        hook.Json.GetProperty("names").GetString().Should().Contain("x-hook-signature");
+        hook.Json.GetProperty("cookie").GetBoolean().Should().BeFalse();
+        hook.Json.GetProperty("authorization").GetBoolean().Should().BeFalse();
+
+        var forged = await SendRawAsync(
+            HttpMethod.Post,
+            "hook",
+            BODY.Replace("CAPTURE", "REFUND"),
+            token,
+            headers: headers
+        );
+
+        forged.Status.Should().Be(403);
+
+        var credentials = await SendRawAsync(
+            HttpMethod.Post,
+            "hook/credentials",
+            BODY,
+            token,
+            headers: headers
+        );
+
+        credentials.Status.Should().Be(200);
+        credentials.Json.GetProperty("cookie").GetBoolean().Should().BeTrue();
+        credentials.Json.GetProperty("authorization").GetBoolean().Should().BeTrue();
     }
 
     [Fact]
@@ -659,7 +757,8 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
         string? body,
         string? bearer,
         string? origin = null,
-        string key = "board"
+        string key = "board",
+        IReadOnlyDictionary<string, string>? headers = null
     )
     {
         using var request = new HttpRequestMessage(method, $"/api/plugins/{key}/{path}");
@@ -672,6 +771,9 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
 
         if (origin is not null)
             request.Headers.Add("Origin", origin);
+
+        foreach (var (name, value) in headers ?? new Dictionary<string, string>())
+            request.Headers.Add(name, value);
 
         var response = await _http!.SendAsync(request, Ct);
         var text = await response.Content.ReadAsStringAsync(Ct);

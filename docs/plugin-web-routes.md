@@ -70,7 +70,52 @@ public sealed class ResetRoute(ScoreBook scores) : IPluginWebRoute { ... }
   an `IPermissionNodeSource` (or `IPluginAdmin`'s `Node`). An anonymous route that requires a
   permission fails the load: a permission needs a player.
 - **`PluginWebRequest`**: `Method`, `Path`, `Route`, `Query`, `Body` (the JSON body as a
-  `JsonElement`, null without one), `PlayerId`, `RemoteAddress`.
+  `JsonElement`, null without one), `PlayerId`, `RemoteAddress`, `Headers` (by lower-case name,
+  looked up in any case; a repeated header joined with `", "`) and `RawBody` (the body's bytes as
+  sent, empty without one).
+- **`CredentialHeaders`**: false by default, so `Headers` leaves out `authorization`, `cookie` and
+  `proxy-authorization`: the host has signed the caller in, and a route that never reads them can't
+  leak a player's session. A route that checks a service's own scheme (Basic auth on a webhook)
+  sets it.
+
+### Verify a webhook
+
+A payment provider or a game server calls an anonymous route and signs what it sends. Work the
+signature out over `RawBody`, never over `Body`: parsing drops the sender's spacing, so the same
+JSON written again is other bytes.
+
+```csharp
+/// POST /api/plugins/shop/webhooks/payments: the provider's word that a payment went through.
+public sealed class PaymentHookRoute(ShopSettings settings, Orders orders) : IPluginWebRoute
+{
+    public string Method => "POST";
+    public string Pattern => "webhooks/payments";
+    public bool Anonymous => true;
+
+    public async Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct)
+    {
+        var expected = HMACSHA256.HashData(
+            Encoding.UTF8.GetBytes(settings.WebhookSecret),
+            request.RawBody.Span
+        );
+
+        if (
+            !request.Headers.TryGetValue("x-signature", out var sent)
+            || !CryptographicOperations.FixedTimeEquals(expected, Convert.FromHexString(sent))
+        )
+            return PluginWebResult.Forbidden("Bad signature.");
+
+        await orders.MarkPaidAsync(request.Body!.Value.GetProperty("order").GetString()!, ct);
+
+        return PluginWebResult.NoContent();
+    }
+}
+```
+
+A provider that signs with a certificate and a transmission id (PayPal's `paypal-transmission-*`
+headers) is checked the same way: every header it names is in `Headers`, and the bytes it signed
+are `RawBody`. The body still has to be JSON (400 otherwise) and within `MaxBodyBytes`; the address
+and rate limits apply to the provider as to anyone.
 - **`PluginWebResult`**: a status with a JSON value (`Ok(value)`), `NoContent()`, or an error
   (`BadRequest`, `Forbidden`, `NotFound`, or `new(status, Error: "...")`) sent as
   `{"error": "..."}`, words the caller shows.
@@ -207,7 +252,8 @@ sets `PublicUrl` to an address that reaches this host and is listed by nginx's `
 and `GET me` (the player's own skill), and its window shows the best level through `api.http`.
 `Turbo.Tests` compiles and loads it (`TemplatePatchExampleTests`); `PluginWebRoutesTests` drives a
 compiled plugin's routes over real HTTP (anonymous and player routes, token and cookie, permissions,
-the caps, CORS, refused patterns, unload and reload), and `LoginAdmissionTests` /
+the caps, CORS, refused patterns, unload and reload, a signed webhook checked over its headers and
+raw body), and `LoginAdmissionTests` /
 `PublicSiteTests` a play policy refusing with an address.
 
 ## 6. What it changed in the server
