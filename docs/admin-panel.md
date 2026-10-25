@@ -47,7 +47,7 @@ and show as tabs along its header:
 |  | **Overview** | the dashboard, Performance |
 | Community | **Players**, **Moderation**, **Rooms** | Moderation: Reports, Word filter |
 | Shop | **Catalog** | Editor, Audit (furni not sold, furni sold twice), Generate, Backups, Vouchers, Songs |
-| World | **Hotel view**, **Content**, **Gamedata** | their own |
+| World | **Hotel view**, **Campaigns** (gift calendars: [campaign-calendar.md](campaign-calendar.md)), **Content**, **Gamedata** | their own |
 | World | **Assets** | Overview, Bundles (furniture, clothing, effects, pets), Publish: see [asset-bundles.md](asset-bundles.md) |
 | Staff | **Access** | Groups, Players, Who has a node, Log, Nodes, Staff passkeys |
 | Staff | **Logs** | Command log, Chat log, Messages, Currency, Room visits, Permission log |

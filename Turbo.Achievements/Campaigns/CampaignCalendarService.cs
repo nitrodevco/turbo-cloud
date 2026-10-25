@@ -189,7 +189,10 @@ public sealed partial class CampaignCalendarService(
                 .CampaignCalendars.AnyAsync(x => x.Name == campaign.Name && x.Id != campaign.Id, ct)
                 .ConfigureAwait(false)
         )
-            throw new ArgumentException($"There is another calendar named {campaign.Name}.");
+            throw new CampaignCalendarRefusedException(
+                $"There is another calendar named {campaign.Name}.",
+                "name"
+            );
 
         CampaignCalendarEntity row;
 
@@ -256,42 +259,50 @@ public sealed partial class CampaignCalendarService(
     private void Check(CampaignCalendarDefinition campaign)
     {
         if (!NamePattern().IsMatch(campaign.Name))
-            throw new ArgumentException(
-                "A calendar's name is 1 to 64 letters, digits, '_' or '-': it names its texts (campaign.calendar.<name>.title)."
+            throw new CampaignCalendarRefusedException(
+                "A calendar's name is 1 to 64 letters, digits, '_' or '-': it names its texts (campaign.calendar.<name>.title).",
+                "name"
             );
 
         if (campaign.Image.Length > CampaignCalendarEntity.IMAGE_MAX_LENGTH)
-            throw new ArgumentException("The image is too long.");
+            throw new CampaignCalendarRefusedException("The image is too long.", "image");
 
         if (campaign.Days is < 1 or > 366)
-            throw new ArgumentException("A calendar has 1 to 366 days.");
+            throw new CampaignCalendarRefusedException("A calendar has 1 to 366 days.", "days");
 
         var days = new HashSet<int>();
 
         foreach (var reward in campaign.Rewards)
         {
             var day = reward.DayIndex.ToString(CultureInfo.InvariantCulture);
+            var refused = (string message, string field) =>
+                new CampaignCalendarRefusedException(message, field, reward.DayIndex);
 
             if (reward.DayIndex < 0 || reward.DayIndex >= campaign.Days)
-                throw new ArgumentException($"Day {day} is outside the calendar.");
+                throw refused($"Day index {day} is outside the calendar.", "dayIndex");
 
             if (!days.Add(reward.DayIndex))
-                throw new ArgumentException($"Day {day} has two gifts.");
+                throw refused($"Day index {day} has two gifts.", "dayIndex");
 
             if (reward.ShownProductCode.Length == 0)
-                throw new ArgumentException(
-                    $"Day {day} names no product: the client shows the gift by its product data name."
+                throw refused(
+                    $"Day index {day} names no product: the client shows the gift by its product data name.",
+                    "productCode"
                 );
 
-            if (reward.Credits < 0 || reward.CurrencyAmount < 0)
-                throw new ArgumentException($"Day {day} gives a negative amount.");
+            if (reward.Credits < 0)
+                throw refused($"Day index {day} gives a negative amount.", "credits");
+
+            if (reward.CurrencyAmount < 0)
+                throw refused($"Day index {day} gives a negative amount.", "currencyAmount");
 
             if (
                 reward.FurnitureClassName.Length > 0
                 && definitions.TryGetDefinitionByName(reward.FurnitureClassName.Trim()) is null
             )
-                throw new ArgumentException(
-                    $"Day {day}: there is no furni {reward.FurnitureClassName}."
+                throw refused(
+                    $"Day index {day}: there is no furni {reward.FurnitureClassName}.",
+                    "furnitureClassName"
                 );
 
             if (
@@ -301,7 +312,7 @@ public sealed partial class CampaignCalendarService(
                     || currencies.GetCurrencyType(typeId) is null
                 )
             )
-                throw new ArgumentException($"Day {day}: there is no such currency.");
+                throw refused($"Day index {day}: there is no such currency.", "currencyTypeId");
         }
     }
 
