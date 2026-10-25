@@ -66,6 +66,34 @@ public sealed class WiredPlaceholderStackTests
             user.ErrorKey.Should().Be("wiredfurni.error.link.destination_conflict");
     }
 
+    // addon.14.X7 / addon.19.X7: a Username "x" and a Furni Name "x" on one stack: the second
+    // save is refused with wiredfurni.error.link.destination_conflict, in both orders (official
+    // client capture 2026-10-25T01-11, 2/2). Ours refused only a second one of the same kind.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Two_kinds_of_placeholder_cannot_share_a_name_on_a_stack_addon_14_X7(
+        bool usernameFirst
+    )
+    {
+        _room.AddBox<WiredAddonUsernamePlaceholder>(1, 0, 0, "wf_xtra_text_output_username");
+        _room.AddBox<WiredAddonFurniNamePlaceholder>(2, 0, 0, "wf_xtra_text_output_furni_name");
+        var (first, second) = usernameFirst ? (1, 2) : (2, 1);
+
+        (await _room.SaveAsync<UpdateAddonMessage>(first, intParams: [0], stringParam: "x"))
+            .Should()
+            .BeTrue();
+
+        var refused = await _room.SaveWithResultAsync<UpdateAddonMessage>(
+            second,
+            intParams: [0],
+            stringParam: "x"
+        );
+
+        refused.IsSaved.Should().BeFalse();
+        refused.ErrorKey.Should().Be("wiredfurni.error.link.destination_conflict");
+    }
+
     // addon.14.X5: two "u" placeholders saved apart and then moved onto one stack by hand (no
     // save, no check): the one with the higher item id answers, whatever their order (4/4).
     [Theory]
@@ -209,5 +237,42 @@ public sealed class WiredPlaceholderStackTests
         ctx.Policy.TextPlaceholders.Add(furni);
 
         (await ctx.FormatTextAsync("W=$(fw) end", Ct)).Should().Be(shown);
+    }
+
+    // addon.14.X6: Username Placeholder over an empty user selection: a single name leaves
+    // "$(u)" as written (2/2), show all prints nothing (1/1) (official client capture
+    // 2026-10-25T01-11) - the rule addon.19.B4 measured for Furni Name.
+    [Theory]
+    [InlineData(1, "U=[]")]
+    [InlineData(0, "U=[$(u)]")]
+    public async Task Username_with_no_user_prints_nothing_or_stays_as_written_addon_14_X6(
+        int showsAll,
+        string shown
+    )
+    {
+        var user = _room.AddBox<WiredAddonUsernamePlaceholder>(
+            1,
+            0,
+            0,
+            "wf_xtra_text_output_username"
+        );
+
+        (
+            await _room.SaveAsync<UpdateAddonMessage>(
+                1,
+                intParams: [showsAll],
+                stringParam: "u	,",
+                playerSources:
+                [
+                    [WiredPlayerSourceType.TriggeredUser],
+                ]
+            )
+        ).Should().BeTrue();
+
+        var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
+
+        ctx.Policy.TextPlaceholders.Add(user);
+
+        (await ctx.FormatTextAsync("U=[$(u)]", Ct)).Should().Be(shown);
     }
 }

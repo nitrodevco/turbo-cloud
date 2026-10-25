@@ -254,6 +254,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
                 Team = team,
                 Score = _teamScores[(int)team],
                 PreviousScore = previous,
+                ScoredBy = playerId,
             },
             ct
         );

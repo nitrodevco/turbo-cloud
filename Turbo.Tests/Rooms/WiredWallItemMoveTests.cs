@@ -83,6 +83,40 @@ public sealed class WiredWallItemMoveTests
             );
     }
 
+    // action.33.B11b: [-1,0] takes the wardrobe from the floor tile 5,8 (-58) back onto the wall
+    // coordinates 4,8, where its height offset is 89 again (2/2), and on along the wall to 3,8
+    // keeping it (1/1) (official client capture 2026-10-25T01-01-32).
+    [Fact]
+    public async Task Relative_move_back_onto_the_wall_gives_the_offset_back_action_33_B11b()
+    {
+        PlaceWallItem(5, 8, 0, -58, right: true);
+        await BuildAsync<WiredActionRelativeMove>("wf_act_rel_mov", [-1, 0]);
+
+        await ClickAsync();
+        await ClickAsync();
+
+        WallMoves()
+            .Should()
+            .Equal((5, 8, 0, -58, 4, 8, 0, 89, true), (4, 8, 0, 89, 3, 8, 0, 89, true));
+    }
+
+    // action.33.B4b: [-5,0] on the clock at 2,10 moves it off the room's grid, to -3,10 with the
+    // height offset 147 lower (55 -> -92), then on to -8,10 keeping it (4/4, official client
+    // capture 2026-10-25T01-02-05). Ours refused the move.
+    [Fact]
+    public async Task Relative_move_takes_a_wall_item_off_the_grid_action_33_B4b()
+    {
+        PlaceWallItem(2, 10, 4, 55, right: false);
+        await BuildAsync<WiredActionRelativeMove>("wf_act_rel_mov", [-5, 0]);
+
+        await ClickAsync();
+        await ClickAsync();
+
+        WallMoves()
+            .Should()
+            .Equal((2, 10, 4, 55, -3, 10, 4, -92, false), (-3, 10, 4, -92, -8, 10, 4, -92, false));
+    }
+
     // action.4.X11: [4,0,0] = y-1 along the wall, offsets and side kept, no ItemUpdate.
     [Theory]
     [InlineData(2, 10, 4, 55, false)]
@@ -141,6 +175,27 @@ public sealed class WiredWallItemMoveTests
             .Select(x => x.WallItem.WallPosition)
             .Should()
             .Equal(":w=4,7 l=32,89 l", ":w=4,6 l=0,89 r");
+        WallMoves().Should().BeEmpty();
+    }
+
+    // action.4.B11b: rotation only [0,1,0] on the wardrobe at 4,8 offsets 10,89 "r": ItemUpdate
+    // ":w=4,8 l=22,89 l", then ":w=4,8 l=10,89 r", no WiredMovements (4/4, official client
+    // capture 2026-10-25T01-02-40). Habbo's updates add "a=197", which the client does not read
+    // (WallItemParser.as:46-52) and we do not send.
+    [Fact]
+    public async Task Move_and_rotate_turning_only_mirrors_the_offset_action_4_B11b()
+    {
+        PlaceWallItem(4, 8, 10, 89, right: true);
+        await BuildAsync<WiredActionMoveRotateFurni>("wf_act_move_rotate", [0, 1]);
+
+        await ClickAsync();
+        await ClickAsync();
+
+        _room
+            .Harness.Fakes.SentToRoom<ItemUpdateMessageComposer>()
+            .Select(x => x.WallItem.WallPosition)
+            .Should()
+            .Equal(":w=4,8 l=22,89 l", ":w=4,8 l=10,89 r");
         WallMoves().Should().BeEmpty();
     }
 

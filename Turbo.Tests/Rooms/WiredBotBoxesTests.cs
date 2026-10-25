@@ -348,6 +348,30 @@ public sealed class WiredBotBoxesTests
         (await TickAsync(40)).Should().Be(2, "the bot followed and arrived once more");
     }
 
+    // trigger.14.X1 / action.25.X1: Bot Follow started with Frank already beside the user: Bot
+    // Reached Avatar did not fire (0/2, 6-7 s watched) while the user's walks kept him beside the
+    // bot; it fired once the user walked out of reach and the bot caught up (official client
+    // capture 2026-10-25T01-13-38, 1/1). Ours fired at the start.
+    [Fact]
+    public async Task Bot_reached_avatar_waits_for_an_arrival_when_the_follow_starts_beside_the_user()
+    {
+        var frank = AddWalkingBot();
+        var user = _room.Enter(USER, 2, 1);
+        await SaveReachedAvatarStackAsync();
+
+        (await _room.Harness.Module<RoomBotModule>().FollowAsync(frank, USER, true))
+            .Should()
+            .BeTrue();
+
+        (await TickAsync(20)).Should().Be(0, "the bot stood beside the user from the start");
+
+        await _room
+            .Harness.Module<RoomAvatarModule>()
+            .RelocateAvatarAsync(user, _room.Map.ToIdx(6, 8), Ct);
+
+        (await TickAsync(40)).Should().Be(1, "the bot followed and arrived");
+    }
+
     // trigger.14.R4 / action.24.R3: a bot handing an item over fires Bot Reached Avatar as it
     // arrives beside the user, in the tick it hands the item over (official client capture
     // 2026-10-24T18-02-52: CarryObject user, CarryObject bot 0 and the trigger's flash in one

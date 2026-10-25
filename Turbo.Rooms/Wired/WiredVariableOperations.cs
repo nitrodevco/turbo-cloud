@@ -19,11 +19,16 @@ public static class WiredVariableOperations
             WiredVariableOperationType.Add => current + operand,
             WiredVariableOperationType.Subtract => current - operand,
             WiredVariableOperationType.Multiply => current * operand,
-            WiredVariableOperationType.Divide => operand == 0
-                ? DivideByZero(current)
-                : current / operand,
-            // x % 0 is 0, no error (official client capture 2026-10-24, action.41.B4g).
-            WiredVariableOperationType.Modulo => operand == 0 ? 0 : current % operand,
+            WiredVariableOperationType.Divide => operand switch
+            {
+                0 => DivideByZero(current),
+                // The one quotient that does not fit wraps, as Java's does (inferred).
+                -1 => unchecked(-current),
+                _ => current / operand,
+            },
+            // x % 0 is 0, no error (official client capture 2026-10-24, action.41.B4g); x % -1 is
+            // 0 too, MIN % -1 included.
+            WiredVariableOperationType.Modulo => operand is 0 or -1 ? 0 : current % operand,
             WiredVariableOperationType.Power => Power(current, operand),
             // "Set minimum" makes the operand a floor, "Set maximum" a ceiling (official client capture).
             WiredVariableOperationType.SetMinimum => Math.Max(current, operand),
@@ -31,7 +36,9 @@ public static class WiredVariableOperations
             WiredVariableOperationType.Random => operand <= 0
                 ? 0
                 : Random.Shared.NextInt64(0, operand + 1),
-            WiredVariableOperationType.Absolute => Math.Abs(current),
+            // The absolute value of MIN is MIN (official client capture 2026-10-25T01-28-59, wired
+            // matrix action.41.B4, op 60); Math.Abs throws for it.
+            WiredVariableOperationType.Absolute => current < 0 ? unchecked(-current) : current,
             WiredVariableOperationType.BitwiseAnd => current & operand,
             WiredVariableOperationType.BitwiseOr => current | operand,
             WiredVariableOperationType.BitwiseXor => current ^ operand,

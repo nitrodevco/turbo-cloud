@@ -41,16 +41,12 @@ public class FurnitureMultiHeightLogic(
 
     public override bool CanChangeState() => !IsCovered();
 
-    // Nor by hand: a use of a covered block got no reply and left its state (official client
-    // capture 2026-10-24 22-26-27, wired matrix trigger.4.B4 / action.0.B4c, 2/2; the top block
-    // and uncovered blocks toggled 7/7).
-    public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
-    {
-        if (!CanChangeState())
-            return;
-
-        await base.OnUseAsync(ctx, param, ct);
-    }
+    // Nor by hand, and the use is no use at all: a covered block got no reply, left its state
+    // and did not fire Furni Is Used (official client capture 2026-10-24 22-26-27, wired matrix
+    // trigger.4.B4 / action.0.B4c, 2/2; 2026-10-25T01-03, trigger.4.B4 0/2 with the uncovered
+    // control firing 2/2; the top block and uncovered blocks toggled 7/7).
+    public override async Task<bool> CanUseAsync(ActionContext ctx) =>
+        CanChangeState() && await base.CanUseAsync(ctx);
 
     /// <summary>
     /// Whether another furni stands on one of its tiles at or above it: higher up, or at the same

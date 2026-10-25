@@ -40,7 +40,7 @@ public class WiredActionRelativeMove(
         if (dx == 0 && dy == 0)
             return;
 
-        foreach (var item in GetFloorItems(ctx.GetSelection(this)))
+        foreach (var item in GetFloorPicksInRandomOrder(ctx.GetSelection(this)))
         {
             var at = plan.Where(item);
 

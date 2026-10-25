@@ -32,10 +32,11 @@ public static class WiredPlaceholderText
     private const string DEFAULT_DELIMITER = ", ";
 
     /// <summary>
-    /// Whether another placeholder of <paramref name="box"/>'s kind on its stack has the name
+    /// Whether another placeholder on <paramref name="box"/>'s stack, of any kind, has the name
     /// <paramref name="stringParam"/> gives: Habbo refuses that save with
     /// <c>wiredfurni.error.link.destination_conflict</c> (official client capture 2026-10-24, W3 lab
-    /// addon.14.R2 / addon.15.R2 / addon.19.R2, 3/3). Placeholders of two kinds were not tried.
+    /// addon.14.R2 / addon.15.R2 / addon.19.R2, 3/3; a Username "x" and a Furni Name "x" in one
+    /// stack, the second save refused in both orders, 2026-10-25T01-11, addon.14.X7, 2/2).
     /// </summary>
     public static bool IsNameTakenOnStack(
         IWiredTextPlaceholder box,
@@ -53,7 +54,6 @@ public static class WiredPlaceholderText
         return stack.Any(item =>
             item.Logic is IWiredTextPlaceholder other
             && !ReferenceEquals(other, box)
-            && other.GetType() == box.GetType()
             && other.Token == token
         );
     }

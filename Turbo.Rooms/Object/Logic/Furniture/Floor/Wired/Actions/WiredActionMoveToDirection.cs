@@ -68,7 +68,7 @@ public class WiredActionMoveToDirection(
         var blockOnUsers = GetIntParamOrDefault(2, false);
         var map = MapModule;
 
-        foreach (var item in GetFloorItems(selection))
+        foreach (var item in GetFloorPicksInRandomOrder(selection))
         {
             if (!_headingByItemId.TryGetValue(item.ObjectId, out var heading))
                 heading = startDirection;

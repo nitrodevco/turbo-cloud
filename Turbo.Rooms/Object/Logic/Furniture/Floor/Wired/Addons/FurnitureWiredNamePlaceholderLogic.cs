@@ -83,8 +83,8 @@ public abstract class FurnitureWiredNamePlaceholderLogic(
 
         // With nothing to name, "show all" prints nothing and a single name leaves the
         // placeholder as written: "W= end" and "W=$(fw) end" (official client capture 2026-10-24,
-        // W3 lab addon.19.B4, Furni Name with no furni, 2/2 each). That Username does the same
-        // is inferred.
+        // W3 lab addon.19.B4, Furni Name with no furni, 2/2 each); Username over an empty user
+        // selection the same, "$(u)" kept 2/2 and "" 1/1 (2026-10-25T01-11, addon.14.X6).
         if (names.Count == 0 && !showsAll)
             return Task.FromResult(text);
 
