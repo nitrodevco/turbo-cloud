@@ -268,11 +268,28 @@ public sealed partial class RoomBotModule
         return false;
     }
 
-    /// <summary>Starts or stops a bot trailing an avatar; the tick keeps it one step behind.</summary>
+    /// <summary>
+    /// Starts or stops a bot trailing an avatar; the tick keeps it one step behind. A bot that
+    /// already stands within reach has not reached the avatar by being told to follow: Bot
+    /// Reached Avatar fired neither at once nor while the user's walks kept the bot beside him,
+    /// and fired once he had walked out of reach and the bot had caught up (official client
+    /// capture 2026-10-25T01-13-38, wired matrix trigger.14.X1, 0/2 and 1/1; a follow started 6
+    /// tiles away fired on arrival, 1/1).
+    /// </summary>
     public Task<bool> FollowAsync(IRoomBot bot, RoomObjectId avatarObjectId, bool start)
     {
         bot.TargetItemId = -1;
         bot.FollowObjectId = start ? avatarObjectId : -1;
+
+        if (start && AvatarModule.TryGetAvatar(avatarObjectId, out var avatar))
+        {
+            var distance = MapModule.GetDistanceBetween(
+                MapModule.ToIdx(bot.X, bot.Y),
+                MapModule.ToIdx(avatar.X, avatar.Y)
+            );
+
+            bot.ReachedObjectId = distance <= Config.FollowDistance ? avatarObjectId : -1;
+        }
 
         return Task.FromResult(true);
     }
