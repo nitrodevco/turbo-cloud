@@ -330,21 +330,21 @@ public abstract class FurnitureWiredChestLogic(
     }
 
     /// <summary>
-    /// After a payment into a full furni chest went through, what the chest holds past its
-    /// capacity (of the <paramref name="paid"/> items, newest first) goes to the chest's owner,
-    /// who is told "You received some credits/items from a full Wired Chest!"
-    /// (<c>wired_chests.earnings</c>). Habbo took a payment into a chest set to capacity 0,
-    /// completed it, then moved the item to the owner's inventory with that dialog and no other
-    /// chest notification (official client capture 2026-10-25, wired matrix action.47.B6, 2/2).
+    /// After a payment into a full furni chest went through, everything the chest holds past its
+    /// capacity, newest first, goes to the chest's owner, who is told "You received some
+    /// credits/items from a full Wired Chest!" (<c>wired_chests.earnings</c>). Items already in
+    /// the chest count: one paid into a chest holding 2 at capacity 1 gave the owner the paid item
+    /// and the newest earlier one, the oldest stayed; at capacity 0 holding 1, both came back;
+    /// exactly full, the paid one (official client capture 2026-10-25, wired matrix action.47.B6
+    /// to B6d, 4/4).
     /// </summary>
     public async Task<bool> OverflowToOwnerAsync(
-        int paid,
         WiredTransactionType type,
         string definitionInfo,
         CancellationToken ct
     )
     {
-        var excess = Math.Min(paid, AvailableAmount - Capacity);
+        var excess = AvailableAmount - Capacity;
 
         if (Kind != WiredChestKind.Furni || excess <= 0)
             return false;

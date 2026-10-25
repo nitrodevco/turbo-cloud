@@ -32,21 +32,23 @@ public class WiredTriggerPeriodically(
 
     private int _delayValue = 1;
 
-    // As many 5 s units as fit in the int of milliseconds the delay is counted in.
+    // As many units as fit in the int of milliseconds the delay is counted in.
     private const int MAX_LONG_UNITS = int.MaxValue / 5000;
+    private const int MAX_PULSES = int.MaxValue / WiredPulses.MS;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             // A fresh box ticks every 0.5 s, the short one every 200 ms (4) and the long one
             // every 50 s (10) on the official server (2026-10-20T17-31-49-Open-wait).
-            // Out of range, the short one's 11 was stored as 10 and the long one's 121 as 121,
-            // both WiredSaveSuccess (official client capture 2026-10-24, trigger.19.E10 /
-            // trigger.12.E10).
+            // Out of the editor's range, the short one's 11 was stored as 10 and its 0 as 1;
+            // the plain and long ones store 121 as 121 and 0 as 1, and the plain one at 121 ran
+            // every 60.5 s (official client capture 2026-10-24/25, trigger.19.E10 /
+            // trigger.12.E10, trigger.6.B2 / trigger.12.B2 / trigger.19.B2).
             PeriodicType switch
             {
                 WiredPeriodicTriggerType.Short => new WiredClampParamRule(1, 10, 4),
-                WiredPeriodicTriggerType.Long => new WiredRangeParamRule(1, MAX_LONG_UNITS, 10),
-                _ => new WiredRangeParamRule(1, 120, 1),
+                WiredPeriodicTriggerType.Long => new WiredClampParamRule(1, MAX_LONG_UNITS, 10),
+                _ => new WiredClampParamRule(1, MAX_PULSES, 1),
             },
         ];
 
@@ -56,7 +58,7 @@ public class WiredTriggerPeriodically(
         {
             WiredPeriodicTriggerType.Short => Math.Clamp(_delayValue, 1, 10) * 50,
             WiredPeriodicTriggerType.Long => Math.Clamp(_delayValue, 1, MAX_LONG_UNITS) * 5000,
-            _ => Math.Clamp(_delayValue, 1, 120) * WiredPulses.MS,
+            _ => Math.Clamp(_delayValue, 1, MAX_PULSES) * WiredPulses.MS,
         };
     }
 

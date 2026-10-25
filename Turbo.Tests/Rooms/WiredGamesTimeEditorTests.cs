@@ -409,6 +409,67 @@ public sealed class WiredGamesTimeEditorTests
         box.GetPeriodicDelayMs().Should().Be(periodMs, caseId);
     }
 
+    /// <summary>
+    /// trigger.6/12/19.B2, trigger.3.B2 (official client capture 2026-10-25, wlab13, read back
+    /// with Open): past the editor's range the plain and long repeaters keep 121 and store 0 as 1,
+    /// the short one clamps to 1..10, "at given time" keeps 0 and 1201. The plain one at 121 ran
+    /// every 60.5 s (6/6). Ours refused all but the short one's.
+    /// </summary>
+    [Theory]
+    [InlineData("trigger.6.B2", typeof(WiredTriggerPeriodically), "wf_trg_periodically", 0, 1)]
+    [InlineData("trigger.6.B2", typeof(WiredTriggerPeriodically), "wf_trg_periodically", 121, 121)]
+    [InlineData("trigger.12.B2", typeof(WiredTriggerLongPeriodically), "wf_trg_period_long", 0, 1)]
+    [InlineData(
+        "trigger.12.B2",
+        typeof(WiredTriggerLongPeriodically),
+        "wf_trg_period_long",
+        121,
+        121
+    )]
+    [InlineData(
+        "trigger.19.B2",
+        typeof(WiredTriggerShortPeriodically),
+        "wf_trg_period_short",
+        0,
+        1
+    )]
+    [InlineData(
+        "trigger.19.B2",
+        typeof(WiredTriggerShortPeriodically),
+        "wf_trg_period_short",
+        11,
+        10
+    )]
+    [InlineData("trigger.3.B2", typeof(WiredTriggerAtTime), "wf_trg_at_given_time", 0, 0)]
+    [InlineData("trigger.3.B2", typeof(WiredTriggerAtTime), "wf_trg_at_given_time", 1201, 1201)]
+    public async Task A_timer_past_the_editors_range_is_stored_as_Habbo_stores_it(
+        string caseId,
+        Type logic,
+        string name,
+        int sent,
+        int stored
+    )
+    {
+        var box = Add(logic, name);
+
+        (await SaveAsync(box, [sent])).Should().BeTrue($"{caseId} saves {sent}");
+        box.GetSnapshot().IntParams.Should().Equal([stored], caseId);
+    }
+
+    [Fact]
+    public async Task Periodically_at_121_pulses_runs_every_60_5_seconds_trigger_6_B2()
+    {
+        var box = (WiredTriggerPeriodically)Add(
+            typeof(WiredTriggerPeriodically),
+            "wf_trg_periodically"
+        );
+
+        (await SaveAsync(box, [121])).Should().BeTrue();
+        await box.LoadWiredAsync(Ct);
+
+        box.GetPeriodicDelayMs().Should().Be(60_500);
+    }
+
     [Theory]
     [InlineData(1, 500)]
     [InlineData(1200, 600_000)]
@@ -519,6 +580,71 @@ public sealed class WiredGamesTimeEditorTests
         condition.Evaluate(Context()).Should().BeFalse($"{timezone} does not read {other}h");
     }
 
+    /// <summary>
+    /// condition.29.B2-B2c (official client capture 2026-10-25 09:36-09:39Z, wlab13): Saturday
+    /// 23:3x in US/Hawaii, Sunday the 25th in Europe/London. Weekday and day are read in the box's
+    /// zone (11/11); a day range with min past max wraps over the month end (5/5); a year range
+    /// with min past max never holds (5/5). Ours swapped both ranges.
+    /// </summary>
+    [Theory]
+    [InlineData("condition.29.B2", "Europe/London", 64, 0, 0, 0, 0, true)]
+    [InlineData("condition.29.B2", "US/Hawaii", 64, 0, 0, 0, 0, false)]
+    [InlineData("condition.29.B2", "US/Hawaii", 32, 0, 0, 0, 0, true)]
+    [InlineData("condition.29.B2", "Europe/London", 32, 0, 0, 0, 0, false)]
+    [InlineData("condition.29.B2", "US/Hawaii", 127, 24, 24, 0, 0, true)]
+    [InlineData("condition.29.B2", "US/Hawaii", 127, 25, 25, 0, 0, false)]
+    [InlineData("condition.29.B2", "Europe/London", 127, 25, 25, 0, 0, true)]
+    [InlineData("condition.29.B2b", "Europe/London", 127, 30, 26, 0, 0, true)]
+    [InlineData("condition.29.B2b", "Europe/London", 127, 27, 25, 0, 0, true)]
+    [InlineData("condition.29.B2b", "Europe/London", 127, 26, 24, 0, 0, false)]
+    [InlineData("condition.29.B2c", "Europe/London", 127, 0, 0, 2026, 2026, true)]
+    [InlineData("condition.29.B2c", "Europe/London", 127, 0, 0, 2027, 2025, false)]
+    [InlineData("condition.29.B2c", "Europe/London", 127, 0, 0, 2025, 2025, false)]
+    [InlineData("condition.29.B2c", "Europe/London", 127, 0, 0, 2027, 2030, false)]
+    public async Task Date_matches_reads_its_own_zone_and_wraps_only_the_day_range(
+        string caseId,
+        string timezone,
+        int weekdays,
+        int dayMin,
+        int dayMax,
+        int yearMin,
+        int yearMax,
+        bool holds
+    )
+    {
+        var room = new WiredRoom(
+            8,
+            8,
+            clock: new ManualTimeProvider(new DateTimeOffset(2026, 10, 25, 9, 37, 0, TimeSpan.Zero))
+        );
+        var condition = room.AddBox<WiredConditionDateMatches>(BOX, 0, 0, "wf_cnd_match_date");
+        var useDay = dayMin > 0 ? 1 : 0;
+        var useYear = yearMin > 0 ? 1 : 0;
+
+        (
+            await room.SaveAsync<UpdateConditionMessage>(
+                BOX,
+                intParams:
+                [
+                    useDay,
+                    useYear,
+                    weekdays,
+                    Math.Max(dayMin, 1),
+                    Math.Max(dayMax, 1),
+                    4095,
+                    yearMin,
+                    yearMax,
+                ],
+                stringParam: timezone,
+                definitionSpecifics: [0]
+            )
+        )
+            .Should()
+            .BeTrue(caseId);
+
+        condition.Evaluate(Context(room)).Should().Be(holds, caseId);
+    }
+
     private FurnitureWiredLogic Add(Type logic, string name) =>
         (FurnitureWiredLogic)
             typeof(WiredRoom)
@@ -548,8 +674,10 @@ public sealed class WiredGamesTimeEditorTests
             ),
         };
 
-    private WiredProcessingContext Context() =>
-        new(_room.Harness.Room)
+    private WiredProcessingContext Context() => Context(_room);
+
+    private static WiredProcessingContext Context(WiredRoom room) =>
+        new(room.Harness.Room)
         {
             Event = new RoomWiredStackChangedEvent
             {
@@ -557,6 +685,6 @@ public sealed class WiredGamesTimeEditorTests
                 CausedBy = ActionContext.CreateForSystem(1),
                 StackIds = [],
             },
-            Stack = _room.Harness.Fakes.Create<IWiredStack>(),
+            Stack = room.Harness.Fakes.Create<IWiredStack>(),
         };
 }

@@ -13,7 +13,9 @@ namespace Turbo.Tests.Rooms;
 
 /// <summary>
 /// "Triggerer matches" with the user types its editor saves (<c>wiredfurni.params.usertype.1</c> /
-/// <c>.2</c> / <c>.4</c>: 1 Habbo, 2 pet, 4 bot), checked on what triggered the stack.
+/// <c>.2</c> / <c>.4</c>: 1 Habbo, 2 pet, 4 bot), checked on what triggered the stack. Official
+/// with a bot triggerer (client capture 2026-10-25, wlab13, condition.26.B2-B2c): 4 and 5 pass,
+/// 1, 2 and 3 fail (a bitmask); the name matches case ignored ("frank" = Frank, "Robbie" fails).
 /// </summary>
 public sealed class WiredTriggererMatchesTests
 {
@@ -37,6 +39,7 @@ public sealed class WiredTriggererMatchesTests
             RoomId = 1,
             Skills = [],
         };
+        bot.SetName("Frank");
         bot.SetPosition(2, 2);
         _room.Harness.State.AvatarsByObjectId[BOT] = bot;
     }
@@ -47,10 +50,16 @@ public sealed class WiredTriggererMatchesTests
     [InlineData(BOT, 4, true)]
     [InlineData(BOT, 2, false)]
     [InlineData(BOT, 1, false)]
+    [InlineData(BOT, 5, true)]
+    [InlineData(BOT, 3, false)]
+    [InlineData(BOT, 4, true, "Frank")]
+    [InlineData(BOT, 4, true, "frank")]
+    [InlineData(BOT, 4, false, "Robbie")]
     public async Task The_triggerer_matches_the_user_types_ticked(
         int triggerer,
         int mask,
-        bool holds
+        bool holds,
+        string name = ""
     )
     {
         _condition = _room.AddBox<WiredConditionExecutorMatches>(
@@ -63,6 +72,7 @@ public sealed class WiredTriggererMatchesTests
             await _room.SaveAsync<UpdateConditionMessage>(
                 BOX,
                 intParams: [mask],
+                stringParam: name,
                 playerSources:
                 [
                     [WiredPlayerSourceType.TriggeredUser],

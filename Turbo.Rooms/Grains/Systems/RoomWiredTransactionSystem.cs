@@ -119,7 +119,7 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
         CancellationToken ct
     )
     {
-        var paidInto = new List<(FurnitureWiredChestLogic Chest, int Items)>();
+        var paidInto = new List<FurnitureWiredChestLogic>();
         var failure = await CarryOutTradeAsync(ctx, request, payment, times, paidInto, ct);
 
         if (failure is { } refused)
@@ -148,8 +148,8 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
                 : WiredTransactionType.ContractPayment;
         var info = DefinitionInfo(request.SourceId, times);
 
-        foreach (var (chest, items) in paidInto)
-            await chest.OverflowToOwnerAsync(items, type, info, ct);
+        foreach (var chest in paidInto)
+            await chest.OverflowToOwnerAsync(type, info, ct);
 
         return null;
     }
@@ -248,7 +248,7 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
         WiredContractTradeRequest request,
         ImmutableArray<FurnitureItemSnapshot> payment,
         int times,
-        ICollection<(FurnitureWiredChestLogic Chest, int Items)> paidInto,
+        ICollection<FurnitureWiredChestLogic> paidInto,
         CancellationToken ct
     )
     {
@@ -309,7 +309,7 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
             if (paid.Failure is { } failure)
                 return failure;
 
-            paidInto.Add((chest, items.Length));
+            paidInto.Add(chest);
         }
 
         // A trade contract has no earnings category (only RewardContract.as:45-47 offers one):
