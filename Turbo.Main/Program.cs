@@ -24,6 +24,7 @@ using Turbo.Inventory;
 using Turbo.Logging.Extensions;
 using Turbo.Main.Console;
 using Turbo.Main.Extensions;
+using Turbo.Main.Hotel;
 using Turbo.Main.Settings;
 using Turbo.Main.Startup;
 using Turbo.Messages.Extensions;
@@ -145,6 +146,8 @@ internal class Program
         builder.Services.AddHostPlugin<AdminModule>(builder);
         builder.Services.AddHostPlugin<WebModule>(builder);
         builder.Services.AddHostPlugin<PacketHandlersModule>(builder);
+
+        builder.Services.AddTurboHotel();
 
         // After every module: the settings are those of the options they registered.
         builder.AddServerSettings();

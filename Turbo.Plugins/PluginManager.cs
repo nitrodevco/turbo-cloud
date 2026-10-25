@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Turbo.Contracts.Hotel;
 using Turbo.Contracts.Plugins;
 using Turbo.Contracts.Plugins.Admin;
 using Turbo.Database.Context;
@@ -814,6 +815,11 @@ public sealed class PluginManager(
             new HostServices(_hostForPlugins, extensions, clientModules)
         );
         services.ConfigurePrefixedLogging(host, manifest.Name);
+
+        // The hotel API: the plugin's own services take it by constructor, as the classes its
+        // assembly declares do from the host (docs/hotel-api.md).
+        if (host.GetService<IHotel>() is { } hotel)
+            services.AddSingleton(hotel);
 
         if (host.GetService<IConfiguration>() is { } configuration)
         {

@@ -238,9 +238,14 @@ public sealed class PluginTemplateTests : IDisposable
     [Fact]
     public void Every_server_assembly_the_template_builds_against_is_one_the_server_ships()
     {
-        var project = XDocument.Load(Path.Combine(Template, "server", "Skills.csproj"));
-        var references = project
-            .Descendants("Reference")
+        var references = new[]
+        {
+            Path.Combine("server", "Skills.csproj"),
+            Path.Combine("tests", "Skills.Tests", "Skills.Tests.csproj"),
+        }
+            .SelectMany(project =>
+                XDocument.Load(Path.Combine(Template, project)).Descendants("Reference")
+            )
             .Select(r => r.Attribute("Include")!.Value)
             .ToList();
 
@@ -249,6 +254,35 @@ public sealed class PluginTemplateTests : IDisposable
             .Select(r => r.Replace("$(TurboBin)/", "", StringComparison.Ordinal))
             .Should()
             .OnlyContain(file => File.Exists(Path.Combine(AppContext.BaseDirectory, file)));
+    }
+
+    /// <summary>
+    /// The template is what a new author copies: it reaches the hotel through the hotel API
+    /// (docs/hotel-api.md) and its tests through FakeHotel, never a grain or a session, which are
+    /// the server's internals.
+    /// </summary>
+    [Fact]
+    public void The_template_reaches_the_hotel_through_the_hotel_api_and_names_no_grain()
+    {
+        var offenders = Directory
+            .EnumerateFiles(Template, "*.cs", SearchOption.AllDirectories)
+            .SelectMany(file =>
+                File.ReadLines(file)
+                    .Select((line, index) => (file, line, index))
+                    .Where(x =>
+                        x.line.Contains("Grain", StringComparison.Ordinal)
+                        || x.line.Contains("ISessionGateway", StringComparison.Ordinal)
+                        || x.line.Contains("Turbo.Primitives.Orleans", StringComparison.Ordinal)
+                    )
+            )
+            .Select(x =>
+                $"{Path.GetRelativePath(Template, x.file)}:{x.index + 1}: {x.line.Trim()}"
+            );
+
+        offenders.Should().BeEmpty();
+        File.ReadAllText(Path.Combine(Template, "server", "SkillBook.cs"))
+            .Should()
+            .Contain("IHotel hotel");
     }
 
     [Fact]
