@@ -284,18 +284,29 @@ public sealed class CampaignCalendarTests : IDisposable
     [Fact]
     public async Task A_calendar_is_refused_when_its_gifts_could_not_be_shown_or_given()
     {
-        var invalid = new[]
+        // The panel shows each refusal on its field, on that day's gift.
+        var invalid = new (CampaignCalendarRewardDefinition Reward, string Field)[]
         {
-            new CampaignCalendarRewardDefinition { DayIndex = 24, FurnitureClassName = "chair" },
-            new CampaignCalendarRewardDefinition { DayIndex = 1, Credits = 5 },
-            new CampaignCalendarRewardDefinition
-            {
-                DayIndex = 1,
-                FurnitureClassName = "nosuchfurni",
-            },
+            (
+                new CampaignCalendarRewardDefinition
+                {
+                    DayIndex = 24,
+                    FurnitureClassName = "chair",
+                },
+                "dayIndex"
+            ),
+            (new CampaignCalendarRewardDefinition { DayIndex = 1, Credits = 5 }, "productCode"),
+            (
+                new CampaignCalendarRewardDefinition
+                {
+                    DayIndex = 1,
+                    FurnitureClassName = "nosuchfurni",
+                },
+                "furnitureClassName"
+            ),
         };
 
-        foreach (var reward in invalid)
+        foreach (var (reward, field) in invalid)
         {
             var save = () =>
                 _calendars.SaveAsync(
@@ -309,7 +320,9 @@ public sealed class CampaignCalendarTests : IDisposable
                     Ct
                 );
 
-            await save.Should().ThrowAsync<ArgumentException>();
+            var refused = await save.Should().ThrowAsync<CampaignCalendarRefusedException>();
+            refused.Which.Field.Should().Be(field);
+            refused.Which.DayIndex.Should().Be(reward.DayIndex);
         }
 
         (await _calendars.ListAsync(Ct)).Should().BeEmpty();

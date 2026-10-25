@@ -249,7 +249,9 @@ public sealed class RewardTrackAdminTests : IDisposable
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task The_panel_is_told_whether_its_player_may_manage_the_reward_tracks(bool holds)
+    public async Task The_panel_is_told_whether_its_player_may_manage_the_reward_tracks_and_calendars(
+        bool holds
+    )
     {
         var port = TestPorts.Free();
         var fakes = new Fakes();
@@ -263,7 +265,12 @@ public sealed class RewardTrackAdminTests : IDisposable
             );
         fakes.Handlers["HasAsync"] = call =>
             Task.FromResult(
-                (string)call.Args[0]! != PermissionNodes.Admin.REWARD_TRACKS_MANAGE || holds
+                (string)call.Args[0]!
+                    is not (
+                        PermissionNodes.Admin.REWARD_TRACKS_MANAGE
+                        or PermissionNodes.Admin.CAMPAIGNS_MANAGE
+                    )
+                    || holds
             );
         var (server, _, _) = AdminApiServerTests.Build(
             $"http://127.0.0.1:{port}",
@@ -285,6 +292,7 @@ public sealed class RewardTrackAdminTests : IDisposable
             var me = await response.Content.ReadFromJsonAsync<MeResponse>(Ct);
 
             me!.CanManageRewardTracks.Should().Be(holds);
+            me.CanManageCampaigns.Should().Be(holds);
             me.CanViewPlugins.Should().BeTrue();
         }
         finally

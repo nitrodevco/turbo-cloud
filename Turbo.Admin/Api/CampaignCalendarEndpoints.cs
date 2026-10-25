@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
+using Turbo.Admin.Api.Contracts;
 using Turbo.Primitives.Campaigns;
 using Turbo.Primitives.Players.Permissions;
 
@@ -87,6 +88,13 @@ internal sealed class CampaignCalendarEndpoints(
             );
 
             return Results.Ok(saved);
+        }
+        catch (CampaignCalendarRefusedException ex)
+        {
+            return Results.Json(
+                new CampaignCalendarErrorResponse(ex.Message, ex.Field, ex.DayIndex),
+                statusCode: StatusCodes.Status400BadRequest
+            );
         }
         catch (ArgumentException ex)
         {

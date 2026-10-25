@@ -43,7 +43,10 @@ never pays twice; a gift that cannot be given leaves the door closed. Movements 
 `/api/campaign-calendars` (node `admin.campaigns.manage`): `GET /`, `GET /{id}`, `POST /`,
 `PUT /{id}`, `DELETE /{id}`. A calendar is refused when a day lies outside it, has two gifts, names
 no product (or furni) for the client to show, names a furni or currency the hotel lacks, or pays a
-negative amount.
+negative amount. A refusal answers `400` with `message`, the `field` it is about (`name`, `image`,
+`days`, or a gift's `dayIndex`, `productCode`, `furnitureClassName`, `credits`, `currencyAmount`,
+`currencyTypeId`) and the gift's `dayIndex`, so the admin panel's **Campaigns** page shows it on that
+field. `GET /api/me` says `canManageCampaigns` for the node.
 
 An example (nothing is seeded):
 

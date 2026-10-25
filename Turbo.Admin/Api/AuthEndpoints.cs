@@ -89,6 +89,9 @@ internal sealed class AuthEndpoints(IGrainFactory grainFactory)
                     .ConfigureAwait(false),
                 await identity
                     .HoldsAsync(grainFactory, PermissionNodes.Admin.TELEMETRY_VIEW, ct)
+                    .ConfigureAwait(false),
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Admin.CAMPAIGNS_MANAGE, ct)
                     .ConfigureAwait(false)
             )
         );
