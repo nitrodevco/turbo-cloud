@@ -9,17 +9,21 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Inventory;
+using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Wired;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -144,6 +148,46 @@ public sealed class OneWayDoorTests
         )
             .Should()
             .BeFalse();
+    }
+
+    // W2 action.0.B2b / action.15.B2: Toggle Furni State and Toggle To Random State picking the
+    // gate only flashed, no ObjectDataUpdate for it (official client capture 2026-10-24
+    // 23-12-11, 2/2 + 3/3).
+    [Theory]
+    [InlineData("wf_act_toggle_state")]
+    [InlineData("wf_act_toggle_to_rnd")]
+    public async Task Wired_toggles_leave_the_gate_as_it_is(string logic)
+    {
+        var gate = AddGate(5, 5, Rotation.East);
+        var legacy = gate.Logic.GetLegacyString();
+        FurnitureWiredActionLogic toggle =
+            logic == "wf_act_toggle_state"
+                ? _room.AddBox<WiredActionToggleItemState>(7, 0, 0, logic)
+                : _room.AddBox<WiredActionToggleToRandomState>(7, 0, 0, logic);
+
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                7,
+                intParams: logic == "wf_act_toggle_state" ? [0] : [],
+                stuffIds: [GATE],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+
+        for (var run = 0; run < 4; run++)
+        {
+            var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
+
+            await toggle.ExecuteAsync(ctx, Ct);
+
+            ctx.FloorItemStateUpdates.Should().BeEmpty();
+        }
+
+        gate.Logic.GetLegacyString().Should().Be(legacy);
     }
 
     [Fact]

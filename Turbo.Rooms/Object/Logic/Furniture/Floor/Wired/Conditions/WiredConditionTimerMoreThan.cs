@@ -9,7 +9,10 @@ using Turbo.Rooms.Wired.Rules;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 
-/// <summary>True once the room wired timer has run for more than the given pulses.</summary>
+/// <summary>
+/// True once the room wired timer has run for the given pulses: the pulse the time is reached
+/// passes this and Less Than both (see <see cref="WiredConditionTimerLessThan"/>).
+/// </summary>
 [RoomObjectLogic("wf_cnd_time_more_than")]
 public class WiredConditionTimerMoreThan(
     IGrainFactory grainFactory,
@@ -25,5 +28,5 @@ public class WiredConditionTimerMoreThan(
         [new WiredRangeParamRule(1, int.MaxValue, 20)];
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx) =>
-        WiredSystem.GetElapsedTimerPulses(NowMs()) > GetIntParamOrDefault(0, 20);
+        WiredSystem.GetElapsedTimerPulses(NowMs()) >= GetIntParamOrDefault(0, 20);
 }

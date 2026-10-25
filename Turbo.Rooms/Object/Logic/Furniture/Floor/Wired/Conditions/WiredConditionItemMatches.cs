@@ -76,11 +76,11 @@ public class WiredConditionItemMatches(
 
     protected override bool EvaluateCore(IWiredProcessingContext ctx)
     {
+        // With nothing to compare "all match" holds and "any matches" does not: saved with no
+        // picks, quantifier all, it held (official client capture 2026-10-24, wired matrix
+        // condition.0.R3, 2/2; "any" and the slot sources inferred from the other quantified
+        // conditions).
         var snapshot = SnapshotToCompare(ctx);
-
-        if (snapshot.Count == 0)
-            return false;
-
         var checkState = GetIntParamOrDefault(0, false);
         var checkRotation = GetIntParamOrDefault(1, false);
         var checkPosition = GetIntParamOrDefault(2, false);

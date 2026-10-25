@@ -6,7 +6,9 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Rooms.Grains.Systems;
+using Turbo.Rooms.Object.Avatars.Bot;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Tests.Support;
@@ -106,6 +108,43 @@ public sealed class WiredMoveToDirectionUserTests
             Position().Should().NotBe((3, 3), $"firing {i + 1} found a free neighbour");
             Position().Should().NotBe((4, 3));
         }
+    }
+
+    // trigger.11.R2: blocked by the bot Frank, Furni Collides With User fired with Frank as the
+    // triggerer (official client capture 2026-10-24 23-20-20, 23-20-52, 3/3). Ours fired for
+    // players only.
+    [Fact]
+    public async Task Blocked_by_a_bot_the_collision_fires_trigger_11_R2()
+    {
+        _room.Map.MoveFloorItem(_room.FloorItem(MOVED), _room.Map.ToIdx(3, 5));
+        AddBot(30, 4, 5);
+        await BuildAsync(TURN_WAIT, blockOnUsers: true);
+
+        await ClickAsync();
+
+        Position().Should().Be((3, 5));
+        CollisionFired().Should().BeTrue();
+    }
+
+    private void AddBot(int id, int x, int y)
+    {
+        var bot = new RoomBotAvatar
+        {
+            ObjectId = id,
+            BotId = id,
+            OwnerId = 1,
+            OwnerName = "owner",
+            RoomId = 1,
+            Skills = [],
+        };
+
+        bot.SetName("Frank");
+        bot.SetPosition(x, y);
+        bot.SetLogic(_room.Harness.Fakes.Create<IRoomBotLogic>(id));
+        _room.Harness.State.AvatarsByObjectId[id] = bot;
+        _room.Harness.State.AvatarsByBotId[id] = id;
+        _room.Harness.State.Bots.Add(bot);
+        _room.Map.AddAvatar(bot, false);
     }
 
     private (int, int) Position() => (_room.FloorItem(MOVED).X, _room.FloorItem(MOVED).Y);

@@ -149,8 +149,15 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
 
     public async Task<bool> LeaveTeamAsync(PlayerId playerId, CancellationToken ct)
     {
+        // A player in no team is still told they are not playing, and nothing else: Leave Team on
+        // a user in no team sent YouArePlayingGame false and no AvatarEffect (official client
+        // capture 2026-10-24, wired matrix action.10.B1, 2/2).
         if (!_teamByPlayerId.Remove(playerId, out var team))
+        {
+            SendPlayingGame(playerId, false);
+
             return false;
+        }
 
         _teamTypeByPlayerId.Remove(playerId);
 
@@ -365,13 +372,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     {
         // The client has a playing mode of its own (it hides what gets in the way of a game);
         // being on a team is what puts a player in it.
-        _roomGrain
-            ._grainFactory.SendComposerToPlayerAsync(
-                playerId,
-                new YouArePlayingGameMessageComposer { IsPlaying = team != GameTeamType.None },
-                CancellationToken.None
-            )
-            .LogAndForget(Logger, "tell player {PlayerId} whether they are playing", playerId);
+        SendPlayingGame(playerId, team != GameTeamType.None);
 
         return _roomGrain.PublishRoomEventAsync(
             new GameTeamChangedEvent
@@ -384,6 +385,15 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
             ct
         );
     }
+
+    private void SendPlayingGame(PlayerId playerId, bool isPlaying) =>
+        _roomGrain
+            ._grainFactory.SendComposerToPlayerAsync(
+                playerId,
+                new YouArePlayingGameMessageComposer { IsPlaying = isPlaying },
+                CancellationToken.None
+            )
+            .LogAndForget(Logger, "tell player {PlayerId} whether they are playing", playerId);
 
     private static bool IsTeam(GameTeamType team) =>
         team is >= GameTeamType.Red and <= GameTeamType.Yellow;

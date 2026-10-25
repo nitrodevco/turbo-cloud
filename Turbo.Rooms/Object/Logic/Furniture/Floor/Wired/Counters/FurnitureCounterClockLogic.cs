@@ -146,8 +146,15 @@ public class FurnitureCounterClockLogic(
     /// </summary>
     private async Task StartAfreshAsync(CancellationToken ct)
     {
+        // A start on a running counter starts it again from 0: at 3 the firing carried "0" and
+        // the count went 1, 2, 3 from there (official client capture 2026-10-24T11-08-31, wired
+        // matrix action.28.R2).
         if (_isRunning)
-            return;
+        {
+            await StopAsync();
+
+            _stopped = true;
+        }
 
         if (_stopped)
         {

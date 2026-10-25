@@ -940,6 +940,12 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             case AvatarEvent avatarEvt:
                 AddAvatarByObjectId(ctx, avatarEvt.ObjectId);
                 break;
+            // The furni that ran into the user is the triggering item, the user (a bot too) the
+            // triggerer.
+            case RoomItemCollisionEvent collisionEvt:
+                AddAvatarByObjectId(ctx, collisionEvt.AvatarObjectId);
+                ctx.Selected.SelectedFurniIds.Add(collisionEvt.ObjectId);
+                break;
             case RoomItemEvent itemEvt:
                 ctx.Selected.SelectedFurniIds.Add(itemEvt.ObjectId);
                 break;

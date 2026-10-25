@@ -94,6 +94,37 @@ public sealed class WiredFurniStateMatrixTests
         condition.Evaluate(Context()).Should().Be(passes);
     }
 
+    // condition.0.R3: Furni Matches Snapshot [1,0,0,0] saved with no picks, quantifier all, held
+    // and its not twin (code 13) failed (official client capture 2026-10-24 19-47-24, 2/2 each).
+    // Ours failed the positive with nothing to compare.
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task States_match_with_no_picks_holds_for_all_condition_0_R3(
+        bool negative,
+        bool passes
+    )
+    {
+        var condition = negative
+            ? _room.AddBox<WiredNegativeConditionItemMatches>(BOX, 0, 0, "wf_cnd_not_match_snap")
+            : _room.AddBox<WiredConditionItemMatches>(BOX, 0, 0, "wf_cnd_match_snapshot");
+
+        (
+            await _room.SaveAsync<UpdateConditionMessage>(
+                BOX,
+                intParams: [1, 0, 0, 0],
+                stuffIds: [],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [QUANTIFIER_ALL]
+            )
+        ).Should().BeTrue();
+
+        condition.Evaluate(Context()).Should().Be(passes);
+    }
+
     // condition.8 quantifier: the furni to match (slot 0) are lamp A and a chair, the furni to
     // compare with (slot 1) lamp A. Habbo's default (code 0) is "all of the furni match"; ours
     // always took "any". (Slot 0's picks read both pick lists, so lamp A is picked there too.)

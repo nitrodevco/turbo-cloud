@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -143,6 +144,30 @@ public sealed class MultiHeightBlockTests
 
         (await ToggleAsync()).Should().Equal((RoomObjectId)BLOCK);
         block.Logic.GetState().Should().Be(0);
+    }
+
+    // W2 trigger.4.B4 / action.0.B4c: a hand use of block K at its lowest state with block K2 on
+    // it got no reply and K kept its state (2/2); K2 toggled (official client capture 2026-10-24
+    // 22-26-27). Ours stepped K under K2.
+    [Fact]
+    public async Task A_block_with_another_on_top_is_not_changed_by_hand_trigger_4_B4()
+    {
+        const int TOP = 41;
+        var ct = TestContext.Current.CancellationToken;
+        var block = AddBlock();
+
+        await block.Logic.SetStateAsync(4);
+
+        var top = AddBlock(TOP);
+
+        for (var use = 0; use < 2; use++)
+            await _room.Harness.Room.UseItemByIdAsync(ActionContext.CreateForSystem(1), BLOCK, ct);
+
+        block.Logic.GetState().Should().Be(4);
+
+        await _room.Harness.Room.UseItemByIdAsync(ActionContext.CreateForSystem(1), TOP, ct);
+
+        top.Logic.GetState().Should().Be(1);
     }
 
     private IRoomFloorItem AddBlock(int id = BLOCK)

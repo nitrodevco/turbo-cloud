@@ -1,6 +1,8 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Messages.Outgoing.Room.Action;
+using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -428,6 +430,80 @@ public sealed class WiredGamesTimeLabTests
 
         saved.Should().BeTrue(caseId);
         box.GetSnapshot().IntParams.Should().Equal(stored, caseId);
+    }
+
+    /// <summary>
+    /// action.10.B1: Leave Team on a user in no team still sent that user YouArePlayingGame false,
+    /// and no AvatarEffect (13-05-42, 13-06-29, 2/2).
+    /// </summary>
+    [Fact]
+    public async Task Leave_team_tells_a_user_in_no_team_they_are_not_playing_action_10_B1()
+    {
+        _room.Enter(PLAYER, 1, 1);
+
+        (await Game.LeaveTeamAsync((PlayerId)(100 + PLAYER), Ct)).Should().BeFalse();
+
+        _room
+            .Harness.Fakes.SentToPlayer<YouArePlayingGameMessageComposer>(100 + PLAYER)
+            .Should()
+            .ContainSingle(x => !x.IsPlaying);
+        _room.Harness.Fakes.Sent<AvatarEffectMessageComposer>().Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// condition.4.R2 / condition.3.R2: Time Elapsed Less [20] and More [20] under a 500 ms
+    /// repeater, Reset Timers at t: Less passed on 21 pulses (t+0.27 to t+10.27 s) and failed
+    /// after, More failed on 20 and passed from t+10.27 s, so that one pulse passed both
+    /// (23-01-35, 52 pulses).
+    /// </summary>
+    [Fact]
+    public async Task Time_elapsed_less_and_more_both_hold_on_the_pulse_at_the_time_condition_4_R2()
+    {
+        // A fresh box holds 20 (condition.3.E6 / condition.4.E6).
+        var less = _room.AddBox<WiredConditionTimerLessThan>(BOX, 0, 0, "wf_cnd_time_less_than");
+        var more = _room.AddBox<WiredConditionTimerMoreThan>(
+            BOX + 1,
+            1,
+            0,
+            "wf_cnd_time_more_than"
+        );
+
+        Wired.ResetTimers(_room.Harness.Room.NowMs());
+        _room.Clock.AdvanceMs(270);
+
+        var passedLess = new List<int>();
+        var passedMore = new List<int>();
+
+        for (var pulse = 0; pulse < 26; pulse++)
+        {
+            if (less.Evaluate(Context()))
+                passedLess.Add(pulse);
+
+            if (more.Evaluate(Context()))
+                passedMore.Add(pulse);
+
+            _room.Clock.AdvanceMs(500);
+        }
+
+        passedLess.Should().Equal(Enumerable.Range(0, 21));
+        passedMore.Should().Equal(Enumerable.Range(20, 6));
+    }
+
+    /// <summary>
+    /// action.28.R2: Control Clock start fired again by its 3 s repeater on the running counter
+    /// at 3 sent "0" in that firing, and the counter counted 1, 2, 3 from there (11-08-31).
+    /// </summary>
+    [Fact]
+    public async Task Start_on_a_running_counter_restarts_it_at_0_action_28_R2()
+    {
+        var clock = AddClock();
+
+        await clock.ControlAsync(WiredClockControlType.Start, Ct);
+        await RunClockUntilAsync(clock, 3);
+
+        await clock.ControlAsync(WiredClockControlType.Start, Ct);
+        clock.GetState().Should().Be(0, "a start restarts a running counter");
+        await RunClockUntilAsync(clock, 2);
     }
 
     /// <summary>

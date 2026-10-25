@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms;
@@ -39,6 +40,17 @@ public class FurnitureMultiHeightLogic(
     }
 
     public override bool CanChangeState() => !IsCovered();
+
+    // Nor by hand: a use of a covered block got no reply and left its state (official client
+    // capture 2026-10-24 22-26-27, wired matrix trigger.4.B4 / action.0.B4c, 2/2; the top block
+    // and uncovered blocks toggled 7/7).
+    public override async Task OnUseAsync(ActionContext ctx, int param, CancellationToken ct)
+    {
+        if (!CanChangeState())
+            return;
+
+        await base.OnUseAsync(ctx, param, ct);
+    }
 
     /// <summary>
     /// Whether another furni stands on one of its tiles at or above it: higher up, or at the same

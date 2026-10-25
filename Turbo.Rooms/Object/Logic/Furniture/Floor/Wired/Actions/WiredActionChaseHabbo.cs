@@ -65,8 +65,7 @@ public class WiredActionChaseHabbo(
             {
                 if (distance <= COLLISION_RANGE)
                 {
-                    if (user is IRoomPlayer player)
-                        plan.Then(() => PublishCollision(floorItem, player));
+                    plan.Then(() => PublishCollision(floorItem, user));
 
                     continue;
                 }
