@@ -67,5 +67,8 @@ An example (nothing is seeded):
 
 ## Extending
 
-`ICampaignCalendarService` is the whole feature; a plugin that registers its own replaces it (other
-rules for missed doors, gifts from elsewhere).
+`ICampaignCalendarService` is the whole feature; a plugin that registers its own in its services
+replaces it (other rules for missed doors, gifts from elsewhere): the door handlers, the login and
+the admin API use the plugin's while it is live, and the hotel's again once it unloads. It may keep
+part of the hotel's through `IServiceSlot<ICampaignCalendarService>.Under(this)`
+(`docs/plugin-services.md`).

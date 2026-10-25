@@ -667,7 +667,7 @@ public sealed class PluginManager(
         var clientModules = host.GetService<IClientModuleDirectory>() is { } directory
             ? new PluginClientModules(directory, m, folder, contributions)
             : null;
-        var (sp, contexts, settings) = CreatePluginServiceProvider(
+        var (sp, contexts, settings, replaces) = CreatePluginServiceProvider(
             inst,
             asm.Assembly,
             m,
@@ -716,6 +716,19 @@ public sealed class PluginManager(
 
             NoteContributions(contributions, folder, contexts, settings, admin, web);
 
+            // The host services it replaces are built before it starts (one that can't be fails
+            // the load) and go in their slots once it has; they are taken out first when it stops.
+            var replacements = replaces
+                .Select(type => (Type: type, Implementation: sp.GetRequiredService(type)))
+                .ToList();
+
+            foreach (var (type, implementation) in replacements)
+                contributions.Add(
+                    PluginContributionKinds.SERVICE,
+                    type.Name,
+                    implementation.GetType().Name
+                );
+
             // Its files are served, and its own variables and texts sent, while it is loaded.
             clientModules?.ServeFiles();
 
@@ -748,6 +761,10 @@ public sealed class PluginManager(
 
             if (web.Length > 0 && WebRoutes is { } webRoutes)
                 disposables.Insert(0, webRoutes.Live(m.Key, web));
+
+            if (host.GetService<IReplaceableServices>() is { } replaceable)
+                foreach (var (type, implementation) in replacements)
+                    disposables.Insert(0, replaceable.Replace(type, m.Key, implementation));
         }
         catch
         {
@@ -832,7 +849,8 @@ public sealed class PluginManager(
     private (
         ServiceProvider Services,
         List<Type> Contexts,
-        List<Type> Settings
+        List<Type> Settings,
+        List<Type> Replaces
     ) CreatePluginServiceProvider(
         ITurboPlugin plugin,
         Assembly assembly,
@@ -863,7 +881,17 @@ public sealed class PluginManager(
             services.AddWholeCollectionBinding();
         }
 
+        var hostOnes = services.Count;
+
         plugin.ConfigureServices(services, manifest);
+
+        var own = services
+            .Skip(hostOnes)
+            .Where(d => !d.IsKeyedService)
+            .Select(d => d.ServiceType)
+            .Distinct()
+            .ToList();
+
         AddConventionalServices(services, assembly);
         BuildOwnTypesOverTheHost(services, assembly);
 
@@ -883,7 +911,55 @@ public sealed class PluginManager(
             .Distinct()
             .ToList();
 
-        return (services.BuildServiceProvider(SP_OPTIONS), contexts, settings);
+        return (
+            services.BuildServiceProvider(SP_OPTIONS),
+            contexts,
+            settings,
+            HostServicesReplaced(manifest, assembly, own)
+        );
+    }
+
+    /// <summary>
+    /// The host services among the ones the plugin registers that it replaces for the whole host
+    /// (<see cref="IReplaceableServices"/>, <c>docs/plugin-services.md</c>). One the host has but
+    /// does not let a plugin replace stays the plugin's own, which is logged: its classes get it,
+    /// the host's never do.
+    /// </summary>
+    private List<Type> HostServicesReplaced(
+        PluginManifest manifest,
+        Assembly assembly,
+        List<Type> own
+    )
+    {
+        var replaceable = host.GetService<IReplaceableServices>();
+        var known = host.GetService<IServiceProviderIsService>();
+        var replaces = new List<Type>();
+
+        foreach (var type in own)
+        {
+            if (replaceable?.IsReplaceable(type) == true)
+            {
+                replaces.Add(type);
+
+                continue;
+            }
+
+            if (
+                type.IsDefined(typeof(ReplaceableServiceAttribute), false)
+                || (
+                    type.Assembly != assembly
+                    && type.Namespace?.StartsWith("Turbo.", StringComparison.Ordinal) == true
+                    && known?.IsService(type) == true
+                )
+            )
+                _logger.LogWarning(
+                    "Plugin {Key} registers its own {Service}, which this host does not let a plugin replace: only the plugin's own classes get it",
+                    manifest.Key,
+                    type.Name
+                );
+        }
+
+        return replaces;
     }
 
     /// <summary>
@@ -1106,6 +1182,7 @@ public sealed class PluginManager(
         PluginContributionKinds.COMMAND,
         PluginContributionKinds.SETTING,
         PluginContributionKinds.CAPABILITY,
+        PluginContributionKinds.SERVICE,
     ];
 
     /// <summary>

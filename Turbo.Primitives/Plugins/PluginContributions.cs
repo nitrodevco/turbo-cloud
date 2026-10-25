@@ -57,6 +57,9 @@ public static class PluginContributionKinds
     public const string WIRED_VARIABLE = "wired-variable";
     public const string GAME = "game";
     public const string PLAY_POLICY = "play-policy";
+
+    /// <summary>A host service the plugin replaces (<c>docs/plugin-services.md</c>): the contract, the class.</summary>
+    public const string SERVICE = "service";
     public const string PERMISSION_SOURCE = "permission-source";
     public const string PERMISSION_NODE = "permission-node";
     public const string SETTING = "setting";

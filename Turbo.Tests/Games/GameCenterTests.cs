@@ -8,12 +8,14 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Orleans.Runtime;
+using Turbo.Contracts.Plugins;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Games;
 using Turbo.Primitives.Messages.Outgoing.Game.Directory;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Snapshots;
+using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Rooms.Configuration;
@@ -199,14 +201,56 @@ public sealed class GameCenterTests : IDisposable
         var plugin = Assembly.Load(PluginBuilder.Compile("games", SOURCE));
         using var services = new ServiceCollection().BuildServiceProvider();
 
-        using var registration = await new GameFeatureProcessor(_registry).ProcessAsync(
-            plugin,
-            services,
-            Ct
-        );
+        using var registration = await new GameFeatureProcessor(
+            _registry,
+            Access().GetRequiredService<IReplaceableServices>()
+        ).ProcessAsync(plugin, services, Ct);
 
         _registry.Games.Select(game => game.Definition.Key).Should().Equal("scanned");
     }
+
+    [Fact]
+    public async Task A_plugins_access_policy_replaces_the_servers_own_until_the_plugin_unloads()
+    {
+        const string SOURCE = """
+            using System.Threading;
+            using System.Threading.Tasks;
+            using Turbo.Primitives.Games;
+            using Turbo.Primitives.Players;
+
+            namespace access;
+
+            public sealed class NoGames : IGameAccessPolicy
+            {
+                public Task<int> GetFreeGamesLeftAsync(PlayerId playerId, int gameTypeId, CancellationToken ct) =>
+                    Task.FromResult(0);
+            }
+            """;
+        var plugin = Assembly.Load(PluginBuilder.Compile("access", SOURCE));
+        using var host = Access();
+        // Taken before the plugin loads, as the game directory takes it.
+        var access = host.GetRequiredService<IGameAccessPolicy>();
+
+        using (
+            await new GameFeatureProcessor(
+                _registry,
+                host.GetRequiredService<IReplaceableServices>()
+            ).ProcessAsync(plugin, host, Ct)
+        )
+            (await access.GetFreeGamesLeftAsync(ALICE, 0, Ct)).Should().Be(0);
+
+        (await access.GetFreeGamesLeftAsync(ALICE, 0, Ct)).Should().Be(3, "the server's own");
+    }
+
+    /// <summary>The server's access policy in its slot, as the room module registers it.</summary>
+    private ServiceProvider Access() =>
+        new ServiceCollection()
+            .AddReplaceable<IGameAccessPolicy>(_ => new DefaultGameAccessPolicy(
+                _config,
+                _fakes.Create<Orleans.IGrainFactory>(),
+                _scores
+            ))
+            .BuildServiceProvider();
 
     [Fact]
     public async Task No_free_games_left_refuses_the_join()
@@ -270,7 +314,7 @@ public sealed class GameCenterTests : IDisposable
 
         GrainHarness.Replace(grain, _registry);
         GrainHarness.Replace(grain, _scores);
-        GrainHarness.Replace(
+        GrainHarness.Replace<IGameAccessPolicy>(
             grain,
             new DefaultGameAccessPolicy(_config, _fakes.Create<Orleans.IGrainFactory>(), _scores)
         );

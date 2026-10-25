@@ -112,7 +112,9 @@ services there. Core grants nothing by default. A handler that throws is logged 
 (`GetFreeGamesLeftAsync(playerId, gameTypeId, ct)`, `-1` unlimited) and is asked before a join.
 The default reads the settings below and counts the games the player started since midnight UTC.
 A plugin replaces it by declaring a public class implementing `IGameAccessPolicy`, found and
-registered as games are (the last one loaded wins; unloading the plugin brings the default back).
+registered as games are, or by registering one in its services (`docs/plugin-services.md`): the last
+one loaded wins, an overlap is logged as a conflict, and unloading the plugin brings back the one
+before it (another plugin's or the default).
 
 ## Settings (`Turbo:Games`, panel Settings, live)
 

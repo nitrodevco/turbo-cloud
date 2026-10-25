@@ -62,7 +62,7 @@ public sealed class AchievementModule : IHostPluginModule
             .ValidateOnStart();
         services.AddSingleton<RewardTrackStore>();
         services.AddSingleton<IRewardTrackStore>(x => x.GetRequiredService<RewardTrackStore>());
-        services.AddSingleton<ICampaignCalendarService, CampaignCalendarService>();
+        services.AddReplaceable<ICampaignCalendarService, CampaignCalendarService>();
         services.AddSingleton<IAchievementFactListener, RewardTrackFactListener>();
         services.AddSingleton<IAchievementFactListener, QuestFactListener>();
         services.TryAddSingleton(TimeProvider.System);
