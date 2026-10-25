@@ -42,7 +42,9 @@ public class FurnitureStackTileLogic(IStuffDataFactory stuffDataFactory, IRoomFl
         if (interaction is not (SetStackHeightInteraction or SetAdjacentStackHeightInteraction))
             return false;
 
-        if (!await HasRightsAsync(ctx))
+        // Flash opens the helper's window for rights and for the helper's own owner too
+        // (FurnitureCustomStackHeightWidgetHandler.as:143-150 validateRights, WIN63-202610201032).
+        if (!IsItemOwner(ctx) && !await HasRightsAsync(ctx))
             return Reject(ctx, interaction, "no rights");
 
         // A move that goes nowhere is still answered with the helper where it is (lab49).

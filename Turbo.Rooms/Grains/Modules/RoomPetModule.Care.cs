@@ -225,9 +225,19 @@ public sealed partial class RoomPetModule
         return true;
     }
 
+    /// <summary>
+    /// A dead plant of the player's own composted away, in their own room only: Flash offers
+    /// Compost on the own pet's menu to the room's owner alone (<c>OwnPetMenuView.as:214</c>,
+    /// WIN63-202610201032).
+    /// </summary>
     public async Task<bool> CompostPetAsync(ActionContext ctx, int petId, CancellationToken ct)
     {
-        if (!TryGetPet(petId, out var pet) || !pet.IsMonsterplant || pet.OwnerId != ctx.PlayerId)
+        if (
+            !TryGetPet(petId, out var pet)
+            || !pet.IsMonsterplant
+            || pet.OwnerId != ctx.PlayerId
+            || !await SecurityModule.GetIsRoomOwnerAsync(ctx)
+        )
             return false;
 
         RefreshFlags(pet);

@@ -18,7 +18,10 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 /// <summary>
 /// A mannequin holds an outfit (clothing parts only) in map data under the keys the client reads.
-/// The owner dresses and names it; anyone of the same gender wears it with a double-click.
+/// Whoever has rights in the room dresses and names it, as Flash opens its editing view for the
+/// room's owner, controller level 1 and up and staff controlling every room
+/// (<c>MannequinWidget.as:129</c>, WIN63-202610201032); anyone of the same gender wears it with a
+/// double-click.
 /// </summary>
 [RoomObjectLogic("mannequin")]
 public class FurnitureMannequinLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
@@ -68,8 +71,8 @@ public class FurnitureMannequinLogic(IStuffDataFactory stuffDataFactory, IRoomFl
         if (interaction is not (SetMannequinFigureInteraction or SetMannequinNameInteraction))
             return false;
 
-        if (!await IsItemOrRoomOwnerAsync(ctx))
-            return Reject(ctx, interaction, "not the owner");
+        if (!await HasRightsAsync(ctx))
+            return Reject(ctx, interaction, "no rights");
 
         if (interaction is SetMannequinNameInteraction rename)
         {

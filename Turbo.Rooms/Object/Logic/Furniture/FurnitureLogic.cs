@@ -223,7 +223,7 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
 
     /// <summary>
     /// Whether the acting player owns this item or the room. The rule for changing how an item
-    /// stands in the room (dressing a mannequin, engraving a trophy), which the room's owner
+    /// stands in the room (engraving a trophy), which the room's owner
     /// may do too. Two meanings of "owner", named apart, so a new logic picks one on purpose.
     /// </summary>
     protected async Task<bool> IsItemOrRoomOwnerAsync(ActionContext ctx) =>

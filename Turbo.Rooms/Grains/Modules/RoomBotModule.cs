@@ -91,7 +91,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
             ct
         );
 
-    /// <summary>The bot's owner or any room controller may move or pick it up.</summary>
+    /// <summary>The bot's owner or any room controller may move it.</summary>
     private async Task<bool> CanManageAsync(ActionContext ctx, IRoomBot bot) =>
         bot.OwnerId == ctx.PlayerId
         || await SecurityModule.GetControllerLevelAsync(ctx) >= RoomControllerType.Rights;
@@ -238,12 +238,18 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
         return true;
     }
 
+    /// <summary>
+    /// A bot back to its owner's inventory, by its owner or the room's: Flash offers Pick up to
+    /// the room's owner and staff controlling every room only (<c>RentableBotMenuView.as:67-68</c>,
+    /// <c>amIOwner</c> being <c>isRoomOwner</c>, <c>InfoStandWidgetHandler.as:794</c>,
+    /// WIN63-202610201032). Room rights do not: they let a guest send the owner's bots away.
+    /// </summary>
     public async Task<bool> PickupBotAsync(ActionContext ctx, int botId, CancellationToken ct)
     {
         if (!TryGetBot(botId, out var bot))
             return false;
 
-        if (!await CanManageAsync(ctx, bot))
+        if (bot.OwnerId != ctx.PlayerId && !await SecurityModule.GetIsRoomOwnerAsync(ctx))
             return false;
 
         return await ReturnBotAsync(ctx, bot, ct);
