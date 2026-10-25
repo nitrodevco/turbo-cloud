@@ -11,12 +11,17 @@ public static class PluginApi
     /// <summary>
     /// 1: everything plugins build on today, plugin settings, admin endpoints and pages
     /// (<c>Admin.IPluginAdmin</c>), asset movement consumers and reversals
-    /// (<c>docs/movements.md</c>) and plugin notices (<c>docs/plugin-notices.md</c>) included. No
-    /// plugin outside this project has been published, so the API stays 1 while it changes; it
-    /// counts up from the first one that is: an addition raises <see cref="VERSION"/>, a change
-    /// that breaks a published plugin raises <see cref="OLDEST"/> with it.
+    /// (<c>docs/movements.md</c>) and plugin notices (<c>docs/plugin-notices.md</c>) included. An
+    /// addition raises <see cref="VERSION"/>; a change that breaks a published plugin raises
+    /// <see cref="OLDEST"/> with it.
+    /// <para>
+    /// 2: the convention base <see cref="TurboPlugin"/> (key and version from the manifest, its
+    /// <c>wwwroot/&lt;key&gt;.js</c> registered by the host, no class needed at all),
+    /// <see cref="PluginSettingsAttribute"/>, and plugin database contexts with a design-time
+    /// factory of their own. A plugin built for 1 loads as before.
+    /// </para>
     /// </summary>
-    public const int VERSION = 1;
+    public const int VERSION = 2;
 
     /// <summary>The oldest plugin API this server still loads.</summary>
     public const int OLDEST = 1;

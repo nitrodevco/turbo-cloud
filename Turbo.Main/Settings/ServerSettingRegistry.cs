@@ -7,19 +7,18 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Turbo.Primitives.Settings;
+using Turbo.Runtime.Configuration;
 
 namespace Turbo.Main.Settings;
 
 /// <summary>
 /// Every setting the host has: each option of each config class a module registers
 /// (<c>services.Configure&lt;T&gt;(section)</c>) that names its section in a <c>SECTION_NAME</c>
-/// constant, down to its values. A nested class is a section of its own settings; a list or map
+/// constant (a plugin's class: or in <c>[PluginSettings]</c>), down to its values. A nested class is a section of its own settings; a list or map
 /// is one setting, taken whole.
 /// </summary>
 internal sealed class ServerSettingRegistry(ImmutableArray<ServerSettingRegistry.Section> sections)
 {
-    private const string SECTION_NAME = "SECTION_NAME";
-
     // Deeper than any config nests: a class that holds itself would never end.
     private const int MAX_DEPTH = 8;
 
@@ -76,11 +75,7 @@ internal sealed class ServerSettingRegistry(ImmutableArray<ServerSettingRegistry
             plugin
         );
 
-    private static string? SectionOf(Type type) =>
-        type.GetField(SECTION_NAME, BindingFlags.Public | BindingFlags.Static)
-            is { IsLiteral: true } field
-            ? field.GetRawConstantValue() as string
-            : null;
+    private static string? SectionOf(Type type) => WholeCollectionBinding.SectionOf(type);
 
     private static IEnumerable<Setting> Walk(
         Type type,

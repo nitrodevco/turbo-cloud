@@ -23,6 +23,7 @@ internal sealed class PluginClientModules(
     public const string WWWROOT = "wwwroot";
 
     private readonly List<IDisposable> _registrations = [];
+    private bool _registered;
 
     /// <summary>Serves its <c>wwwroot/</c>, when it has one, until it unloads.</summary>
     public void ServeFiles()
@@ -56,9 +57,30 @@ internal sealed class PluginClientModules(
         );
 
         lock (_registrations)
+        {
             _registrations.Add(registration);
+            _registered = true;
+        }
 
         return registration;
+    }
+
+    /// <summary>
+    /// Registers <c>wwwroot/&lt;key&gt;.js</c> as the plugin's module when it is there and the
+    /// plugin registered none itself (a <c>TurboPlugin</c>, or a plugin with no class); answers
+    /// the file registered, or null.
+    /// </summary>
+    public string? RegisterConventionalModule()
+    {
+        var file = $"{manifest.Key}.js";
+
+        lock (_registrations)
+            if (_registered || !File.Exists(Path.Combine(folder, WWWROOT, file)))
+                return null;
+
+        Register(manifest.Key, file);
+
+        return file;
     }
 
     public void Dispose()

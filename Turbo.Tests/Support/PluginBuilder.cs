@@ -57,10 +57,10 @@ internal static class PluginBuilder
 
     /// <summary>
     /// What a plugin compiled in a test builds against: every assembly loaded, and the host's
-    /// contracts, its message handlers and the options extensions, which a test run alone may not
-    /// have loaded yet. Their paths are taken at once: the list of loaded assemblies also holds
-    /// any plugin another test is unloading, and reading the references takes long enough under
-    /// load to keep that plugin's context from going.
+    /// contracts, its message handlers, the options extensions, plugin databases and furni logic,
+    /// which a test run alone may not have loaded yet. Their paths are taken at once: the list of
+    /// loaded assemblies also holds any plugin another test is unloading, and reading the
+    /// references takes long enough under load to keep that plugin's context from going.
     /// </summary>
     public static IEnumerable<MetadataReference> References()
     {
@@ -74,6 +74,10 @@ internal static class PluginBuilder
             typeof(Turbo.Messages.Registry.MessageContext),
             typeof(Turbo.Pipeline.EnvelopeInvokerFactory<>),
             typeof(Microsoft.Extensions.Configuration.BinderOptions),
+            typeof(Turbo.Database.Context.PluginDbContextBase<>),
+            typeof(Microsoft.EntityFrameworkCore.DbContext),
+            typeof(System.ComponentModel.DataAnnotations.Schema.TableAttribute),
+            typeof(Turbo.Rooms.Object.Logic.Furniture.Floor.FurnitureFloorLogic),
         ];
 
         string[] paths =
