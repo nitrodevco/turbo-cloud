@@ -71,7 +71,8 @@ each forces on an author.
 5. **The client API is unversioned in practice.** Members were added under `version: 1`; modules
    feature-detect. Nothing is published with types.
 6. **Domain actions cannot be vetoed or adjusted.** Only chat, commands, game access and incoming
-   packets have hooks. No trade, purchase, room entry or placement policy.
+   packets have hooks. No purchase, room entry or placement policy; trade has one host service
+   (`IPlayerTradePolicy`, §4.2).
 7. **A plugin cannot take part in host multi-registrations** (`IAchievementFactListener`,
    `IIncomeRewardSource`, word filter, name/figure policy): its container is separate and
    `IHostServices` only resolves.
@@ -137,6 +138,12 @@ for game rules: it sees wire messages, not decisions. Add **typed policies** for
 actually customise - trade open/accept, purchase, room entry, furni placement, name/figure change -
 each called by the owning grain before it commits, ordered, able to refuse with a reason the client
 shows. Official behaviour stays the default implementation; a policy composes over it.
+
+Trade has the first of them, as a single service: `IPlayerTradePolicy` answers what a player may do
+in a trade (`TradeStandingType`: locked, no pass, receive only, full) by the `trade` permission and
+the trading pass. Trades ask it of both players before they open and pick the refusal from it
+(`openfail.3`, `trade.trading_perk`, `openfail.4`); wired chests ask it before they move anything.
+Replacing it in the host's container changes both; a plugin cannot replace it yet (§4.3).
 
 ### 4.3 Service contracts
 

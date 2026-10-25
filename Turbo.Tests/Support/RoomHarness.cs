@@ -14,6 +14,7 @@ using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
+using Turbo.Primitives.Trading.Enums;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Object.Furniture.Floor;
 
@@ -60,7 +61,7 @@ public sealed class RoomHarness
         Room.UseState(State);
         Room.UseClock(Clock);
         // Players may trade (IPlayerTradePolicy) unless a test says otherwise.
-        Fakes.Handlers["MayTradeAsync"] = _ => Task.FromResult(true);
+        Fakes.Handlers["GetTradeStandingAsync"] = _ => Task.FromResult(TradeStandingType.Full);
 
         FillServices();
 

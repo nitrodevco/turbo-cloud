@@ -8,8 +8,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
-using Turbo.Players.Configuration;
-using Turbo.Players.Trading;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Trading;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
@@ -18,10 +16,10 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
-using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Trading;
 using Turbo.Primitives.Trading.Enums;
 using Turbo.Rooms.Configuration;
 
@@ -49,7 +47,7 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
     private const string TRADING_PERK = "trade.trading_perk";
 
     private readonly RoomConfig _roomConfig;
-    private readonly IOptionsMonitor<TradingConfig> _tradingConfig;
+    private readonly IPlayerTradePolicy _tradePolicy;
     private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IRoomTradeGrain> _logger;
 
@@ -59,13 +57,13 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
 
     public RoomTradeGrain(
         IOptions<RoomConfig> roomConfig,
-        IOptionsMonitor<TradingConfig> tradingConfig,
+        IPlayerTradePolicy tradePolicy,
         IGrainFactory grainFactory,
         ILogger<IRoomTradeGrain> logger
     )
     {
         _roomConfig = roomConfig.Value;
-        _tradingConfig = tradingConfig;
+        _tradePolicy = tradePolicy;
         _grainFactory = grainFactory;
         _logger = logger;
 
@@ -189,7 +187,9 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
             return false;
         }
 
-        if (!await HasTradePerkAsync(parties.InitiatorId, ct))
+        var initiator = await _tradePolicy.GetTradeStandingAsync(parties.InitiatorId, ct);
+
+        if (initiator == TradeStandingType.Locked)
         {
             await SendOpenFailedAsync(
                 parties.InitiatorId,
@@ -201,16 +201,9 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
             return false;
         }
 
-        var config = _tradingConfig.CurrentValue;
-        var initiatorHasPass = await _grainFactory.HoldsTradingPassAsync(
-            config,
-            parties.InitiatorId,
-            ct
-        );
-
         // Habbo answers a player without the pass with a notification of its own, and the
         // partner hears nothing (official client capture, 2026-10-17 and 2026-10-22).
-        if (!initiatorHasPass && config.PassMode == TradingPassMode.Required)
+        if (initiator == TradeStandingType.NoPass)
         {
             await _grainFactory.SendComposerToPlayerAsync(
                 parties.InitiatorId,
@@ -221,16 +214,9 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
             return false;
         }
 
-        var partnerHasPass = await _grainFactory.HoldsTradingPassAsync(
-            config,
-            parties.PartnerId,
-            ct
-        );
+        var partner = await _tradePolicy.GetTradeStandingAsync(parties.PartnerId, ct);
 
-        if (
-            !await HasTradePerkAsync(parties.PartnerId, ct)
-            || (!partnerHasPass && config.PassMode == TradingPassMode.Required)
-        )
+        if (partner is TradeStandingType.Locked or TradeStandingType.NoPass)
         {
             await SendOpenFailedAsync(
                 parties.InitiatorId,
@@ -248,8 +234,8 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
             PartnerId = parties.PartnerId,
         };
 
-        session.InitiatorSide.CanOffer = initiatorHasPass;
-        session.PartnerSide.CanOffer = partnerHasPass;
+        session.InitiatorSide.CanOffer = initiator == TradeStandingType.Full;
+        session.PartnerSide.CanOffer = partner == TradeStandingType.Full;
 
         _state.TradesByPlayerId[session.InitiatorId] = session;
         _state.TradesByPlayerId[session.PartnerId] = session;
@@ -263,9 +249,9 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
             new TradingOpenEventMessageComposer
             {
                 PlayerId = session.InitiatorId,
-                PlayerCanTrade = initiatorHasPass,
+                PlayerCanTrade = session.InitiatorSide.CanOffer,
                 OtherPlayerId = session.PartnerId,
-                OtherPlayerCanTrade = partnerHasPass,
+                OtherPlayerCanTrade = session.PartnerSide.CanOffer,
             },
             ct
         );
@@ -564,13 +550,6 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
             },
             ct
         );
-
-    /// <summary>
-    /// Whether the account may trade at all: the <c>trade</c> permission, which the default group
-    /// grants and a trade lock denies. The room's trade mode is the room's call.
-    /// </summary>
-    private Task<bool> HasTradePerkAsync(PlayerId playerId, CancellationToken ct) =>
-        _grainFactory.HasPermissionAsync(playerId, PermissionNodes.TRADE, ct);
 
     private bool TryGetOpenSession(
         PlayerId playerId,

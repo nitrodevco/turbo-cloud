@@ -8,6 +8,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Wired;
+using Turbo.Primitives.Trading.Enums;
 using Turbo.Primitives.WiredTrading;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
@@ -208,7 +209,8 @@ public sealed class WiredChestLabAnswersTests
     {
         AddChest(locked: false, coins: CHEST_COINS);
         var box = await AddGiveCurrencyAsync([CHEST], mode);
-        _room.Harness.Fakes.Handlers["MayTradeAsync"] = _ => Task.FromResult(false);
+        _room.Harness.Fakes.Handlers["GetTradeStandingAsync"] = _ =>
+            Task.FromResult(TradeStandingType.Locked);
 
         (await box.ExecuteAsync(ExecutionContext(userSelected: true), Ct)).Should().BeFalse();
 
@@ -231,7 +233,8 @@ public sealed class WiredChestLabAnswersTests
             createLogic: (factory, ctx) => new FurnitureWiredPaymentContractLogic(factory, ctx)
         );
         var box = await AddInitiateTransactionAsync([CHEST], [CONTRACT]);
-        _room.Harness.Fakes.Handlers["MayTradeAsync"] = _ => Task.FromResult(false);
+        _room.Harness.Fakes.Handlers["GetTradeStandingAsync"] = _ =>
+            Task.FromResult(TradeStandingType.Locked);
         var heard = Listen();
 
         await box.ExecuteAsync(ExecutionContext(userSelected: true), Ct);
