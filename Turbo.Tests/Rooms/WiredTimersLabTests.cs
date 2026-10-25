@@ -92,6 +92,32 @@ public sealed class WiredTimersLabTests
         after.Should().ContainSingle().Which.Should().BeInRange(movedAt + 500, movedAt + 1_500);
     }
 
+    /// <summary>
+    /// trigger.3.B2 (official client capture 2026-10-25, wlab13, 2/2): "at given time" saved at 0
+    /// fires on the first tick after each Timer Reset, once. Ours refused the 0.
+    /// </summary>
+    [Fact]
+    public async Task Trigger3B2_AtGivenTimeZeroFiresOnTheTickAfterEachReset()
+    {
+        await AtGivenTimeStackAsync(2, 2, units: 0, Log("at zero"));
+        await StartAsync();
+        await RunAsync(2_000, "at zero");
+
+        for (var reset = 1; reset <= 2; reset++)
+        {
+            var resetAt = Now;
+            Wired.ResetTimers(resetAt);
+
+            var fired = await RunAsync(3_000, "at zero");
+
+            fired
+                .Should()
+                .ContainSingle($"reset {reset}")
+                .Which.Should()
+                .BeLessThanOrEqualTo(resetAt + 500);
+        }
+    }
+
     [Theory]
     // Periodically [2] (1 s), period short [10] (500 ms): an effect delayed 6 pulses (3 s).
     [InlineData("wf_trg_periodically", 2, 6, 1_000)]

@@ -27,10 +27,13 @@ public class WiredTriggerAtTime(
     public override int WiredCode => (int)WiredTriggerType.TRIGGER_ONCE;
     public override List<Type> SupportedEventTypes { get; } = [typeof(PeriodicRoomEvent)];
 
+    // Stored as sent past the editor's 1..1200: 0 stayed 0 and fired on the first tick after a
+    // Timer Reset, 1201 stayed 1201 (official client capture 2026-10-25, wired matrix
+    // trigger.3.B2, 2/2). A negative time is pulled up to 0 (inference, not recorded).
     public override List<IWiredParamRule> GetIntParamRules() =>
-        [new WiredRangeParamRule(1, 1200, 1)];
+        [new WiredClampParamRule(0, int.MaxValue, 1)];
 
-    public long GetTargetMs() => WiredPulses.ToMs(GetIntParamOrDefault(0, 1));
+    public long GetTargetMs() => WiredPulses.ToMs(Math.Max(0, GetIntParamOrDefault(0, 1)));
 
     public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct) =>
         Task.FromResult(ctx.Event is PeriodicRoomEvent);

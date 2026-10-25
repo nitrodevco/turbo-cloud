@@ -409,6 +409,67 @@ public sealed class WiredGamesTimeEditorTests
         box.GetPeriodicDelayMs().Should().Be(periodMs, caseId);
     }
 
+    /// <summary>
+    /// trigger.6/12/19.B2, trigger.3.B2 (official client capture 2026-10-25, wlab13, read back
+    /// with Open): past the editor's range the plain and long repeaters keep 121 and store 0 as 1,
+    /// the short one clamps to 1..10, "at given time" keeps 0 and 1201. The plain one at 121 ran
+    /// every 60.5 s (6/6). Ours refused all but the short one's.
+    /// </summary>
+    [Theory]
+    [InlineData("trigger.6.B2", typeof(WiredTriggerPeriodically), "wf_trg_periodically", 0, 1)]
+    [InlineData("trigger.6.B2", typeof(WiredTriggerPeriodically), "wf_trg_periodically", 121, 121)]
+    [InlineData("trigger.12.B2", typeof(WiredTriggerLongPeriodically), "wf_trg_period_long", 0, 1)]
+    [InlineData(
+        "trigger.12.B2",
+        typeof(WiredTriggerLongPeriodically),
+        "wf_trg_period_long",
+        121,
+        121
+    )]
+    [InlineData(
+        "trigger.19.B2",
+        typeof(WiredTriggerShortPeriodically),
+        "wf_trg_period_short",
+        0,
+        1
+    )]
+    [InlineData(
+        "trigger.19.B2",
+        typeof(WiredTriggerShortPeriodically),
+        "wf_trg_period_short",
+        11,
+        10
+    )]
+    [InlineData("trigger.3.B2", typeof(WiredTriggerAtTime), "wf_trg_at_given_time", 0, 0)]
+    [InlineData("trigger.3.B2", typeof(WiredTriggerAtTime), "wf_trg_at_given_time", 1201, 1201)]
+    public async Task A_timer_past_the_editors_range_is_stored_as_Habbo_stores_it(
+        string caseId,
+        Type logic,
+        string name,
+        int sent,
+        int stored
+    )
+    {
+        var box = Add(logic, name);
+
+        (await SaveAsync(box, [sent])).Should().BeTrue($"{caseId} saves {sent}");
+        box.GetSnapshot().IntParams.Should().Equal([stored], caseId);
+    }
+
+    [Fact]
+    public async Task Periodically_at_121_pulses_runs_every_60_5_seconds_trigger_6_B2()
+    {
+        var box = (WiredTriggerPeriodically)Add(
+            typeof(WiredTriggerPeriodically),
+            "wf_trg_periodically"
+        );
+
+        (await SaveAsync(box, [121])).Should().BeTrue();
+        await box.LoadWiredAsync(Ct);
+
+        box.GetPeriodicDelayMs().Should().Be(60_500);
+    }
+
     [Theory]
     [InlineData(1, 500)]
     [InlineData(1200, 600_000)]
