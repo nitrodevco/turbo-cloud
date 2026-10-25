@@ -454,9 +454,21 @@ public class WiredContractTests
     /// to capacity 0 completed (Success, Transaction Completed fired), then the chest passed the
     /// item to its owner's inventory with the <c>wired_chests.earnings</c> dialog (official
     /// client capture 2026-10-25, wlab10-full-20261025-044342). Ours refused it as chest full.
+    /// What it already held counts (B6b-B6d, wlab13-full-20261025-092024, 4/4): holding 2 at
+    /// capacity 1, the owner got 2 back; holding 1 at capacity 0, 2; exactly full, the paid one.
+    /// Ours gave back only what the payment put past the capacity.
     /// </summary>
-    [Fact]
-    public async Task A_payment_into_a_full_furni_chest_completes_and_the_item_goes_to_the_owner()
+    [Theory]
+    [InlineData("action.47.B6", 0, 0, 1)]
+    [InlineData("action.47.B6b", 2, 1, 2)]
+    [InlineData("action.47.B6c", 1, 1, 1)]
+    [InlineData("action.47.B6d", 1, 0, 2)]
+    public async Task A_payment_into_a_full_furni_chest_completes_and_the_overflow_goes_to_the_owner(
+        string caseId,
+        int held,
+        int capacity,
+        int givenBack
+    )
     {
         const int OWNER = 1;
         var (room, _) = CreateRoomWithContract();
@@ -477,17 +489,17 @@ public class WiredContractTests
             {
                 [WiredChestData.IS_WIRED_ENABLED] = WiredChestData.TRUE,
                 [WiredChestData.LOCKED] = WiredChestData.FALSE,
-                [WiredChestData.CAPACITY] = "0",
+                [WiredChestData.CAPACITY] = capacity.ToString(),
             },
             refresh: false
         );
         typeof(FurnitureWiredChestLogic)
             .GetProperty(nameof(FurnitureWiredChestLogic.Summary))!
-            .SetValue(chest, ChestHolding(0));
+            .SetValue(chest, ChestHolding(held));
         room.Fakes.Handlers[nameof(IWiredChestGrain.DepositAsync)] = _ =>
-            Task.FromResult(Moved(ChestHolding(1)));
+            Task.FromResult(Moved(ChestHolding(held + 1)));
         room.Fakes.Handlers[nameof(IWiredChestGrain.WithdrawAsync)] = _ =>
-            Task.FromResult(Moved(ChestHolding(0)));
+            Task.FromResult(Moved(ChestHolding(capacity)));
         var player = room.Fakes.Create<Turbo.Primitives.Rooms.Object.Avatars.IRoomPlayer>(PLAYER);
         room.Fakes.Handlers["get_PlayerId"] = call =>
             call.Key is PLAYER ? (PlayerId)PLAYER : Fakes.NotHandled;
@@ -510,9 +522,9 @@ public class WiredContractTests
         heard.Events.OfType<WiredTransactionFailedEvent>().Should().BeEmpty();
         var withdrawal = (WiredChestWithdrawRequest)
             room.Fakes.Log.Of(nameof(IWiredChestGrain.WithdrawAsync)).Single().Args[0]!;
-        withdrawal.ReceiverId.Should().Be((PlayerId)OWNER);
-        withdrawal.Amount.Should().Be(1);
-        withdrawal.Order.Should().Be(WiredChestIterationMode.LastInFirstOut);
+        withdrawal.ReceiverId.Should().Be((PlayerId)OWNER, caseId);
+        withdrawal.Amount.Should().Be(givenBack, caseId);
+        withdrawal.Order.Should().Be(WiredChestIterationMode.LastInFirstOut, caseId);
         room.Fakes.Log.Of("SendPersistentAsync")
             .Select(x => (x.Args[0], x.Args[1]))
             .Should()
