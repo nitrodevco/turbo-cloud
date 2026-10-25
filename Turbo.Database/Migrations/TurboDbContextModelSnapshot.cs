@@ -853,6 +853,168 @@ namespace Turbo.Database.Migrations
                     b.ToTable("bots");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Campaigns.CampaignCalendarEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("Days")
+                        .HasColumnType("int")
+                        .HasColumnName("days");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("enabled");
+
+                    b.Property<string>("Image")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("image");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime>("StartsAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("starts_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("campaign_calendars");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Campaigns.CampaignCalendarRewardEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BadgeCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("badge_code");
+
+                    b.Property<int>("CampaignCalendarEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("campaign_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("Credits")
+                        .HasColumnType("int")
+                        .HasColumnName("credits");
+
+                    b.Property<int>("CurrencyAmount")
+                        .HasColumnType("int")
+                        .HasColumnName("currency_amount");
+
+                    b.Property<int?>("CurrencyTypeId")
+                        .HasColumnType("int")
+                        .HasColumnName("currency_type_id");
+
+                    b.Property<string>("CustomImage")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("custom_image");
+
+                    b.Property<int>("DayIndex")
+                        .HasColumnType("int")
+                        .HasColumnName("day_index");
+
+                    b.Property<int?>("EffectId")
+                        .HasColumnType("int")
+                        .HasColumnName("effect_id");
+
+                    b.Property<string>("FurnitureClassName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("furniture_class_name");
+
+                    b.Property<string>("ProductCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("product_code");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignCalendarEntityId", "DayIndex")
+                        .IsUnique();
+
+                    b.ToTable("campaign_calendar_rewards");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Campaigns.PlayerCampaignCalendarDoorEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("ByStaff")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("by_staff");
+
+                    b.Property<int>("CampaignCalendarEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("campaign_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("DayIndex")
+                        .HasColumnType("int")
+                        .HasColumnName("day_index");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignCalendarEntityId");
+
+                    b.HasIndex("PlayerEntityId", "CampaignCalendarEntityId", "DayIndex")
+                        .IsUnique();
+
+                    b.ToTable("player_campaign_calendar_doors");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.BonusRareCampaignEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -9546,6 +9708,36 @@ namespace Turbo.Database.Migrations
                     b.Navigation("RoomEntity");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Campaigns.CampaignCalendarRewardEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Campaigns.CampaignCalendarEntity", "CampaignCalendarEntity")
+                        .WithMany("Rewards")
+                        .HasForeignKey("CampaignCalendarEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CampaignCalendarEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Campaigns.PlayerCampaignCalendarDoorEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Campaigns.CampaignCalendarEntity", "CampaignCalendarEntity")
+                        .WithMany()
+                        .HasForeignKey("CampaignCalendarEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CampaignCalendarEntity");
+
+                    b.Navigation("PlayerEntity");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.BonusRareReceiptEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
@@ -10857,6 +11049,11 @@ namespace Turbo.Database.Migrations
             modelBuilder.Entity("Turbo.Database.Entities.Assets.AssetPublishTargetEntity", b =>
                 {
                     b.Navigation("Files");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Campaigns.CampaignCalendarEntity", b =>
+                {
+                    b.Navigation("Rewards");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Catalog.CatalogOfferEntity", b =>

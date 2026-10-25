@@ -133,6 +133,10 @@ public static class MovementCauses
     /// <summary>A reward track's premium bought: its price, apart from the prizes the track pays.</summary>
     public const string REWARD_TRACK_PREMIUM = "reward.track_premium";
     public const string REWARD_QUEST = "reward.quest";
+
+    /// <summary>A campaign calendar door opened; cause ref: the door, <c>calendar:campaign:day</c>.</summary>
+    public const string CAMPAIGN_CALENDAR = "reward.campaign_calendar";
+
     public const string REWARD_DAILY_TASK = "reward.daily_task";
     public const string REWARD_ACHIEVEMENT = "reward.achievement";
 

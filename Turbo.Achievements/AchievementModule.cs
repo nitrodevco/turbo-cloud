@@ -2,10 +2,12 @@ using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Turbo.Achievements.Campaigns;
 using Turbo.Achievements.Configuration;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Achievements;
 using Turbo.Primitives.Achievements;
+using Turbo.Primitives.Campaigns;
 using Turbo.Primitives.Quests.RewardTracks;
 
 namespace Turbo.Achievements;
@@ -60,6 +62,7 @@ public sealed class AchievementModule : IHostPluginModule
             .ValidateOnStart();
         services.AddSingleton<RewardTrackStore>();
         services.AddSingleton<IRewardTrackStore>(x => x.GetRequiredService<RewardTrackStore>());
+        services.AddSingleton<ICampaignCalendarService, CampaignCalendarService>();
         services.AddSingleton<IAchievementFactListener, RewardTrackFactListener>();
         services.AddSingleton<IAchievementFactListener, QuestFactListener>();
         services.TryAddSingleton(TimeProvider.System);

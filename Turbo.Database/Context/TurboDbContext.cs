@@ -4,6 +4,7 @@ using Turbo.Database.Entities.Admin;
 using Turbo.Database.Entities.Assets;
 using Turbo.Database.Entities.Badges;
 using Turbo.Database.Entities.Bots;
+using Turbo.Database.Entities.Campaigns;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Gamedata;
@@ -46,6 +47,12 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<HumanRespectParticipantReceiptEntity> HumanRespectParticipantReceipts { get; init; }
     public DbSet<PetNutritionOperationEntity> PetNutritionOperations { get; init; }
     public DbSet<PetRespectOperationEntity> PetRespectOperations { get; init; }
+
+    public DbSet<CampaignCalendarEntity> CampaignCalendars { get; init; }
+
+    public DbSet<CampaignCalendarRewardEntity> CampaignCalendarRewards { get; init; }
+
+    public DbSet<PlayerCampaignCalendarDoorEntity> PlayerCampaignCalendarDoors { get; init; }
 
     public DbSet<CatalogBackupEntity> CatalogBackups { get; init; }
 

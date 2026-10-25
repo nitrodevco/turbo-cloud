@@ -4,7 +4,13 @@ using Turbo.Primitives.Packets;
 
 namespace Turbo.Revisions.Revision20260909.Parsers.Campaign;
 
+/// <summary>The campaign's name, then the door's day index (AS3 OpenCampaignCalendarDoorComposer).</summary>
 internal class OpenCampaignCalendarDoorMessageParser : IParser
 {
-    public IMessageEvent Parse(IClientPacket packet) => new OpenCampaignCalendarDoorMessage();
+    public IMessageEvent Parse(IClientPacket packet) =>
+        new OpenCampaignCalendarDoorMessage
+        {
+            CampaignName = packet.PopString(),
+            DayIndex = packet.PopInt(),
+        };
 }

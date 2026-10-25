@@ -119,6 +119,15 @@ public static class PermissionNodes
         public const string STAFF_PICK = "navigator.staff_pick";
     }
 
+    public static class Campaign
+    {
+        /// <summary>
+        /// Open any door of the campaign calendar, missed and future ones too: the client's
+        /// staff force open, whose button it shows at security level 5 (CalendarView.as:176).
+        /// </summary>
+        public const string CALENDAR_FORCE_OPEN = "campaign.calendar.force_open";
+    }
+
     public static class Moderation
     {
         public const string TOOL = "moderation.tool";
@@ -340,6 +349,12 @@ public static class PermissionNodes
         /// prizes, take Habbo's in from a capture and read them again. Every change is logged.
         /// </summary>
         public const string REWARD_TRACKS_MANAGE = "admin.rewardtracks.manage";
+
+        /// <summary>
+        /// Manage the campaign calendars in the panel: their days, dates and the gift behind
+        /// each door.
+        /// </summary>
+        public const string CAMPAIGNS_MANAGE = "admin.campaigns.manage";
 
         /// <summary>
         /// See the hotel's gamedata in the panel: Habbo's releases, what an update would change,
