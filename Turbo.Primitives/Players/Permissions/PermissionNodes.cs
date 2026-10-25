@@ -135,6 +135,15 @@ public static class PermissionNodes
         public const string MENU = "wired.menu";
     }
 
+    public static class Client
+    {
+        /// <summary>
+        /// Not Habbo's: the client's extension inspector (alt-click a window element for its
+        /// template key and the plugins' patches on it). Development builds have it for everyone.
+        /// </summary>
+        public const string INSPECTOR = "client.inspector";
+    }
+
     public static class Guild
     {
         public const string DELETE_ANY = "guild.delete_any";

@@ -316,10 +316,12 @@ plugin side, the serving and the client side, is in `docs/client-modules.md`.
 | Direction | Header | Packet | Body |
 | --- | --- | --- | --- |
 | server → client | 30009 | `TurboClientModulesMessage` | `int count`, then per module `string key`, `string url`, `string version`, `string sha256` |
+| client → server | 30012 | `TurboClientExtensionReportMessage` | `int count` (32 read at most), then per line `string owner`, `string kind`, `string subject`, `string reason`, `string message` |
 
 Sent straight after the capability answer, and again to everyone who accepted it whenever a plugin
 with a module loads, unloads or reloads: always the whole set, so a module no longer listed is taken
-away.
+away. The client reports what it found running modules and template patches (a refused module, a
+patch that matched nothing) for the extension inspector; never answered.
 
 ## `client.messages` (version 1)
 
