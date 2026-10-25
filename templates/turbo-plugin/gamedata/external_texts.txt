@@ -1,8 +1,10 @@
 # The plugin's words: the hotel gets them as the plugin loads, and staff can change them in the panel.
 skills.window.title=Skills
-skills.window.level=Level %level%
+skills.window.level=%name%: level %level%
 skills.window.experience=%experience% / %needed% experience
 skills.window.train=Train
 skills.toolbar.tooltip=Skills
 skills.purse.button=Skills
+skills.menu.button=Skills
+skills.command=Open your skills
 skills.levelled=You reached level %0%!

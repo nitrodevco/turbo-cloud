@@ -325,7 +325,10 @@ noted.
 6. **Typed client SDK**: `ClientModuleApi` published as types with `defineModule`, a narrow read-only
    store API in place of raw stores, namespaced links and layouts. The types, `defineModule`,
    `useApi` and a bundler preset are nitro-next's `packages/client-module-sdk`, kept equal to the
-   client's API by its type check; the store API, links and layouts are next.
+   client's API by its type check. API 1.1 adds the read-only state (`api.state`: own user, club,
+   purse, room, permission checks) in place of `libs.stores` (deprecated), room events
+   (`api.events`), buttons in the avatar menus and the furni infostand (`api.contextMenu`) and
+   client chat commands (`api.chatCommands`); namespaced links and layouts are next.
 7. **Policies** for trade, purchase, room entry and placement (§4.2), then post-commit domain events
    (§4.1). Purchase (room ads included), room entry, placement and registration done, with
    `npm run make policy <kind>`, and seven post-commit events (`docs/plugin-policies.md`); trade's

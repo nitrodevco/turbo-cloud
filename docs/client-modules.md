@@ -201,7 +201,7 @@ warning in the log as a module registers: its clients could not load it.
 The client decides how a module runs; nitro-next documents its side (its loader, the host allowlist
 `client.modules.hosts` for modules on another site, the shared libraries a module takes from
 `api.libs` (React, the theme's components) instead of bundling its own, and the `api` object). In
-short, for api version 1:
+short, for api version 1.1 (`api.version` 1, `api.minor` 1):
 
 - The client refuses an address on another site unless that site is in `client.modules.hosts`.
   A refusal is a console warning naming the origin to add, and a report to the server (§2), whose
@@ -226,6 +226,17 @@ short, for api version 1:
   widgets on the server sends them in a named message and the module adds one per slot), `http.get/post/put/patch/delete` (the plugin's own web routes, signed in as
   the player: `docs/plugin-web-routes.md`), `notifications.registerLayout` and `notifications.add` (a bubble that may `stay` up
   until the module takes it down).
+- Since 1.1 a module reads the client without its internals: `state` (the own user - id, name,
+  figure, gender, motto, security level - their club, credits and activity points, and the room they
+  are in, read-only, with `use(selector)` for components and `hasPermission(node, level?)`, which
+  asks the permission nodes the server sent: `docs/permissions-client-gates.md`), `events.on`
+  (room entered and left, avatars and furni added, removed and clicked, every line said),
+  `contextMenu.add` (a button in another user's avatar menu, the own avatar menu or the furni
+  infostand, shown while its condition passes) and `chatCommands.register` (a `:name` run in the
+  client and offered by the chat input; returning `false` sends the line on, so a server command
+  of the same name still runs). `api.libs.stores` is deprecated: the stores are the client's own
+  and change between releases. A command only a server can carry out (it changes the hotel) stays a
+  server command (`docs/commands.md`); a module's command is for what the client does.
 
 ## 5. Texts and variables a plugin brings
 
