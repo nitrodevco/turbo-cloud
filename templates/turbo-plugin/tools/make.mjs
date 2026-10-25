@@ -9,6 +9,9 @@
  *                                       a named message (server/Messages, client/src/made); --to
  *                                       server (default) adds its handler, --to client a listener
  *   logic <key>                         furni logic for the furniture whose logic is <key> (server/Logic)
+ *   wired <effect|trigger|condition|selector> <name>
+ *                                       a wired box of the plugin's own (server/Wired); a trigger
+ *                                       comes with its event, fired by hotel.Wired.FireAsync
  *   listener <name>                     a room event listener (server/Listeners)
  *   setting <name> [--type int|long|bool|string|double] [--default <value>]
  *                                       a setting in the plugin's [PluginSettings] class
@@ -272,25 +275,111 @@ ${use}`);
 
         const type = `${pascal(name)}Logic`;
 
-        reference('Turbo.Rooms.dll', 'Furni logic base classes (FurnitureFloorLogic): not in Turbo.Primitives yet.');
         write(path.join(server, 'Logic', `${type}.cs`), `
-using Turbo.Primitives.Furniture.Providers;
-using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Object.Logic;
-using Turbo.Rooms.Object.Logic.Furniture.Floor;
+using System.Threading;
+using System.Threading.Tasks;
+using Turbo.Contracts.Furni;
+using Turbo.Contracts.Rooms;
 
 namespace ${assembly};
 
 /// <summary>
-/// The logic of the furniture whose logic is <c>${name}</c> in the hotel's furniture definitions.
-/// Found as the plugin loads; the furniture goes back to its old logic when it unloads.
+/// The logic of the floor furniture whose logic is <c>${name}</c> in the hotel's furniture
+/// definitions; everything it does not override is the furni's as the hotel defines it. Found as
+/// the plugin loads; the furniture goes back to its old logic when it unloads.
 /// </summary>
-[RoomObjectLogic("${name}")]
-public sealed class ${type}(IStuffDataFactory stuffData, IRoomFloorItemContext ctx)
-    : FurnitureFloorLogic(stuffData, ctx);
+[FurniLogic("${name}")]
+public sealed class ${type} : FurniLogic
+{
+    public override Task<bool> OnUseAsync(IFurniContext ctx, RoomUser? user, int param, CancellationToken ct) =>
+        Task.FromResult(false);
+}
 `);
 
-        return [ 'extensions.md (Furni and wired logic)' ];
+        return [ 'plugin-wired.md (Furni logic)' ];
+    },
+
+    wired() {
+        const kinds = {
+            effect: { prefix: 'wf_act_', base: 'WiredEffect', editor: 'WiredActionType Editor => WiredActionType.CHAT' },
+            trigger: { prefix: 'wf_trg_', base: null, editor: 'WiredTriggerType Editor => WiredTriggerType.GAME_STARTS' },
+            condition: { prefix: 'wf_cnd_', base: 'WiredCondition', editor: 'WiredConditionType Editor => WiredConditionType.TRIGGERER_IS_ON_FURNI' },
+            selector: { prefix: 'wf_slc_', base: 'WiredSelector', editor: 'WiredSelectorType Editor => WiredSelectorType.SELECTED_FURNIS' },
+        };
+        const wired = kinds[name];
+        const box = rest.find(arg => !arg.startsWith('--'));
+
+        if (!wired) fail(`A wired box is one of ${Object.keys(kinds).join(', ')}: npm run make wired effect whisper_room`);
+        if (!box || !/^[a-z0-9_]+$/.test(box)) fail(`A wired box is named in lower case letters, digits and _: npm run make wired ${name} whisper_room`);
+
+        const logicKey = box.startsWith('wf_') ? box : `${wired.prefix}${box}`;
+        const bare = pascal(box.replace(/^wf_[a-z]+_/, ''));
+        const type = `${bare}${pascal(name)}`;
+        const body = {
+            effect: `
+    // Show Message's editor sends three ints (who sees it, the bubble, its width): keep them.
+    public override IReadOnlyList<WiredParam> Params =>
+        [WiredParam.Range(0, 1, 0), WiredParam.Range(0, 1000, 0), WiredParam.Range(-1, 2, -1)];
+
+    public override async Task<bool> ExecuteAsync(IWiredEffectContext ctx, CancellationToken ct)
+    {
+        var text = await ctx.FormatTextAsync(ctx.Text, ct);
+
+        foreach (var user in ctx.RoomUsers)
+            await ctx.ShowMessageAsync(user, text, onlyForThem: true, ct);
+
+        return ctx.RoomUsers.Count > 0;
+    }`,
+            trigger: `
+    public override bool Matches(${bare} evt, IWiredBoxConfig box) => true;`,
+            condition: `
+    public override bool ActsOnUsers => true;
+
+    public override bool ActsOnFurni => true;
+
+    // The positive rule only: the room applies the editor's "not" and invert switches.
+    public override bool Evaluate(IWiredRunContext ctx) =>
+        ctx.Users.Any(user => ctx.Furni.Any(furni => furni.X == user.X && furni.Y == user.Y));`,
+            selector: `
+    public override WiredSelection Select(IWiredRunContext ctx) =>
+        WiredSelection.OfFurni(ctx.RoomFurni.Where(furni => furni.State > 0).Select(furni => furni.Id));`,
+        }[name];
+        const header = name === 'trigger'
+            ? `/// <summary>${bare}: what the plugin fires with hotel.Wired.FireAsync (plain values: it travels as JSON).</summary>
+public sealed record ${bare} : IWiredEvent;
+
+/// <summary>
+/// Starts its stack when the plugin fires a ${bare} in the room. Found as the plugin loads; the
+/// furniture whose logic is <c>${logicKey}</c> is this box.
+/// </summary>
+[WiredBox("${logicKey}")]
+public sealed class ${type} : WiredTrigger<${bare}>`
+            : `/// <summary>
+/// A wired ${name} of the plugin's own: the furniture whose logic is <c>${logicKey}</c> is this
+/// box. Found as the plugin loads; it runs under the room's wired rules like core's boxes.
+/// </summary>
+[WiredBox("${logicKey}")]
+public sealed class ${type} : ${wired.base}`;
+
+        write(path.join(server, 'Wired', `${type}.cs`), `
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Turbo.Contracts.Wired;
+using Turbo.Primitives.Rooms.Enums.Wired;
+
+namespace ${assembly};
+
+${header}
+{
+    // The official editor the client opens: pick one whose inputs are the box's.
+    public override ${wired.editor};
+${body}
+}
+`);
+
+        return [ 'plugin-wired.md' ];
     },
 
     schedule() {

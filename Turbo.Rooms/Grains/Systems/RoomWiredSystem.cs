@@ -975,6 +975,9 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             case WiredClockTickEvent clockEvt:
                 ctx.Selected.SelectedFurniIds.Add(clockEvt.ObjectId);
                 break;
+            case PluginWiredEvent { TriggererId: { } triggerer }:
+                AddAvatarByObjectId(ctx, triggerer);
+                break;
             case WiredSignalEvent signalEvt:
                 ctx.Selected.SelectedFurniIds.UnionWith(signalEvt.AntennaIds);
 

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
+using Turbo.Rooms.Object.Logic.Plugins;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -26,9 +27,14 @@ public sealed class WiredBoxRulesTests
     [Fact]
     public void Every_wired_box_is_registered_under_one_wf_name()
     {
+        // The hosts of plugin boxes are registered under the plugin's key, not one of their own.
         var concrete = typeof(FurnitureWiredLogic)
             .Assembly.GetTypes()
-            .Where(t => !t.IsAbstract && t.IsSubclassOf(typeof(FurnitureWiredLogic)));
+            .Where(t =>
+                !t.IsAbstract
+                && t.IsSubclassOf(typeof(FurnitureWiredLogic))
+                && !typeof(IPluginWiredHost).IsAssignableFrom(t)
+            );
         var keys = Boxes().GroupBy(t => Key(t)).Where(g => g.Count() > 1);
         var offenders = concrete
             .Where(t => t.GetCustomAttribute<RoomObjectLogicAttribute>(false) is null)

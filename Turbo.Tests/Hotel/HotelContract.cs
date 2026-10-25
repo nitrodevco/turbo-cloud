@@ -258,7 +258,28 @@ public abstract class HotelContract
             .Should()
             .BeFalse();
     }
+
+    [Fact]
+    public async Task A_wired_event_reaches_only_a_room_someone_is_in()
+    {
+        await using var world = NewWorld();
+        var owner = world.AddPlayer("Owner", online: true);
+        var den = world.AddRoom("Den", owner);
+        await world.StartAsync(Ct);
+        var wired = world.Hotel.Wired;
+
+        (await wired.FireAsync(den, new HotelWiredPing(1), owner, Ct)).Should().BeFalse();
+        (await wired.FireForPlayerAsync(owner, new HotelWiredPing(1), Ct)).Should().BeFalse();
+
+        world.Enter(den, owner);
+
+        (await wired.FireAsync(den, new HotelWiredPing(2), null, Ct)).Should().BeTrue();
+        (await wired.FireForPlayerAsync(owner, new HotelWiredPing(3), Ct)).Should().BeTrue();
+    }
 }
+
+/// <summary>A wired event the scenarios fire.</summary>
+public sealed record HotelWiredPing(int Value) : Turbo.Contracts.Wired.IWiredEvent;
 
 /// <summary>A plugin message the scenarios send.</summary>
 [Turbo.Primitives.Plugins.Messages.PluginMessage("hoteltest.ping")]

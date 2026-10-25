@@ -53,6 +53,7 @@ public static class PluginContributionKinds
     public const string BEHAVIOR = "behavior";
     public const string LISTENER = "listener";
     public const string FURNI_LOGIC = "furni-logic";
+    public const string WIRED_BOX = "wired-box";
     public const string WIRED_VARIABLE = "wired-variable";
     public const string GAME = "game";
     public const string PLAY_POLICY = "play-policy";

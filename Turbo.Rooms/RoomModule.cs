@@ -12,6 +12,7 @@ using Turbo.Primitives.Texts;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Games;
 using Turbo.Rooms.Object.Logic;
+using Turbo.Rooms.Object.Logic.Plugins;
 using Turbo.Rooms.Providers;
 using Turbo.Rooms.Wired.Variables;
 using Turbo.Runtime.AssemblyProcessing;
@@ -45,6 +46,7 @@ public sealed class RoomModule : IHostPluginModule
         services.AddSingleton<IRecolorablePalettes, RecolorablePalettes>();
 
         services.AddSingleton<IAssemblyFeatureProcessor, RoomObjectLogicFeatureProcessor>();
+        services.AddSingleton<IAssemblyFeatureProcessor, PluginLogicFeatureProcessor>();
         services.AddSingleton<IAssemblyFeatureProcessor, RoomEventListenerFeatureProcessor>();
         services.AddSingleton<IAssemblyFeatureProcessor, WiredVariableFeatureProcessor>();
 

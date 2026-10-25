@@ -150,6 +150,10 @@ public sealed class PluginTemplateTests : IDisposable
                 "message levelled --to client --fields level:int,name:string",
                 "message ping",
                 "logic skill_stove",
+                "wired effect whisper_room",
+                "wired trigger credits_earned",
+                "wired condition on_furni",
+                "wired selector lit_furni",
                 "listener entered",
                 "setting rate --type int --default 5",
                 "route rares/values --anonymous",
@@ -192,7 +196,13 @@ public sealed class PluginTemplateTests : IDisposable
             .Where(c => c.Method == nameof(IRoomObjectLogicProvider.RegisterLogic))
             .Select(c => c.Args[0])
             .Should()
-            .Equal("skill_stove");
+            .BeEquivalentTo([
+                "skill_stove",
+                "wf_act_whisper_room",
+                "wf_trg_credits_earned",
+                "wf_cnd_on_furni",
+                "wf_slc_lit_furni",
+            ]);
         _fakes
             .Log.On<IRoomEventListenerRegistry>()
             .SelectMany(c => (IEnumerable<IRoomEventListener>)c.Args[0]!)
@@ -234,6 +244,12 @@ public sealed class PluginTemplateTests : IDisposable
             )
             .Should()
             .BeEquivalentTo(new { Rate = 5 }, o => o.ExcludingMissingMembers());
+        (await File.ReadAllTextAsync(Path.Combine(source, "server", "Skills.csproj"), Ct))
+            .Should()
+            .NotContain(
+                "Turbo.Rooms.dll",
+                "furni logic and wired boxes are built against the contracts alone"
+            );
         (await File.ReadAllTextAsync(Path.Combine(source, "wwwroot", "template-patches.json"), Ct))
             .Should()
             .Contain("habbo-friend-list-com/friend_list_xml");

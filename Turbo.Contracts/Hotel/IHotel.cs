@@ -4,7 +4,7 @@ namespace Turbo.Contracts.Hotel;
 
 /// <summary>
 /// The running hotel as a plugin uses it: its players, rooms, wallets, inventories, catalog,
-/// notices and clock, without a grain, a session or a table. Take it by constructor in any plugin
+/// notices, wired events and clock, without a grain, a session or a table. Take it by constructor in any plugin
 /// class (a command, a handler, a route, a service of the plugin's own) and test against
 /// <c>Turbo.Testing.FakeHotel</c>, which keeps the same rules in memory (<c>docs/hotel-api.md</c>).
 /// Every member says where it may be called from (<see cref="HotelCallAttribute"/>).
@@ -22,6 +22,9 @@ public interface IHotel
     IHotelCatalog Catalog { get; }
 
     IHotelNotify Notify { get; }
+
+    /// <summary>Plugin events for the plugin's own wired triggers (<c>docs/plugin-wired.md</c>).</summary>
+    IHotelWired Wired { get; }
 
     /// <summary>The hotel's time: what its grains read. A test moves it by hand.</summary>
     TimeProvider Clock { get; }

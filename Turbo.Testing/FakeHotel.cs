@@ -24,6 +24,7 @@ public sealed class FakeHotel : IHotel
         Inventory = new FakeInventory(this);
         Catalog = new FakeCatalog(this);
         Notify = new FakeNotify(this);
+        Wired = new FakeWired(this);
     }
 
     public FakePlayers Players { get; }
@@ -38,6 +39,8 @@ public sealed class FakeHotel : IHotel
 
     public FakeNotify Notify { get; }
 
+    public FakeWired Wired { get; }
+
     public ManualClock Clock { get; }
 
     IHotelPlayers IHotel.Players => Players;
@@ -51,6 +54,8 @@ public sealed class FakeHotel : IHotel
     IHotelCatalog IHotel.Catalog => Catalog;
 
     IHotelNotify IHotel.Notify => Notify;
+
+    IHotelWired IHotel.Wired => Wired;
 
     TimeProvider IHotel.Clock => Clock;
 

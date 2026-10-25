@@ -42,7 +42,7 @@ What already works (each with its guide):
 | Own tables and migrations | `PluginDbContextBase` (found and migrated as the plugin loads) | `database.md` |
 | Packet handlers and packet middleware | `IMessageHandler<T>`, `IMessageBehavior<T>` | `plugin-packets.md` |
 | Commands | `ICommand<TArgs>` | `commands.md` |
-| Furni and wired logic | `IRoomObjectLogic` + `[RoomObjectLogic]` | `wired.md` |
+| Furni and wired logic | `FurniLogic` + `[FurniLogic]`, `WiredEffect`/`WiredTrigger<TEvent>`/`WiredCondition`/`WiredSelector` + `[WiredBox]`, `IHotel.Wired` (contracts only) | `plugin-wired.md` |
 | Observe rooms | `IRoomEventListener` | `plugin-room-events.md` |
 | Games | `IRoomGame`, `IGameAccessPolicy` | `plugin-games.md` |
 | Permissions | `IPermissionNodeSource`, `[RequiresPermission]` | `permissions.md` |
@@ -327,12 +327,18 @@ noted.
     `npm run make <kind> <name>` in the scaffold writes a command, message, furni logic, listener,
     setting, web route, window, template patch or migration in the shape the scan finds. Done
     (`docs/plugin-loading.md`, `docs/client-modules.md`); scheduled tasks and policies get their
-    `make` kinds with their own steps. Furni logic still derives from `Turbo.Rooms`'
-    `FurnitureFloorLogic`, which is not a contract yet (§3, "Public means contract").
+    `make` kinds with their own steps. Furni logic is a contract since step 12.
 11. **Scheduled tasks** (a registry kind, §4.4): `IScheduledTask` with a cron or interval, run once
     per cluster, never overlapping, cancelled and removed on unload, listed in the panel with last
     and next run and Run now; `npm run make schedule <Name>`. Done (`docs/plugin-scheduler.md`);
     core's own periodic jobs may move onto it later.
+12. **Wired kit** (§3, "Public means contract"): furni logic and wired boxes (effects, triggers,
+    conditions, selectors) built against `Turbo.Contracts` alone, hosted by core's own kinds so a
+    plugin box keeps core's checks, flashes, limits and stack rules; plugin events fire its
+    triggers (`IHotel.Wired.FireAsync`, or `FireWiredAsync` from furni logic in the room);
+    `npm run make wired <kind> <name>`. Done (`docs/plugin-wired.md`). Add-ons are core's (they
+    change how a stack runs), and a box opens an official editor: the client has no editor of a
+    plugin's own.
 
 10. **Hotel API** (§4.3): `IHotel` for the everyday actions, `FakeHotel` for plugins' tests, contract
     tests on both. Done (`docs/hotel-api.md`); members are added when two plugins need the same one.
