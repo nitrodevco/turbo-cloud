@@ -21,7 +21,7 @@ What the server promises:
   the last time it ran, not from the last restart. A task due again within a minute writes its
   routine runs at most once a minute (a restart counts it from then anyway); a failure, a cancel,
   a run now and any task due less often are written as they end.
-- **Quiet in the log.** A routine run is logged at `Trace`, below the shipped `"Turbo": "Debug"`,
+- **Quiet in the log.** A routine run is logged at `Trace`, below the shipped `"Turbo": "Information"` (and the bootstrap's development `Debug`),
   so a task every few seconds does not fill the log. Its first run on a server, a run now and a
   cancelled run are `Information`, a failure is an `Error` with its exception, and a skipped run
   is a `Warning`.
