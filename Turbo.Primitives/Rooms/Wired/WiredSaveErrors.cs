@@ -12,6 +12,12 @@ public static class WiredSaveErrors
     /// </summary>
     public const string INVALID_FURNI_SOURCE = "wiredfurni.error.invalid_furni_source";
 
+    /// <summary>
+    /// More furni sources than the box has slots: Furni Picks saved with one (official client
+    /// capture 2026-10-25, 5 of 5; no hotel text, the editor says "Update failed").
+    /// </summary>
+    public const string INVALID_FURNI_SOURCE_COUNT = "wiredfurni.error.invalid_furni_source_count";
+
     /// <summary>A user source the slot does not offer (official client capture 2026-10-22).</summary>
     public const string INVALID_USER_SOURCE = "wiredfurni.error.invalid_user_source";
 

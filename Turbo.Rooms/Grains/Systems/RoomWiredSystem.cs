@@ -961,6 +961,9 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 break;
             case WiredSignalEvent signalEvt:
                 ctx.Selected.SelectedFurniIds.UnionWith(signalEvt.AntennaIds);
+
+                foreach (var triggerer in signalEvt.TriggererIds)
+                    AddAvatarByObjectId(ctx, triggerer);
                 break;
         }
     }

@@ -84,6 +84,9 @@ public class WiredActionSendSignal(
                     AvatarIds = userBatch,
                     Depth = ctx.Depth + 1,
                     SenderId = ObjectId,
+                    TriggererIds = ctx is WiredContext fired
+                        ? [.. fired.Selected.SelectedAvatarIds]
+                        : [],
                 };
 
                 // The receiving stacks start from this execution's context variable values.

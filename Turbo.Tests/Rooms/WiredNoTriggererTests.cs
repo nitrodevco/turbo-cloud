@@ -430,10 +430,13 @@ public sealed class WiredNoTriggererTests
                 intParams: ints,
                 stringParam: logic == "wf_act_kick_user" ? "bye" : "",
                 stuffIds: picks,
-                furniSources:
-                [
-                    [WiredFurniSourceType.SelectedItems],
-                ],
+                // A box with no furni slot is saved with no furni source, as its editor does.
+                furniSources: picks.Length > 0
+                    ?
+                    [
+                        [WiredFurniSourceType.SelectedItems],
+                    ]
+                    : null,
                 playerSources:
                 [
                     [WiredPlayerSourceType.TriggeredUser],

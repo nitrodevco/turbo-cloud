@@ -158,6 +158,36 @@ public sealed class WiredSelectorLabAnswersTests
         set.SelectedFurniIds.Should().Equal(A, B, C);
     }
 
+    // selector.1.E11: Furni Picks has no furni source slot; a save that sends one anyway is
+    // refused with invalid_furni_source_count (official client capture 2026-10-25T02-16-06, 5/5).
+    [Fact]
+    public async Task Selector1E11_ASourceForASlotThePicksDoNotHaveIsRefused()
+    {
+        _room.AddBox<WiredSelectorSelectedItems>(9, 0, 0, "wf_slc_furni_picks");
+
+        var refused = await _room.SaveWithResultAsync<UpdateSelectorMessage>(
+            9,
+            stuffIds: [A],
+            furniSources:
+            [
+                [WiredFurniSourceType.SelectedItems],
+            ],
+            definitionSpecifics: [false, false]
+        );
+
+        refused.IsSaved.Should().BeFalse();
+        refused.ErrorKey.Should().Be("wiredfurni.error.invalid_furni_source_count");
+        (
+            await _room.SaveAsync<UpdateSelectorMessage>(
+                9,
+                stuffIds: [A],
+                definitionSpecifics: [false, false]
+            )
+        )
+            .Should()
+            .BeTrue();
+    }
+
     // selector.14.R5: hand item 0 (the editor's "none") picks the users holding nothing.
     [Fact]
     public async Task Selector14R5_HandItemZeroPicksTheEmptyHanded()
@@ -322,13 +352,11 @@ public sealed class WiredSelectorLabAnswersTests
             await _room.SaveAsync<UpdateSelectorMessage>(
                 id,
                 stuffIds: picks,
-                furniSources:
-                [
-                    [WiredFurniSourceType.SelectedItems],
-                ],
                 definitionSpecifics: [false, invert]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         return id;
     }

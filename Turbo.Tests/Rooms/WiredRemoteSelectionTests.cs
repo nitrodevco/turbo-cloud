@@ -132,15 +132,14 @@ public sealed class WiredRemoteSelectionTests
         return [.. set.SelectedFurniIds.Order()];
     }
 
-    private async Task SaveSelectorAsync(int id, int[] picks) => (
+    private async Task SaveSelectorAsync(int id, int[] picks) =>
+        (
             await _room.SaveAsync<UpdateSelectorMessage>(
                 id,
                 stuffIds: picks,
-                furniSources:
-                [
-                    [WiredFurniSourceType.SelectedItems],
-                ],
                 definitionSpecifics: [false, false]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 }

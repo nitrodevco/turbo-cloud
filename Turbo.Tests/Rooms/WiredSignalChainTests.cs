@@ -86,9 +86,10 @@ public sealed class WiredSignalChainTests
         await WalkOntoAsync(5);
         await TickAsync(6);
 
-        // Nobody triggered the receiving stack (a signal is not a user), so nobody is teleported:
-        // 5 only stands where it walked, on the furni that started the chain.
-        _room.Positions().Should().Equal("5@6,6", "6@1,3", "7@3,1");
+        // trigger.17.R2 / selector.10.R4: the receiving stack's triggerer is the sender's, the
+        // user who walked onto the furni, whatever users the signal carries (official client
+        // capture 2026-10-24T19-54-13 4/4, 2026-10-25T03-24-54 3/3).
+        _room.Positions().Should().Equal("5@5,5", "6@1,3", "7@3,1");
     }
 
     // --- the build from the screenshots: a click starts it ---
@@ -293,13 +294,11 @@ public sealed class WiredSignalChainTests
                 await _room.SaveAsync<UpdateSelectorMessage>(
                     6,
                     stuffIds: [selectorAntenna],
-                    furniSources:
-                    [
-                        [WiredFurniSourceType.SelectedItems],
-                    ],
                     definitionSpecifics: [false, false]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
         }
 
         (

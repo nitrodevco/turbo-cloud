@@ -458,8 +458,15 @@ public abstract partial class FurnitureWiredLogic(
 
             var index = 0;
             var validFurniSources = GetAllowedFurniSources();
+            var defaultFurniSources = GetDefaultFurniSources();
 
-            foreach (var source in GetDefaultFurniSources())
+            // A source for a slot the box does not have is refused, not dropped (official client
+            // capture 2026-10-25, W4 lab selector.1.E11: Furni Picks, which has no furni slot,
+            // saved with [100] -> invalid_furni_source_count 5/5).
+            if (update.FurniSources.Count > defaultFurniSources.Count)
+                throw new WiredSaveRefusedException(WiredSaveErrors.INVALID_FURNI_SOURCE_COUNT);
+
+            foreach (var source in defaultFurniSources)
             {
                 WiredFurniSourceType[]? sourceTypes = source;
 

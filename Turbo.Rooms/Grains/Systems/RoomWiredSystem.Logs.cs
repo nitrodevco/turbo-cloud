@@ -62,7 +62,9 @@ public sealed partial class RoomWiredSystem
                 TimestampMs = now.ToUnixTimeMilliseconds(),
                 TimestampText = TimeZoneInfo
                     .ConvertTime(now, GetRoomTimeZone())
-                    .ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+                    // Day first, as Habbo's list shows it ("25-10-2026 01:37:45", official
+                    // client capture 2026-10-25T01-37-31, W4 lab action.49.R3).
+                    .ToString("dd-MM-yyyy HH:mm:ss", CultureInfo.InvariantCulture),
             }
         );
     }

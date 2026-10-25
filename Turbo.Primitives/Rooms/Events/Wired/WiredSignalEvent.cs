@@ -26,4 +26,12 @@ public sealed record WiredSignalEvent : RoomEvent
 
     [Id(4)]
     public RoomObjectId SenderId { get; init; }
+
+    /// <summary>
+    /// The sending stack's triggerer, who triggers the receiving stack too (official client
+    /// capture 2026-10-24/25, W4 lab selector.10.R4 4/4 and trigger.17.R2 3/3: a receiver's
+    /// "triggering user" was the user, or the bot, that fired the sender).
+    /// </summary>
+    [Id(5)]
+    public HashSet<RoomObjectId> TriggererIds { get; init; } = [];
 }

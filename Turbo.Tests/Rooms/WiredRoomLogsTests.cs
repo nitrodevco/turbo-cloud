@@ -96,7 +96,9 @@ public sealed class WiredRoomLogsTests
         packet.PopByte().Should().Be(1);
         packet.PopString().Should().Be("second");
         packet.PopLong().Should().BeGreaterThan(0);
-        packet.PopString().Should().MatchRegex(@"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$");
+        // action.49.R3: day first, as Habbo's "25-10-2026 01:37:45" (official client capture
+        // 2026-10-25T01-37-31 / 01-38-00, every entry).
+        packet.PopString().Should().MatchRegex(@"^\d\d-\d\d-\d{4} \d\d:\d\d:\d\d$");
 
         packet.PopLong();
         packet.PopByte();
