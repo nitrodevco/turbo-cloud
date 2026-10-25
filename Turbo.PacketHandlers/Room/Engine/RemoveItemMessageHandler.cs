@@ -26,7 +26,7 @@ public class RemoveItemMessageHandler(IGrainFactory grainFactory)
 
         await _grainFactory
             .GetRoomGrain(ctx.RoomId)
-            .DeleteItemByIdAsync(ctx.AsActionContext(), message.ItemId, ct)
+            .RemoveWallItemAsync(ctx.AsActionContext(), message.ItemId, ct)
             .ConfigureAwait(false);
     }
 }

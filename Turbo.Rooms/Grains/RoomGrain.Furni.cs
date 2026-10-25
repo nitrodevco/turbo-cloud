@@ -268,6 +268,30 @@ public sealed partial class RoomGrain
         }
     }
 
+    public async Task<bool> RemoveWallItemAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            return await ActionModule.RemoveWallItemAsync(ctx, itemId, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to remove wall item {ItemId} from room {RoomId} for player {PlayerId}",
+                itemId,
+                _state.RoomId,
+                ctx.PlayerId
+            );
+
+            return false;
+        }
+    }
+
     public Task<int> GetItemCountByOwnerAsync(PlayerId ownerId, CancellationToken ct) =>
         FurniModule.GetItemCountByOwnerAsync(ownerId, ct);
 

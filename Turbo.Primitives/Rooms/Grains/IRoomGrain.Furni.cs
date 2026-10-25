@@ -82,10 +82,20 @@ public partial interface IRoomGrain
     public Task<string?> GetItemDataAsync(RoomObjectId itemId, CancellationToken ct);
 
     /// <summary>
-    /// Destroys an item (a post-it or photo): it leaves the room and is deleted rather than
-    /// returned to anyone's inventory. Rights or ownership required.
+    /// Destroys an item: it leaves the room and is deleted rather than returned to anyone's
+    /// inventory. Rights or ownership required.
     /// </summary>
     public Task<bool> DeleteItemByIdAsync(
+        ActionContext ctx,
+        RoomObjectId itemId,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// A player destroying a wall item (a post-it or photo) from its widget: only the room's
+    /// owner or a player controlling every room may, and nothing returns to an inventory.
+    /// </summary>
+    public Task<bool> RemoveWallItemAsync(
         ActionContext ctx,
         RoomObjectId itemId,
         CancellationToken ct
