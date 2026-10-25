@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
@@ -27,9 +28,9 @@ namespace Turbo.Admin.Api;
 /// </summary>
 internal sealed class PluginNoCodeEndpoints(
     IGrainFactory grainFactory,
-    IPluginStyles styles,
-    IHotelDataPlugin hotel,
-    AdminActionLog audit
+    AdminActionLog audit,
+    IPluginStyles? stylesService = null,
+    IHotelDataPlugin? hotelService = null
 )
 {
     private const string NO_ACCESS = "You can't see the server's plugins.";
@@ -37,6 +38,13 @@ internal sealed class PluginNoCodeEndpoints(
     private const string NO_PLUGIN = "There is no plugin with that key.";
     private const string NO_STYLE = "The theme has no such style.";
     private const long IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+
+    // A host without plugins (an admin API on its own) has neither: every route answers 404.
+    private IPluginStyles Styles =>
+        stylesService ?? throw new KeyNotFoundException("The server runs no plugins.");
+
+    private IHotelDataPlugin Hotel =>
+        hotelService ?? throw new KeyNotFoundException("The server runs no plugins.");
 
     public void Map(RouteGroupBuilder secured)
     {
@@ -59,12 +67,12 @@ internal sealed class PluginNoCodeEndpoints(
 
     private async Task<IResult> StylesAsync(string key, HttpContext http, CancellationToken ct)
     {
-        if (hotel.FolderOf(key) is not { } folder)
+        if (stylesService is null || hotelService?.FolderOf(key) is not { } folder)
             return AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN);
 
         try
         {
-            var list = await styles.ListAsync(key, folder, ct).ConfigureAwait(false);
+            var list = await Styles.ListAsync(key, folder, ct).ConfigureAwait(false);
 
             return Results.Ok(
                 new PluginStylesResponse(
@@ -93,10 +101,10 @@ internal sealed class PluginNoCodeEndpoints(
             $"style {key} {name}={input.Value}",
             ct,
             async player =>
-                hotel.FolderOf(key) is { } folder
+                Hotel.FolderOf(key) is { } folder
                     ? Results.Ok(
                         PluginStyleView.From(
-                            await styles
+                            await Styles
                                 .SetAsync(
                                     key,
                                     folder,
@@ -122,9 +130,9 @@ internal sealed class PluginNoCodeEndpoints(
             $"style {key} {name} reset",
             ct,
             async player =>
-                hotel.FolderOf(key) is not { } folder
+                Hotel.FolderOf(key) is not { } folder
                     ? AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
-                : await styles.ResetAsync(key, folder, name, player, ct).ConfigureAwait(false)
+                : await Styles.ResetAsync(key, folder, name, player, ct).ConfigureAwait(false)
                     is { } style
                     ? Results.Ok(PluginStyleView.From(style))
                 : AdminResults.Error(StatusCodes.Status404NotFound, NO_STYLE)
@@ -146,7 +154,7 @@ internal sealed class PluginNoCodeEndpoints(
             ct,
             async player =>
             {
-                if (hotel.FolderOf(key) is not { } folder)
+                if (Hotel.FolderOf(key) is not { } folder)
                     return AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN);
 
                 if (
@@ -176,7 +184,7 @@ internal sealed class PluginNoCodeEndpoints(
 
                 memory.Position = 0;
 
-                var url = await hotel
+                var url = await Hotel
                     .SaveFileAsync(
                         $"styles/{key}/{safe}-{hash}{Path.GetExtension(file.FileName).ToLowerInvariant()}",
                         memory,
@@ -186,7 +194,7 @@ internal sealed class PluginNoCodeEndpoints(
 
                 return Results.Ok(
                     PluginStyleView.From(
-                        await styles
+                        await Styles
                             .SetAsync(key, folder, name, url, player, ct)
                             .ConfigureAwait(false)
                     )
@@ -195,14 +203,16 @@ internal sealed class PluginNoCodeEndpoints(
         );
 
     private async Task<IResult> PatchesAsync(HttpContext http, CancellationToken ct) =>
-        Results.Ok(
-            new HotelPatchesResponse(
-                IHotelDataPlugin.KEY,
-                await hotel.PatchesAsync(ct).ConfigureAwait(false),
-                await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_MANAGE, ct)
-                    .ConfigureAwait(false)
-            )
-        );
+        hotelService is null
+            ? AdminResults.Error(StatusCodes.Status404NotFound, "The server runs no plugins.")
+            : Results.Ok(
+                new HotelPatchesResponse(
+                    IHotelDataPlugin.KEY,
+                    await Hotel.PatchesAsync(ct).ConfigureAwait(false),
+                    await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_MANAGE, ct)
+                        .ConfigureAwait(false)
+                )
+            );
 
     private Task<IResult> SavePatchAsync(
         HotelPatch patch,
@@ -213,7 +223,7 @@ internal sealed class PluginNoCodeEndpoints(
             http,
             $"patch {patch.Template} {patch.Name}{(patch.Disabled ? " (disabled)" : "")}",
             ct,
-            async _ => Results.Ok(await hotel.SavePatchAsync(patch, ct).ConfigureAwait(false))
+            async _ => Results.Ok(await Hotel.SavePatchAsync(patch, ct).ConfigureAwait(false))
         );
 
     private Task<IResult> RemovePatchAsync(string id, HttpContext http, CancellationToken ct) =>
@@ -222,7 +232,7 @@ internal sealed class PluginNoCodeEndpoints(
             $"patch {id} removed",
             ct,
             async _ =>
-                await hotel.RemovePatchAsync(id, ct).ConfigureAwait(false)
+                await Hotel.RemovePatchAsync(id, ct).ConfigureAwait(false)
                     ? Results.NoContent()
                     : AdminResults.Error(StatusCodes.Status404NotFound, "There is no such patch.")
         );
@@ -238,7 +248,7 @@ internal sealed class PluginNoCodeEndpoints(
             $"package {key} as {request.Key} {request.Version}",
             ct,
             async _ =>
-                await hotel.ExportAsync(key, request, ct).ConfigureAwait(false) is { } zip
+                await Hotel.ExportAsync(key, request, ct).ConfigureAwait(false) is { } zip
                     ? Results.File(zip, "application/zip", $"{request.Key}-{request.Version}.zip")
                     : AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
         );
@@ -276,6 +286,11 @@ internal sealed class PluginNoCodeEndpoints(
         {
             outcome = CommandOutcome.Failed;
             result = AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            outcome = CommandOutcome.Failed;
+            result = AdminResults.Error(StatusCodes.Status404NotFound, ex.Message);
         }
 
         await audit
