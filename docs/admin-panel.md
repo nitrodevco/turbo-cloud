@@ -1413,6 +1413,12 @@ With `admin.plugins.manage`:
   `plugins.json` in the plugin folder (`{"Disabled": ["key"]}`), so it travels with the folder and
   can be edited by hand; the next scan or restart reads it.
 
+**Schedule** lists the plugins' scheduled tasks (`docs/plugin-scheduler.md`): each task's
+schedule in words, its last run (when, how long, how it ended and the error), its next run, how
+many runs were skipped because the one before was still going, and how many servers have it
+loaded. With `admin.plugins.manage`, **Run now** runs one at once without moving its schedule;
+a run now goes to the command log.
+
 **Installing a package** is off unless the server sets `Turbo:Plugin:UploadEnabled` to `true`,
 and needs `admin.plugins.install`, which no wildcard grants: a package is server code that runs
 with the hotel's own access. A package is a zip with `manifest.json` and the plugin's assembly at

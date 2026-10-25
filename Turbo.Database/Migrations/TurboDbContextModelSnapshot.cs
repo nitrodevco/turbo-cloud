@@ -8519,6 +8519,45 @@ namespace Turbo.Database.Migrations
                     b.ToTable("room_wired_logs");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Scheduling.ScheduledTaskRunEntity", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("task_key");
+
+                    b.Property<long>("DurationMs")
+                        .HasColumnType("bigint")
+                        .HasColumnName("duration_ms");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("error");
+
+                    b.Property<bool>("Manual")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("manual");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasColumnName("outcome");
+
+                    b.Property<DateTime>("ScheduledForUtc")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("scheduled_for");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("started_at");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("scheduled_task_runs");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Security.PlayerDiscordLinkEntity", b =>
                 {
                     b.Property<int>("Id")

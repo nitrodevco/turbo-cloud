@@ -38,6 +38,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Polls;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Wired.Link;
+using Turbo.Primitives.Scheduling.Grains;
 using Turbo.Primitives.Sound.Grains;
 using Turbo.Primitives.WiredTrading.Grains;
 
@@ -302,6 +303,9 @@ public static class GrainFactoryExtensions
     public static IAssetMovementDispatcherGrain GetAssetMovementDispatcherGrain(
         this IGrainFactory factory
     ) => factory.GetGrain<IAssetMovementDispatcherGrain>(SingletonGrainId.GLOBAL);
+
+    public static IScheduledTaskGrain GetScheduledTaskGrain(this IGrainFactory factory) =>
+        factory.GetGrain<IScheduledTaskGrain>(SingletonGrainId.GLOBAL);
 
     public static ICatalogLtdRaffleGrain GetLtdRaffleGrain(
         this IGrainFactory factory,

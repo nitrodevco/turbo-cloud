@@ -21,6 +21,7 @@ using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Polls;
 using Turbo.Database.Entities.Quests;
 using Turbo.Database.Entities.Room;
+using Turbo.Database.Entities.Scheduling;
 using Turbo.Database.Entities.Security;
 using Turbo.Database.Entities.Settings;
 using Turbo.Database.Entities.Sound;
@@ -295,6 +296,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<AssetReversalReceiptEntity> AssetReversalReceipts { get; init; }
     public DbSet<CurrencyLedgerEntryEntity> CurrencyLedger { get; init; }
     public DbSet<MovementConsumerCursorEntity> MovementConsumerCursors { get; init; }
+
+    public DbSet<ScheduledTaskRunEntity> ScheduledTaskRuns { get; init; }
 
     protected override void OnModelCreating(ModelBuilder mb)
     {

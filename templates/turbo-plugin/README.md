@@ -4,7 +4,8 @@ A Turbo plugin with both halves in one folder:
 
 ```
 server/          the server half (C#): SkillsPlugin (its services), its settings, permission node,
-                 :skills command, messages and their handlers, all found as it loads
+                 :skills command, messages and their handlers, a weekly scheduled task, all found
+                 as it loads
 client/src/      the client module (TypeScript + React): a window, a toolbar icon, a patch to the purse;
                  made/ holds what `npm run make` adds
 wwwroot/         files clients load beside the module (its icon), and template-patches.json: changes to
@@ -85,5 +86,24 @@ by constructor (`SkillBook` alerts a player who levels up); its tests use `FakeH
 `Turbo.Testing.dll` in the same bin folder, with assertions such as
 `hotel.Notify.AssertAlerted(alice, SkillBook.LEVELLED)` (turbo-cloud `docs/hotel-api.md`).
 
+## A scheduled task
+
+`server/SkillsWeeklyReset.cs` is a job the hotel runs on a schedule: a public class implementing
+`IScheduledTask` with `[Schedule("<cron>")]` or `[Every("<interval>")]`. Nothing registers it: the
+server finds it as the plugin loads, runs it once per cluster (never twice at once) and takes it
+away on unload. The admin panel's Plugins page lists it with its last and next run and a Run now
+button. Another one is a copy of that file:
+
+```csharp
+[Schedule("0 18 * * MON")]                 // Mondays 18:00; or [Every("00:05:00")]
+public sealed class WeeklyRotation(MyService service) : IScheduledTask
+{
+    public Task RunAsync(ScheduledTaskRun run, CancellationToken ct) => service.RotateAsync(ct);
+}
+```
+
+Recipes, the cron format and the schedule-from-a-setting form: turbo-cloud `docs/plugin-scheduler.md`.
+
 Guides (turbo-cloud `docs/`): `extensions.md` (the model), `hotel-api.md`, `client-modules.md`, `plugin-messages.md`,
-`commands.md`, `permissions.md`, `settings.md`, `database.md` (when the plugin keeps data).
+`commands.md`, `permissions.md`, `settings.md`, `database.md` (when the plugin keeps data),
+`plugin-scheduler.md`.

@@ -730,6 +730,16 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Wired.Link.IWiredLinkOwner
   585D65D6: SaveAsync(Turbo.Primitives.Rooms.Wired.Link.WiredLinkEndpoint, bool, string, bool, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Wired.Link.WiredLinkOperationOutcome>
   ACDADEC3: SendAsync(Turbo.Primitives.Rooms.RoomId, System.Collections.Immutable.ImmutableArray<int>, Turbo.Primitives.Rooms.Wired.Link.WiredLinkPayload, System.Threading.CancellationToken) -> Task<int>
 
+interface [GrainInterfaceType("Turbo.Primitives.Scheduling.Grains.IScheduledTaskGrain")] Turbo.Primitives.Scheduling.Grains.IScheduledTaskGrain [Version(0)]
+  2E94618B: CompletedAsync(string, System.Guid, Turbo.Primitives.Scheduling.Grains.ScheduledTaskResult, System.Threading.CancellationToken) -> Task
+  624CC991: ListAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Scheduling.Grains.ScheduledTaskSnapshot>>
+  2424319B: RunNowAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Scheduling.Grains.ScheduledTaskRunNow>
+  3DC0AA35: SubscribeAsync(string, Turbo.Primitives.Scheduling.Grains.IScheduledTaskServer, System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Scheduling.Grains.ScheduledTaskEntry>, System.Threading.CancellationToken) -> Task
+  4A1E78CE: UnsubscribeAsync(string, System.Threading.CancellationToken) -> Task
+
+interface [GrainInterfaceType("Turbo.Primitives.Scheduling.Grains.IScheduledTaskServer")] Turbo.Primitives.Scheduling.Grains.IScheduledTaskServer [Version(0)]
+  EAB1FC13: StartAsync(string, System.Guid, System.DateTimeOffset, bool, System.Threading.CancellationToken) -> Task<bool>
+
 interface [GrainInterfaceType("Turbo.Primitives.Sound.Grains.IJukeboxGrain")] Turbo.Primitives.Sound.Grains.IJukeboxGrain [Version(0)]
   AAFA99F7: AddDiskAsync(Turbo.Primitives.Players.PlayerId, Turbo.Primitives.Rooms.Object.RoomObjectId, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Sound.Snapshots.JukeboxChangeResultSnapshot>
   067D2624: GetDisksAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Sound.Snapshots.SongDiskSnapshot>>
