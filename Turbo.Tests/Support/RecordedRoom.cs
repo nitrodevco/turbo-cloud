@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
@@ -5,9 +6,11 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Providers;
 
 namespace Turbo.Tests.Support;
@@ -23,10 +26,20 @@ public sealed class RecordedRoom
 {
     private readonly Dictionary<int, JsonElement> _types;
     private readonly JsonElement[] _areaHides;
+    private readonly bool _liveBoxes;
 
-    public RecordedRoom(JsonElement entry, Dictionary<int, JsonElement> types)
+    /// <param name="liveBoxes">
+    /// Wired boxes (a <c>wf_</c> class) stand with their own logic, so they can be saved and run;
+    /// without it every furni has the default one.
+    /// </param>
+    public RecordedRoom(
+        JsonElement entry,
+        Dictionary<int, JsonElement> types,
+        bool liveBoxes = false
+    )
     {
         _types = types;
+        _liveBoxes = liveBoxes;
 
         var modelData = RoomModelProvider.CleanModelString(entry.GetProperty("model").GetString()!);
         var compiled = RoomModelProvider.CompileModelFromString(modelData);
@@ -103,6 +116,17 @@ public sealed class RecordedRoom
         }
 
         var type = _types[row[at + 1].GetInt32()];
+
+        if (_liveBoxes && BoxLogic(type[0].GetString()!) is { } box)
+        {
+            typeof(WiredRoom)
+                .GetMethod(nameof(WiredRoom.AddBox))!
+                .MakeGenericMethod(box)
+                .Invoke(Room, [id, x, y, type[0].GetString()!]);
+
+            return;
+        }
+
         var item = new RoomFloorItem
         {
             ObjectId = id,
@@ -147,6 +171,16 @@ public sealed class RecordedRoom
         Room.Harness.State.ItemsById.Add(id, item);
         map.AddItem(item);
     }
+
+    /// <summary>The logic of the wired box Habbo names by this class (its logic key); null for no box.</summary>
+    private static Type? BoxLogic(string classname) =>
+        typeof(FurnitureWiredLogic)
+            .Assembly.GetTypes()
+            .FirstOrDefault(t =>
+                typeof(FurnitureWiredLogic).IsAssignableFrom(t)
+                && !t.IsAbstract
+                && t.GetCustomAttribute<RoomObjectLogicAttribute>(false)?.Key == classname
+            );
 
     /// <summary>A furni the room no longer has.</summary>
     public void Remove(int id)
