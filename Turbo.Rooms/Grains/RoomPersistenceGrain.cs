@@ -32,6 +32,7 @@ using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Chat;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms.Grains;
@@ -60,6 +61,9 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 
     private IDisposable? _dirtyItemsTimer;
     private IDisposable? _chatlogTimer;
+
+    /// <summary>How many lines of its wired log the room keeps, as it last said.</summary>
+    private int _wiredLogsKept = int.MaxValue;
 
     public RoomPersistenceGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -115,13 +119,16 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
         while (_state.PendingChatlogs.Count > 0 && await FlushChatlogsAsync(ct)) { }
 
         while (_state.PendingCommandLogs.Count > 0 && await FlushCommandLogsAsync(ct)) { }
+
+        await FlushWiredLogsAsync(ct);
     }
 
-    /// <summary>The chatlog timer's tick: the two audit buffers share it, and neither holds up the other.</summary>
+    /// <summary>The chatlog timer's tick: the three log buffers share it, and none holds up another.</summary>
     private async Task FlushLogsAsync(CancellationToken ct)
     {
         await FlushChatlogsAsync(ct);
         await FlushCommandLogsAsync(ct);
+        await FlushWiredLogsAsync(ct);
     }
 
     public Task EnqueueCommandLogsAsync(List<CommandLogSnapshot> snapshots, CancellationToken ct)
@@ -209,6 +216,129 @@ internal sealed class RoomPersistenceGrain : Grain, IRoomPersistenceGrain
 
             return false;
         }
+    }
+
+    public Task EnqueueWiredLogsAsync(
+        List<WiredRoomLogEntrySnapshot> snapshots,
+        int keep,
+        CancellationToken ct
+    )
+    {
+        _wiredLogsKept = keep;
+
+        foreach (var snapshot in snapshots)
+        {
+            // The room keeps no more than this either, so an older queued line is one it dropped.
+            while (_state.PendingWiredLogs.Count >= Math.Max(keep, 1))
+                _state.PendingWiredLogs.Dequeue();
+
+            _state.PendingWiredLogs.Enqueue(snapshot);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Writes every queued wired log line, then deletes the room's lines older than its newest
+    /// kept ones. False when it could not be written; the lines stay queued.
+    /// </summary>
+    private async Task<bool> FlushWiredLogsAsync(CancellationToken ct)
+    {
+        if (_state.PendingWiredLogs.Count == 0)
+            return true;
+
+        var taken = _state.PendingWiredLogs.ToList();
+        var roomId = _state.RoomId.Value;
+
+        _state.PendingWiredLogs.Clear();
+
+        try
+        {
+            await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+            dbCtx.RoomWiredLogs.AddRange(
+                taken.Select(x => new RoomWiredLogEntity
+                {
+                    RoomEntityId = roomId,
+                    Level = x.Level,
+                    Source = x.Source,
+                    Message = Truncate(x.Message, RoomWiredLogEntity.MESSAGE_MAX_LENGTH),
+                    CreatedAt = DateTimeOffset.FromUnixTimeMilliseconds(x.TimestampMs).UtcDateTime,
+                })
+            );
+
+            await dbCtx.SaveChangesAsync(ct);
+
+            var oldestKept = await dbCtx
+                .RoomWiredLogs.AsNoTracking()
+                .Where(x => x.RoomEntityId == roomId)
+                .OrderByDescending(x => x.Id)
+                .Skip(Math.Max(_wiredLogsKept, 1) - 1)
+                .Select(x => (int?)x.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (oldestKept is { } id)
+                await dbCtx
+                    .RoomWiredLogs.Where(x => x.RoomEntityId == roomId && x.Id < id)
+                    .ExecuteDeleteAsync(ct);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to flush {Count} wired log lines for room {RoomId}; they stay queued",
+                taken.Count,
+                _state.RoomId
+            );
+
+            var later = _state.PendingWiredLogs.ToList();
+
+            _state.PendingWiredLogs.Clear();
+
+            foreach (var snapshot in taken.Concat(later).TakeLast(Math.Max(_wiredLogsKept, 1)))
+                _state.PendingWiredLogs.Enqueue(snapshot);
+
+            return false;
+        }
+    }
+
+    public async Task<List<WiredRoomLogEntrySnapshot>> LoadWiredLogsAsync(
+        int count,
+        CancellationToken ct
+    )
+    {
+        if (count <= 0)
+            return [];
+
+        await FlushWiredLogsAsync(ct);
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var rows = await dbCtx
+            .RoomWiredLogs.AsNoTracking()
+            .Where(x => x.RoomEntityId == _state.RoomId.Value)
+            .OrderByDescending(x => x.Id)
+            .Take(count)
+            .ToListAsync(ct);
+
+        return
+        [
+            .. rows.OrderBy(x => x.Id)
+                .Select(x => new WiredRoomLogEntrySnapshot
+                {
+                    Id = x.Id,
+                    Level = x.Level,
+                    Source = x.Source,
+                    Message = x.Message,
+                    TimestampMs = new DateTimeOffset(
+                        DateTime.SpecifyKind(x.CreatedAt, DateTimeKind.Utc)
+                    ).ToUnixTimeMilliseconds(),
+                    // The room writes it in its own time zone when it lists the line.
+                    TimestampText = string.Empty,
+                }),
+        ];
     }
 
     private static string Truncate(string value, int max) =>

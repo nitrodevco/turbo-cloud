@@ -3057,10 +3057,10 @@ namespace Turbo.Database.Migrations
 
                     b.HasIndex("PlayerEntityId", "GameTypeId");
 
-                    b.HasIndex("GameTypeId", "Year", "Week");
-
                     b.HasIndex("GameTypeId", "GameId", "PlayerEntityId")
                         .IsUnique();
+
+                    b.HasIndex("GameTypeId", "Year", "Week");
 
                     b.ToTable("game_player_results");
                 });
@@ -8476,6 +8476,47 @@ namespace Turbo.Database.Migrations
                         .IsUnique();
 
                     b.ToTable("room_rights");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Room.RoomWiredLogEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("Level")
+                        .HasColumnType("int")
+                        .HasColumnName("level");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("message");
+
+                    b.Property<int>("RoomEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("int")
+                        .HasColumnName("source");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoomEntityId", "Id");
+
+                    b.ToTable("room_wired_logs");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Security.PlayerDiscordLinkEntity", b =>

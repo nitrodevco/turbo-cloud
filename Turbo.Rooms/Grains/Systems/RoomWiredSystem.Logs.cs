@@ -51,23 +51,61 @@ public sealed partial class RoomWiredSystem
             _roomLogs.RemoveFirst();
 
         var now = UtcNow;
+        var entry = new WiredRoomLogEntrySnapshot
+        {
+            Id = _nextRoomLogId++,
+            Level = (int)level,
+            Source = LOG_SOURCE_WIRED,
+            Message = message,
+            TimestampMs = now.ToUnixTimeMilliseconds(),
+            TimestampText = FormatLogTime(now),
+        };
 
-        _roomLogs.AddLast(
-            new WiredRoomLogEntrySnapshot
-            {
-                Id = _nextRoomLogId++,
-                Level = (int)level,
-                Source = LOG_SOURCE_WIRED,
-                Message = message,
-                TimestampMs = now.ToUnixTimeMilliseconds(),
-                TimestampText = TimeZoneInfo
-                    .ConvertTime(now, GetRoomTimeZone())
-                    // Day first, as Habbo's list shows it ("25-10-2026 01:37:45", official
-                    // client capture 2026-10-25T01-37-31, W4 lab action.49.R3).
-                    .ToString("dd-MM-yyyy HH:mm:ss", CultureInfo.InvariantCulture),
-            }
-        );
+        _roomLogs.AddLast(entry);
+        _roomGrain.QueueWiredLog(entry);
     }
+
+    /// <summary>
+    /// The lines the room wrote before it was last unloaded, oldest first, ahead of any written
+    /// since. Their times are written in the room's time zone as it is now.
+    /// </summary>
+    public void LoadRoomLogs(IReadOnlyList<WiredRoomLogEntrySnapshot> stored)
+    {
+        if (stored.Count == 0)
+            return;
+
+        var zone = GetRoomTimeZone();
+        var node = _roomLogs.First;
+
+        foreach (var entry in stored)
+        {
+            var line = entry with
+            {
+                TimestampText = FormatLogTime(
+                    DateTimeOffset.FromUnixTimeMilliseconds(entry.TimestampMs),
+                    zone
+                ),
+            };
+
+            if (node is null)
+                _roomLogs.AddLast(line);
+            else
+                _roomLogs.AddBefore(node, line);
+        }
+
+        while (_roomLogs.Count > Math.Max(WiredConfig.MaxRoomLogEntries, 0))
+            _roomLogs.RemoveFirst();
+
+        // A line written from now on lists after every stored one.
+        _nextRoomLogId = Math.Max(_nextRoomLogId, stored.Max(x => x.Id) + 1);
+    }
+
+    // Day first, as Habbo's list shows it ("25-10-2026 01:37:45", official client capture
+    // 2026-10-25T01-37-31, W4 lab action.49.R3).
+    private string FormatLogTime(DateTimeOffset at, TimeZoneInfo? zone = null) =>
+        TimeZoneInfo
+            .ConvertTime(at, zone ?? GetRoomTimeZone())
+            .ToString("dd-MM-yyyy HH:mm:ss", CultureInfo.InvariantCulture);
 
     /// <summary>The room's log lines, oldest first.</summary>
     public ImmutableArray<WiredRoomLogEntrySnapshot> GetRoomLogs() => [.. _roomLogs];

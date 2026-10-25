@@ -205,6 +205,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<RoomChatlogEntity> Chatlogs { get; init; }
     public DbSet<CommandLogEntity> CommandLogs { get; init; }
+    public DbSet<RoomWiredLogEntity> RoomWiredLogs { get; init; }
     public DbSet<PlayerSanctionEntity> PlayerSanctions { get; init; }
     public DbSet<FilterWordEntity> FilterWords { get; init; }
     public DbSet<SecurityTicketEntity> SecurityTickets { get; init; }

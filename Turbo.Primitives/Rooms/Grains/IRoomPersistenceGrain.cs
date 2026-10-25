@@ -10,6 +10,7 @@ using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Chat;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 
 namespace Turbo.Primitives.Rooms.Grains;
 
@@ -30,6 +31,26 @@ public partial interface IRoomPersistenceGrain : IGrainWithIntegerKey
     /// <summary>Writes the command uses, oldest first, on the next chatlog flush.</summary>
     [AlwaysInterleave]
     public Task EnqueueCommandLogsAsync(List<CommandLogSnapshot> snapshots, CancellationToken ct);
+
+    /// <summary>
+    /// Writes the wired log lines, oldest first, on the next chatlog flush, and keeps only the
+    /// room's newest <paramref name="keep"/> lines.
+    /// </summary>
+    [AlwaysInterleave]
+    public Task EnqueueWiredLogsAsync(
+        List<WiredRoomLogEntrySnapshot> snapshots,
+        int keep,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// The room's newest <paramref name="count"/> wired log lines, oldest first, as stored once
+    /// what is still queued is written: the log a room comes back to after it was unloaded.
+    /// </summary>
+    public Task<List<WiredRoomLogEntrySnapshot>> LoadWiredLogsAsync(
+        int count,
+        CancellationToken ct
+    );
 
     /// <summary>Writes where the item stands and its data on the next flush.</summary>
     [AlwaysInterleave]

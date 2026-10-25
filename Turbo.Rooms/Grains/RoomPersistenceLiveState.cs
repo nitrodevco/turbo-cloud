@@ -6,6 +6,7 @@ using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Snapshots.Chat;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 
 namespace Turbo.Rooms.Grains;
 
@@ -23,6 +24,7 @@ internal sealed class RoomPersistenceLiveState
     public Dictionary<int, BotSnapshot> DirtyBots { get; } = [];
     public Queue<RoomChatlogSnapshot> PendingChatlogs { get; } = new();
     public Queue<CommandLogSnapshot> PendingCommandLogs { get; } = new();
+    public Queue<WiredRoomLogEntrySnapshot> PendingWiredLogs { get; } = new();
 }
 
 /// <summary>A change of who holds a furni and where, written through rather than buffered.</summary>
