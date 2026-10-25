@@ -9,6 +9,8 @@ import { skillStore } from './skillStore';
 export const SkillsWindow = ({ close }: ClientModuleWindowProps) => {
     const api = useApi();
     const [ skill, setSkill ] = useState<Skill>(skillStore.current);
+    // The client's own state, read-only (API 1.1): drawn again only when the name changes.
+    const name = api.state.use(state => state.user.name);
 
     useEffect(() => {
         const stop = skillStore.listen(setSkill);
@@ -32,7 +34,7 @@ export const SkillsWindow = ({ close }: ClientModuleWindowProps) => {
             layout={{ width: 240, height: 140 }}>
             <Box layout={{ flexDirection: 'column', gap: 8, padding: 10, width: 238 }}>
                 <ThemeText
-                    text={text('level', 'Level %level%', { level: String(skill.level) })}
+                    text={text('level', '%name%: level %level%', { name, level: String(skill.level) })}
                     textStyle="u_bold" />
                 <ThemeText
                     text={text('experience', '%experience% / %needed% experience', { experience: String(skill.experience), needed: String(skill.needed) }) + ` (${done}%)`}
