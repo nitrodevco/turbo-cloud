@@ -23,6 +23,9 @@ public static class WiredChestNotices
     public const string SOMEONE_WITHDRAWS = "wired_chests.someone_withdraws";
     public const string WIRED_TRANSACTION = "wired_chests.chest_wired_transaction";
 
+    /// <summary>What a full chest passed on reached its owner; no option turns it off.</summary>
+    public const string EARNINGS = "wired_chests.earnings";
+
     public const string PARAM_CHEST_NAME = "chest_name";
     public const string PARAM_USER_NAME = "user_name";
     public const string PARAM_LINK = "linkUrl";

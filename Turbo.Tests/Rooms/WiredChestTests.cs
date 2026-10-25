@@ -133,6 +133,27 @@ public sealed class WiredChestTests : IDisposable
         Released().Should().BeEmpty();
     }
 
+    // W7 lab action.47.B6: a contract payment into a full furni chest still goes in (2/2).
+    [Fact]
+    public async Task A_contract_payment_past_the_capacity_goes_in()
+    {
+        _db.Insert(Furni(10, CHAIR_DEFINITION, ALICE));
+        var chest = await ChestAsync();
+
+        var result = await chest.DepositAsync(
+            Deposit(WiredChestKind.Furni, 10) with
+            {
+                Capacity = 0,
+                Type = WiredTransactionType.ContractPayment,
+            },
+            Ct
+        );
+
+        result.Failure.Should().BeNull();
+        result.Summary.ItemCount.Should().Be(1);
+        Rows(10).Single().ChestItemEntityId.Should().Be(CHEST);
+    }
+
     [Fact]
     public async Task A_furni_chest_does_not_take_credit_furni()
     {
