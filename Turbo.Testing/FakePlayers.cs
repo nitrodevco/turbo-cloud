@@ -61,6 +61,7 @@ public sealed class FakePlayers : IHotelPlayers
     private readonly FakeHotel _hotel;
     private readonly List<FakePlayer> _players = [];
     private readonly List<(PlayerId Player, object Message)> _sent = [];
+    private readonly Dictionary<(string Provider, string Id), PlayerId> _identities = [];
 
     internal FakePlayers(FakeHotel hotel) => _hotel = hotel;
 
@@ -147,6 +148,85 @@ public sealed class FakePlayers : IHotelPlayers
                 .Take(take)
                 .Select(ToPlayer),
         ]);
+    }
+
+    public Task<int> CountAsync(DateTime? activeSince, CancellationToken ct) =>
+        Task.FromResult(Active(activeSince).Count());
+
+    public Task<IReadOnlyList<HotelRecentPlayer>> RecentAsync(
+        DateTime activeSince,
+        int take,
+        int skip,
+        CancellationToken ct
+    ) =>
+        Task.FromResult<IReadOnlyList<HotelRecentPlayer>>([
+            .. Active(activeSince)
+                .OrderByDescending(x => x.LastLoginAt)
+                .ThenBy(x => x.Id.Value)
+                .Skip(Math.Max(0, skip))
+                .Take(Math.Clamp(take, 0, 100))
+                .Select(x => new HotelRecentPlayer(ToPlayer(x), x.Online)),
+        ]);
+
+    /// <summary>Every identity linked to a player, by service and id there.</summary>
+    public IReadOnlyDictionary<(string Provider, string Id), PlayerId> Identities => _identities;
+
+    public Task<PlayerId?> FindByIdentityAsync(string provider, string id, CancellationToken ct) =>
+        Task.FromResult<PlayerId?>(
+            IsDiscord(provider) && _identities.TryGetValue((HotelIdentity.DISCORD, id), out var p)
+                ? p
+                : null
+        );
+
+    public Task<IdentityLinkOutcome> LinkIdentityAsync(
+        PlayerId player,
+        HotelIdentity identity,
+        bool replace,
+        CancellationToken ct
+    )
+    {
+        if (
+            !IsDiscord(identity.Provider)
+            || string.IsNullOrEmpty(identity.Id)
+            || identity.Id.Length > 32
+        )
+            return Task.FromResult(IdentityLinkOutcome.Unsupported);
+
+        if (_players.All(x => x.Id != player))
+            return Task.FromResult(IdentityLinkOutcome.NoSuchPlayer);
+
+        var key = (HotelIdentity.DISCORD, identity.Id);
+        var held = _identities.TryGetValue(key, out var holder) ? holder : (PlayerId?)null;
+        var own = _identities.Where(x => x.Value == player).Select(x => x.Key).ToList();
+
+        if (held == player)
+            return Task.FromResult(IdentityLinkOutcome.AlreadyLinked);
+
+        if (!replace && held is not null)
+            return Task.FromResult(IdentityLinkOutcome.TakenByAnother);
+
+        if (!replace && own.Count > 0)
+            return Task.FromResult(IdentityLinkOutcome.PlayerHasAnother);
+
+        foreach (var old in own)
+            _identities.Remove(old);
+
+        _identities[key] = player;
+
+        return Task.FromResult(IdentityLinkOutcome.Linked);
+    }
+
+    public Task<bool> UnlinkIdentityAsync(PlayerId player, string provider, CancellationToken ct)
+    {
+        if (!IsDiscord(provider))
+            return Task.FromResult(false);
+
+        var own = _identities.Where(x => x.Value == player).Select(x => x.Key).ToList();
+
+        foreach (var old in own)
+            _identities.Remove(old);
+
+        return Task.FromResult(own.Count > 0);
     }
 
     public IReadOnlyCollection<PlayerId> OnlineIds() =>
@@ -240,6 +320,15 @@ public sealed class FakePlayers : IHotelPlayers
 
         return true;
     }
+
+    // As the host: not system accounts, and about since then (logged in or online now).
+    private IEnumerable<FakePlayer> Active(DateTime? since) =>
+        _players.Where(x =>
+            !x.IsSystemAccount && (since is not { } from || x.LastLoginAt >= from || x.Online)
+        );
+
+    private static bool IsDiscord(string provider) =>
+        string.Equals(provider, HotelIdentity.DISCORD, StringComparison.OrdinalIgnoreCase);
 
     private static HotelPlayer ToPlayer(FakePlayer x) =>
         new(x.Id, x.Name, x.Figure, x.Gender, x.Motto, x.CreatedAt, x.LastLoginAt);

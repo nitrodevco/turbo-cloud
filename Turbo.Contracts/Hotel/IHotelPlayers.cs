@@ -21,6 +21,42 @@ public sealed record HotelPlayer(
     DateTime? LastLoginAt
 );
 
+/// <summary>A player who was about lately, and whether they are online now.</summary>
+public sealed record HotelRecentPlayer(HotelPlayer Player, bool Online);
+
+/// <summary>
+/// An account a player has elsewhere that signs them in: the service (<see cref="DISCORD"/>, the
+/// one the hotel keeps links for), its id for the account there and its name there.
+/// </summary>
+public sealed record HotelIdentity(string Provider, string Id, string Name)
+{
+    public const string DISCORD = "discord";
+
+    public static HotelIdentity Discord(string id, string name) => new(DISCORD, id, name);
+}
+
+/// <summary>What linking an identity to a player did.</summary>
+public enum IdentityLinkOutcome
+{
+    /// <summary>Linked now; the player signs in with it from here on.</summary>
+    Linked,
+
+    /// <summary>It was already this player's: nothing changed.</summary>
+    AlreadyLinked,
+
+    /// <summary>Another player has it; only a replacing link (staff's) moves it.</summary>
+    TakenByAnother,
+
+    /// <summary>The player already has another account of that service; only a replacing link swaps it.</summary>
+    PlayerHasAnother,
+
+    /// <summary>There is no such player.</summary>
+    NoSuchPlayer,
+
+    /// <summary>The hotel keeps no links for that service.</summary>
+    Unsupported,
+}
+
 /// <summary>A player's Habbo Club: whether it runs now, and how many days the running one has lasted.</summary>
 public readonly record struct HotelClub(bool Active, int StreakDays);
 
@@ -79,6 +115,49 @@ public interface IHotelPlayers
     /// </summary>
     [HotelCall(HotelCallContext.OffGrain)]
     Task<IReadOnlyList<HotelPlayer>> SearchAsync(string prefix, int take, CancellationToken ct);
+
+    /// <summary>
+    /// How many players were about since <paramref name="activeSince"/> (logged in then or later,
+    /// or online now), or all there are with null. System accounts are not counted.
+    /// </summary>
+    [HotelCall(HotelCallContext.OffGrain)]
+    Task<int> CountAsync(DateTime? activeSince, CancellationToken ct);
+
+    /// <summary>
+    /// The players about since <paramref name="activeSince"/>, the last to log in first (ties by
+    /// id), <paramref name="take"/> of them (at most 100) after skipping <paramref name="skip"/>.
+    /// System accounts are left out. Their figures are their looks, for a "who's been here" wall.
+    /// </summary>
+    [HotelCall(HotelCallContext.OffGrain)]
+    Task<IReadOnlyList<HotelRecentPlayer>> RecentAsync(
+        DateTime activeSince,
+        int take,
+        int skip,
+        CancellationToken ct
+    );
+
+    /// <summary>The player the identity is linked to, or null.</summary>
+    [HotelCall(HotelCallContext.OffGrain)]
+    Task<PlayerId?> FindByIdentityAsync(string provider, string id, CancellationToken ct);
+
+    /// <summary>
+    /// Links the identity to the player, once the plugin has proven both are the same person (its
+    /// own sign-in, a code shown in the hotel): an identity is one player's and a player has one
+    /// of each service. <paramref name="replace"/> is staff's override: it moves the identity from
+    /// whoever had it and drops the player's other one; gate the route asking for it with a
+    /// permission node. A link made raises <c>PlayerIdentityLinkedEvent</c>.
+    /// </summary>
+    [HotelCall(HotelCallContext.OffGrain)]
+    Task<IdentityLinkOutcome> LinkIdentityAsync(
+        PlayerId player,
+        HotelIdentity identity,
+        bool replace,
+        CancellationToken ct
+    );
+
+    /// <summary>Takes the player's link to that service away; false when they had none.</summary>
+    [HotelCall(HotelCallContext.OffGrain)]
+    Task<bool> UnlinkIdentityAsync(PlayerId player, string provider, CancellationToken ct);
 
     /// <summary>The players online on this server now.</summary>
     [HotelCall(HotelCallContext.Anywhere)]

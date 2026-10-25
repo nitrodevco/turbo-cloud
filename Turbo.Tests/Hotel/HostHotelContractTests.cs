@@ -129,7 +129,8 @@ public sealed class HostHotelContractTests : HotelContract
             string name,
             bool online = false,
             bool systemAccount = false,
-            int respects = 0
+            int respects = 0,
+            DateTime? lastLogin = null
         )
         {
             var id = new PlayerId(_players.Count + 1);
@@ -144,6 +145,7 @@ public sealed class HostHotelContractTests : HotelContract
                     PlayerStatus = PlayerStatusType.Offline,
                     IsSystemAccount = systemAccount,
                     RespectPoints = respects,
+                    LastLoginAt = lastLogin,
                 }
             );
             _players.Add(id);

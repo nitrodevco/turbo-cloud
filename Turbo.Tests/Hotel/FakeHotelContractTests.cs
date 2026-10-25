@@ -20,12 +20,14 @@ public sealed class FakeHotelContractTests : HotelContract
             string name,
             bool online = false,
             bool systemAccount = false,
-            int respects = 0
+            int respects = 0,
+            DateTime? lastLogin = null
         )
         {
             var player = _hotel.Players.Add(name, online);
             player.IsSystemAccount = systemAccount;
             player.Respects = respects;
+            player.LastLoginAt = lastLogin;
 
             return player;
         }
