@@ -142,8 +142,10 @@ shows. Official behaviour stays the default implementation; a policy composes ov
 Trade has the first of them, as a single service: `IPlayerTradePolicy` answers what a player may do
 in a trade (`TradeStandingType`: locked, no pass, receive only, full) by the `trade` permission and
 the trading pass. Trades ask it of both players before they open and pick the refusal from it
-(`openfail.3`, `trade.trading_perk`, `openfail.4`); wired chests ask it before they move anything.
-Replacing it in the host's container changes both; a plugin cannot replace it yet (§4.3).
+(`openfail.3`, `trade.trading_perk`, `openfail.4`); wired chests ask it before they move anything,
+and the marketplace before a sale (locked: no trading privilege; no pass or receive only: no
+trading pass).
+Replacing it in the host's container changes all three; a plugin cannot replace it yet (§4.3).
 
 ### 4.3 Service contracts
 

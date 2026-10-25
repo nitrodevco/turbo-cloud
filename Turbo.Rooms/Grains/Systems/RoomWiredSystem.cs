@@ -726,7 +726,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 Flash(action);
         }
 
-        ScheduleStackExecution(ctx, pick.Actions, now);
+        if (ScheduleStackExecution(ctx, pick.Actions, now) is { } pending)
+            await MakeDelayedCallsAsync(pending, now, ct);
 
         foreach (var addon in ctx.Stack.Addons)
             await addon.AfterEffectsAsync(ctx, ct);
@@ -997,12 +998,65 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 CancellationToken = ct,
                 ContextValues = ContextValuesFor(evt),
                 CarriedPlaceholders = PlaceholdersFor(evt),
+                CallDelayMs = evt.DelayMs,
             };
 
             ctx.Selected.SelectedFurniIds.UnionWith(evt.FurniIds);
             ctx.Selected.SelectedAvatarIds.UnionWith(evt.AvatarIds);
 
             await RunStackAsync(ctx, now, calledByStack: true, ct);
+        }
+    }
+
+    /// <summary>
+    /// A delayed Call Another Stack is made when its stack fires, not when its delay is over: the
+    /// called stack selects then and its delayed effects flash then, and its effects wait out the
+    /// rest of the call's delay before their own. Call 1 s into an effect of 2 s: the effect ran
+    /// at +3 s and flashed with the caller at +0.09 s (official client capture 2026-10-24,
+    /// WIN63-202610201032, wired matrix action.18.X3, 2/2); the called stack's Users In Area
+    /// picked the user standing there at the click, who had left before the call's 2 s were over
+    /// (2026-10-25, action.18.X3b, 2/2). A delayed signal still waits and is received when it
+    /// arrives (action.30.X3b, 2/2). The call's place in the chain only waits.
+    /// </summary>
+    private async Task MakeDelayedCallsAsync(
+        WiredPendingStackExecution pending,
+        long now,
+        CancellationToken ct
+    )
+    {
+        // When each effect would run: the chain waits each one's delay after the one before it.
+        var dueAtMs = pending.DueAtMs;
+
+        foreach (var action in pending.Actions)
+        {
+            var delayMs = Math.Max(0, action.GetDelayMs());
+
+            dueAtMs += delayMs;
+
+            if (delayMs == 0 || action is not WiredActionCallStacks call)
+                continue;
+
+            (pending.MadeCalls ??= []).Add(action);
+
+            var ctx = ExecutionContextFor(pending, ct);
+
+            if (_execution is { } execution && !ChargeExecution(execution, ActionCost(action, ctx)))
+                return;
+
+            try
+            {
+                await call.CallAsync(ctx, dueAtMs - now, ct);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(
+                    ex,
+                    "Wired action {WiredType} {WiredCode} failed in room {RoomId}",
+                    action.WiredType,
+                    action.WiredCode,
+                    _roomGrain.RoomId
+                );
+            }
         }
     }
 
@@ -1042,14 +1096,15 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     /// <summary>Whether the tile holds a stack with at least one wired box in it.</summary>
     public bool HasStack(int stackId) => _stacksById.ContainsKey(stackId);
 
-    private void ScheduleStackExecution(
+    /// <summary>Schedules the chosen actions; the run, or null when there is none or it was dropped.</summary>
+    private WiredPendingStackExecution? ScheduleStackExecution(
         WiredProcessingContext ctx,
         List<IWiredAction> actions,
         long dueAtMs
     )
     {
         if (actions.Count == 0)
-            return;
+            return null;
 
         var key = new WiredExecutionKey(
             ctx.Stack.StackId,
@@ -1070,7 +1125,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             CarriedPlaceholders = ctx.CarriedPlaceholders,
             Depth = ctx.Depth,
             Version = 1,
-            DueAtMs = dueAtMs + (long)ctx.Policy.Delay.TotalMilliseconds,
+            DueAtMs = dueAtMs + (long)ctx.Policy.Delay.TotalMilliseconds + ctx.CallDelayMs,
             NextActionIndex = 0,
             VariableChanges = ctx.Policy.ExecuteInOrder ? null : new WiredVariableChangeBatch(),
             ContextValues = ctx.ContextValues,
@@ -1082,10 +1137,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         {
             execution.Ready.Enqueue((key, pending));
 
-            return;
+            return pending;
         }
 
-        TryHoldPending(key, pending, dueAtMs);
+        return TryHoldPending(key, pending, dueAtMs) ? pending : null;
     }
 
     /// <summary>
@@ -1257,21 +1312,15 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
             try
             {
-                // The three sets are shared by every action of the chain, not copied for each:
-                // an action reads its targets through them and never changes them.
-                var ctx = new WiredExecutionContext(_roomGrain)
+                // A delayed call was made when the stack fired.
+                if (pending.MadeCalls?.Contains(action) == true)
                 {
-                    Policy = pending.Policy,
-                    Selected = pending.Selected,
-                    SelectorPool = pending.SelectorPool,
-                    Signal = pending.Signal,
-                    EventTargets = pending.EventTargets,
-                    CarriedPlaceholders = pending.CarriedPlaceholders,
-                    Depth = pending.Depth,
-                    CancellationToken = ct,
-                    VariableChanges = pending.VariableChanges,
-                    ContextValues = pending.ContextValues,
-                };
+                    pending.NextActionIndex = i + 1;
+
+                    continue;
+                }
+
+                var ctx = ExecutionContextFor(pending, ct);
 
                 // An action the room's usage cannot pay for cancels the execution, and with it the
                 // rest of this chain.
@@ -1336,6 +1385,26 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         return true;
     }
+
+    // The three sets are shared by every action of the chain, not copied for each: an action
+    // reads its targets through them and never changes them.
+    private WiredExecutionContext ExecutionContextFor(
+        WiredPendingStackExecution pending,
+        CancellationToken ct
+    ) =>
+        new(_roomGrain)
+        {
+            Policy = pending.Policy,
+            Selected = pending.Selected,
+            SelectorPool = pending.SelectorPool,
+            Signal = pending.Signal,
+            EventTargets = pending.EventTargets,
+            CarriedPlaceholders = pending.CarriedPlaceholders,
+            Depth = pending.Depth,
+            CancellationToken = ct,
+            VariableChanges = pending.VariableChanges,
+            ContextValues = pending.ContextValues,
+        };
 
     /// <summary>Makes the held variable changes one change per holder (<see cref="WiredVariableChangeBatch"/>).</summary>
     private async Task FlushVariableChangesAsync(

@@ -19,7 +19,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 /// furnidata 2026-10-13, id 4834); so does the negative variant, which is the caller's else
 /// branch. Its own stack is never called, and a stack that already ran in the execution is
 /// skipped, as on Habbo (official client capture 2026-10-24: two stacks calling each other ran
-/// once each per click).
+/// once each per click). A delayed call is made when its stack fires, and the called effects
+/// wait out its delay (<c>RoomWiredSystem.MakeDelayedCallsAsync</c>).
 /// </summary>
 [RoomObjectLogic("wf_act_call_stacks")]
 public class WiredActionCallStacks(
@@ -32,7 +33,18 @@ public class WiredActionCallStacks(
 
     public override List<WiredFurniSourceType[]> GetAllowedFurniSources() => [WiredSources.Furni];
 
-    public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
+    public override Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct) =>
+        CallAsync(ctx, 0, ct);
+
+    /// <summary>
+    /// Calls the picked stacks now, their effects waiting <paramref name="delayMs"/> first: a
+    /// delayed call is made when its own stack fires (<c>RoomWiredSystem</c>).
+    /// </summary>
+    internal async Task<bool> CallAsync(
+        IWiredExecutionContext ctx,
+        long delayMs,
+        CancellationToken ct
+    )
     {
         var stackIds = new HashSet<int>();
         var ownStackId = _ctx.GetTileIdx();
@@ -57,6 +69,7 @@ public class WiredActionCallStacks(
             AvatarIds = [.. ctx.Selected.SelectedAvatarIds],
             Depth = ctx.Depth + 1,
             IsNegative = IsNegativeCall,
+            DelayMs = delayMs,
         };
 
         // The called stacks run in this execution's context.
