@@ -81,6 +81,7 @@ public sealed class PluginIsolationTests : IDisposable
 
         // The host's container kept the service it was asked for, the plugin's own IMissing, and
         // with it the failed plugin's whole assembly context for as long as the server ran.
+        LeakDump.IfHeld(_log.Entries, Path.GetFileName(_folder));
         _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
     }
 
@@ -116,6 +117,8 @@ public sealed class PluginIsolationTests : IDisposable
 
         // Its first, failed version stayed loaded: the host's container kept its IMissing.
         await manager.UnloadAllAsync(Ct);
+
+        LeakDump.IfHeld(_log.Entries, Path.GetFileName(_folder));
 
         _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
     }
@@ -162,6 +165,7 @@ public sealed class PluginIsolationTests : IDisposable
         await manager.UnloadAllAsync(Ct);
 
         // Its IGreeter, which it did not register, was asked of the host's container, which kept it.
+        LeakDump.IfHeld(_log.Entries, Path.GetFileName(_folder));
         _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
     }
 

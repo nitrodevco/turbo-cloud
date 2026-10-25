@@ -331,6 +331,7 @@ public sealed class PluginMessageTests : IDisposable
         sent.Should().HaveCount(2);
         sent[0].Messages.Should().HaveCount(3);
         sent[1].Messages.Should().BeEmpty("the whole set, without the plugin's");
+        LeakDump.IfHeld(_log.Entries, Path.GetFileName(_folder));
         _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
 
         await broadcast.StopAsync(Ct);
@@ -357,6 +358,8 @@ public sealed class PluginMessageTests : IDisposable
         _extensions.HasHeader(32767).Should().BeFalse("no header was kept for the refused load");
 
         await manager.UnloadAllAsync(Ct);
+
+        LeakDump.IfHeld(_log.Entries, Path.GetFileName(_folder));
 
         _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
     }
