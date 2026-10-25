@@ -58,7 +58,9 @@ internal static class PluginBuilder
     /// <summary>
     /// What a plugin compiled in a test builds against: every assembly loaded, and the host's
     /// contracts, its message handlers and the options extensions, which a test run alone may not
-    /// have loaded yet.
+    /// have loaded yet. Their paths are taken at once: the list of loaded assemblies also holds
+    /// any plugin another test is unloading, and reading the references takes long enough under
+    /// load to keep that plugin's context from going.
     /// </summary>
     public static IEnumerable<MetadataReference> References()
     {
@@ -74,13 +76,17 @@ internal static class PluginBuilder
             typeof(Microsoft.Extensions.Configuration.BinderOptions),
         ];
 
-        return AppDomain
-            .CurrentDomain.GetAssemblies()
-            .Concat(host.Select(x => x.Assembly))
-            .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location))
-            .Select(a => a.Location)
-            .Distinct()
-            .Select(x => MetadataReference.CreateFromFile(x));
+        string[] paths =
+        [
+            .. AppDomain
+                .CurrentDomain.GetAssemblies()
+                .Concat(host.Select(x => x.Assembly))
+                .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location))
+                .Select(a => a.Location)
+                .Distinct(),
+        ];
+
+        return paths.Select(x => MetadataReference.CreateFromFile(x));
     }
 
     /// <summary>The assembly <paramref name="source"/> compiles to, as a plugin's would.</summary>

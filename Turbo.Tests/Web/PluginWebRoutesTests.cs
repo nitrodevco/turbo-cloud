@@ -470,6 +470,7 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
         await _manager.UnloadAllAsync(Ct);
 
         (await SendAsync(HttpMethod.Get, "notes")).Status.Should().Be(404);
+        LeakDump.IfHeld(_managerLog.Entries, Path.GetFileName(_folder));
         _managerLog
             .AtLeast(LogLevel.Warning)
             .Where(x => x.Message.Contains("did not unload"))
