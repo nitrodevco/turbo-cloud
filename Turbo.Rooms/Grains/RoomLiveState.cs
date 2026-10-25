@@ -123,6 +123,13 @@ internal sealed class RoomLiveState
     /// </summary>
     public Queue<WiredRoomLogEntrySnapshot> PendingWiredLogs { get; } = new();
 
+    /// <summary>
+    /// Users who left, by the room index they had, oldest first in
+    /// <see cref="DepartedAvatarOrder"/> (<c>RoomAvatarModule.TryGetDepartedName</c>).
+    /// </summary>
+    public Dictionary<RoomObjectId, string> DepartedAvatarNames { get; } = [];
+    public Queue<RoomObjectId> DepartedAvatarOrder { get; } = new();
+
     public HashSet<RoomObjectId> DirtyFloorItemIds { get; set; } = [];
     public HashSet<RoomObjectId> DirtyWallItemIds { get; set; } = [];
 

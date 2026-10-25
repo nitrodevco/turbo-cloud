@@ -8,6 +8,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Tests.Support;
 using Xunit;
@@ -119,6 +120,65 @@ public sealed class WiredRoomLogsTests
         filtered.TotalEntries.Should().Be(1);
     }
 
+    // Each effect waits its own delay from the firing: a Show Message without a delay whispered
+    // 90 ms after the click, 5 of 5, though one delayed 10 s stood below it in the stack
+    // (official client capture 2026-10-25T02-50-51, golden replay wlab9/0 t=1477851..1650558).
+    // Ours ran the effects in a random order and the delayed one held those after it.
+    [Fact]
+    public async Task An_effect_without_a_delay_is_not_held_by_a_delayed_one()
+    {
+        await BuildAsync("D");
+        _room.AddBox<WiredActionWriteToLogs>(3, 0, 0, "wf_act_log");
+        await SaveLogAsync("D", delay: 10);
+        await SaveLogAsync("N", delay: 0, box: 3);
+
+        for (var i = 1; i <= 12; i++)
+        {
+            await _room.FloorItem(CLICK_ME).Logic.OnClickAsync(_room.ContextFor(5), 0, Ct);
+            await TickAsync(1);
+
+            Wired.GetRoomLogs().Count(x => x.Message == "N").Should().Be(i);
+        }
+
+        await TickAsync(5);
+
+        Wired.GetRoomLogs().Count(x => x.Message == "D").Should().Be(12);
+    }
+
+    // A delayed effect prints the name of a user who left before it ran (official client capture
+    // 2026-10-25T02-50-51, golden replay wlab9/0 t=1511871: "D V=null U=a1" 10 s after the
+    // click, the user gone 2 s before; ours printed "U=").
+    [Fact]
+    public async Task A_delayed_username_placeholder_prints_a_user_who_left()
+    {
+        _room.Enter(6, 2, 1, name: "a1");
+        await BuildAsync("D U=$(u)");
+        _room.AddBox<WiredAddonUsernamePlaceholder>(3, 0, 0, "wf_xtra_text_output_username");
+        (
+            await _room.SaveAsync<UpdateAddonMessage>(
+                3,
+                intParams: [0],
+                stringParam: "u",
+                playerSources:
+                [
+                    [WiredPlayerSourceType.TriggeredUser],
+                ]
+            )
+        ).Should().BeTrue();
+        await SaveLogAsync("D U=$(u)", delay: 4);
+
+        await _room.FloorItem(CLICK_ME).Logic.OnClickAsync(_room.ContextFor(6), 0, Ct);
+        await TickAsync(1);
+        await _room.Harness.Room.RemoveAvatarFromPlayerAsync(
+            ActionContext.CreateForPlayer(106, 1),
+            106,
+            Ct
+        );
+        await TickAsync(4);
+
+        Wired.GetRoomLogs().Select(x => x.Message).Should().Equal("D U=a1");
+    }
+
     private async Task BuildAsync(string text)
     {
         _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
@@ -138,14 +198,14 @@ public sealed class WiredRoomLogsTests
         await SaveLogAsync(text);
     }
 
-    private async Task SaveLogAsync(string text)
+    private async Task SaveLogAsync(string text, int delay = 2, int box = 2)
     {
         (
             await _room.SaveAsync<UpdateActionMessage>(
-                2,
+                box,
                 intParams: [(int)WiredLogLevelType.Warning],
                 stringParam: text,
-                definitionSpecifics: [2]
+                definitionSpecifics: [delay]
             )
         )
             .Should()

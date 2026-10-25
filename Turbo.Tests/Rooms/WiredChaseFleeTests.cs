@@ -1,6 +1,8 @@
 using FluentAssertions;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Object.Logic.Avatars;
+using Turbo.Rooms.Object.Avatars.Bot;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Wired;
 using Turbo.Tests.Support;
@@ -188,6 +190,68 @@ public sealed class WiredChaseFleeTests
         await RunAsync(flee);
 
         Block().Should().Be((5, 5));
+    }
+
+    // action.12.B1 / B6 (LAB-W1 2026-10-25T08-44-21, 08-45-09, 3/3 + 3/3): fleeing E from a user 2
+    // tiles W with a lamp on the tile E, it sidesteps S; with a lamp S as well, N. Ours stayed.
+    [Fact]
+    public async Task Flee_sidesteps_when_the_way_away_is_blocked()
+    {
+        _room.Enter(USER, 3, 5);
+        AddLamp(LAMP, 6, 5);
+        var flee = await PlaceAsync<WiredActionFleeHabbo>("wf_act_flee", 5, 5);
+
+        for (var i = 0; i < 4; i++)
+        {
+            _room.Map.MoveFloorItem(_room.FloorItem(BLOCK), _room.Map.ToIdx(5, 5));
+
+            await RunAsync(flee);
+
+            Block().Should().Be((5, 6));
+        }
+
+        AddLamp(LAMP + 1, 5, 6);
+        _room.Map.MoveFloorItem(_room.FloorItem(BLOCK), _room.Map.ToIdx(5, 5));
+
+        await RunAsync(flee);
+
+        Block().Should().Be((5, 4));
+    }
+
+    // action.12.B3 (LAB-W1 2026-10-25T08-44-21, 2/2): a bot on the tile it would flee to from a
+    // user 2 tiles away is the nearer one, adjacent: no move.
+    [Fact]
+    public async Task Flee_does_not_move_from_an_adjacent_bot_on_the_way_away()
+    {
+        _room.Enter(USER, 3, 5);
+        AddBot(6, 5);
+        var flee = await PlaceAsync<WiredActionFleeHabbo>("wf_act_flee", 5, 5);
+
+        await RunAsync(flee);
+
+        Block().Should().Be((5, 5));
+    }
+
+    private void AddBot(int x, int y)
+    {
+        const int id = 40;
+        var bot = new RoomBotAvatar
+        {
+            ObjectId = id,
+            BotId = id,
+            OwnerId = 1,
+            OwnerName = "owner",
+            RoomId = 1,
+            Skills = [],
+        };
+
+        bot.SetName("Frank");
+        bot.SetPosition(x, y);
+        bot.SetLogic(_room.Harness.Fakes.Create<IRoomBotLogic>(id));
+        _room.Harness.State.AvatarsByObjectId[id] = bot;
+        _room.Harness.State.AvatarsByBotId[id] = id;
+        _room.Harness.State.Bots.Add(bot);
+        _room.Map.AddAvatar(bot, false);
     }
 
     private void Relocate(Turbo.Rooms.Object.Avatars.Player.RoomPlayerAvatar user, int x, int y)

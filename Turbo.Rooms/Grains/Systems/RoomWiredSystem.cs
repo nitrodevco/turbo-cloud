@@ -1120,6 +1120,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             Interlocked.Increment(ref _nextStackExecutionId)
         );
 
+        var firedAtMs = dueAtMs + (long)ctx.Policy.Delay.TotalMilliseconds + ctx.CallDelayMs;
         var pending = new WiredPendingStackExecution
         {
             Stack = ctx.Stack,
@@ -1134,7 +1135,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             CarriedPlaceholders = ctx.CarriedPlaceholders,
             Depth = ctx.Depth,
             Version = 1,
-            DueAtMs = dueAtMs + (long)ctx.Policy.Delay.TotalMilliseconds + ctx.CallDelayMs,
+            DueAtMs = firedAtMs,
+            FiredAtMs = firedAtMs,
             NextActionIndex = 0,
             VariableChanges = ctx.Policy.ExecuteInOrder ? null : new WiredVariableChangeBatch(),
             ContextValues = ctx.ContextValues,
@@ -1303,6 +1305,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             else
             {
                 var delayMs = Math.Max(0, action.GetDelayMs());
+
+                // Without "Execute In Order" the delays count from the firing, the effects sorted
+                // by them (ChooseActions); in order, each waits after the one before it.
+                if (!pending.Policy.ExecuteInOrder)
+                    delayMs = Math.Max(0, pending.FiredAtMs + delayMs - now);
 
                 if (delayMs > 0)
                 {
@@ -1751,8 +1758,15 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         {
             Random.Shared.Shuffle(CollectionsMarshal.AsSpan(pick.Actions));
 
-            // OrderBy is stable: same-type effects keep their shuffled order.
-            var ordered = pick.Actions.OrderBy(x => x.RunOrder).ToList();
+            // OrderBy is stable: same-type effects keep their shuffled order. Each effect waits its
+            // own delay from the firing, so the ones that wait less go first: a Show Message
+            // without a delay whispered 90 ms after the click, 5 of 5, though the one delayed 10 s
+            // stood below it in the same stack (official client capture 2026-10-25T02-50-51,
+            // golden replay wlab9/0 t=1477851..1650558).
+            var ordered = pick
+                .Actions.OrderBy(x => Math.Max(0, x.GetDelayMs()))
+                .ThenBy(x => x.RunOrder)
+                .ToList();
 
             pick.Actions.Clear();
             pick.Actions.AddRange(ordered);

@@ -92,8 +92,8 @@ public sealed class WiredOfficialLabReplayTests
         // 3 more windows from the add-on flashes: furni name output with no public name (#sprite).
         ["wlab8/1/selector"] = 11,
         ["wlab8/1/variable"] = 10,
-        ["wlab9/0/selector"] = 34,
-        ["wlab9/0/variable"] = 54,
+        ["wlab9/0/selector"] = 32,
+        ["wlab9/0/variable"] = 52,
         ["wlabbuy/0/chest"] = 12,
         ["wlabduo/0/chest"] = 12,
         ["wlabduo/0/selector"] = 35,
@@ -300,11 +300,11 @@ public sealed class WiredOfficialLabReplayTests
                     }
                     case "leave":
                         if (_room.Avatars.Remove(evt[2].GetInt32(), out var left))
-                        {
-                            _room.Map.RemoveAvatar(left, false);
-                            _room.Harness.State.AvatarsByObjectId.Remove(left.ObjectId);
-                            _room.Harness.State.AvatarsByPlayerId.Remove(left.PlayerId);
-                        }
+                            await _room.Harness.Room.RemoveAvatarFromPlayerAsync(
+                                ActionContext.CreateForPlayer(left.PlayerId, 1),
+                                left.PlayerId,
+                                Ct
+                            );
                         break;
                     case "whisper":
                         Current.Official.Add($"whisper {evt[3].GetString()}");

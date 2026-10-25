@@ -21,6 +21,9 @@ internal sealed class WiredPendingStackExecution
     public required int Depth { get; init; }
     public long Version { get; set; }
     public long DueAtMs { get; set; }
+
+    /// <summary>When the chain was first due: what its effects' own delays count from.</summary>
+    public long FiredAtMs { get; init; }
     public int NextActionIndex { get; set; }
     public int? WaitingActionIndex { get; set; }
 
