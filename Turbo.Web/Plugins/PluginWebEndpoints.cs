@@ -189,6 +189,13 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
 
         var (player, signedOut) = await CallerAsync(http, ct).ConfigureAwait(false);
 
+        // An anonymous route that reads the credentials itself (a webhook checking its provider's
+        // bearer token) is handed a token that is not a player's as it came: the call is
+        // anonymous, not one to sign in again. Any other route answers it 401, so the client asks
+        // for a new token.
+        if (signedOut && endpoint.Anonymous && endpoint.Route.CredentialHeaders)
+            signedOut = false;
+
         if (signedOut || (player is null && !endpoint.Anonymous))
             return Error(StatusCodes.Status401Unauthorized, "Sign in first.");
 

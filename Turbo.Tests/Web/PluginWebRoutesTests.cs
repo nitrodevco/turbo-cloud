@@ -389,6 +389,18 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
         credentials.Status.Should().Be(200);
         credentials.Json.GetProperty("cookie").GetBoolean().Should().BeTrue();
         credentials.Json.GetProperty("authorization").GetBoolean().Should().BeTrue();
+
+        // The provider's own bearer token, not a player's: answered 401 before (fwgaps 10-25).
+        var providers = await SendRawAsync(
+            HttpMethod.Post,
+            "hook/credentials",
+            BODY,
+            "the-providers-own-token",
+            headers: headers
+        );
+
+        providers.Status.Should().Be(200);
+        providers.Json.GetProperty("authorization").GetBoolean().Should().BeTrue();
     }
 
     [Fact]
