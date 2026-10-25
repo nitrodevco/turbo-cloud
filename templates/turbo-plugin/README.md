@@ -85,7 +85,8 @@ guide to read (turbo-cloud `docs/`).
 | `npm run make command hug` | `server/Commands/HugCommand.cs`: `:hug` and its permission node `skills.command.hug` | the command and permission scans |
 | `npm run make message levelled --to client --fields level:int,name:string` | `server/Messages/LevelledMessage.cs` (the record) and `client/src/made/skills.levelled.ts` (its name, schema, type and a listener) | the message scan; `client/src/made/index.ts` |
 | `npm run make message ping` | the record, its handler and a `sendPing` for the client (`--to server`, the default) | the message and handler scans |
-| `npm run make logic skill_stove` | `server/Logic/SkillStoveLogic.cs`: the logic of furniture whose logic is `skill_stove` | the room object logic scan |
+| `npm run make logic skill_stove` | `server/Logic/SkillStoveLogic.cs`: the logic of furniture whose logic is `skill_stove` (`FurniLogic`: use, walk on, walk off) | the plugin logic scan |
+| `npm run make wired effect whisper_room` | `server/Wired/WhisperRoomEffect.cs`: the wired box `wf_act_whisper_room` (`trigger`, `condition`, `selector` for the others; a trigger comes with its event record, fired by `hotel.Wired.FireAsync`) | the plugin logic scan |
 | `npm run make listener entered` | `server/Listeners/EnteredListener.cs`: hears every room's events | the room event listener scan |
 | `npm run make setting rate --type int --default 5` | `Rate` in the `[PluginSettings]` class (`int`, `long`, `bool`, `string`, `double`) | the panel's Settings page |
 | `npm run make route rares/values --anonymous` | `server/Routes/RaresValuesRoute.cs`: `GET /api/plugins/skills/rares/values` (`--method POST`) | the web route scan |
@@ -99,8 +100,9 @@ guide to read (turbo-cloud `docs/`).
 a built server (`TurboBin`): the context needs no design-time factory. The first run writes the
 context with a placeholder row class (`[Table("rows")]`) and its migration: to start from your own
 table, run `npm run make migration Init` once, edit the row class, `dotnet ef migrations remove`, and
-run it again, or write the context first (turbo-cloud `docs/database.md`). Furni logic derives from
-`FurnitureFloorLogic` in `Turbo.Rooms`, which `make logic` adds a reference to.
+run it again, or write the context first (turbo-cloud `docs/database.md`). Furni logic and wired
+boxes are built against `Turbo.Contracts` alone (turbo-cloud `docs/plugin-wired.md`); the furniture
+definition whose logic is the key is what the hotel places.
 
 ## The rest
 
