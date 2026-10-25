@@ -3,6 +3,36 @@
 How Turbo Cloud loads, reloads and isolates plugins, what a plugin's classes can take by
 constructor, and what each step of a plugin's life guarantees.
 
+## The plugin class
+
+A plugin's class derives from `TurboPlugin` (`Turbo.Contracts.Plugins`) and writes only what it
+adds: its key and version are its manifest's, and the host does the rest.
+
+```csharp
+public sealed class SkillsPlugin : TurboPlugin
+{
+    protected override void Services(IServiceCollection services) =>
+        services.AddSingleton<SkillBook>();
+}
+```
+
+- **Services** registers its own services. `StartingAsync(ctx, ct)` and `StoppingAsync(ctx, ct)`
+  run as it starts and stops; what it registers by hand there it hands to `ctx.Track(...)`, and
+  that is disposed when it stops. `ctx.Host<T>()` is a host service (`IHostServices`).
+- **Settings**: a class marked `[PluginSettings("Skills")]` is bound to that section
+  (`IOptions<T>`, `IOptionsMonitor<T>`) and listed on the panel's Settings page; a class the plugin
+  binds itself is left as it binds it.
+- **Client module**: `wwwroot/<key>.js` is registered as its module (`docs/client-modules.md`).
+- **Tables**: a `PluginDbContextBase<T>` in its assembly is registered and migrated as it loads
+  (`docs/database.md`, "A plugin's tables").
+- **No class at all**: an assembly without one loads as a `TurboPlugin` with nothing of its own;
+  its commands, messages, handlers, routes and the rest are found as always.
+
+A plugin written against `ITurboPlugin` itself (`Key`, `Version`, `ConfigureServices`,
+`StartAsync`, `StopAsync`, `BindExportsAsync`, `DisposeAsync`) loads as before; the conventions
+above apply to it too, except where it does the same itself. `TurboPlugin` came with plugin API 2
+(`PluginApi`).
+
 ## What a plugin's classes can take
 
 When a plugin loads, Turbo Cloud scans its assembly and builds every public, concrete, top-level
@@ -34,8 +64,8 @@ A service the plugin registers itself wins over the host's of the same type. A t
 own, or one built from it (`IOptions<ItsSettings>`, `IEnumerable<IItsThing>`), is never asked of
 the host: the host's container keeps every type it is asked for, found or not, for as long as the
 server runs, and with it the plugin's whole assembly. Register such a service in `ConfigureServices`
-(its settings with `services.AddOptions<T>()`); one not registered is not there, so an optional
-constructor parameter of it gets its default.
+(its settings with `[PluginSettings]` or `services.AddOptions<T>()`); one not registered is not
+there, so an optional constructor parameter of it gets its default.
 
 Two host services are handed out per plugin and are only right through `IHostServices` (from `StartAsync` or a factory in
 `ConfigureServices`): `IExtensionPacketRegistry` (it notes the plugin's headers for the admin panel)

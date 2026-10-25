@@ -37,8 +37,8 @@ What already works (each with its guide):
 
 | Need | How | Guide |
 | --- | --- | --- |
-| Services, DI, settings with panel forms | `ITurboPlugin.ConfigureServices`, options classes | `settings.md` |
-| Own tables and migrations | `AddPluginDatabaseContext`, `PluginDbContextBase` | `database.md` |
+| Services, DI, settings with panel forms | `TurboPlugin.Services`, `[PluginSettings]` classes | `settings.md` |
+| Own tables and migrations | `PluginDbContextBase` (found and migrated as the plugin loads) | `database.md` |
 | Packet handlers and packet middleware | `IMessageHandler<T>`, `IMessageBehavior<T>` | `plugin-packets.md` |
 | Commands | `ICommand<TArgs>` | `commands.md` |
 | Furni and wired logic | `IRoomObjectLogic` + `[RoomObjectLogic]` | `wired.md` |
@@ -46,7 +46,7 @@ What already works (each with its guide):
 | Games | `IRoomGame`, `IGameAccessPolicy` | `plugin-games.md` |
 | Permissions | `IPermissionNodeSource`, `[RequiresPermission]` | `permissions.md` |
 | Admin pages | `IPluginAdmin` (schema-driven, no code in the panel) | `admin-panel.md` |
-| Client code | `IClientModuleRegistry`, client `ClientModuleApi` v1 | `client-modules.md` |
+| Client code | `wwwroot/<key>.js`, client `ClientModuleApi` v1 | `client-modules.md` |
 | Install, update, rollback, uninstall with data choice | `IPluginAdministration`, `IPluginDataOwner` | `admin-panel.md` |
 
 ## 2. What is wrong with it today
@@ -266,8 +266,16 @@ noted.
 9. **Scaffolding and dev loop**: `dotnet new turbo-plugin` generating both halves and their tests,
    one command that rebuilds and hot-reloads both while a player is online, one that packages the
    zip the panel installs: `templates/turbo-plugin` (`docs/client-modules.md`, "Start from the
-   template"); `PluginTemplateTests` keeps it building against the server. Next: named messages
-   in the template once step 3 lands, `make:module` / `make:message`.
+   template"); `PluginTemplateTests` keeps it building against the server. Named messages and
+   `npm run make` are in it (step 10).
+10. **Conventions over boilerplate**: a `TurboPlugin` base that reads key and version from the
+    manifest, registers `wwwroot/<key>.js` and `[PluginSettings]` classes by itself and gives
+    plugin databases their design-time factory; an assembly without a plugin class loads as one.
+    `npm run make <kind> <name>` in the scaffold writes a command, message, furni logic, listener,
+    setting, web route, window, template patch or migration in the shape the scan finds. Done
+    (`docs/plugin-loading.md`, `docs/client-modules.md`); scheduled tasks and policies get their
+    `make` kinds with their own steps. Furni logic still derives from `Turbo.Rooms`'
+    `FurnitureFloorLogic`, which is not a contract yet (§3, "Public means contract").
 
 **How we know it works** (run after steps 6 and 9, then every release):
 - **The stranger test**: an author with no knowledge of either code base - in practice an agent given

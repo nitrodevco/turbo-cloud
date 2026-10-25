@@ -121,7 +121,35 @@ The migrator's guarantees rest on how migrations are written:
 - **Seed data is idempotent.** Insert what is missing, never assume the table is empty.
 - **One logical change per migration**, named for it, so the log reads well.
 - **Plugins** keep their own history table (`__EFMigrationsHistory_<prefix>`) and table prefix, and
-  call `MigrationHelper.MigrateAsync` from their `IPluginDbModule`, so they get all of the above.
+  are migrated by the same migrator as they load, so they get all of the above.
+
+## A plugin's tables
+
+A plugin's context derives from `PluginDbContextBase<T>` (`Turbo.Database.Context`) and declares
+its tables, nothing else:
+
+```csharp
+public sealed class SkillsDb : PluginDbContextBase<SkillsDb>
+{
+    public DbSet<SkillRow> Skills => Set<SkillRow>();
+}
+```
+
+- As the plugin loads, the host finds the context in its assembly, registers it (scoped, as any
+  context) and migrates its tables; an uninstall that drops the plugin's data drops them. Every
+  table is named with the manifest's `TablePrefix` (`"skills_"`), and no foreign key cascades.
+- `dotnet ef migrations add <Name>` in the plugin's project needs no design-time factory: with no
+  host to give it its options, the context reads the prefix from the plugin's `manifest.json` (in
+  the working folder, the build folder or above them) and names the history table by it. Making a
+  migration needs no database; `-- --connection "<connection string>"` or `TURBO_DB` gives one,
+  `TURBO_DB_VERSION` the server version (default `8.0.0-mysql`). The template's
+  `npm run make migration <Name>` writes the context and runs it.
+- A context the plugin's own tests build over another provider (SQLite) declares a constructor
+  taking `DbContextOptions<TContext>` and `TablePrefixProvider` beside the parameterless one: the
+  host then gives it its options through that constructor, and `dotnet ef` still uses the
+  parameterless one.
+- A context registered by hand (`services.AddPluginDatabaseContext<TContext, TModule>()`) is left
+  as the plugin registers it.
 
 ## Deploying with Ploi
 
