@@ -144,6 +144,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
     private int _callsRunning;
     private bool _tickRunning;
 
+    // Whether the one call running now is a call whose end runs the wired it fired.
+    private bool _callRunsRaisedWired;
+
     // How long a room nobody is in stays loaded before it unloads itself (its wired timers,
     // temporary furni and available-while-active variables start over on the next load). Habbo's
     // unloads 34-40 s after the last user left: still loaded 5/5 after 12-34 s away, unloaded 4/5
@@ -388,7 +391,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
     /// </summary>
     public async Task Invoke(IIncomingGrainCallContext context)
     {
-        _callsRunning++;
+        if (++_callsRunning == 1)
+            _callRunsRaisedWired = !_tickRunning && RunsRaisedWired(context);
 
         try
         {
@@ -405,6 +409,25 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
         try
         {
             await WiredSystem.RunRaisedEventsAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Room {RoomId} failed to run the wired a call fired", RoomId);
+        }
+    }
+
+    /// <summary>
+    /// Runs the wired stacks a call has fired so far before the call goes on, where the call's
+    /// end would run them (<see cref="Invoke"/>); anywhere else they wait for that or the tick.
+    /// </summary>
+    internal async Task RunRaisedWiredInCallAsync(CancellationToken ct)
+    {
+        if (_callsRunning != 1 || !_callRunsRaisedWired || _tickRunning)
+            return;
+
+        try
+        {
+            await WiredSystem.RunRaisedEventsAsync(ct);
         }
         catch (Exception ex)
         {

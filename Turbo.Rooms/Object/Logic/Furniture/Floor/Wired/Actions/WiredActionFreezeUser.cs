@@ -63,8 +63,19 @@ public class WiredActionFreezeUser(
             // capture 2026-10-24, Freeze on a rights holder seen by the owner, 1/1).
             AvatarModule.WakeAvatar(player);
 
+            // The effect goes on at the next avatar cycle, and only on a user still frozen then:
+            // Freeze and Unfreeze in one execution send no effect at all (official client
+            // capture 2026-10-25, LAB-W3 wlab9 action.31.X1, 4/4; AvatarEffect 218 340 to 460 ms
+            // after the fire, action.31.B1, action.31.R1b). An effect put on in between (a
+            // teleport's) is not overwritten.
+            var worn = player.EffectId;
+
             if (effectId > 0)
-                await AvatarModule.SetAvatarEffectAsync(player.ObjectId, effectId, ct);
+                RunAtNextAvatarCycle(token =>
+                    IsInRoom(player) && player.IsFrozen && player.EffectId == worn
+                        ? AvatarModule.SetAvatarEffectAsync(player.ObjectId, effectId, token)
+                        : Task.FromResult(false)
+                );
 
             frozen = true;
         }

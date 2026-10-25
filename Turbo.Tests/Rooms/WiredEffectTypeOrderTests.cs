@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
@@ -44,7 +45,7 @@ public sealed class WiredEffectTypeOrderTests
     }
 
     // action.31.X1 / action.32.X1: Freeze and Unfreeze on the triggerer in one execution, Freeze
-    // below and on top: never left frozen.
+    // below and on top: never left frozen, and no AvatarEffect packet (4/4).
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -71,6 +72,9 @@ public sealed class WiredEffectTypeOrderTests
 
             _room.Avatars[USER].IsFrozen.Should().BeFalse($"firing {i + 1}");
         }
+
+        // No AvatarEffect at all: the room never sees the freeze effect go on and off.
+        _room.Harness.Fakes.SentToRoom<AvatarEffectMessageComposer>().Should().BeEmpty();
     }
 
     // action.40.X3b: Change Variable +1 and Show Message "V=$(v)", Show below the change and the
