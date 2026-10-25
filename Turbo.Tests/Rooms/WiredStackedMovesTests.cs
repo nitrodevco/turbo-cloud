@@ -51,23 +51,43 @@ public sealed class WiredStackedMovesTests
     private RoomWiredSystem Wired => _room.Harness.Module<RoomWiredSystem>();
 
     /// <summary>
-    /// action.4.X9: both picked, only the trophy moves (6,8 z 1 -> 6,7 z 0, dropped to the floor)
-    /// and the block stays; the next firing moves the trophy on and the block is still blocked by
-    /// it. Ours moved both, the trophy riding on the block at z 1.
+    /// action.4.X9 / action.33.X9 / action.13.X9: the block and the trophy on it, both picked and
+    /// moved one tile, are a coin flip every firing on Habbo: the trophy alone moves (dropped to
+    /// the floor, the block blocked by it) or both move, the trophy on the block again, the block
+    /// listed first; never the block alone (Move and Rotate both 3/6, Relative Move both 12/21,
+    /// Move To Direction both 12/21, W1 lab wlab7 + wlab8, 2026-10-24/25). Ours moved the trophy
+    /// alone every firing.
     /// </summary>
-    [Fact]
-    public async Task Picking_a_furni_and_the_one_on_it_moves_only_the_top_one_action_4_X9()
+    [Theory]
+    [InlineData("move_rotate")]
+    [InlineData("rel_mov")]
+    [InlineData("move_to_dir")]
+    public async Task Picking_a_furni_and_the_one_on_it_moves_the_top_one_or_both_at_random_X9(
+        string mover
+    )
     {
-        _room.AddFloorItem(BASE, 6, 8);
+        const string trophyAlone = "22 6,8 z1 -> 6,7 z0";
+        const string both = "21 6,8 z0 -> 6,7 z0 | 22 6,8 z1 -> 6,7 z1";
+        var outcomes = new List<string>();
+
+        var block = _room.AddFloorItem(BASE, 6, 8);
         AddTrophy(6, 8, 1.0);
-        await BuildMoveRotateAsync([BASE, TROPHY]);
+        await BuildMoverAsync(mover, [BASE, TROPHY]);
 
-        var first = await ClickAsync();
-        var second = await ClickAsync();
+        for (var firing = 0; firing < 40; firing++)
+        {
+            _room.Map.MoveFloorItem(block, _room.Map.ToIdx(6, 8), Altitude.Zero);
+            _room.Map.MoveFloorItem(
+                _room.FloorItem(TROPHY),
+                _room.Map.ToIdx(6, 8),
+                Altitude.FromValue(1.0)
+            );
 
-        first.Should().Equal("22 6,8 z1 -> 6,7 z0");
-        second.Should().Equal("22 6,7 z0 -> 6,6 z0");
-        (_room.FloorItem(BASE).X, _room.FloorItem(BASE).Y).Should().Be((6, 8));
+            outcomes.Add(string.Join(" | ", await ClickAsync()));
+        }
+
+        outcomes.Should().OnlyContain(o => o == trophyAlone || o == both);
+        outcomes.Should().Contain(trophyAlone).And.Contain(both);
     }
 
     /// <summary>
@@ -177,6 +197,38 @@ public sealed class WiredStackedMovesTests
         );
         _room.Harness.State.ItemsById.Add(TROPHY, trophy);
         _room.Map.AddItem(trophy);
+    }
+
+    private async Task BuildMoverAsync(string mover, int[] picks)
+    {
+        if (mover == "move_rotate")
+        {
+            await BuildMoveRotateAsync(picks);
+
+            return;
+        }
+
+        await AddClickTriggerAsync();
+
+        if (mover == "rel_mov")
+            _room.AddBox<WiredActionRelativeMove>(ACTION, 0, 0, "wf_act_rel_mov");
+        else
+            _room.AddBox<WiredActionMoveToDirection>(ACTION, 0, 0, "wf_act_move_to_dir");
+
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                ACTION,
+                // Relative Move [0,-1]; Move To Direction north, wait when blocked, users block.
+                intParams: mover == "rel_mov" ? [0, -1] : [0, 0, 1],
+                stuffIds: picks,
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await StackChangedAsync();
     }
 
     private async Task BuildMoveRotateAsync(int[] picks)

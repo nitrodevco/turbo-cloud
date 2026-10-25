@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -31,6 +33,24 @@ public abstract class FurnitureWiredMoveActionLogic(
     /// what the action does besides moving goes through <see cref="WiredMovePlan.Then(System.Action)"/>.
     /// </summary>
     protected abstract void PlanMoves(IWiredContext ctx, WiredMovePlan plan);
+
+    /// <summary>
+    /// The floor picks in a new random order every firing, each moving onto the room as the ones
+    /// before left it. A block and the furni on it, both picked: the block first moves both, the
+    /// top one landing on it again; the top first drops it onto the free tile and the block is
+    /// blocked by it. Habbo does either, never the block alone (official client capture
+    /// 2026-10-24/25, W1 lab action.33.X9 Relative Move both 12/21, action.13.X9 Move To
+    /// Direction both 12/21, action.4.X9 Move and Rotate both 3/6, the block listed first when
+    /// both moved 16/16). That the order is what decides it is inferred: it fits every firing.
+    /// </summary>
+    protected List<IRoomFloorItem> GetFloorPicksInRandomOrder(IWiredSelectionSet selection)
+    {
+        var picks = GetFloorItems(selection);
+
+        Random.Shared.Shuffle(CollectionsMarshal.AsSpan(picks));
+
+        return picks;
+    }
 
     /// <summary>Whether the action counts as having run even when no furni moved.</summary>
     protected virtual bool SucceedsWithoutMoving => false;

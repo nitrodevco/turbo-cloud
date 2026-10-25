@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -51,23 +50,15 @@ public class WiredActionMoveRotateFurni(
     protected override bool SucceedsWithoutMoving => true;
 
     /// <summary>
-    /// The picks move from the top down, each onto the room as the ones before left it: a block
-    /// and the trophy on it, both picked and moved one tile, move the trophy alone, which drops
-    /// to the floor and leaves the block blocked by it, on every later firing too; the block
-    /// picked alone moves without the trophy, which stays where it was (official client capture
-    /// 2026-10-24T18-40-50, W1 lab action.4.X9 2/2, action.4.X9b 2/2). Inference: the order is
-    /// highest altitude first, then lowest id - the one order that gives both firings of X9.
+    /// The picks move in a random order (<see cref="GetFloorPicksInRandomOrder"/>): a block and
+    /// the trophy on it, both picked and moved one tile, moved the trophy alone (dropped to the
+    /// floor, the block blocked by it) or both (official client capture 2026-10-24, W1 lab
+    /// action.4.X9: trophy alone 2/2 at 18-40-50, then both 3/6 and trophy alone 3/6); the block
+    /// picked alone moves without the trophy, which stays where it was (action.4.X9b 2/2).
     /// </summary>
     protected override void PlanMoves(IWiredContext ctx, WiredMovePlan plan)
     {
-        var picks = ctx.GetSelection(this)
-            .SelectedFurniIds.Select(id =>
-                FurniModule.TryGetItem(id, out var item) ? item as IRoomFloorItem : null
-            )
-            .OfType<IRoomFloorItem>()
-            .OrderByDescending(item => plan.Where(item).Z.Value)
-            .ThenBy(item => item.ObjectId.Value)
-            .ToList();
+        var picks = GetFloorPicksInRandomOrder(ctx.GetSelection(this));
 
         foreach (var floorItem in picks)
         {
