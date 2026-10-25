@@ -34,7 +34,8 @@ internal sealed class HostHotelPlayers(
 
     public async Task<HotelPlayer?> GetAsync(PlayerId player, CancellationToken ct)
     {
-        await using var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
 
         return await Project(db.Players.AsNoTracking().Where(x => x.Id == player.Value))
             .FirstOrDefaultAsync(ct)
@@ -48,7 +49,8 @@ internal sealed class HostHotelPlayers(
         if (key.Length == 0)
             return null;
 
-        await using var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
 
         return await Project(db.Players.AsNoTracking().Where(x => x.NameKey == key))
             .FirstOrDefaultAsync(ct)
@@ -65,7 +67,8 @@ internal sealed class HostHotelPlayers(
 
         var ids = players.Select(x => x.Value).Distinct().ToList();
 
-        await using var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
 
         var names = await db
             .Players.AsNoTracking()
@@ -89,7 +92,8 @@ internal sealed class HostHotelPlayers(
         if (key.Length == 0 || take == 0)
             return [];
 
-        await using var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
 
         return await Project(
                 db.Players.AsNoTracking()
@@ -139,7 +143,8 @@ internal sealed class HostHotelPlayers(
         if (take == 0)
             return [];
 
-        await using var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
 
         var figures = Figures(db, stat);
 

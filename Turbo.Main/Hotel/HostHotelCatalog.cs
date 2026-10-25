@@ -53,7 +53,8 @@ internal sealed class HostHotelCatalog(
 
         var ids = definitionIds.Distinct().ToList();
 
-        await using var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
 
         var counts = await db
             .Furnitures.AsNoTracking()
