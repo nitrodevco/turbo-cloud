@@ -352,10 +352,6 @@ public sealed class WiredFlowAddonLabAnswersTests
             "wf_slc_furni_picks",
             [],
             stuffIds: furni,
-            furniSources:
-            [
-                [WiredFurniSourceType.SelectedItems],
-            ],
             definitionSpecifics: [false, false]
         );
 
