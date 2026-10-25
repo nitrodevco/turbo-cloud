@@ -39,7 +39,14 @@ public class WiredActionToggleItemState(
         {
             try
             {
-                if (!FurniModule.TryGetItem(furniId, out var item) || !item.Logic.CanWiredToggle())
+                // A signal antenna keeps its state: Habbo sent no update for one the toggle was
+                // given (official client capture 2026-10-24T08-37-13, 2/2); its flash is the
+                // signal's (RoomWiredSystem.FlashAntennas).
+                if (
+                    !FurniModule.TryGetItem(furniId, out var item)
+                    || !item.Logic.CanWiredToggle()
+                    || IsListedAntenna(item)
+                )
                     continue;
 
                 var state = _wiredData.GetIntParam<bool>(0) switch
