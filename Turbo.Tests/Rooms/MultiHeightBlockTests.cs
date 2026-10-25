@@ -3,11 +3,14 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
+using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Rooms.Wired;
 using Turbo.Tests.Support;
 using Xunit;
@@ -25,6 +28,7 @@ public sealed class MultiHeightBlockTests
     private const int BLOCK = 40;
 
     private readonly WiredRoom _room = new();
+    private long _now = 10_000;
 
     [Theory]
     [InlineData(0, 100)]
@@ -148,26 +152,104 @@ public sealed class MultiHeightBlockTests
 
     // W2 trigger.4.B4 / action.0.B4c: a hand use of block K at its lowest state with block K2 on
     // it got no reply and K kept its state (2/2); K2 toggled (official client capture 2026-10-24
-    // 22-26-27). Ours stepped K under K2.
+    // 22-26-27). Furni Is Used picking K did not fire for those uses, and fired for the uses of
+    // K uncovered (2026-10-25T01-03, 0/2 and 2/2). Ours stepped K under K2, then fired the
+    // trigger for the use it refused.
     [Fact]
     public async Task A_block_with_another_on_top_is_not_changed_by_hand_trigger_4_B4()
     {
         const int TOP = 41;
+        const int LAMP = 42;
         var ct = TestContext.Current.CancellationToken;
         var block = AddBlock();
+        var lamp = _room.AddFloorItem(LAMP, 6, 6);
 
+        await FurniIsUsedTogglesAsync(BLOCK, LAMP);
         await block.Logic.SetStateAsync(4);
 
         var top = AddBlock(TOP);
 
         for (var use = 0; use < 2; use++)
-            await _room.Harness.Room.UseItemByIdAsync(ActionContext.CreateForSystem(1), BLOCK, ct);
+            await UseAndRunWiredAsync(BLOCK);
 
         block.Logic.GetState().Should().Be(4);
+        lamp.Logic.GetState().Should().Be(0, "Furni Is Used does not fire for a refused use");
 
-        await _room.Harness.Room.UseItemByIdAsync(ActionContext.CreateForSystem(1), TOP, ct);
+        await UseAndRunWiredAsync(TOP);
 
         top.Logic.GetState().Should().Be(1);
+
+        _room.Map.RemoveItem(top);
+        _room.Harness.State.ItemsById.Remove(TOP);
+        await UseAndRunWiredAsync(BLOCK);
+
+        lamp.Logic.GetState().Should().Be(1, "the uncovered block's use fires it");
+
+        async Task UseAndRunWiredAsync(int itemId)
+        {
+            await _room.Harness.Room.UseItemByIdAsync(ActionContext.CreateForSystem(1), itemId, ct);
+            await RunWiredAsync();
+        }
+    }
+
+    private async Task FurniIsUsedTogglesAsync(int used, int toggled)
+    {
+        const int TRIGGER = 50;
+        const int EFFECT = 51;
+        var ct = TestContext.Current.CancellationToken;
+
+        _room.AddBox<WiredTriggerHabboChangesItemState>(
+            TRIGGER,
+            0,
+            0,
+            "wf_trg_state_changed"
+        );
+        _room.AddBox<WiredActionToggleItemState>(EFFECT, 0, 0, "wf_act_toggle_state");
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                TRIGGER,
+                stuffIds: [used],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                EFFECT,
+                intParams: [0],
+                stuffIds: [toggled],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await _room
+            .Harness.Module<RoomWiredSystem>()
+            .OnRoomEventAsync(
+                new RoomWiredStackChangedEvent
+                {
+                    RoomId = 1,
+                    CausedBy = ActionContext.CreateForSystem(1),
+                    StackIds = [_room.Map.ToIdx(0, 0)],
+                },
+                ct
+            );
+        await RunWiredAsync();
+    }
+
+    private async Task RunWiredAsync()
+    {
+        var wired = _room.Harness.Module<RoomWiredSystem>();
+
+        for (var i = 0; i < 10; i++)
+        {
+            _now += 50;
+            await wired.ProcessWiredAsync(_now, dormant: false, TestContext.Current.CancellationToken);
+        }
     }
 
     private IRoomFloorItem AddBlock(int id = BLOCK)
