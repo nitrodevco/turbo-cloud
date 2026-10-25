@@ -10,6 +10,7 @@ using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Policies;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 
@@ -43,6 +44,22 @@ internal sealed partial class RoomService
                 .ConfigureAwait(false);
 
             if (snapshot is null || snapshot.Definition.ProductType != ProductType.Floor)
+                return;
+
+            if (
+                !await PassesPlacementPolicyAsync(
+                        new PlacementRequest(
+                            ctx.PlayerId,
+                            ctx.RoomId,
+                            PlacementKind.FloorItem,
+                            snapshot.Definition,
+                            x,
+                            y
+                        ),
+                        ct
+                    )
+                    .ConfigureAwait(false)
+            )
                 return;
 
             var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);

@@ -12,9 +12,11 @@ using Orleans;
 using Turbo.Catalog.Configuration;
 using Turbo.Catalog.Exceptions;
 using Turbo.Database.Context;
+using Turbo.Events;
 using Turbo.Players.Configuration;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
+using Turbo.Primitives.Catalog.Events;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Snapshots;
@@ -30,10 +32,12 @@ using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Providers;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Wallet;
+using Turbo.Primitives.Policies;
 using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -57,6 +61,8 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
     private readonly IGiftWrappingProvider _giftWrappingProvider;
     private readonly ICommunityGoalService _communityGoals;
     private readonly IBonusRareService _bonusRare;
+    private readonly IGamePolicies _policies;
+    private readonly EventSystem _events;
     private readonly ILogger<ICatalogPurchaseGrain> _logger;
 
     /// <summary>Days of used-up membership that earn a club gift; never zero, so it can divide.</summary>
@@ -74,6 +80,8 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         IGiftWrappingProvider giftWrappingProvider,
         ICommunityGoalService communityGoals,
         IBonusRareService bonusRare,
+        IGamePolicies policies,
+        EventSystem events,
         ILogger<ICatalogPurchaseGrain> logger
     )
     {
@@ -88,6 +96,8 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         _giftWrappingProvider = giftWrappingProvider;
         _communityGoals = communityGoals;
         _bonusRare = bonusRare;
+        _policies = policies;
+        _events = events;
         _logger = logger;
     }
 
@@ -153,6 +163,17 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
                 ? quantity + _catalogConfig.BundleDiscount.FreeItems(quantity)
                 : quantity;
 
+        // The hotel's plugins may refuse it, or change what it costs or gives (IPurchasePolicy).
+        var decision = await DecideAsync(
+            new PurchaseRequest(this.GetPlayerId(), catalogType, offer, quantity),
+            offer,
+            quantity,
+            units,
+            ct
+        );
+
+        units = decision.Units;
+
         ValidatePetProducts(offer, extraParam);
         extraParam = PrepareTrophyInscription(offer, extraParam);
         ValidateSubscriptionProducts(offer);
@@ -163,7 +184,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         ValidateProductStuffData(offer);
         await ValidateBadgeDisplayProductsAsync(offer, extraParam, ct);
 
-        var debitRequests = offer.ToDebitRequests(quantity);
+        var debitRequests = ToDebitRequests(decision, offer);
         var cause = MovementCause.New(
             MovementCauses.CATALOG_PURCHASE,
             this.GetPlayerId().Value,
@@ -222,6 +243,8 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
 
         if (catalogType == CatalogType.Normal)
             await RecordReceptionProgressAsync(offer, debitRequests, quantity, ct);
+
+        _events.PublishCommitted(Completed(catalogType, offer, decision, units, null));
 
         // The confirmation lists the furni bought after the offer, floor and wall apart.
         return new CatalogPurchaseResult
@@ -757,6 +780,75 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
     }
 
     /// <summary>Takes the price, or throws the refusal the client shows for a short balance.</summary>
+    /// <summary>
+    /// The purchase as the purchase policies leave it, from the offer's own price for
+    /// <paramref name="quantity"/> and <paramref name="units"/> given; a refusal is thrown with
+    /// its reason.
+    /// </summary>
+    private async Task<PurchaseDecision> DecideAsync(
+        PurchaseRequest request,
+        CatalogOfferSnapshot offer,
+        int quantity,
+        int units,
+        CancellationToken ct
+    )
+    {
+        var decision = await _policies.DecidePurchaseAsync(
+            request,
+            new PurchaseDecision
+            {
+                CostCredits = offer.CostCredits * quantity,
+                CostSilver = offer.CostSilver * quantity,
+                CostActivityPoints = offer.CostCurrency * quantity,
+                Units = units,
+            },
+            ct
+        );
+
+        if (!decision.Allowed)
+            throw new CatalogPurchaseException(
+                CatalogPurchaseErrorType.PurchaseFailed,
+                refusal: decision.Reason
+            );
+
+        return decision;
+    }
+
+    /// <summary>What the purchase takes out of the wallet, one request per currency it costs.</summary>
+    private static List<WalletDebitRequest> ToDebitRequests(
+        PurchaseDecision decision,
+        CatalogOfferSnapshot offer
+    ) =>
+        (
+            offer with
+            {
+                CostCredits = decision.CostCredits,
+                CostSilver = decision.CostSilver,
+                CostCurrency = decision.CostActivityPoints,
+            }
+        ).ToDebitRequests(1);
+
+    private PurchaseCompletedEvent Completed(
+        CatalogType catalogType,
+        CatalogOfferSnapshot offer,
+        PurchaseDecision decision,
+        int units,
+        PlayerId? giftReceiverId
+    ) =>
+        new()
+        {
+            PlayerId = this.GetPlayerId(),
+            CatalogType = catalogType,
+            OfferId = offer.Id,
+            ProductCode = offer.LocalizationId,
+            Units = units,
+            CostCredits = decision.CostCredits,
+            CostSilver = decision.CostSilver,
+            CostActivityPoints = decision.CostActivityPoints,
+            ActivityPointType = offer.ActivityPointType,
+            GiftReceiverId = giftReceiverId,
+        };
+
     private async Task DebitAsync(
         List<WalletDebitRequest> debitRequests,
         MovementCause cause,

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Events;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Authentication;
 using Turbo.Primitives.Availability;
@@ -23,6 +24,7 @@ using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Events;
 using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Onboarding;
 using Turbo.Primitives.Players.Permissions;
@@ -47,7 +49,8 @@ public class SSOTicketMessageHandler(
     IModerationIssueService issues,
     IPlayerNoticeService notices,
     IClientTelemetry telemetry,
-    IPlayPolicies playPolicies
+    IPlayPolicies playPolicies,
+    EventSystem? events = null
 ) : IMessageHandler<SSOTicketMessage>
 {
     /// <summary>The notification type of a play policy's refusal at login; a hotel styles it with <c>notification.turbo.play.refused</c>.</summary>
@@ -140,6 +143,7 @@ public class SSOTicketMessageHandler(
             .AddSessionToPlayerAsync(ctx.SessionKey, playerId)
             .ConfigureAwait(false);
         telemetry.RecordLoginStep(ctx.SessionKey, playerId, ClientLoginSteps.AUTH_OK);
+        events?.PublishCommitted(new PlayerLoggedInEvent { PlayerId = playerId });
 
         // Five reads from five different grains, none depending on another, so they are asked
         // side by side and awaited where their answers are sent. The composers still go out in

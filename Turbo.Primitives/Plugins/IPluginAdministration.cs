@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Policies;
 
 namespace Turbo.Primitives.Plugins;
 
@@ -146,6 +147,10 @@ public enum PluginStateType
 /// <param name="IncomingHeaders">The headers of the incoming packets it reads.</param>
 /// <param name="OutgoingHeaders">The headers of the outgoing packets it writes.</param>
 /// <param name="Migrations">The database migrations applied for its tables, oldest first.</param>
+/// <param name="Policies">
+/// The game policies it registered; one whose <c>SharedWith</c> is not empty conflicts with
+/// another plugin's of the same kind (both run, in order).
+/// </param>
 public sealed record PluginSnapshot(
     string Key,
     string? Name,
@@ -160,7 +165,8 @@ public sealed record PluginSnapshot(
     ImmutableArray<int> IncomingHeaders,
     ImmutableArray<int> OutgoingHeaders,
     ImmutableArray<string> Migrations,
-    DateTime? LoadedAtUtc
+    DateTime? LoadedAtUtc,
+    ImmutableArray<RegisteredPolicy> Policies = default
 );
 
 /// <summary>What an action did: whether it worked, what to tell the operator, and the plugin after it.</summary>

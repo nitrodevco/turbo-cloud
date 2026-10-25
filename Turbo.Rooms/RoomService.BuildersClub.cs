@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Policies;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Rooms;
@@ -32,6 +33,23 @@ internal sealed partial class RoomService
 
         try
         {
+            if (
+                !await PassesPlacementPolicyAsync(
+                        new PlacementRequest(
+                            ctx.PlayerId,
+                            ctx.RoomId,
+                            PlacementKind.FloorItem,
+                            BuildersClubDefinition(offerId),
+                            x,
+                            y,
+                            BuildersClub: true
+                        ),
+                        ct
+                    )
+                    .ConfigureAwait(false)
+            )
+                return;
+
             await _grainFactory
                 .GetRoomGrain(ctx.RoomId)
                 .PlaceBuildersClubFloorItemAsync(
@@ -79,6 +97,21 @@ internal sealed partial class RoomService
 
         try
         {
+            if (
+                !await PassesPlacementPolicyAsync(
+                        new PlacementRequest(
+                            ctx.PlayerId,
+                            ctx.RoomId,
+                            PlacementKind.WallItem,
+                            BuildersClubDefinition(offerId),
+                            BuildersClub: true
+                        ),
+                        ct
+                    )
+                    .ConfigureAwait(false)
+            )
+                return;
+
             await _grainFactory
                 .GetRoomGrain(ctx.RoomId)
                 .PlaceBuildersClubWallItemAsync(

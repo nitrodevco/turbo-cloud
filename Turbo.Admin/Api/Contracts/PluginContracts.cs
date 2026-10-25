@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Turbo.Primitives.Plugins;
+using Turbo.Primitives.Policies;
 
 namespace Turbo.Admin.Api.Contracts;
 
@@ -30,6 +31,8 @@ public sealed record PluginsResponse(
 /// One plugin. <see cref="State"/> is <c>loaded</c>, <c>failed</c>, <c>disabled</c> or
 /// <c>not_loaded</c>; <see cref="Name"/> is null for a folder whose manifest could not be read.
 /// <see cref="Versions"/> are the earlier versions kept to roll back to, newest first.
+/// <see cref="Policies"/> are the game policies it registered; one with another owner in its
+/// <c>SharedWith</c> is a conflict to show (both plugins decide that kind, in order).
 /// </summary>
 public sealed record PluginView(
     string Key,
@@ -46,7 +49,8 @@ public sealed record PluginView(
     IReadOnlyList<int> OutgoingHeaders,
     IReadOnlyList<string> Migrations,
     DateTime? LoadedAtUtc,
-    IReadOnlyList<string> Versions
+    IReadOnlyList<string> Versions,
+    IReadOnlyList<RegisteredPolicy> Policies
 )
 {
     public static PluginView From(PluginSnapshot p, IReadOnlyList<string>? versions = null) =>
@@ -65,7 +69,8 @@ public sealed record PluginView(
             [.. p.OutgoingHeaders],
             [.. p.Migrations],
             p.LoadedAtUtc,
-            versions ?? []
+            versions ?? [],
+            p.Policies.IsDefault ? [] : [.. p.Policies]
         );
 
     public static string StateName(PluginStateType state) =>

@@ -44,6 +44,7 @@ public class LoginAdmissionTests
             .Instance
     );
     private readonly Dictionary<string, string> _hotelTexts = [];
+    private readonly TestEventBus _events = new();
     private readonly ISessionContext _session;
     private readonly SSOTicketMessageHandler _handler;
     private PlayerSanctionSnapshot? _ban;
@@ -77,8 +78,10 @@ public class LoginAdmissionTests
             _fakes.Create<Turbo.Primitives.Moderation.IModerationIssueService>(),
             _fakes.Create<Turbo.Primitives.Players.Notifications.IPlayerNoticeService>(),
             _fakes.Create<Turbo.Primitives.Tracking.IClientTelemetry>(),
-            _policies
+            _policies,
+            _events.System
         );
+        _events.Record<Turbo.Primitives.Players.Events.PlayerLoggedInEvent>();
     }
 
     private static PlayerSanctionSnapshot Ban(DateTime? until, string reason = "spam") =>
@@ -278,6 +281,28 @@ public class LoginAdmissionTests
         Closed.Should().BeFalse();
         SentToSession().OfType<UserBannedMessageComposer>().Should().BeEmpty();
         Steps.Should().Equal(Turbo.Primitives.Tracking.ClientLoginSteps.AUTH_OK);
+    }
+
+    [Theory]
+    [InlineData(false, 1)]
+    [InlineData(true, 0)]
+    public async Task A_login_raises_PlayerLoggedIn_once_and_a_refused_one_none(
+        bool banned,
+        int raised
+    )
+    {
+        _ban = banned ? Ban(null) : null;
+
+        await Record.ExceptionAsync(LogInAsync);
+        await _events.WhenPublishedAsync<Turbo.Primitives.Players.Events.PlayerLoggedInEvent>(
+            raised
+        );
+
+        _events
+            .Of<Turbo.Primitives.Players.Events.PlayerLoggedInEvent>()
+            .Select(x => x.PlayerId.Value)
+            .Should()
+            .Equal(Enumerable.Repeat(PLAYER, raised));
     }
 
     [Fact]

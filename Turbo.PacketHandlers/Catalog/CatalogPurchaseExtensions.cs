@@ -7,6 +7,7 @@ using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Policies;
 
 namespace Turbo.PacketHandlers.Catalog;
 
@@ -53,16 +54,20 @@ internal static class CatalogPurchaseExtensions
 
     /// <summary>
     /// Turns a refused purchase into the message the client draws for it: a balance failure has
-    /// its own packet, and the rest go by error type.
+    /// its own packet, a purchase policy's reason its pop-up, and the rest go by error type.
     /// </summary>
     public static Task SendPurchaseFailureAsync(
         this MessageContext ctx,
         CatalogPurchaseException ex,
         CancellationToken ct
     ) =>
-        ex.BalanceFailure is { } balanceFailure
-            ? ctx.SendBalanceFailureAsync(balanceFailure, ct)
-            : ctx.SendPurchaseErrorAsync(ex.ErrorType, ct);
+        ex.BalanceFailure is { } balanceFailure ? ctx.SendBalanceFailureAsync(balanceFailure, ct)
+        : !string.IsNullOrEmpty(ex.Refusal)
+            ? ctx.SendComposerAsync(
+                PolicyRefusals.Notification(PolicyRefusals.PURCHASE, ex.Refusal),
+                ct
+            )
+        : ctx.SendPurchaseErrorAsync(ex.ErrorType, ct);
 
     /// <summary>
     /// Tells the client which currency the buyer was short of.
