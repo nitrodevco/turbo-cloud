@@ -92,6 +92,13 @@ internal sealed class PluginGamedataSeeds(
                 overlays
             );
 
+        if (parts.TryGetValue(ExternalVariablesFile.LOADING_SCREEN, out var loadingScreen))
+            parts[ExternalVariablesFile.LOADING_SCREEN] = AddressLoadingScreen(
+                pluginKey,
+                Path.Combine(folder, WWWROOT),
+                loadingScreen
+            );
+
         AddStyles(pluginKey, folder, parts);
 
         loaded.SetParts(pluginKey, parts);
@@ -119,52 +126,107 @@ internal sealed class PluginGamedataSeeds(
     /// </summary>
     private string AddressOverlays(string pluginKey, string wwwroot, string json)
     {
-        JsonNode? node;
-
-        try
-        {
-            node = JsonNode.Parse(json);
-
-            if (node is JsonValue text && text.TryGetValue<string>(out var inner))
-                node = JsonNode.Parse(inner);
-        }
-        catch (JsonException)
-        {
-            return json;
-        }
-
-        if (node is not JsonObject entries)
+        if (ParseObject(json) is not { } entries)
             return json;
 
         var addressed = new JsonObject();
 
         foreach (var (asset, value) in entries)
         {
-            if (
-                value is not JsonValue url
-                || !url.TryGetValue<string>(out var path)
-                || path.Length == 0
-                || path.StartsWith('/')
-                || path.Contains("://", StringComparison.Ordinal)
-            )
-            {
-                addressed[asset] = value?.DeepClone();
-
-                continue;
-            }
-
-            if (modules.AddressOf(pluginKey, wwwroot, path) is { } address)
-                addressed[asset] = address;
+            if (Address(pluginKey, wwwroot, value) is { } node)
+                addressed[asset] = node;
             else
                 logger.LogWarning(
                     "The plugin {Key}'s overlay of {Asset} names {Path}, which is no file of its wwwroot: the library's own is used",
                     pluginKey,
                     asset,
-                    path
+                    value?.ToString()
                 );
         }
 
         return addressed.ToJsonString();
+    }
+
+    /// <summary>
+    /// A plugin's <see cref="ExternalVariablesFile.LOADING_SCREEN"/>: its pictures (<c>backgroundImage</c>,
+    /// <c>logo</c>, each of <c>layers</c>' <c>image</c>) named by their path in its <c>wwwroot/</c> are
+    /// given to clients at their address, as its overlays are; one whose file is not there is logged and
+    /// left out (the screen is drawn without it).
+    /// </summary>
+    private string AddressLoadingScreen(string pluginKey, string wwwroot, string json)
+    {
+        if (ParseObject(json) is not { } look)
+            return json;
+
+        void AddressIn(JsonObject owner, string key, string part)
+        {
+            if (!owner.TryGetPropertyValue(key, out var value))
+                return;
+
+            if (Address(pluginKey, wwwroot, value) is { } node)
+            {
+                owner[key] = node;
+
+                return;
+            }
+
+            owner.Remove(key);
+            logger.LogWarning(
+                "The plugin {Key}'s loading screen {Part} names {Path}, which is no file of its wwwroot: it is left out",
+                pluginKey,
+                part,
+                value?.ToString()
+            );
+        }
+
+        AddressIn(look, "backgroundImage", "backgroundImage");
+        AddressIn(look, "logo", "logo");
+
+        if (look["layers"] is JsonArray layers)
+            for (var i = 0; i < layers.Count; i++)
+                if (layers[i] is JsonObject layer)
+                    AddressIn(layer, "image", $"layers[{i}]");
+
+        return look.ToJsonString();
+    }
+
+    /// <summary>A merged variable's value as an object: the object, or the object as JSON text.</summary>
+    private static JsonObject? ParseObject(string json)
+    {
+        try
+        {
+            var node = JsonNode.Parse(json);
+
+            if (node is JsonValue text && text.TryGetValue<string>(out var inner))
+                node = JsonNode.Parse(inner);
+
+            return node as JsonObject;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// A picture a plugin names: by its path in its <c>wwwroot/</c> (<c>"frame.png"</c>), its address by
+    /// hash, as its patch file's; a url (<c>/...</c>, <c>https://...</c>) or a value that is no text as
+    /// it is; <see langword="null"/> for a path that is no file of its wwwroot.
+    /// </summary>
+    private JsonNode? Address(string pluginKey, string wwwroot, JsonNode? value)
+    {
+        if (
+            value is not JsonValue url
+            || !url.TryGetValue<string>(out var path)
+            || path.Length == 0
+            || path.StartsWith('/')
+            || path.Contains("://", StringComparison.Ordinal)
+        )
+            return value?.DeepClone();
+
+        return modules.AddressOf(pluginKey, wwwroot, path) is { } address
+            ? JsonValue.Create(address)
+            : null;
     }
 
     /// <summary>

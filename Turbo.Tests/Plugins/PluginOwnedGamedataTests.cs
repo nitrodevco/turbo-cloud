@@ -619,6 +619,52 @@ public sealed class PluginOwnedGamedataTests : IDisposable
         await _manager.UnloadAllAsync(Ct);
     }
 
+    // A theme's loading screen named its pictures by the absolute /gamedata/plugins/<key>/... address (a
+    // path of its wwwroot reached no file), unlike its overlays.
+    [Fact]
+    public async Task A_plugins_loading_screen_names_its_pictures_by_their_wwwroot_path()
+    {
+        WriteTheme(
+            """{ "loading.screen": { "logo": "loading/logo.png", "backgroundImage": "/shared/view.png", "layers": [ { "image": "loading/left.png", "position": "left bottom" }, { "image": "missing.png" } ] } }""",
+            string.Empty
+        );
+
+        var loading = Path.Combine(_folder, "theme", "wwwroot", "loading");
+
+        Directory.CreateDirectory(loading);
+        File.WriteAllBytes(Path.Combine(loading, "logo.png"), [1, 2, 3]);
+        File.WriteAllBytes(Path.Combine(loading, "left.png"), [4, 5, 6]);
+
+        await _manager.LoadAllAsync(ct: Ct);
+
+        var look = (await SentVariablesAsync())["loading.screen"]!.AsObject();
+        var layers = look["layers"]!.AsArray();
+
+        look["logo"]!
+            .GetValue<string>()
+            .Should()
+            .MatchRegex(
+                @"^/gamedata/plugins/theme/loading/logo\.png\?v=[0-9a-f]{16}$",
+                "served from its wwwroot by hash"
+            );
+        look["backgroundImage"]!
+            .GetValue<string>()
+            .Should()
+            .Be("/shared/view.png", "a url is kept");
+        layers[0]!["image"]!
+            .GetValue<string>()
+            .Should()
+            .MatchRegex(@"^/gamedata/plugins/theme/loading/left\.png\?v=[0-9a-f]{16}$");
+        layers[0]!["position"]!.GetValue<string>().Should().Be("left bottom");
+        layers[1]!
+            .AsObject()
+            .ContainsKey("image")
+            .Should()
+            .BeFalse("a picture whose file is not there is left out");
+
+        await _manager.UnloadAllAsync(Ct);
+    }
+
     private void WritePatches(string key)
     {
         var wwwroot = Path.Combine(_folder, key, "wwwroot");
