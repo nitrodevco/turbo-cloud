@@ -35,7 +35,9 @@ public class WiredConditionCounterTimeMatch(
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
             new WiredRangeParamRule(0, 59, 0),
-            new WiredRangeParamRule(0, 99, 0),
+            // Minutes 100 saved were Opened as 99 (official client capture 2026-10-25T05-16-36,
+            // wired matrix condition.35.B2).
+            new WiredClampParamRule(0, 99, 0),
             new WiredRangeParamRule(0, 1, 0),
             new WiredRangeParamRule(0, 2, 0),
         ];
