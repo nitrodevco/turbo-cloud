@@ -58,7 +58,8 @@ public sealed class TemplatePatchExampleTests : IDisposable
         _ = typeof(Turbo.Messages.Registry.MessageContext).Assembly;
         _ = typeof(Turbo.Pipeline.Registry.IHandler<,>).Assembly;
 
-        await WriteExampleAsync("purse-theme", "PurseThemePlugin.cs");
+        // The theme is a data plugin: its folder as it is, no assembly.
+        CopyExample("purse-theme", "pursetheme");
         await WriteExampleAsync("purse-skills", "PurseSkillsPlugin.cs");
 
         var (manager, loaded, registry, webRoutes) = Hotel();
@@ -97,6 +98,14 @@ public sealed class TemplatePatchExampleTests : IDisposable
             .GetString()
             .Should()
             .Be("habbo-toolbar-com/purse_xml");
+
+        // Its two colours, as the patches' color numbers, for the ${style:...} they name.
+        JsonDocument
+            .Parse(loaded.OwnedPartsOf(ExternalVariablesFile.TEMPLATE_STYLES).Single().Part)
+            .RootElement.GetProperty("pursetheme:purse.help")
+            .GetUInt32()
+            .Should()
+            .Be(4281244476);
 
         registry.Modules.Should().ContainSingle().Which.Key.Should().Be("skills");
 
@@ -260,6 +269,25 @@ public sealed class TemplatePatchExampleTests : IDisposable
 
             foreach (var file in Directory.EnumerateFiles(Path.Combine(example, part)))
                 File.Copy(file, Path.Combine(_folder, key, part, Path.GetFileName(file)));
+        }
+    }
+
+    private void CopyExample(string folder, string key)
+    {
+        var example = Path.Combine(
+            RepositoryRoot(),
+            "docs",
+            "examples",
+            "template-patches",
+            folder
+        );
+
+        foreach (var file in Directory.EnumerateFiles(example, "*", SearchOption.AllDirectories))
+        {
+            var to = Path.Combine(_folder, key, Path.GetRelativePath(example, file));
+
+            Directory.CreateDirectory(Path.GetDirectoryName(to)!);
+            File.Copy(file, to);
         }
     }
 

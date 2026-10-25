@@ -3,7 +3,6 @@
     "Key": "pursetheme",
     "Version": "1.0.0",
     "Author": "Turbo",
-    "AssemblyFile": "PurseTheme.dll",
     "Dependencies": [],
-    "ApiVersion": 1
+    "ApiVersion": 4
 }
