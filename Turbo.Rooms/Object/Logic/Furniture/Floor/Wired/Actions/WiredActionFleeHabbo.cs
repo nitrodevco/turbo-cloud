@@ -78,8 +78,7 @@ public class WiredActionFleeHabbo(
             {
                 if (distance == COLLISION_RANGE)
                 {
-                    if (nearest is IRoomPlayer player)
-                        plan.Then(() => PublishCollision(item, player));
+                    plan.Then(() => PublishCollision(item, nearest));
 
                     continue;
                 }

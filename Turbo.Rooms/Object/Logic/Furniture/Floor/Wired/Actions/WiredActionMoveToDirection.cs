@@ -133,8 +133,8 @@ public class WiredActionMoveToDirection(
 
         foreach (var avatar in AvatarModule.GetAvatarsOnTile(tileIdx))
         {
-            if (avatar is IRoomPlayer player)
-                plan.Then(() => PublishCollision(item, player));
+            if (WiredUsers.Counts(avatar))
+                plan.Then(() => PublishCollision(item, avatar));
         }
 
         return true;

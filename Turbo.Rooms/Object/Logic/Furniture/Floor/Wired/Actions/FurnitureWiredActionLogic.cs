@@ -37,16 +37,21 @@ public abstract class FurnitureWiredActionLogic(
         Task.FromResult(true);
 
     /// <summary>
-    /// A furni this action moves ran into a player: what the "furni collides with user" trigger
-    /// listens for. Queued, so the action does not wait for whatever the trigger sets off.
+    /// A furni this action moves ran into a user: what the "furni collides with user" trigger
+    /// listens for. A bot is a user here and triggers it: blocked by the bot Frank it fired with
+    /// Frank as the triggerer (official client capture 2026-10-24, wired matrix trigger.11.R2,
+    /// 3/3). Queued, so the action does not wait for whatever the trigger sets off.
     /// </summary>
-    protected void PublishCollision(IRoomFloorItem item, IRoomPlayer player) =>
+    protected void PublishCollision(IRoomFloorItem item, IRoomAvatar avatar) =>
         _ctx.PublishRoomEventAsync(
                 new RoomItemCollisionEvent
                 {
                     RoomId = _roomGrain.RoomId,
-                    CausedBy = ActionContext.CreateForPlayer(player.PlayerId, _roomGrain.RoomId),
+                    CausedBy = avatar is IRoomPlayer player
+                        ? ActionContext.CreateForPlayer(player.PlayerId, _roomGrain.RoomId)
+                        : ActionContext.CreateForBot(_roomGrain.RoomId),
                     ObjectId = item.ObjectId,
+                    AvatarObjectId = avatar.ObjectId,
                 },
                 CancellationToken.None
             )
