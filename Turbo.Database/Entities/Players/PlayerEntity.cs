@@ -100,6 +100,15 @@ public class PlayerEntity : TurboEntity
     [DefaultValue(false)]
     public bool IsSystemAccount { get; set; }
 
+    /// <summary>
+    /// Habbo's account safety lock (<c>UserObject.accountSafetyLocked</c>): while set, the client
+    /// turns off buying, selling and trading and the hotel refuses them. Set and cleared through
+    /// <c>IPlayerSafetyLockService</c>.
+    /// </summary>
+    [Column("safety_locked")]
+    [DefaultValue(false)]
+    public bool SafetyLocked { get; set; }
+
     [Column("last_login")]
     public DateTime? LastLoginAt { get; set; }
 

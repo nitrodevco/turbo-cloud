@@ -219,6 +219,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Use :tradelock to stop a player trading for a time."
         ),
         new(
+            PermissionNodes.Command.SAFETYLOCK,
+            "Use :safetylock and :unsafetylock to lock or unlock a player's account."
+        ),
+        new(
             PermissionNodes.Command.DISCONNECT,
             "Use :disconnect to close a player's connection to the hotel."
         ),

@@ -33,6 +33,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Permissions;
@@ -62,6 +63,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
     private readonly ICommunityGoalService _communityGoals;
     private readonly IBonusRareService _bonusRare;
     private readonly IGamePolicies _policies;
+    private readonly IPlayerSafetyLockService _safetyLock;
     private readonly EventSystem _events;
     private readonly ILogger<ICatalogPurchaseGrain> _logger;
 
@@ -81,6 +83,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         ICommunityGoalService communityGoals,
         IBonusRareService bonusRare,
         IGamePolicies policies,
+        IPlayerSafetyLockService safetyLock,
         EventSystem events,
         ILogger<ICatalogPurchaseGrain> logger
     )
@@ -97,8 +100,20 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         _communityGoals = communityGoals;
         _bonusRare = bonusRare;
         _policies = policies;
+        _safetyLock = safetyLock;
         _events = events;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// A safety locked account buys nothing: the client greys its buy and gift buttons
+    /// (<c>PurchaseCatalogWidget.enableBuyButton</c> / <c>enableGiftButton</c>), and a purchase that
+    /// comes anyway gets purchase error 8 (<c>catalog.alert.purchaseerror.description.8</c>).
+    /// </summary>
+    private async Task ValidateNotSafetyLockedAsync(CancellationToken ct)
+    {
+        if (await _safetyLock.IsLockedAsync(this.GetPlayerId(), ct))
+            throw new CatalogPurchaseException(CatalogPurchaseErrorType.SafetyLocked);
     }
 
     public async Task<CatalogPurchaseResult> PurchaseOfferFromCatalogAsync(
@@ -110,6 +125,8 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
     )
     {
         quantity = Math.Max(1, quantity);
+
+        await ValidateNotSafetyLockedAsync(ct);
 
         // An offer on a page the buyer may not see is one the catalog does not have for them.
         var snapshot = await _catalogService.GetCatalogSnapshotForPlayerAsync(

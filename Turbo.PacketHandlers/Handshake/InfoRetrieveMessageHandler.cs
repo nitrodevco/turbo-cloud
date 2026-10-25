@@ -7,6 +7,7 @@ using Turbo.Players.Configuration;
 using Turbo.Primitives.Messages.Incoming.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Onboarding;
 
 namespace Turbo.PacketHandlers.Handshake;
@@ -14,7 +15,8 @@ namespace Turbo.PacketHandlers.Handshake;
 public class InfoRetrieveMessageHandler(
     IGrainFactory grainFactory,
     IOptions<PlayerConfig> playerConfig,
-    IPlayerOnboardingService onboarding
+    IPlayerOnboardingService onboarding,
+    IPlayerSafetyLockService safetyLock
 ) : IMessageHandler<InfoRetrieveMessage>
 {
     private readonly IGrainFactory _grainFactory = grainFactory;
@@ -32,6 +34,7 @@ public class InfoRetrieveMessageHandler(
         var loginActions = await onboarding
             .GetLoginActionsAsync(ctx.PlayerId, ct)
             .ConfigureAwait(false);
+        var safetyLocked = await safetyLock.IsLockedAsync(ctx.PlayerId, ct).ConfigureAwait(false);
 
         await ctx.SendComposerAsync(
                 new UserObjectMessage
@@ -39,6 +42,7 @@ public class InfoRetrieveMessageHandler(
                     Player = snapshot,
                     MaxRespectPerDay = _playerConfig.MaxRespectPerDay,
                     NameChangeAllowed = loginActions.Contains(IPlayerOnboardingService.CHOOSE_NAME),
+                    AccountSafetyLocked = safetyLocked,
                 },
                 ct
             )

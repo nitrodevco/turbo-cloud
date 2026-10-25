@@ -19,4 +19,8 @@ public sealed record UserObjectMessage : IComposer
     /// </summary>
     [Id(2)]
     public bool NameChangeAllowed { get; init; }
+
+    /// <summary><c>accountSafetyLocked</c>: the account is safety locked (IPlayerSafetyLockService).</summary>
+    [Id(3)]
+    public bool AccountSafetyLocked { get; init; }
 }

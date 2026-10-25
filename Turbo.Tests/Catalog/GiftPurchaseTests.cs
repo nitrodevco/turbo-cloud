@@ -195,6 +195,18 @@ public sealed class GiftPurchaseTests : IDisposable
             .Contain(5 + WRAPPING_PRICE);
     }
 
+    /// <summary>PurchaseCatalogWidget.enableGiftButton (PurchaseCatalogWidget.as:223, WIN63-202610201032) on the server.</summary>
+    [Fact]
+    public async Task ASafetyLockedBuyer_CannotGive_AndIsToldItIsTheLock()
+    {
+        _catalog.Fakes.Handlers["IsLockedAsync"] = _ => Task.FromResult(true);
+
+        await RefusedAsync(
+            Request(sprite: WRAP, box: 3, ribbon: 5),
+            CatalogPurchaseErrorType.SafetyLocked
+        );
+    }
+
     private async Task RefusedAsync(CatalogGiftRequest request, CatalogPurchaseErrorType error)
     {
         var give = () => GiveAsync(request);

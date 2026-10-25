@@ -87,7 +87,8 @@ public sealed class InRoomNameChangeTests
         await new InfoRetrieveMessageHandler(
             fakes.Create<Orleans.IGrainFactory>(),
             Options.Create(new PlayerConfig()),
-            fakes.Create<IPlayerOnboardingService>()
+            fakes.Create<IPlayerOnboardingService>(),
+            fakes.Create<Turbo.Primitives.Players.Accounts.IPlayerSafetyLockService>()
         ).HandleAsync(
             new InfoRetrieveMessage(),
             new MessageContext(fakes.Create<ISessionContext>(), PLAYER, -1),

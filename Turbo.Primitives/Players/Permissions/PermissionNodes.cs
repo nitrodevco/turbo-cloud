@@ -202,6 +202,7 @@ public static class PermissionNodes
         public const string UNBAN = "command.unban";
         public const string SILENCE = "command.silence";
         public const string TRADELOCK = "command.tradelock";
+        public const string SAFETYLOCK = "command.safetylock";
         public const string DISCONNECT = "command.disconnect";
         public const string WARN = "command.warn";
         public const string ALERT = "command.alert";

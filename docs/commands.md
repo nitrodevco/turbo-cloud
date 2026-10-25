@@ -235,6 +235,7 @@ what suits it; `admin` holds `*`.
 | Moderation | `:ban <who> <duration> [reason]`, `:unban <who>` | `command.ban`, `command.unban` | `ISanctionService` and the `player_sanctions` table; checked at login; a lifted ban is stamped, never deleted. Staff holding the node are out of reach. |
 | | `:silence <who> <duration>`, `:unsilence <who>` | `command.silence` | A temporary denial of `chat.speak` through the permission grains, so audited already; the player is told. |
 | | `:tradelock <who> <duration>`, `:untradelock <who>` | `command.tradelock` | The same, denying `trade`. |
+| | `:safetylock <who>`, `:unsafetylock <who>` | `command.safetylock` | Habbo's account safety lock (`IPlayerSafetyLockService`, `players.safety_locked`): the client greys buying, gifting, selling and trading and shows its unlock notice; the catalogue answers purchase error 8 and the marketplace result 8. Told to an online client at once, else at the next login. Until lifted; how a player unlocks (Habbo: safety questions on the website) is a web plugin's, calling the same service. |
 | | `:disconnect <who>` | `command.disconnect` | `ISessionGateway.DisconnectPlayerAsync`. |
 | | `:roomkickall`, `:roommute`, `:roomunmute` | `command.roomkickall`, `.roommute`, `.roomunmute` | Room commands. Clearing skips the owner, anyone with `room.moderate.any`, and the executor. |
 | Announcements | `:warn <who> <msg>`, `:alert <who> <msg>` | `command.warn`, `command.alert` | `ModeratorMessage` / `HabboBroadcast`. `@room` and `@online` need `command.alert.mass`. |

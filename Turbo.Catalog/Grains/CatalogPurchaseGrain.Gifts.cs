@@ -38,6 +38,8 @@ internal sealed partial class CatalogPurchaseGrain
         var buyerId = this.GetPlayerId();
         var wrapping = _giftWrappingProvider.GetWrapping();
 
+        await ValidateNotSafetyLockedAsync(ct);
+
         if (!wrapping.Enabled)
         {
             _logger.LogWarning(
