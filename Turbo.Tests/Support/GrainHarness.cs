@@ -141,6 +141,12 @@ public static class GrainHarness
                 f.SetValue(grain, Turbo.Players.Policies.GamePolicies.None);
             else if (t == typeof(Turbo.Primitives.Moderation.IWordFilter))
                 f.SetValue(grain, new PassThroughWordFilter());
+            // Unlocked unless a test answers IsLockedAsync.
+            else if (t == typeof(Turbo.Primitives.Players.Accounts.IPlayerSafetyLockService))
+                f.SetValue(
+                    grain,
+                    fakes.Create<Turbo.Primitives.Players.Accounts.IPlayerSafetyLockService>()
+                );
         }
 
         fakes.Handlers.TryAdd(

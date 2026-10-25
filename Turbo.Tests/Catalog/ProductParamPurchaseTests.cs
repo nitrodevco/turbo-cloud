@@ -117,6 +117,24 @@ public sealed class ProductParamPurchaseTests : IDisposable
     public async Task AProductThatNamesNothing_IsRefusedBeforeCharging(int offerId) =>
         await RefusedBeforeChargingAsync(offerId, "101");
 
+    /// <summary>
+    /// A safety locked buyer gets purchase error 8 (catalog.alert.purchaseerror.description.8),
+    /// the server's side of PurchaseCatalogWidget.enableBuyButton (PurchaseCatalogWidget.as:214, WIN63-202610201032).
+    /// </summary>
+    [Fact]
+    public async Task ASafetyLockedBuyer_IsRefusedWithTheLocksError_BeforeCharging()
+    {
+        _catalog.Fakes.Handlers["IsLockedAsync"] = _ => Task.FromResult(true);
+
+        var buy = () => BuyAsync(PAPER_OFFER, string.Empty);
+
+        (await buy.Should().ThrowAsync<CatalogPurchaseException>())
+            .Which.ErrorType.Should()
+            .Be(CatalogPurchaseErrorType.SafetyLocked);
+        _catalog.Fakes.Log.Of("TryDebitAsync").Should().BeEmpty("nothing is charged");
+        _catalog.Fakes.Log.Of("GrantCatalogOfferAsync").Should().BeEmpty();
+    }
+
     private async Task RefusedBeforeChargingAsync(int offerId, string extraParam)
     {
         var buy = () => BuyAsync(offerId, extraParam);

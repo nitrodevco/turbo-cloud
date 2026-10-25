@@ -21,6 +21,8 @@ public sealed class PlayerActionLineTests
     [InlineData("unban", null, null, "unban alice")]
     [InlineData("unsilence", null, null, "unsilence alice")]
     [InlineData("untradelock", null, null, "untradelock alice")]
+    [InlineData("safetylock", null, null, "safetylock alice")]
+    [InlineData("unsafetylock", null, null, "unsafetylock alice")]
     [InlineData("disconnect", null, null, "disconnect alice")]
     [InlineData("warn", null, "Please stop.", "warn alice Please stop.")]
     [InlineData("alert", null, "Hello", "alert alice Hello")]

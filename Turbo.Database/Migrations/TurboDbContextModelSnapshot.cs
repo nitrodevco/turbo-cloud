@@ -6278,6 +6278,11 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("respects_left");
 
+                    b.Property<bool>("SafetyLocked")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("safety_locked");
+
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("datetime(6)")

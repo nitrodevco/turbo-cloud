@@ -12,6 +12,7 @@ using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Movements;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Movements;
+using Turbo.Players.Accounts;
 using Turbo.Players.Configuration;
 using Turbo.Players.Trading;
 using Turbo.Primitives.Catalog.Marketplace;
@@ -305,6 +306,26 @@ public sealed class MarketplaceTests : IDisposable
         _credits[SELLER].Should().Be(97, "the sale is paid once");
     }
 
+    /// <summary>
+    /// inventory.marketplace.result.8 ("You are safety locked"): the server's side of FurniView.as:523
+    /// (WIN63-202610201032), which hides the sell button of a locked account.
+    /// </summary>
+    [Fact]
+    public async Task A_safety_locked_seller_cannot_post_and_keeps_the_item()
+    {
+        var chair = Give(SELLER, CHAIR);
+        await new PlayerSafetyLockService(
+            _catalog.Db,
+            _catalog.Fakes.Create<IGrainFactory>()
+        ).SetLockedAsync(SELLER, true, Ct);
+
+        (await _marketplace.MakeOfferAsync(SELLER, 100, [-chair], Ct))
+            .Should()
+            .Be(MarketplaceMakeOfferCode.SafetyLocked);
+        _inventories[SELLER].Should().ContainKey(chair);
+        (await _marketplace.GetOwnOffersAsync(SELLER, 1, Ct)).Offers.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Taking_an_offer_back_names_the_offer()
     {
@@ -483,6 +504,7 @@ public sealed class MarketplaceTests : IDisposable
                 new CatalogConfig { Marketplace = new MarketplaceConfig { Enabled = true } }
             ),
             tradePolicy ?? new PlayerTradePolicy(_catalog.Fakes.Create<IGrainFactory>(), _trading),
+            new PlayerSafetyLockService(_catalog.Db, _catalog.Fakes.Create<IGrainFactory>()),
             _catalog.Fakes.Create<IGrainFactory>(),
             _catalog.Definitions,
             _catalog.Fakes.Create<IInventoryFurnitureLoader>(),

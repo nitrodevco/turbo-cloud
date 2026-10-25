@@ -11,6 +11,6 @@ internal class AccountSafetyLockStatusChangeMessageComposerSerializer(int header
         AccountSafetyLockStatusChangeMessageComposer message
     )
     {
-        //
+        packet.WriteInteger(message.Status);
     }
 }

@@ -42,6 +42,9 @@ public enum MarketplaceMakeOfferCode
     Success = 1,
     TechnicalError = 2,
     Disabled = 3,
+
+    /// <summary><c>inventory.marketplace.result.8</c>: the seller's account is safety locked.</summary>
+    SafetyLocked = 8,
     TooManyItems = 9,
 }
 

@@ -22,7 +22,7 @@ internal class UserObjectMessageSerializer(int header)
         packet.WriteBoolean(false); // stream publishing enabled
         packet.WriteString(message.Player.CreatedAt.ToString()); // last online
         packet.WriteBoolean(message.NameChangeAllowed);
-        packet.WriteBoolean(false); // account safety locked
+        packet.WriteBoolean(message.AccountSafetyLocked);
         packet.WriteBoolean(false); // account trade locked
         packet.WriteString(string.Empty); // name colour
         packet.WriteInteger(message.Player.RespectReplenishesLeft);

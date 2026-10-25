@@ -26,6 +26,7 @@ using Turbo.Primitives.Movements;
 using Turbo.Primitives.Movements.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Trading;
 using Turbo.Primitives.Trading.Enums;
@@ -47,6 +48,7 @@ public sealed class MarketplaceService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IOptions<CatalogConfig> config,
     IPlayerTradePolicy tradePolicy,
+    IPlayerSafetyLockService safetyLock,
     IGrainFactory grainFactory,
     IFurnitureDefinitionProvider definitions,
     IInventoryFurnitureLoader furnitureLoader,
@@ -334,6 +336,11 @@ public sealed class MarketplaceService(
     {
         if (!_config.Enabled)
             return MarketplaceMakeOfferCode.Disabled;
+
+        // Flash hides the sell button of a safety locked account (FurniView.as:523); a posting
+        // that comes anyway is refused with the lock's own result.
+        if (await safetyLock.IsLockedAsync(player, ct).ConfigureAwait(false))
+            return MarketplaceMakeOfferCode.SafetyLocked;
 
         // A floor item's ref is its id negated, a wall item's its id (FurnitureItemSerializer.WriteHead).
         var itemIds = itemRefs.Select(x => Math.Abs(x)).Where(x => x > 0).Distinct().ToList();

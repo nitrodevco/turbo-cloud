@@ -48,6 +48,8 @@ public static class PlayerActionLine
             "unsilence" => ($"unsilence {playerName}", null),
             "tradelock" => WithDuration("tradelock", playerName, request.Duration, null),
             "untradelock" => ($"untradelock {playerName}", null),
+            "safetylock" => ($"safetylock {playerName}", null),
+            "unsafetylock" => ($"unsafetylock {playerName}", null),
             "disconnect" => ($"disconnect {playerName}", null),
             "warn" => WithMessage("warn", playerName, request.Reason),
             "alert" => WithMessage("alert", playerName, request.Reason),
