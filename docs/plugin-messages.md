@@ -29,9 +29,12 @@ public sealed record TrainSkill(string Skill) : IPluginMessage;
 - The fields are the record's primary constructor parameters, in order. A field is an `int`, `long`,
   `bool`, `string`, `double`, an enum (sent as its int; one whose values do not fit an int is
   refused), a record of those (no attribute, not an `IPluginMessage`: a positional record with one
-  public constructor), or an array of any of them: `T[]`, `ImmutableArray<T>`, `IReadOnlyList<T>`.
-  Anything else (a dictionary, a nullable, a record that contains itself) refuses the plugin's load,
-  and the message names the field (`skills.state.Skills[].Name: ...`).
+  public constructor), an array of any of them (`T[]`, `ImmutableArray<T>`, `IReadOnlyList<T>`), or
+  a dictionary keyed by `string` of any of them (`Dictionary<string, T>`, `IDictionary<string, T>`,
+  `IReadOnlyDictionary<string, T>`, `ImmutableDictionary<string, T>`); the client reads a dictionary
+  as a plain object. Anything else (a dictionary with other keys, a nullable, a record that contains
+  itself) refuses the plugin's load, and the message names the field
+  (`skills.state.Skills[].Name: ...`).
 - A message has no direction: any message can be sent either way.
 - Messages, nested records and handlers must be `public` to be found.
 
@@ -108,25 +111,26 @@ A plugin message itself is `int length`, `short header`, then its fields in orde
 | `"string"` | `short` byte length, then UTF-8 |
 | `"double"` | 8 bytes, IEEE 754 big-endian |
 | `["array", T]` | `int` count, then each item as `T` |
+| `["map", T]` | `int` count, then per entry its key as a `"string"` and its value as `T`, in the dictionary's order (a key sent twice keeps its last value) |
 | `["object", fields]` | each field in order, nothing around them |
 
 The **schema** is compact JSON: an array of `[name, type]` fields, names in camelCase, where a type
-is one of `"int"`, `"long"`, `"bool"`, `"string"`, `"double"`, `["array", type]` or
-`["object", fields]`. `SkillsState` above is:
+is one of `"int"`, `"long"`, `"bool"`, `"string"`, `"double"`, `["array", type]`,
+`["map", type]` or `["object", fields]`. `SkillsState` above is:
 
 ```json
 [["total","int"],["skills",["array",["object",[["name","string"],["level","int"],["xp","long"]]]]],["max","bool"]]
 ```
 
 A generator can turn the schema into TypeScript types: `"int"`, `"long"` and `"double"` are
-`number`, `"bool"` is `boolean`, `"string"` is `string`, an array is `T[]` and an object an
-interface of its fields.
+`number`, `"bool"` is `boolean`, `"string"` is `string`, an array is `T[]`, a map
+`Record<string, T>` and an object an interface of its fields.
 
 A client reads and writes by the schema it was sent, so a mismatch between the halves is detected,
 not misread: nitro-next ignores a field it was not told of and fills a missing one with its default
-(`0`, `''`, `false`, `[]`), logging each once per name. The server reads a client's message strictly
+(`0`, `''`, `false`, `[]`, `{}`), logging each once per name. The server reads a client's message strictly
 by its own schema; a packet too short for it is logged and dropped, and an array count past what
-the packet holds is refused before anything is allocated.
+the packet holds (an array's or a map's) is refused before anything is allocated.
 
 ## 6. Unloading
 

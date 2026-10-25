@@ -2,7 +2,8 @@ namespace Turbo.Primitives.Plugins.Messages.Enums;
 
 /// <summary>
 /// What a plugin message field carries, and how it is written: Habbo's wire encoding for each
-/// scalar, an array as an int count and its items, a record as its fields in order.
+/// scalar, an array as an int count and its items, a record as its fields in order, a dictionary as an int
+/// count and its keys and values.
 /// </summary>
 public enum PluginMessageValueKind
 {
@@ -26,4 +27,7 @@ public enum PluginMessageValueKind
 
     /// <summary>A record's fields, in order, with nothing around them.</summary>
     Object,
+
+    /// <summary>A string-keyed dictionary: an int count, then each key (a string) and its value.</summary>
+    Map,
 }
