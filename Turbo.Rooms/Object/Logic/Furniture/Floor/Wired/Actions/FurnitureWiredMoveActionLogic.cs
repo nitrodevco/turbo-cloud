@@ -121,7 +121,7 @@ public abstract class FurnitureWiredMoveActionLogic(
 
     /// <summary>
     /// Moves the wall items of <paramref name="selection"/> by (<paramref name="dx"/>,
-    /// <paramref name="dy"/>) tiles (<see cref="WiredWallMoves.TryStep"/>), each in the action's
+    /// <paramref name="dy"/>) tiles (<see cref="WiredWallMoves.Step"/>), each in the action's
     /// WiredMovements; with <paramref name="turn"/>, each also turns onto the other wall side and
     /// goes out as its own item update instead. Relative Move, Move and Rotate and Move As Group
     /// keep a wall pick and move it (official client capture 2026-10-24T17-49-51, W1 lab
@@ -138,12 +138,7 @@ public abstract class FurnitureWiredMoveActionLogic(
     {
         foreach (var wallItem in GetWallItems(selection))
         {
-            if (!WiredWallMoves.TryStep(MapModule, WiredWallMoves.At(wallItem), dx, dy, out var to))
-            {
-                plan.Block();
-
-                continue;
-            }
+            var to = WiredWallMoves.Step(MapModule, WiredWallMoves.At(wallItem), dx, dy);
 
             if (turn)
                 plan.TurnWallItem(wallItem, WiredWallMoves.Turned(to));

@@ -31,50 +31,43 @@ internal static class WiredWallMoves
 
     /// <summary>
     /// The wall item at <paramref name="start"/> moved by (<paramref name="dx"/>,
-    /// <paramref name="dy"/>) tiles. False off the room's grid (inferred: no capture moved one
-    /// there, as no floor mover goes off the map). Inferred too: a step from a floor tile back
-    /// onto wall coordinates gives back what the step off the wall took.
+    /// <paramref name="dy"/>) tiles. Off the room's grid it still moves, as onto a level 0 floor
+    /// tile: the clock at 2,10 offsets 4,55 moved [-5,0] to -3,10 offsets 4,-92, then on to -8,10
+    /// and -8,-2 keeping them (official client capture 2026-10-25T01-02-05, W1 lab action.33.B4b,
+    /// 4/4); the wardrobe from the wall tile 3,8 [-5,0] to -2,8 took the 147 off again. A step
+    /// from a floor tile back onto wall coordinates gives back what the step off the wall took
+    /// (5,8 -58 to 4,8 89, action.33.B11b 2/2), and along the wall the offsets stay (4,8 to 3,8).
     /// </summary>
-    public static bool TryStep(
-        RoomMapModule map,
-        WallPosition start,
-        int dx,
-        int dy,
-        out WallPosition to
-    )
+    public static WallPosition Step(RoomMapModule map, WallPosition start, int dx, int dy)
     {
         var (x, y) = (start.X + dx, start.Y + dy);
-
-        to = start;
-
-        if (!map.InBounds(x, y))
-            return false;
-
         var height = (int)start.Z.Value;
-        var fromFloor = IsFloor(map, start.X, start.Y);
 
-        height = (fromFloor, IsFloor(map, x, y)) switch
+        height = (IsFloor(map, start.X, start.Y), IsFloor(map, x, y)) switch
         {
             (false, false) => height,
-            (false, true) => height - OFF_THE_WALL + PIXELS_PER_LEVEL * map.GetFloorLevel(x, y),
+            (false, true) => height - OFF_THE_WALL + PIXELS_PER_LEVEL * LevelOf(map, x, y),
             (true, true) => height
-                + PIXELS_PER_LEVEL
-                    * (map.GetFloorLevel(x, y) - map.GetFloorLevel(start.X, start.Y)),
+                + PIXELS_PER_LEVEL * (LevelOf(map, x, y) - LevelOf(map, start.X, start.Y)),
             (true, false) => height
                 + OFF_THE_WALL
-                - PIXELS_PER_LEVEL * map.GetFloorLevel(start.X, start.Y),
+                - PIXELS_PER_LEVEL * LevelOf(map, start.X, start.Y),
         };
 
-        to = start with { X = x, Y = y, Z = height };
-
-        return true;
+        return start with
+        {
+            X = x,
+            Y = y,
+            Z = height,
+        };
     }
 
     /// <summary>
     /// The wall item turned onto the other wall side ("r" to "l" and back), its offset along the
     /// wall mirrored: Move and Rotate with a rotation turns it every firing, offset 0 to 32 and
-    /// back (official client capture 2026-10-24T17-49-51, W1 lab action.4.B11, 2/2). Inferred:
-    /// the mirror of any other offset; every rotation option turns it, a wall having two sides.
+    /// back (official client capture 2026-10-24T17-49-51, W1 lab action.4.B11, 2/2), offset 10 to
+    /// 22 and back, clockwise and counter-clockwise alike (2026-10-25T01-02-40, action.4.B11b,
+    /// 2/2 each). Inferred: the random rotation turns it too, a wall having two sides.
     /// </summary>
     public static WallPosition Turned(WallPosition at) =>
         at with
@@ -87,6 +80,10 @@ internal static class WiredWallMoves
     public static WallPosition At(IRoomWallItem item) =>
         new(item.X, item.Y, item.WallOffset, item.Z, item.Rotation);
 
+    // Outside the room's grid counts as level 0 floor (action.33.B4b / B11b above).
     private static bool IsFloor(RoomMapModule map, int x, int y) =>
-        map.InBounds(x, y) && !map.IsTileDisabled(map.ToIdx(x, y));
+        !map.InBounds(x, y) || !map.IsTileDisabled(map.ToIdx(x, y));
+
+    private static int LevelOf(RoomMapModule map, int x, int y) =>
+        map.InBounds(x, y) ? map.GetFloorLevel(x, y) : 0;
 }
