@@ -11,7 +11,7 @@ actions:
 Neither needs registering. A public class implementing a policy interface, or an
 `IEventHandler<T>` for one of the events, anywhere in the plugin's assembly is found as the plugin
 loads (built once with the plugin's services and the hotel's, `IHotel` included) and taken away as
-it unloads. `npm run make policy purchase|room-entry|placement [<name>]` in a plugin made from
+it unloads. `npm run make policy purchase|room-entry|placement|registration [<name>]` in a plugin made from
 `templates/turbo-plugin` writes one.
 
 With no plugin policy the hotel decides as it always has: the official checks (the offer, the club
@@ -22,8 +22,9 @@ room's limits) are the hotel's own and are not policies.
 
 | Interface (`Turbo.Primitives.Policies`) | Asked | Answers |
 | --- | --- | --- |
-| `IPurchasePolicy` | before a catalogue offer is paid for, bought for oneself (the catalogue, the builders club catalogue) or as a gift | `proposed` to let it stand, `proposed with { CostCredits = ..., CostSilver = ..., CostActivityPoints = ..., Units = ... }` to change what it costs in all or how many it gives (a gift always holds one), `PurchaseDecision.Refuse("why")` |
+| `IPurchasePolicy` | before a catalogue offer is paid for, bought for oneself (the catalogue, the builders club catalogue), as a gift, or as a room ad (`request.RoomAd`: the room, category, name, description, whether it extends the running one, how long; an ad is one ad, so `Units` is not read) | `proposed` to let it stand, `proposed with { CostCredits = ..., CostSilver = ..., CostActivityPoints = ..., Units = ... }` to change what it costs in all or how many it gives (a gift always holds one), `PurchaseDecision.Refuse("why")` |
 | `IRoomEntryPolicy` | before a player enters a room the hotel lets them into, or rings at its doorbell (`request.Doorbell`) | `RoomEntryDecision.Allow`, `.Refuse("why")`, `.Redirect(roomId, "why"?)` |
+| `IRegistrationPolicy` | before a new account is made, once the hotel's own checks passed (the name's rules and filter, a free name, the motto's and figure's lengths): the name, motto and figure as they would be saved (the gender's default figure when none was chosen), `request.Source` (`Site`, `Panel`, `Hotel`) and `request.RemoteAddress` (the site visitor's; empty from the panel) | `RegistrationDecision.Allow`, `.Refuse("why")` |
 | `IPlacementPolicy` | before a player places a floor or wall item (from their inventory, the builders club or a sticky note pad) or saves the room's floor plan (`PlacementKind.FloorPlan`, the plan in `request.ModelData`) | `PlacementDecision.Allow`, `.Refuse("why")` |
 
 How the player hears of a refusal:
@@ -35,6 +36,9 @@ How the player hears of a refusal:
   entry"; a redirect closes this entry (the reason first, when given) and forwards the player to the
   other room, which they enter as any other, its policies asked again. A policy must not send a
   player back to the room they came from.
+- **Registration**: the site's sign-up shows the reason under the name, the panel its error; no
+  player is made. A cap on accounts per address keeps its own count from `PlayerRegisteredEvent`'s
+  address (core keeps no registration address) and lets `Source == Panel` through.
 - **Placement**: the reason in a pop-up (`turbo.placement.refused`), or the hotel's "you cannot place
   this item here" without one; the furni stays in the inventory. A refused floor plan is answered with
   the editor's own error pop-up, its errors the reason (and with nothing without one, as a save the
@@ -116,17 +120,33 @@ public sealed class EventRoomPolicy(IOptionsMonitor<EventSettings> settings) : I
 
 | Event | Raised |
 | --- | --- |
-| `PurchaseCompletedEvent` (`Turbo.Primitives.Catalog.Events`) | a catalogue offer was paid for and handed over: buyer, offer and product code, units given, what was paid in each currency, the receiver of a gift |
-| `PlayerLoggedInEvent` (`Turbo.Primitives.Players.Events`) | a player's login ticket was taken and the connection is theirs: every login, one replacing an earlier connection included |
-| `PlayerRegisteredEvent` (`Turbo.Primitives.Players.Events`) | a new player account was saved (the site's registration, the panel's) |
+| `PurchaseCompletedEvent` (`Turbo.Primitives.Catalog.Events`) | a catalogue offer was paid for and handed over: buyer, offer and product code, units given, what was paid in each currency, the receiver of a gift; for a room ad, `RoomAd` (the room event as it now runs) and `RoomAdExtended` |
+| `PlayerLoggedInEvent` (`Turbo.Primitives.Players.Events`) | a player's login ticket was taken and the connection is theirs: every login, one replacing an earlier connection included; `RemoteAddress` |
+| `PlayerLoginFailedEvent` (`Turbo.Primitives.Players.Events`) | a login was turned away: `Failure` (`InvalidTicket`, `Banned`, `Maintenance`, `RefusedByPolicy` with the policy's `Reason`), whose ticket it was (null for an unknown one), `RemoteAddress` |
+| `PlayerRegisteredEvent` (`Turbo.Primitives.Players.Events`) | a new player account was saved (the site's registration, the panel's): `Source`, `RemoteAddress` |
+| `PlayerRegistrationFailedEvent` (`Turbo.Primitives.Players.Events`) | an account was asked for and not made (the name's rules, a taken name, a registration policy): the name asked for, the reason given, `Source`, `RemoteAddress` |
+| `PlayerIdentityLinkedEvent` (`Turbo.Primitives.Players.Events`) | an account elsewhere (Discord) was linked to a player (`IHotel.Players.LinkIdentityAsync`); `TakenFrom` when staff moved it from another player |
 | `RoomEnteredEvent` (`Turbo.Primitives.Rooms.Events`) | a player entered a room: it was sent to them and their avatar is in it |
 
 Each derives from `DomainEvent`: published once, after the change is saved, never for an action that
-was refused or failed, and on the thread pool, not awaited by what raised it. `EventId` is the
+was refused or failed (the two `...FailedEvent`s are the refusal itself, raised once it was given), and on the thread pool, not awaited by what raised it. `EventId` is the
 event's own id, for a handler that must act once (a reward, a call to another service) to remember;
 `OccurredAtUtc` when it happened. A handler that throws is logged and the others still run.
 `IEventHandler<T>` is in `Turbo.Events`: the plugin references `$(TurboBin)/Turbo.Events.dll` as it
 does `Turbo.Primitives.dll` (as for plugin notices, `docs/plugin-notices.md`).
+
+### Addresses
+
+`RemoteAddress` is where the client or site visitor connected from: the connection's own address,
+or behind a proxy the hotel trusts the nearest one its `X-Forwarded-For` names. The site's API
+believes a proxy on the same machine; the game server believes loopback and the addresses or
+ranges in `Turbo:Networking:TrustedProxies` (`["10.0.0.0/8"]` for a WebSocket proxy on another
+machine). A header from anyone else is ignored. The site's Play keeps the address beside the ticket
+it issues (`security_tickets.ip_address`) until the login uses it up. An address is a player's
+personal data: core never logs it, the events' text (`ToString()`) leaves it out, and a plugin that
+keeps one (alts by address, an address ban list) keeps it in its own table and only as long as it
+needs it. The login's play policies get it too (`PlayRequest.RemoteAddress`, `PlaySource.Login`;
+`docs/plugin-web-routes.md`).
 
 These are not the room's own events (`PlayerEnterEvent` and the others in `docs/plugin-room-events.md`),
 which room listeners hear on the room's turn and must handle at once; `RoomEnteredEvent` is the slow
