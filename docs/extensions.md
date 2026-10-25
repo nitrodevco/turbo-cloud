@@ -281,7 +281,15 @@ noted.
    policies: `docs/plugin-web-routes.md`.
 5. **Extension inspector**: one host endpoint and panel page listing every plugin's contributions
    (modules, patches, overrides, messages, commands, listeners, settings) with conflicts and
-   failures; the client's patch report feeds it.
+   failures; the client's patch report feeds it. Done: every registry notes what a plugin's load
+   registers in its container (`IPluginContributionLog`, `services.Contributes(kind, name)`, so a
+   registry a plugin adds for others lists too), `GET /api/plugins/{key}/contributions` lists it
+   with the protocol it added, names another live plugin registers too and what clients report
+   (`TurboClientExtensionReportMessage`, `docs/client-modules.md` §2); the panel's plugin row has
+   Contributions and Client reports tabs. A refused client module is logged naming
+   `client.modules.hosts`. In the client, staff with `client.inspector` (and development builds)
+   alt-click a window element for its template key, the patches on it and a patch to copy
+   (nitro-next `docs/template-patches.md`).
 6. **Typed client SDK**: `ClientModuleApi` published as types with `defineModule`, a narrow read-only
    store API in place of raw stores, namespaced links and layouts. The types, `defineModule`,
    `useApi` and a bundler preset are nitro-next's `packages/client-module-sdk`, kept equal to the

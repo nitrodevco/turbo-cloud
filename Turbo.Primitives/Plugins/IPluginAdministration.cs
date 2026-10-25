@@ -29,6 +29,13 @@ public interface IPluginAdministration
     public ImmutableArray<PluginSnapshot> List();
 
     /// <summary>
+    /// Everything the plugin contributes, for the extension inspector: what its last load
+    /// registered (a failed one: up to where it failed), clashes with other live plugins, and what
+    /// clients report of its client half. Null when no plugin has the key.
+    /// </summary>
+    public PluginContributions? ContributionsOf(string key);
+
+    /// <summary>
     /// Loads the plugin again from its folder, then the plugins that depend on it; the others keep
     /// running. Null when no plugin has the key.
     /// </summary>

@@ -38,6 +38,7 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<PluginAdministration>()
         );
         services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<IClientExtensionReports, ClientExtensionReports>();
         services.AddSingleton<PluginJobs>();
         services.AddSingleton<PluginSecrets>();
         services.AddSingleton(sp => new GitHubReleases(

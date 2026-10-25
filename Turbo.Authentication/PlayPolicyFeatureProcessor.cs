@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Turbo.Contracts.Plugins;
 using Turbo.Primitives.Authentication;
+using Turbo.Primitives.Plugins;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 
@@ -33,6 +34,9 @@ internal sealed class PlayPolicyFeatureProcessor(PlayPolicies policies) : IAssem
             return Task.FromResult<IDisposable>(new CompositeDisposable());
 
         var owner = sp.GetService<PluginManifest>()?.Key ?? asm.GetName().Name ?? "core";
+
+        foreach (var policy in found)
+            sp.Contributes(PluginContributionKinds.PLAY_POLICY, policy.GetType().Name);
 
         return Task.FromResult(policies.Register(owner, found));
     }

@@ -132,6 +132,11 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
         ),
         new(PermissionNodes.Wired.MENU, "Open the wired menu.", SecurityLevelType.Employee),
         new(
+            PermissionNodes.Client.INSPECTOR,
+            "Use the client's extension inspector: alt-click a window element for its template key and the plugins' patches on it.",
+            ClientVisible: true
+        ),
+        new(
             PermissionNodes.Guild.DELETE_ANY,
             "Delete any group, not only their own.",
             SecurityLevelType.Moderator

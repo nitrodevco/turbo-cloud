@@ -282,3 +282,32 @@ public sealed record PluginSourceActionResponse(
             result.Job is { } job ? PluginJobView.From(job) : null
         );
 }
+
+/// <summary>
+/// Everything one plugin contributes, for the panel's inspector tabs: <see cref="Items"/> by kind
+/// (<c>command</c>, <c>client-module</c>, <c>template-patch</c>, <c>override</c>...), what its last
+/// load registered (a failed one: up to where it failed, <see cref="Error"/> says why);
+/// <see cref="Conflicts"/> as sentences; <see cref="ClientIssues"/> what players' clients report of
+/// its client half (<c>module.refused</c>, <c>patch.unmatched</c>, <c>patch.applied</c>...).
+/// </summary>
+public sealed record PluginContributionsView(
+    string Key,
+    string? Name,
+    string State,
+    string? Error,
+    IReadOnlyList<PluginContribution> Items,
+    IReadOnlyList<string> Conflicts,
+    IReadOnlyList<PluginClientIssue> ClientIssues
+)
+{
+    public static PluginContributionsView From(PluginContributions c) =>
+        new(
+            c.Key,
+            c.Name,
+            PluginView.StateName(c.State),
+            c.Error,
+            [.. c.Items],
+            [.. c.Conflicts],
+            [.. c.ClientIssues]
+        );
+}

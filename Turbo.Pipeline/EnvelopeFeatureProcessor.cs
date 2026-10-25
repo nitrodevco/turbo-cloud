@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Pipeline.Attributes;
 using Turbo.Pipeline.Delegates;
+using Turbo.Primitives.Plugins;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 
@@ -44,6 +45,7 @@ public class EnvelopeFeatureProcessor<TEnvelope, TMeta, TContext>(
             );
             var activator = ActivatorHelpers.BuildActivator(concrete);
 
+            sp.Contributes(PluginContributionKinds.HANDLER, concrete.Name, envType.Name);
             batch.Add(_registry.RegisterHandler(envType, concrete, sp, activator, invoker));
         }
 
@@ -59,6 +61,7 @@ public class EnvelopeFeatureProcessor<TEnvelope, TMeta, TContext>(
             var order = concrete.GetCustomAttribute<OrderAttribute>()?.Value ?? 0;
             var activator = ActivatorHelpers.BuildActivator(concrete);
 
+            sp.Contributes(PluginContributionKinds.BEHAVIOR, concrete.Name, envType.Name);
             batch.Add(_registry.RegisterBehavior(envType, concrete, sp, activator, invoker, order));
         }
 

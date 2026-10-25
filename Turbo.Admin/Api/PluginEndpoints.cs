@@ -24,7 +24,8 @@ namespace Turbo.Admin.Api;
 /// So do linking a GitHub repository, updating from it and rolling back to a kept version: each
 /// puts server code in place. Checking a link for a new release needs <c>admin.plugins.manage</c>.
 /// Uninstalling one, its dry run and the SQL export of its tables need <c>admin.plugins.uninstall</c>
-/// as well, and the plugin's key typed again. Every action, refused ones too, goes to the command
+/// as well, and the plugin's key typed again. What each plugin contributes (the inspector) needs
+/// only <c>admin.plugins.view</c>. Every action, refused ones too, goes to the command
 /// log (<see cref="AdminActionLog"/>).
 /// </summary>
 internal sealed class PluginEndpoints(
@@ -78,6 +79,13 @@ internal sealed class PluginEndpoints(
         group.MapGet("/{key}/uninstall", PlanUninstallAsync);
         group.MapPost("/{key}/uninstall", UninstallAsync);
         group.MapGet("/{key}/export", ExportAsync);
+        group.MapGet(
+            "/{key}/contributions",
+            (string key) =>
+                plugins.ContributionsOf(key) is { } contributions
+                    ? Results.Ok(PluginContributionsView.From(contributions))
+                    : AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
+        );
         group.MapPost("/{key}/reload", ReloadAsync);
         group.MapPost(
             "/{key}/enable",

@@ -85,9 +85,11 @@ internal sealed class PluginTestHost
             TimeProvider.System,
             NullLogger<ScheduledTaskHost>.Instance
         );
+        Reports = new ClientExtensionReports(ReportsLog, TimeProvider.System);
         Services = new ServiceCollection()
             .AddSingleton<IHotel>(Hotel)
             .AddSingleton<IPluginStopping>(Schedules)
+            .AddSingleton<IClientExtensionReports>(Reports)
             .AddSingleton<IClientModuleDirectory>(Modules)
             .AddSingleton<IExtensionPacketRegistry>(packets)
             .AddSingleton<IConfiguration>(new ConfigurationBuilder().Build())
@@ -155,6 +157,11 @@ internal sealed class PluginTestHost
     public LoadedPluginGamedata Loaded { get; } = new();
 
     public PluginWebRoutes WebRoutes { get; } = new();
+
+    /// <summary>What clients report of the plugins' client halves, and what it logged.</summary>
+    public ClientExtensionReports Reports { get; }
+
+    public CapturingLogger<ClientExtensionReports> ReportsLog { get; } = new();
 
     public CapturingLogger<DatabaseMigrator> MigratorLog { get; } = new();
 

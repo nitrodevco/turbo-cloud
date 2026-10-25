@@ -102,6 +102,7 @@ and `migration` (the plugin's tables and `dotnet ef migrations add`, no design-t
 | Direction | Header | Packet | Body |
 | --- | --- | --- | --- |
 | server → client | 30009 | `TurboClientModulesMessage` | `int count`, then per module `string key`, `string url`, `string version`, `string sha256` |
+| client → server | 30012 | `TurboClientExtensionReportMessage` | `int count` (32 read at most), then per line `string owner`, `string kind`, `string subject`, `string reason`, `string message` |
 
 - **Sent** straight after the capability answer, to a client that accepted `client.modules`, and
   again to every such client online whenever the set changes: a plugin with a module loads, unloads
@@ -120,6 +121,21 @@ and `migration` (the plugin's tables and `dotnet ef migrations add`, no design-t
 
 The presence drops the packet for a session that did not accept the extension, so a client that
 never asks is never sent one, the later changes included.
+
+**`TurboClientExtensionReportMessage`** is the client telling the server what it found running the
+plugins' client halves, for the extension inspector (`docs/extensions.md` roadmap step 5). `owner`
+is a plugin key; `kind` is `module.refused` (reason `host`, `hash`, `load`, `url` or `exports`),
+`module.failed` (`activate` threw), `patch.unmatched` (subject the template, reason the element key),
+`patch.conflict` or `patch.applied` (reason the ops applied). It is never answered. The server keeps
+each distinct line per plugin in memory, counted by player and bounded (100 plugins, 50 lines each,
+texts cut to 300 characters), lists it under the plugin's `GET /api/plugins/{key}/contributions`,
+and logs a refused module or an unmatched patch once per line and quarter hour, naming what to change:
+
+```
+A client refused plugin rarevalues's client module http://localhost:18441/...: its origin is not in
+the external variable client.modules.hosts. Add the origin to that variable (admin panel: Texts &
+variables), or serve plugin files from the client's own origin.
+```
 
 ## 3. How the files are served
 
@@ -154,6 +170,9 @@ The client decides how a module runs; nitro-next documents its side (its loader,
 short, for api version 1:
 
 - The client refuses an address on another site unless that site is in `client.modules.hosts`.
+  A refusal is a console warning naming the origin to add, and a report to the server (§2), whose
+  log names the variable: if the gamedata host is on another origin than the client, add that
+  origin to `client.modules.hosts` or the module never runs.
   With a SHA-256 it fetches the file, checks it, and runs the checked bytes, so the module is one
   file; `api.baseUrl` is its folder's address, for the files it loads beside it.
   Without one it imports the address.

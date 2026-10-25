@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Turbo.Primitives.Commands;
+using Turbo.Primitives.Plugins;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 
@@ -36,6 +37,14 @@ internal sealed class CommandFeatureProcessor(
             .FindAssignees(asm, typeof(ISuggestionSource))
             .Select(concrete => (ISuggestionSource)ActivatorUtilities.CreateInstance(sp, concrete))
             .ToList();
+
+        foreach (var command in commands)
+            sp.Contributes(
+                PluginContributionKinds.COMMAND,
+                command.GetType().GetCustomAttribute<CommandAttribute>()?.Name
+                    ?? command.GetType().Name,
+                command.GetType().Name
+            );
 
         var registrations = new CompositeDisposable();
 

@@ -50,6 +50,8 @@ internal sealed partial class PluginAdministration(
 
     public ImmutableArray<PluginSnapshot> List() => manager.Snapshot();
 
+    public PluginContributions? ContributionsOf(string key) => manager.ContributionsOf(key);
+
     public async Task<PluginActionResult?> ReloadAsync(string key, CancellationToken ct)
     {
         manager.Refresh();

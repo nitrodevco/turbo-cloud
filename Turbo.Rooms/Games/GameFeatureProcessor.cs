@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Turbo.Primitives.Games;
+using Turbo.Primitives.Plugins;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 
@@ -34,6 +35,9 @@ internal sealed class GameFeatureProcessor(GameRegistry registry) : IAssemblyFea
 
         if (games.Count == 0 && handlers.Count == 0 && policies.Count == 0)
             return Task.FromResult<IDisposable>(registrations);
+
+        foreach (var game in games)
+            sp.Contributes(PluginContributionKinds.GAME, game.GetType().Name);
 
         // Disposed in reverse: the registration goes first, so nothing reaches a game as it is
         // being disposed.

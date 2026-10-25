@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Turbo.Contracts.Plugins;
 using Turbo.Primitives.ClientModules;
+using Turbo.Primitives.Plugins;
 
 namespace Turbo.Plugins;
 
@@ -16,7 +17,8 @@ namespace Turbo.Plugins;
 internal sealed class PluginClientModules(
     IClientModuleDirectory directory,
     PluginManifest manifest,
-    string folder
+    string folder,
+    PluginContributionLog? contributions = null
 ) : IClientModuleRegistry, IDisposable
 {
     /// <summary>The folder under a plugin's own that its client files are served from.</summary>
@@ -61,6 +63,8 @@ internal sealed class PluginClientModules(
             _registrations.Add(registration);
             _registered = true;
         }
+
+        contributions?.Add(PluginContributionKinds.CLIENT_MODULE, relativePath, manifest.Version);
 
         return registration;
     }

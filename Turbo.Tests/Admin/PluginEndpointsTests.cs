@@ -77,6 +77,8 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
         _fakes.Handlers["List"] = call =>
             call.Interface == typeof(IPluginSources) ? _sources.List() : _plugins.List();
         _fakes.Handlers["VersionsOf"] = call => _plugins.VersionsOf((string)call.Args[0]!);
+        _fakes.Handlers["ContributionsOf"] = call =>
+            _plugins.ContributionsOf((string)call.Args[0]!);
         _fakes.Handlers["RollbackAsync"] = call =>
             _plugins.RollbackAsync((string)call.Args[0]!, (string)call.Args[1]!, Ct);
         _fakes.Handlers["get_AllowedOwners"] = _ => _sources.AllowedOwners;
@@ -151,6 +153,28 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
         plugin.GetProperty("state").GetString().Should().Be("failed");
         plugin.GetProperty("error").GetString().Should().NotBeNullOrEmpty();
         list.GetProperty("canManage").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task The_inspector_lists_a_plugin_s_contributions_for_staff_who_may_only_view()
+    {
+        _holds = node => node is PermissionNodes.Admin.PANEL or PermissionNodes.Admin.PLUGINS_VIEW;
+        WritePlugin("sample", "Sample Plugin");
+        await _plugins.RescanAsync(Ct);
+        await _server.StartAsync(Ct);
+
+        var inspected = await JsonAsync(
+            await SendAsync(HttpMethod.Get, "/api/plugins/sample/contributions")
+        );
+
+        inspected.GetProperty("key").GetString().Should().Be("sample");
+        inspected.GetProperty("state").GetString().Should().Be("failed");
+        inspected.GetProperty("error").GetString().Should().NotBeNullOrEmpty();
+        inspected.GetProperty("items").ValueKind.Should().Be(JsonValueKind.Array);
+        inspected.GetProperty("clientIssues").ValueKind.Should().Be(JsonValueKind.Array);
+        (await SendAsync(HttpMethod.Get, "/api/plugins/nothere/contributions"))
+            .StatusCode.Should()
+            .Be(HttpStatusCode.NotFound);
     }
 
     [Fact]

@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Runtime;
@@ -30,6 +31,7 @@ internal class WiredVariableFeatureProcessor(IRoomWiredVariablesProvider wiredVa
             if (concrete is null)
                 continue;
 
+            sp.Contributes(PluginContributionKinds.WIRED_VARIABLE, concrete.Name);
             batch.Add(
                 _wiredVariablesProvider.RegisterVariable(
                     sp,

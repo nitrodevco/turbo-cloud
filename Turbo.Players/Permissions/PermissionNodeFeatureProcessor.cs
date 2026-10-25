@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
+using Turbo.Primitives.Plugins;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 
@@ -43,6 +44,14 @@ internal sealed class PermissionNodeFeatureProcessor(
                 var source = (IPermissionNodeSource)ActivatorUtilities.CreateInstance(sp, concrete);
 
                 batch.Add(_permissionRegistryProvider.Register(source));
+                sp.Contributes(PluginContributionKinds.PERMISSION_SOURCE, concrete.Name);
+
+                foreach (var node in source.Nodes)
+                    sp.Contributes(
+                        PluginContributionKinds.PERMISSION_NODE,
+                        node.Node,
+                        node.Description
+                    );
             }
         }
         catch

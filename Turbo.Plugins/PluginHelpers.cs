@@ -6,6 +6,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Turbo.Contracts.Plugins;
 using Turbo.Plugins.Exceptions;
 
@@ -195,5 +196,65 @@ internal static partial class PluginHelpers
         }
 
         return asmPath;
+    }
+
+    /// <summary>The patch file a plugin's <c>wwwroot/</c> may carry (nitro-next <c>docs/template-patches.md</c>).</summary>
+    public const string TEMPLATE_PATCHES_FILE = "template-patches.json";
+
+    /// <summary>
+    /// The templates the plugin's <c>wwwroot/template-patches.json</c> patches, each with its
+    /// number of ops. None without the file; a file that can't be read is logged and gives none.
+    /// </summary>
+    public static IReadOnlyList<(string Template, int Ops)> ReadTemplatePatches(
+        string folder,
+        ILogger logger
+    )
+    {
+        var path = Path.Combine(folder, PluginClientModules.WWWROOT, TEMPLATE_PATCHES_FILE);
+
+        if (!File.Exists(path))
+            return [];
+
+        try
+        {
+            using var doc = JsonDocument.Parse(
+                File.ReadAllText(path),
+                new JsonDocumentOptions
+                {
+                    CommentHandling = JsonCommentHandling.Skip,
+                    AllowTrailingCommas = true,
+                }
+            );
+            var list = new List<(string, int)>();
+
+            if (
+                doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty("patches", out var patches)
+                && patches.ValueKind == JsonValueKind.Array
+            )
+                foreach (var patch in patches.EnumerateArray())
+                    if (
+                        patch.ValueKind == JsonValueKind.Object
+                        && patch.TryGetProperty("template", out var template)
+                        && template.ValueKind == JsonValueKind.String
+                    )
+                        list.Add(
+                            (
+                                template.GetString()!,
+                                patch.TryGetProperty("ops", out var ops)
+                                && ops.ValueKind == JsonValueKind.Array
+                                    ? ops.GetArrayLength()
+                                    : 0
+                            )
+                        );
+
+            return list;
+        }
+        catch (Exception ex) when (ex is JsonException or IOException)
+        {
+            logger.LogWarning(ex, "Could not read the template patches in {Path}", path);
+
+            return [];
+        }
     }
 }

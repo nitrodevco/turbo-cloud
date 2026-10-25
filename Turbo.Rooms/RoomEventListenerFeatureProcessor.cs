@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Rooms;
 using Turbo.Rooms.Grains;
 using Turbo.Runtime;
@@ -37,6 +38,9 @@ internal sealed class RoomEventListenerFeatureProcessor(IRoomEventListenerRegist
 
         if (listeners.Count == 0)
             return Task.FromResult<IDisposable>(registrations);
+
+        foreach (var listener in listeners)
+            sp.Contributes(PluginContributionKinds.LISTENER, listener.GetType().Name);
 
         // Disposed in reverse: the registration goes first, so nothing is published to a listener
         // as it is being disposed.
