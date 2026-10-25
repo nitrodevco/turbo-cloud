@@ -93,6 +93,16 @@ public class WiredChestConfig
     /// </summary>
     public string NotificationLink { get; init; } = "navigator/ask_forward/{0}";
 
+    /// <summary>
+    /// What a chest notification calls a furni chest nobody named, in the hotel's language. Habbo
+    /// sends <c>chest_name</c> "your Furni Chest" for one (official client capture
+    /// 2026-10-24T16-15-50: its <c>chest_name</c> data empty); it is no client text.
+    /// </summary>
+    public string UnnamedFurniChestName { get; init; } = "your Furni Chest";
+
+    /// <summary>The same for a credit chest: "your Credit Chest" (official client captures 2026-10-24).</summary>
+    public string UnnamedCreditChestName { get; init; } = "your Credit Chest";
+
     // A contract, as its editor bounds it.
 
     /// <summary>Payment options a contract may offer.</summary>

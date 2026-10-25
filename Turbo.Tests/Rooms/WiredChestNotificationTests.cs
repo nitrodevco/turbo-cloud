@@ -153,6 +153,51 @@ public class WiredChestNotificationTests
             .Equal("wired_chests.chest_empty", "wired_chests.chest_wired_transaction");
     }
 
+    // Habbo's chest_empty and chest_wired_transaction carry the room link and the chest's name
+    // alone, an unnamed furni chest called "your Furni Chest" (official client captures
+    // 2026-10-24, 14 of 14; 2026-10-24T16-15-50 with chest_name empty). Ours named the user too.
+    [Fact]
+    public async Task Empty_and_wired_notices_carry_the_link_and_the_chests_name_only()
+    {
+        var (room, chest) = await CreateChestAsync(
+            wired: true,
+            donation: false,
+            empty: true,
+            wiredTransaction: true,
+            items: 1,
+            name: ""
+        );
+        StubMove(room, nameof(IWiredChestGrain.WithdrawAsync), items: 0);
+
+        await chest.GiveAsync(
+            GUEST,
+            $"player{GUEST}",
+            amount: 1,
+            itemType: null,
+            WiredChestIterationMode.FirstInFirstOut,
+            WiredTransactionType.Wired,
+            string.Empty,
+            earningsCategory: null,
+            Ct
+        );
+
+        Notices(room)
+            .Select(x => (ImmutableDictionary<string, string>)x.Args[2]!)
+            .Should()
+            .HaveCount(2)
+            .And.AllSatisfy(parameters =>
+                parameters
+                    .Should()
+                    .BeEquivalentTo(
+                        new Dictionary<string, string>
+                        {
+                            ["linkUrl"] = "navigator/ask_forward/1",
+                            ["chest_name"] = "your Furni Chest",
+                        }
+                    )
+            );
+    }
+
     [Fact]
     public async Task Wired_only_kinds_stay_silent_on_a_chest_without_wired()
     {
@@ -213,7 +258,8 @@ public class WiredChestNotificationTests
         bool full = false,
         bool empty = false,
         bool wiredTransaction = false,
-        int items = 0
+        int items = 0,
+        string name = "Bank"
     )
     {
         var room = new RoomHarness();
@@ -253,7 +299,7 @@ public class WiredChestNotificationTests
             CHEST,
             new SetChestPreferencesInteraction
             {
-                Name = "Bank",
+                Name = name,
                 Description = "",
                 EveryoneCanOpen = true,
                 EveryoneCanDonate = true,

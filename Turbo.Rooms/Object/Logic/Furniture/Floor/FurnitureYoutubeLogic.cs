@@ -19,7 +19,7 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 /// <summary>
 /// A video display. The hotel lists the playlists (<see cref="RoomConfig.YoutubePlaylists"/>);
-/// whoever may edit furniture here picks one and works the controls, and everyone in the room
+/// the display's owner (or staff) picks one and works the controls, and everyone in the room
 /// watches the same video at the same point. The client plays the video itself: the room only
 /// says which one, how far in the room already is, and when to pause, so it keeps a clock, not
 /// a stream. The chosen playlist is kept with the item; the position is not, and a display
@@ -83,13 +83,13 @@ public class FurnitureYoutubeLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
     }
 
     /// <summary>
-    /// The display's owner, rights in the room, or staff who may run any display. The client
-    /// offers its controls to the furni's owner or at security level 4
-    /// (<c>FurnitureYoutubeDisplayWidgetHandler</c>); rights are kept for other clients.
+    /// The display's owner, or staff who may run any display: Flash offers its playlists and
+    /// controls to the furni's owner or at security level 4 only
+    /// (<c>FurnitureYoutubeDisplayWidgetHandler.as:125</c>, WIN63-202610201032). Room rights do
+    /// not: they let a guest change the owner's display.
     /// </summary>
     private async Task<bool> CanControlAsync(ActionContext ctx) =>
         IsItemOwner(ctx)
-        || await HasRightsAsync(ctx)
         || await SecurityModule.HasPermissionAsync(
             ctx.PlayerId,
             PermissionNodes.Room.FURNI_YOUTUBE_ANY

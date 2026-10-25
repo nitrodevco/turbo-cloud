@@ -28,6 +28,7 @@ using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
+using Turbo.Rooms.Object.Logic.Furniture.Wall;
 
 namespace Turbo.Rooms.Grains.Modules;
 
@@ -520,6 +521,12 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
         if (!State.ItemsById.TryGetValue(itemId, out var item))
             throw new TurboException(TurboErrorCodeEnum.WallItemNotFound);
 
+        // Only a note is written this way: Flash sends SetItemData from the post-it's widget
+        // alone (FurnitureStickieWidgetHandler.as:95 -> RoomObjectEventHandler.modifyWallItemData).
+        // Any other item took the text as its state, so rights let a player rewrite anyone's furni.
+        if (item.Logic is not FurnitureStickieLogic)
+            return false;
+
         if (!await CanEditItemAsync(ctx, item))
             throw new TurboException(TurboErrorCodeEnum.NoPermissionToManipulateFurni);
 
@@ -534,6 +541,27 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
                 ctx.PlayerId,
                 color,
                 text.Length
+            );
+
+            return false;
+        }
+
+        // The colour is the controller's: Flash shows the colour buttons to the room's owner and
+        // staff controlling every room only (StickieFurniWidget.as:177, controller from
+        // FurnitureStickieWidgetHandler.as:81), and anyone else's client sends the note's own
+        // colour back with the text.
+        var (currentColor, _) = StickieColors.Split(item.Logic.GetLegacyString());
+
+        if (
+            !string.Equals(color, currentColor, StringComparison.OrdinalIgnoreCase)
+            && !await SecurityModule.GetIsRoomOwnerAsync(ctx)
+        )
+        {
+            Logger.LogWarning(
+                "Rejected a colour change of note {ItemId} in room {RoomId} from player {PlayerId}: not the room's owner",
+                itemId,
+                _roomGrain.RoomId,
+                ctx.PlayerId
             );
 
             return false;

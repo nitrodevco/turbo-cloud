@@ -227,12 +227,20 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         return true;
     }
 
+    /// <summary>
+    /// A pet back to its owner's inventory. Flash offers Pick up on someone else's pet to the
+    /// room's owner, controller level 1 and up and staff controlling every room
+    /// (<c>PetMenuView.as:101-104</c>, WIN63-202610201032), so rights take a guest's pet home too.
+    /// </summary>
     public async Task<bool> PickupPetAsync(ActionContext ctx, int petId, CancellationToken ct)
     {
         if (!TryGetPet(petId, out var pet))
             return false;
 
-        if (!await CanManageAsync(ctx, pet))
+        if (
+            pet.OwnerId != ctx.PlayerId
+            && await SecurityModule.GetControllerLevelAsync(ctx) < RoomControllerType.Rights
+        )
             return false;
 
         var snapshot = pet.GetPetSnapshot();

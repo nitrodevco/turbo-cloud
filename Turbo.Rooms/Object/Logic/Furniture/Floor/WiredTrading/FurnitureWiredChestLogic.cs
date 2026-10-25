@@ -796,9 +796,14 @@ public abstract class FurnitureWiredChestLogic(
             if (!Flag(flag) || (wiredOnly && !IsWiredEnabled))
                 continue;
 
-            var parameters = ImmutableDictionary<string, string>
-                .Empty.Add(WiredChestNotices.PARAM_CHEST_NAME, ChestName)
-                .Add(WiredChestNotices.PARAM_USER_NAME, actorName);
+            var parameters = ImmutableDictionary<string, string>.Empty.Add(
+                WiredChestNotices.PARAM_CHEST_NAME,
+                NoticeName
+            );
+
+            if (WiredChestNotices.NamesTheUser(kind))
+                parameters = parameters.Add(WiredChestNotices.PARAM_USER_NAME, actorName);
+
             var link = _roomGrain._wiredChestConfig.NotificationLink;
 
             if (link.Length > 0)
@@ -818,6 +823,12 @@ public abstract class FurnitureWiredChestLogic(
 
     private string ChestName =>
         StuffData is IMapStuffData map ? map.ValueOf(WiredChestData.NAME) : string.Empty;
+
+    /// <summary>The chest's name in a notification: an unnamed one is "your ... Chest", as Habbo's.</summary>
+    private string NoticeName =>
+        ChestName is { Length: > 0 } name ? name
+        : Kind == WiredChestKind.Coins ? _roomGrain._wiredChestConfig.UnnamedCreditChestName
+        : _roomGrain._wiredChestConfig.UnnamedFurniChestName;
 
     private bool Changes(IReadOnlyDictionary<string, string> entries)
     {

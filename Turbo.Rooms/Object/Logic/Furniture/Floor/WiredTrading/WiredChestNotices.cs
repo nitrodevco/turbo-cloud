@@ -66,6 +66,14 @@ public static class WiredChestNotices
         return kinds;
     }
 
+    /// <summary>
+    /// Whether a kind names who moved the contents: only a donation and a withdrawal by hand,
+    /// whose texts read <c>%user_name%</c>. Habbo's chest_empty and chest_wired_transaction carry the
+    /// link and the chest's name alone (official client captures 2026-10-24, 14 of 14); chest_full's
+    /// text has no <c>%user_name%</c> either (inferred: not recorded).
+    /// </summary>
+    public static bool NamesTheUser(string kind) => kind is DONATION or SOMEONE_WITHDRAWS;
+
     /// <summary>The stuff data flag that turns a kind on, and whether only a wired chest offers it.</summary>
     public static (string Flag, bool WiredOnly) PreferenceOf(string kind) =>
         kind switch
