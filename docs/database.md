@@ -150,6 +150,38 @@ public sealed class SkillsDb : PluginDbContextBase<SkillsDb>
   parameterless one.
 - A context registered by hand (`services.AddPluginDatabaseContext<TContext, TModule>()`) is left
   as the plugin registers it.
+- Seed rows go in `OnModelCreating` with EF Core's `HasData`, after `base.OnModelCreating` (which
+  names the tables by the prefix); the next migration inserts them.
+
+### From a route, a task or a singleton
+
+The context is scoped: one per request, never shared between two at once. A plugin's web routes,
+scheduled tasks, commands, room listeners, message handlers and singletons are built once, as the
+plugin loads, and live as long as it does. So they never take the context by constructor; they take
+`IServiceScopeFactory` and open a scope per request or run:
+
+```csharp
+public sealed class ValuesRoute(IServiceScopeFactory scopes) : IPluginWebRoute
+{
+    public string Method => "GET";
+
+    public string Pattern => "values";
+
+    public async Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct)
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<SkillsDb>();
+
+        return PluginWebResult.Ok(await db.Skills.CountAsync(ct));
+    }
+}
+```
+
+A service the plugin registers as a singleton (`services.AddSingleton<SkillBook>()`) does the same.
+One that takes the context by constructor is refused as the plugin loads (its service provider
+checks scopes): the plugin does not load, and its status on the panel's Plugins page and the log say
+`Cannot resolve scoped service 'SkillsDb' from root provider`, or `Cannot consume scoped service`,
+followed by this advice.
 
 ## Deploying with Ploi
 

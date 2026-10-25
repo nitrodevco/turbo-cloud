@@ -257,4 +257,30 @@ internal static partial class PluginHelpers
             return [];
         }
     }
+
+    /// <summary>
+    /// Why a plugin did not load, as its author should read it. A route, scheduled task, command,
+    /// listener or handler is built once as the plugin loads, so the service provider refuses it a
+    /// scoped service, the plugin's database context above all: the message says what to take
+    /// instead.
+    /// </summary>
+    public static string LoadFailure(Exception ex)
+    {
+        for (var e = ex; e is not null; e = e.InnerException)
+        {
+            if (
+                e is InvalidOperationException
+                && (
+                    e.Message.StartsWith("Cannot resolve scoped service", StringComparison.Ordinal)
+                    || e.Message.StartsWith(
+                        "Cannot consume scoped service",
+                        StringComparison.Ordinal
+                    )
+                )
+            )
+                return $"{e.Message} Routes, scheduled tasks, commands, listeners, handlers and singletons live as long as the plugin, so they cannot hold a scoped service such as its database context: take IServiceScopeFactory and read the tables in a scope of their own per request or run (docs/database.md).";
+        }
+
+        return ex.Message;
+    }
 }
