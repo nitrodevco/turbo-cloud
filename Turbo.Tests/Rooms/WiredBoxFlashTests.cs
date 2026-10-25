@@ -8,6 +8,7 @@ using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Selectors;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
@@ -90,6 +91,63 @@ public sealed class WiredBoxFlashTests
         await ClickAsync();
         trigger.GetState().Should().Be(0);
         condition.GetState().Should().Be(1);
+    }
+
+    // Add-ons flash with the conditions when the stack passes (official client capture, golden
+    // replay fixture of the W1-W8 labs: Username Placeholder 267/267 passing, 0/2 failing; Random
+    // 10/10, also on a stack without an effect, addon.1.R3), never Unseen (addon.2.R3, 2/2).
+    [Fact]
+    public async Task Add_ons_flash_with_a_passing_stack_and_unseen_never()
+    {
+        const int PLACEHOLDER = 6;
+        const int RANDOM = 7;
+        const int UNSEEN = 8;
+
+        _room.AddFloorItem(CLICK_ME, 7, 4);
+        _room.AddFloorItem(PAD, 3, 3);
+        _room.AddBox<WiredTriggerClickFurni>(TRIGGER, 0, 0, "wf_trg_click_furni");
+        _room.AddBox<WiredConditionItemHasHabbo>(CONDITION, 0, 0, "wf_cnd_furnis_hv_avtrs");
+        var placeholder = _room.AddBox<WiredAddonUsernamePlaceholder>(
+            PLACEHOLDER,
+            0,
+            0,
+            "wf_xtra_text_output_username"
+        );
+        var random = _room.AddBox<WiredAddonRandomActions>(RANDOM, 0, 0, "wf_xtra_random");
+        var unseen = _room.AddBox<WiredAddonUnseenActions>(UNSEEN, 0, 0, "wf_xtra_unseen");
+        await SaveTriggerAsync();
+        (
+            await _room.SaveAsync<UpdateConditionMessage>(
+                CONDITION,
+                intParams: [0],
+                stuffIds: [PAD],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateAddonMessage>(
+                PLACEHOLDER,
+                intParams: [0],
+                stringParam: "u",
+                playerSources:
+                [
+                    [WiredPlayerSourceType.TriggeredUser],
+                ]
+            )
+        ).Should().BeTrue();
+        await StartAsync();
+
+        // Nobody on the pad: the condition fails and no add-on flashes.
+        await ClickAsync();
+        (placeholder.GetState(), random.GetState(), unseen.GetState()).Should().Be((0, 0, 0));
+
+        _room.Enter(5, 3, 3);
+        await ClickAsync();
+        (placeholder.GetState(), random.GetState(), unseen.GetState()).Should().Be((1, 1, 0));
     }
 
     [Theory]

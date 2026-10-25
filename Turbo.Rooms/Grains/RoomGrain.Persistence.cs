@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -6,6 +7,7 @@ using Turbo.Primitives.Commands.Snapshots;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Rooms.Snapshots.Chat;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 
 namespace Turbo.Rooms.Grains;
 
@@ -79,7 +81,18 @@ public sealed partial class RoomGrain
             handOvers.Add(persistence.EnqueueCommandLogsAsync(commandLogs, ct));
         }
 
-        // Five different queues, so their order does not matter; each list keeps its own.
+        if (_state.PendingWiredLogs.Count > 0)
+        {
+            var wiredLogs = new List<WiredRoomLogEntrySnapshot>(_state.PendingWiredLogs);
+
+            _state.PendingWiredLogs.Clear();
+
+            handOvers.Add(
+                persistence.EnqueueWiredLogsAsync(wiredLogs, _wiredConfig.MaxRoomLogEntries, ct)
+            );
+        }
+
+        // Different queues, so their order does not matter; each list keeps its own.
         await Task.WhenAll(handOvers);
     }
 
@@ -101,6 +114,18 @@ public sealed partial class RoomGrain
         }
 
         _state.PendingChatlogs.Enqueue(snapshot);
+    }
+
+    /// <summary>
+    /// Keeps a wired log line for the next hand-over, bounded by the lines the log keeps: an
+    /// older one waiting here would be deleted again by the next write.
+    /// </summary>
+    internal void QueueWiredLog(WiredRoomLogEntrySnapshot snapshot)
+    {
+        while (_state.PendingWiredLogs.Count >= Math.Max(_wiredConfig.MaxRoomLogEntries, 1))
+            _state.PendingWiredLogs.Dequeue();
+
+        _state.PendingWiredLogs.Enqueue(snapshot);
     }
 
     /// <summary>Keeps a command use for the next hand-over, bounded like <see cref="QueueChatlog"/>.</summary>

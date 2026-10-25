@@ -83,10 +83,14 @@ public sealed class WiredOfficialLabReplayTests
         ["wlab7/1/selector"] = 5,
         ["wlab7/2/chest"] = 1,
         ["wlab7/2/selector"] = 25,
-        ["wlab7/2/variable"] = 12,
+        // Add-ons flashing with their stack put 5 more windows here: Kick on the room owner, whom
+        // the replay does not make the owner ("Wired kick exception: Room owner" is pinned by
+        // WiredUserLabAnswersTests).
+        ["wlab7/2/variable"] = 17,
         ["wlab8/0/selector"] = 12,
         ["wlab8/0/variable"] = 25,
-        ["wlab8/1/selector"] = 8,
+        // 3 more windows from the add-on flashes: furni name output with no public name (#sprite).
+        ["wlab8/1/selector"] = 11,
         ["wlab8/1/variable"] = 10,
         ["wlab9/0/selector"] = 34,
         ["wlab9/0/variable"] = 54,

@@ -829,12 +829,33 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
 
             await SecurityModule.EnsureRightsLoadedAsync(ct);
             await EntryModule.EnsureBansLoadedAsync(ct);
+            await LoadWiredLogsAsync(ct);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to hydrate room {RoomId}", _state.RoomId);
 
             throw;
+        }
+    }
+
+    /// <summary>
+    /// The wired log outlives the room's unload (official client capture 2026-10-25, wired
+    /// matrix action.49.R6). A log that cannot be read does not keep the room from loading.
+    /// </summary>
+    private async Task LoadWiredLogsAsync(CancellationToken ct)
+    {
+        try
+        {
+            WiredSystem.LoadRoomLogs(
+                await _grainFactory
+                    .GetRoomPersistenceGrain(_state.RoomId)
+                    .LoadWiredLogsAsync(_wiredConfig.MaxRoomLogEntries, ct)
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load the wired log of room {RoomId}", _state.RoomId);
         }
     }
 

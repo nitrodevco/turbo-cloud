@@ -8,4 +8,7 @@ public interface IWiredAddon : IWiredBox
     public Task<bool> MutatePolicyAsync(IWiredProcessingContext ctx, CancellationToken ct);
     public Task BeforeEffectsAsync(IWiredProcessingContext ctx, CancellationToken ct);
     public Task AfterEffectsAsync(IWiredProcessingContext ctx, CancellationToken ct);
+
+    /// <summary>Whether the box flashes with its stack's conditions when the stack passes.</summary>
+    public bool FlashesWithStack => true;
 }

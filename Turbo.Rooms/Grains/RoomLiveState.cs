@@ -11,6 +11,7 @@ using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Chat;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
+using Turbo.Primitives.Rooms.Snapshots.Wired;
 
 namespace Turbo.Rooms.Grains;
 
@@ -115,6 +116,12 @@ internal sealed class RoomLiveState
     /// <c>RoomConfig.MaxPendingCommandLogs</c>.
     /// </summary>
     public Queue<CommandLogSnapshot> PendingCommandLogs { get; } = new();
+
+    /// <summary>
+    /// Wired log lines not yet handed to the persistence grain, oldest first, bounded by
+    /// <c>WiredConfig.MaxRoomLogEntries</c> as the log itself is.
+    /// </summary>
+    public Queue<WiredRoomLogEntrySnapshot> PendingWiredLogs { get; } = new();
 
     public HashSet<RoomObjectId> DirtyFloorItemIds { get; set; } = [];
     public HashSet<RoomObjectId> DirtyWallItemIds { get; set; } = [];

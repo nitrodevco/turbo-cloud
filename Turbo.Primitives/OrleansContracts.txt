@@ -697,8 +697,10 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomPersistenceGra
   1847F886: EnqueueDirtyItemsAsync(Turbo.Primitives.Rooms.RoomId, System.Collections.Generic.List<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot>, System.Threading.CancellationToken) -> Task
   64DB0503: EnqueueDirtyPetsAsync(System.Collections.Generic.List<Turbo.Primitives.Pets.Snapshots.PetSnapshot>, System.Threading.CancellationToken) -> Task
   8C579F28: EnqueueGiveBackAsync(Turbo.Primitives.Rooms.RoomId, System.Collections.Generic.List<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot>, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task
+  11BDE550: EnqueueWiredLogsAsync(System.Collections.Generic.List<Turbo.Primitives.Rooms.Snapshots.Wired.WiredRoomLogEntrySnapshot>, int, System.Threading.CancellationToken) -> Task
   1BAF3003: FlushNowAsync(System.Threading.CancellationToken) -> Task
   72A093CC: InsertBuildersClubItemAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot, int, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<bool>
+  4F769592: LoadWiredLogsAsync(int, System.Threading.CancellationToken) -> Task<System.Collections.Generic.List<Turbo.Primitives.Rooms.Snapshots.Wired.WiredRoomLogEntrySnapshot>>
   66028104: WritePickupAsync(Turbo.Primitives.Rooms.RoomId, System.Collections.Generic.List<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot>, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task
   990F942A: WritePlacementAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task
   C4EF66C5: WriteUseAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Snapshots.Furniture.UsedUpItem?, System.Collections.Generic.List<Turbo.Primitives.Pets.Snapshots.PetSnapshot>, System.Threading.CancellationToken) -> Task
