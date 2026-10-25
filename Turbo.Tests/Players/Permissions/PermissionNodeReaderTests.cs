@@ -46,6 +46,8 @@ public class PermissionNodeReaderTests
         [PermissionNodes.Perk.HABBO_CLUB_OFFER_BETA] = "projected to a perk",
         [PermissionNodes.Perk.NO_VIDEO_OFFERS] =
             "the client turns video offers off at the level this projects to",
+        [PermissionNodes.Client.INSPECTOR] =
+            "sent to the client, which alone draws its extension inspector",
     };
 
     private static readonly PermissionRegistry REGISTRY = new([new CorePermissionNodeSource()]);
