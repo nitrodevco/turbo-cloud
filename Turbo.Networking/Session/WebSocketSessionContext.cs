@@ -14,8 +14,8 @@ namespace Turbo.Networking.Session;
 
 public class WebSocketSessionContext(
     PackageEncoder packageEncoder,
-    ClientAddresses addresses,
-    ILogger<ISessionContext> logger
+    ILogger<ISessionContext> logger,
+    ClientAddresses? addresses = null
 ) : WebSocketSession(), ISessionContext, ISessionOutbound
 {
     // A buffer, sending or receiving, that grew past this for one large packet is dropped
@@ -44,12 +44,13 @@ public class WebSocketSessionContext(
 
     // Read once the upgrade's headers are in, which they are before any packet is.
     public string RemoteAddress =>
-        _remoteAddress ??= addresses.Resolve(
+        _remoteAddress ??= (addresses ?? ClientAddresses.LoopbackOnly).Resolve(
             RemoteEndPoint,
             HttpHeader?.Items[ClientAddresses.FORWARDED_FOR]
         );
 
     private string? _remoteAddress;
+
     public DateTime LastReceivedUtc => _state.LastReceivedUtc;
 
     public void MarkReceived() => _state.MarkReceived();

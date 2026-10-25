@@ -13,8 +13,8 @@ namespace Turbo.Networking.Session;
 
 public class TcpSessionContext(
     PackageEncoder packageEncoder,
-    ClientAddresses addresses,
-    ILogger<ISessionContext> logger
+    ILogger<ISessionContext> logger,
+    ClientAddresses? addresses = null
 ) : AppSession(), ISessionContext, ISessionOutbound
 {
     private readonly PackageEncoder _packageEncoder = packageEncoder;
@@ -32,9 +32,14 @@ public class TcpSessionContext(
     public RoomId ActiveRoomId => _state.ActiveRoomId;
 
     // A plain TCP connection carries no forwarded header: its address is the connection's.
-    public string RemoteAddress => _remoteAddress ??= addresses.Resolve(RemoteEndPoint, null);
+    public string RemoteAddress =>
+        _remoteAddress ??= (addresses ?? ClientAddresses.LoopbackOnly).Resolve(
+            RemoteEndPoint,
+            null
+        );
 
     private string? _remoteAddress;
+
     public DateTime LastReceivedUtc => _state.LastReceivedUtc;
 
     public void MarkReceived() => _state.MarkReceived();

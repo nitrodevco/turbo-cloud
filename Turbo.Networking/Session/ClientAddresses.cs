@@ -16,6 +16,9 @@ public sealed class ClientAddresses
 {
     public const string FORWARDED_FOR = "X-Forwarded-For";
 
+    /// <summary>Trusts a proxy on the same machine only: a host that registers none gets this.</summary>
+    public static ClientAddresses LoopbackOnly { get; } = new([]);
+
     private readonly ImmutableArray<IPNetwork> _trusted;
 
     public ClientAddresses(IEnumerable<string>? trustedProxies)
