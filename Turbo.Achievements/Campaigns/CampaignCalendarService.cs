@@ -279,29 +279,29 @@ public sealed partial class CampaignCalendarService(
                 new CampaignCalendarRefusedException(message, field, reward.DayIndex);
 
             if (reward.DayIndex < 0 || reward.DayIndex >= campaign.Days)
-                throw refused($"Day {day} is outside the calendar.", "dayIndex");
+                throw refused($"Day index {day} is outside the calendar.", "dayIndex");
 
             if (!days.Add(reward.DayIndex))
-                throw refused($"Day {day} has two gifts.", "dayIndex");
+                throw refused($"Day index {day} has two gifts.", "dayIndex");
 
             if (reward.ShownProductCode.Length == 0)
                 throw refused(
-                    $"Day {day} names no product: the client shows the gift by its product data name.",
+                    $"Day index {day} names no product: the client shows the gift by its product data name.",
                     "productCode"
                 );
 
             if (reward.Credits < 0)
-                throw refused($"Day {day} gives a negative amount.", "credits");
+                throw refused($"Day index {day} gives a negative amount.", "credits");
 
             if (reward.CurrencyAmount < 0)
-                throw refused($"Day {day} gives a negative amount.", "currencyAmount");
+                throw refused($"Day index {day} gives a negative amount.", "currencyAmount");
 
             if (
                 reward.FurnitureClassName.Length > 0
                 && definitions.TryGetDefinitionByName(reward.FurnitureClassName.Trim()) is null
             )
                 throw refused(
-                    $"Day {day}: there is no furni {reward.FurnitureClassName}.",
+                    $"Day index {day}: there is no furni {reward.FurnitureClassName}.",
                     "furnitureClassName"
                 );
 
@@ -312,7 +312,7 @@ public sealed partial class CampaignCalendarService(
                     || currencies.GetCurrencyType(typeId) is null
                 )
             )
-                throw refused($"Day {day}: there is no such currency.", "currencyTypeId");
+                throw refused($"Day index {day}: there is no such currency.", "currencyTypeId");
         }
     }
 
