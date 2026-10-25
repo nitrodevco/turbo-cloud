@@ -38,6 +38,12 @@ public static class AchievementSources
     public const string CRACKABLE_CRACKED = "crackables.cracked";
 
     /// <summary>
+    /// A Battle Banzai tile a player locked for their team, its value the achievement it counts
+    /// towards (<c>battleballtileslocked</c>). One fact per tile.
+    /// </summary>
+    public const string BATTLEBALL_TILE_LOCKED = "games.battleball-tile-locked";
+
+    /// <summary>
     /// A placeholder for achievements nothing records facts for yet, such as the Habbo ones the
     /// hotel has no gameplay for. A definition on it can be listed or archived but never enabled;
     /// until it is moved to a source something records, no player can progress it.

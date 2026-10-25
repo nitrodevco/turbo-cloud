@@ -1,6 +1,8 @@
 using FluentAssertions;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Player;
@@ -185,6 +187,7 @@ public sealed class BattleBanzaiGameTests
         StateOf(30).Should().Be("11");
         Game.GetScore(GameTeamType.Blue).Should().Be(1);
         Game.GetScore(GameTeamType.Red).Should().Be(0);
+        TilesLockedFacts().Should().Equal((100 + PLAYER, "battleballtileslocked", 1L));
     }
 
     [Fact]
@@ -221,6 +224,7 @@ public sealed class BattleBanzaiGameTests
         Tiles().Single(t => t.Item == (2, 2)).Logic.IsLocked.Should().BeTrue();
         Tiles().Single(t => t.Item == (2, 2)).Logic.Colour.Should().Be(GameTeamType.Green);
         Game.GetScore(GameTeamType.Green).Should().Be(2);
+        TilesLockedFacts().Should().Equal((100 + PLAYER, "battleballtileslocked", 2L));
     }
 
     private IEnumerable<((int X, int Y) Item, FurnitureBattleBanzaiTileLogic Logic)> Tiles() =>
@@ -229,6 +233,17 @@ public sealed class BattleBanzaiGameTests
             .Where(x => x.Logic is FurnitureBattleBanzaiTileLogic)
             .Select(x => ((x.X, x.Y), (FurnitureBattleBanzaiTileLogic)x.Logic))
             .ToList();
+
+    private List<(int Player, string Value, long Amount)> TilesLockedFacts() =>
+        [
+            .. _room
+                .Harness.Fakes.Log.Of("Record")
+                .Select(x =>
+                    (Player: ((PlayerId)x.Args[1]!).Value, Fact: (AchievementFact)x.Args[2]!)
+                )
+                .Where(x => x.Fact.Source == AchievementSources.BATTLEBALL_TILE_LOCKED)
+                .Select(x => (x.Player, x.Fact.Value, x.Fact.Amount)),
+        ];
 
     private void AddGate(int id, int x, int y, string className) =>
         _room.AddFloorItem(

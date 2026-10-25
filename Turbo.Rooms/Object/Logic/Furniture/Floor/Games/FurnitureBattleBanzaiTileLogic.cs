@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -21,7 +23,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Games;
 /// Inference, not yet seen on Habbo: a game start lights every tile grey; a team player stepping
 /// on a tile that is not yet theirs gives it their faint shade, each further step of theirs the
 /// next, and the bright shade locks it for good with a point to their team; tiles closed in by
-/// one team's locked tiles lock for that team too, a point each.
+/// one team's locked tiles lock for that team too, a point each. Every tile a player locks counts
+/// towards their "BattleBallTilesLocked" achievement.
 /// </summary>
 [RoomObjectLogic(LOGIC_NAME)]
 public class FurnitureBattleBanzaiTileLogic(
@@ -38,6 +41,7 @@ public class FurnitureBattleBanzaiTileLogic(
     private const int SHADES = 3;
     private const int LOCKED_SHADE = SHADES - 1;
     private const int POINTS_PER_TILE = 1;
+    private const string ACHIEVEMENT = "battleballtileslocked";
 
     private static readonly (int X, int Y)[] Sides = [(1, 0), (-1, 0), (0, 1), (0, -1)];
 
@@ -88,6 +92,7 @@ public class FurnitureBattleBanzaiTileLogic(
 
         var tiles = Tiles();
         var seen = new HashSet<(int, int)>();
+        var locked = 1;
 
         foreach (var (dx, dy) in Sides)
         {
@@ -97,6 +102,8 @@ public class FurnitureBattleBanzaiTileLogic(
                 continue;
 
             var area = ClosedArea(start, team, tiles, seen);
+
+            locked += area.Count;
 
             foreach (var tile in area)
             {
@@ -111,6 +118,33 @@ public class FurnitureBattleBanzaiTileLogic(
                 );
             }
         }
+
+        await RecordLockedAsync(scorerId, locked, ct);
+    }
+
+    private async Task RecordLockedAsync(RoomObjectId scorerId, int tiles, CancellationToken ct)
+    {
+        if (
+            !AvatarModule.TryGetAvatar(scorerId, out var avatar) || avatar is not IRoomPlayer player
+        )
+            return;
+
+        await using var db = await _roomGrain._dbCtxFactory.CreateDbContextAsync(ct);
+
+        _roomGrain._achievementFacts.Record(
+            db,
+            player.PlayerId,
+            new()
+            {
+                Source = AchievementSources.BATTLEBALL_TILE_LOCKED,
+                Value = ACHIEVEMENT,
+                Amount = tiles,
+                OperationId = Guid.NewGuid().ToString("N"),
+                OccurredAtUtc = UtcNow.UtcDateTime,
+            }
+        );
+
+        await db.SaveChangesAsync(ct);
     }
 
     /// <summary>

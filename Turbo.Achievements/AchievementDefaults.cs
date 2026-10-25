@@ -58,6 +58,19 @@ public static class AchievementDefaults
     }.ToImmutableDictionary(StringComparer.Ordinal);
 
     /// <summary>
+    /// The games records the room games record facts for, by published name: "For locking
+    /// %limit% tiles in Battle Banzai" (<c>badge_desc_ACH_BattleBallTilesLocked</c>) counts the
+    /// tiles a player's steps locked.
+    /// </summary>
+    private static readonly ImmutableDictionary<string, string> RoomGameSources = new Dictionary<
+        string,
+        string
+    >(StringComparer.Ordinal)
+    {
+        ["BattleBallTilesLocked"] = AchievementSources.BATTLEBALL_TILE_LOCKED,
+    }.ToImmutableDictionary(StringComparer.Ordinal);
+
+    /// <summary>
     /// Habbo's own level codes for records whose name ends in a digit (official client capture,
     /// Achievements list 2026-10-15; hotel texts name each of them): bazaar17 is
     /// <c>ACH_bazaar171</c> .. <c>ACH_bazaar1710</c>, and the single levels of Profile1 and
@@ -260,6 +273,18 @@ public static class AchievementDefaults
     ];
 
     /// <summary>
+    /// The published games records the room games record facts for (<see cref="RoomGameSources"/>),
+    /// matched by name, in their published state and thresholds.
+    /// </summary>
+    public static ImmutableArray<AchievementDefinition> RoomGames { get; } =
+    [
+        .. PublishedCatalog
+            .Where(x => RoomGameSources.ContainsKey(x.Key) && WhyNotRepresentable(x.Value) is null)
+            .OrderBy(x => x.Value.GetProperty("achievement").GetProperty("id").GetInt32())
+            .Select(x => Hook(x.Key, x.Value, RoomGameSources[x.Key])),
+    ];
+
+    /// <summary>
     /// Published records that cannot be shipped faithfully, and why. They are listed in the
     /// coverage CSV instead.
     /// </summary>
@@ -285,6 +310,7 @@ public static class AchievementDefaults
                 .Where(x =>
                     !mapped.Contains(x.Key)
                     && !CrackableSources.ContainsKey(x.Key)
+                    && !RoomGameSources.ContainsKey(x.Key)
                     && WhyNotRepresentable(x.Value) is null
                 )
                 .OrderBy(x => x.Value.GetProperty("achievement").GetProperty("id").GetInt32())
@@ -358,9 +384,12 @@ public static class AchievementDefaults
     }
 
     private static AchievementDefinition HookCrackable(string name, JsonElement published) =>
+        Hook(name, published, CrackableSources[name]);
+
+    private static AchievementDefinition Hook(string name, JsonElement published, string source) =>
         Unhook(name, published) with
         {
-            Source = CrackableSources[name],
+            Source = source,
             Match = new AchievementMatch { Values = [name.ToLowerInvariant()] },
             State = published.GetProperty("achievement").GetProperty("state").GetString() switch
             {

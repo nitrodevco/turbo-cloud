@@ -39,6 +39,7 @@ public static class CoreAchievementSources
         new(AchievementSources.ROOM_RANK, 1, AchievementReducer.Rank),
         new(AchievementSources.CRACKABLE_HIT, 1, AchievementReducer.Counter),
         new(AchievementSources.CRACKABLE_CRACKED, 1, AchievementReducer.Counter),
+        new(AchievementSources.BATTLEBALL_TILE_LOCKED, 1, AchievementReducer.Counter),
         // Nothing records it, so any reducer may be chosen until the definition is pointed at a
         // source something does.
         new(
