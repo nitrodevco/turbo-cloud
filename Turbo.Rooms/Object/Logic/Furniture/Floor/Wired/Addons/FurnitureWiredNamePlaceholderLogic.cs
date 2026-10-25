@@ -31,7 +31,11 @@ public abstract class FurnitureWiredNamePlaceholderLogic(
 
     public override List<IWiredParamRule> GetIntParamRules() => [new WiredBoolParamRule(false)];
 
-    /// <summary>The name, and the delimiter with "show all", are refused as Habbo refuses them (<see cref="WiredNameRules.PlaceholderError"/>).</summary>
+    /// <summary>
+    /// The name, and the delimiter with "show all", are refused as Habbo refuses them
+    /// (<see cref="WiredNameRules.PlaceholderError"/>), and so is a name another placeholder of
+    /// this kind on the stack has (<see cref="WiredPlaceholderText.IsNameTakenOnStack"/>).
+    /// </summary>
     public override Task<bool> ApplyWiredUpdateAsync(
         ActionContext ctx,
         UpdateWiredMessage update,
@@ -40,7 +44,13 @@ public abstract class FurnitureWiredNamePlaceholderLogic(
         WiredNameRules.PlaceholderError(update.StringParam, showsAll: update.IntParams is [1, ..])
             is { } error
             ? throw new WiredSaveRefusedException(error)
-            : base.ApplyWiredUpdateAsync(ctx, update, ct);
+        : WiredPlaceholderText.IsNameTakenOnStack(
+            this,
+            FurniModule.GetFloorItemsOnTile(_ctx.GetTileIdx()),
+            update.StringParam
+        )
+            ? throw new WiredSaveRefusedException(WiredSaveErrors.CAPTURE_DESTINATION_CONFLICT)
+        : base.ApplyWiredUpdateAsync(ctx, update, ct);
 
     /// <summary>The names of what the add-on's source selects, in selection order.</summary>
     protected abstract List<string> GetNames(IWiredExecutionContext ctx);
@@ -53,7 +63,7 @@ public abstract class FurnitureWiredNamePlaceholderLogic(
     }
 
     public string Token =>
-        WiredPlaceholderText.SplitNameAndDelimiter(_wiredData.StringParam).Item1
+        WiredPlaceholderText.SplitNameAndDelimiter(_wiredData?.StringParam).Item1
             is { Length: > 0 } name
             ? WiredPlaceholderText.Token(SIGIL, name)
             : string.Empty;
@@ -69,9 +79,18 @@ public abstract class FurnitureWiredNamePlaceholderLogic(
             return Task.FromResult(text);
 
         var names = GetNames(ctx);
+        var showsAll = GetIntParamOrDefault(0, false);
+
+        // With nothing to name, "show all" prints nothing and a single name leaves the
+        // placeholder as written: "W= end" and "W=$(fw) end" (official client capture 2026-10-24,
+        // W3 lab addon.19.B4, Furni Name with no furni, 2/2 each). That Username does the same
+        // is inferred.
+        if (names.Count == 0 && !showsAll)
+            return Task.FromResult(text);
+
         var replacement =
             names.Count == 0 ? string.Empty
-            : GetIntParamOrDefault(0, false) ? string.Join(delimiter, names)
+            : showsAll ? string.Join(delimiter, names)
             : names[0];
 
         return Task.FromResult(

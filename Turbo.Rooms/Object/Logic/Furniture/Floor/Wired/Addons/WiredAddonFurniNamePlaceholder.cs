@@ -37,9 +37,17 @@ public class WiredAddonFurniNamePlaceholder(
             ],
         ];
 
-    protected override List<string> GetNames(IWiredExecutionContext ctx) =>
+    // The picked wall items are named too, after the floor furni: picks [wall clock, floor lamp]
+    // printed "Pura lamp,Blue Clock" (official client capture 2026-10-24, W3 lab addon.19.X2,
+    // 2/2). The order among wall items is inferred: as selected.
+    protected override List<string> GetNames(IWiredExecutionContext ctx)
+    {
+        var selection = WiredSlotSelection.ForSlot(this, ctx, 0);
+
+        return
         [
-            .. GetFloorItems(WiredSlotSelection.ForSlot(this, ctx, 0))
-                .Select(x => x.Definition.DisplayName),
+            .. GetFloorItems(selection).Select(x => x.Definition.DisplayName),
+            .. GetWallItems(selection).Select(x => x.Definition.DisplayName),
         ];
+    }
 }

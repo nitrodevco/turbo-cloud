@@ -291,6 +291,158 @@ public sealed class WiredBotBoxesTests
         }
     }
 
+    // action.24.B2: no way to the user (enclosed by furni nobody can stand on): the bot does not
+    // walk, the item is handed over at once, in the fire's tick (1/1). Ours kept it in the bot's
+    // hand and gave the user nothing.
+    [Fact]
+    public async Task Bot_give_hand_item_with_no_way_to_the_user_hands_it_over_at_once()
+    {
+        var frank = AddBot(FRANK, "Frank", 1, 1);
+        var user = _room.Enter(USER, 8, 8);
+
+        for (var x = 7; x <= 9; x++)
+        for (var y = 7; y <= 9; y++)
+            if ((x, y) != (8, 8))
+                _room.AddFloorItem(FURNI + x * 10 + y, x, y, canWalk: false);
+
+        var give = await SaveBotBoxAsync<WiredActionBotGiveHandItem>(
+            "wf_act_bot_give_handitem",
+            "Frank",
+            ints: [2],
+            withUsers: true
+        );
+
+        await give.ExecuteAsync(Execution(USER), Ct);
+
+        _room
+            .Harness.Fakes.SentToRoom<CarryObjectMessageComposer>()
+            .Select(x => ((int)x.UserId, x.ItemType))
+            .Should()
+            .Equal((FRANK, 2), (USER, 2), (FRANK, 0));
+        user.HandItemId.Should().Be(2);
+        frank.IsWalking.Should().BeFalse();
+    }
+
+    // trigger.14.R1 / R2: Bot Reached Avatar fires once when the following bot stops beside the
+    // user, and again only once it has walked after the user again (official client capture
+    // 2026-10-24T18-08-27: one fire 0.5 s after each of two arrivals, none in the 18 s the bot
+    // stood beside the user between them; 14-26-38 the same, 1/1). Ours fired every 5 s for as
+    // long as the bot stood there.
+    [Fact]
+    public async Task Bot_reached_avatar_fires_once_per_arrival_of_a_following_bot()
+    {
+        var frank = AddWalkingBot();
+        var user = _room.Enter(USER, 6, 1);
+        await SaveReachedAvatarStackAsync();
+
+        (await _room.Harness.Module<RoomBotModule>().FollowAsync(frank, USER, true))
+            .Should()
+            .BeTrue();
+
+        (await TickAsync(40)).Should().Be(1, "one arrival, then 18 s beside the user");
+
+        await _room
+            .Harness.Module<RoomAvatarModule>()
+            .RelocateAvatarAsync(user, _room.Map.ToIdx(6, 8), Ct);
+
+        (await TickAsync(40)).Should().Be(2, "the bot followed and arrived once more");
+    }
+
+    // trigger.14.R4 / action.24.R3: a bot handing an item over fires Bot Reached Avatar as it
+    // arrives beside the user, in the tick it hands the item over (official client capture
+    // 2026-10-24T18-02-52: CarryObject user, CarryObject bot 0 and the trigger's flash in one
+    // tick, 1/1). Ours raised it only for a following bot.
+    [Fact]
+    public async Task Bot_reached_avatar_fires_when_a_bot_arrives_to_hand_an_item_over()
+    {
+        AddWalkingBot();
+        var user = _room.Enter(USER, 6, 1);
+        await SaveReachedAvatarStackAsync();
+        var give = _room.AddBox<WiredActionBotGiveHandItem>(3, 0, 10, "wf_act_bot_give_handitem");
+
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                3,
+                intParams: [2],
+                playerSources:
+                [
+                    [WiredPlayerSourceType.BotByName],
+                    [WiredPlayerSourceType.SelectorUsers],
+                ],
+                stringParam: "Frank",
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+
+        await give.ExecuteAsync(Execution(USER), Ct);
+
+        (await TickAsync(20)).Should().Be(1);
+        user.HandItemId.Should().Be(2);
+    }
+
+    private long _now = 10_000L;
+
+    private RoomBotAvatar AddWalkingBot()
+    {
+        var frank = AddBot(FRANK, "Frank", 1, 1);
+
+        frank.SetLogic(new BotLogic(new RoomBotContext(_room.Harness.Room, frank)));
+
+        return frank;
+    }
+
+    // Bot Reached Avatar "Frank" with a Bot Talk "Frank\treached": each fire is one Chat.
+    private async Task SaveReachedAvatarStackAsync()
+    {
+        _room.AddBox<WiredTriggerBotReachesHabbo>(BOX, 0, 11, "wf_trg_bot_reached_avtr");
+        _room.AddBox<WiredActionBotTalk>(2, 0, 11, "wf_act_bot_talk");
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                BOX,
+                stringParam: "Frank",
+                playerSources:
+                [
+                    [WiredPlayerSourceType.BotByName],
+                ]
+            )
+        ).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                2,
+                intParams: [0, -1, 0],
+                playerSources:
+                [
+                    [WiredPlayerSourceType.BotByName],
+                ],
+                stringParam: "Frank\treached",
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await Wired.OnRoomEventAsync(
+            new Turbo.Primitives.Rooms.Events.Wired.RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = Turbo.Primitives.Action.ActionContext.CreateForSystem(1),
+                StackIds = [_room.Map.ToIdx(0, 11)],
+            },
+            Ct
+        );
+    }
+
+    // Runs the room's 500 ms ticks and answers how many Chat the room has been sent so far.
+    private async Task<int> TickAsync(int ticks)
+    {
+        for (var i = 0; i < ticks; i++)
+        {
+            _now += 500;
+            await _room.Harness.Room.AvatarTickSystem.ProcessAvatarsAsync(_now, Ct);
+            await _room.Harness.Room.BotTickSystem.ProcessBotsAsync(_now, Ct);
+            await Wired.ProcessWiredAsync(_now, dormant: false, Ct);
+        }
+
+        return _room.Harness.Fakes.SentToRoom<ChatMessageComposer>().Count();
+    }
+
     // action.27.R3 (whisper: the user only) and action.27.R3b (talk: "results!: T2R" to everyone).
     [Theory]
     [InlineData(1)]
@@ -312,10 +464,15 @@ public sealed class WiredBotBoxesTests
 
         var said = _room.Harness.Fakes.SentToRoom<ChatMessageComposer>().ToList();
 
+        // Bots speak in bubble 31: every bot Chat, Shout and Whisper of the W8 labs (2026-10-24,
+        // 100+ packets from 13 bot indexes) and the bots' placement greetings. Ours sent 2.
         if (whisper == 1)
             said.Should().BeEmpty();
         else
-            said.Should().ContainSingle().Which.Text.Should().Be("results!: T2R");
+            said.Should()
+                .ContainSingle()
+                .Which.Should()
+                .Match<ChatMessageComposer>(x => x.Text == "results!: T2R" && x.StyleId == 31);
     }
 
     // action.26.R3: a female figure saved for a male bot; Open returned the colours swapped

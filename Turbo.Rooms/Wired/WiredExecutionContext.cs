@@ -609,7 +609,7 @@ public sealed class WiredExecutionContext(RoomGrain roomGrain)
         )
             return text;
 
-        foreach (var placeholder in Policy.TextPlaceholders)
+        foreach (var placeholder in WiredPlaceholderText.HighestIdPerName(Policy.TextPlaceholders))
         {
             try
             {

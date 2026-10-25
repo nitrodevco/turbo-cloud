@@ -67,6 +67,20 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
             ct
         );
 
+    /// <summary>Raises the "bot reached avatar" trigger: a bot arrived beside an avatar.</summary>
+    public Task NotifyAvatarReachedAsync(IRoomBot bot, IRoomAvatar avatar, CancellationToken ct) =>
+        _roomGrain.PublishRoomEventAsync(
+            new BotReachedAvatarEvent
+            {
+                RoomId = _roomGrain.RoomId,
+                CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
+                BotObjectId = bot.ObjectId,
+                BotName = bot.Name,
+                TargetObjectId = avatar.ObjectId,
+            },
+            ct
+        );
+
     private async Task ProcessBotAsync(IRoomBot bot, long now, CancellationToken ct)
     {
         var module = BotModule;
@@ -92,7 +106,7 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
 
         if (bot.HandOverObjectId > 0)
         {
-            await module.ContinueHandOverAsync(bot, ct);
+            await module.ContinueHandOverAsync(bot, walked: true, ct);
 
             return;
         }
@@ -176,27 +190,22 @@ public sealed class RoomBotTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
         var targetIdx = map.ToIdx(target.X, target.Y);
         var distance = map.GetDistanceBetween(botIdx, targetIdx);
 
+        // Bot Reached Avatar fires once as the bot stops beside the avatar, and again only after it
+        // has walked after it once more (official client capture 2026-10-24T18-08-27: one fire
+        // 0.5 s after each of two arrivals, none in the 18 s the bot stood beside it between).
         if (distance <= _roomGrain._botConfig.FollowDistance)
         {
-            if (now < bot.NextWalkAtMs)
+            if (bot.ReachedObjectId == target.ObjectId)
                 return;
 
-            bot.NextWalkAtMs = now + Config.FreeRoamMinIntervalMs;
+            bot.ReachedObjectId = target.ObjectId;
 
-            await _roomGrain.PublishRoomEventAsync(
-                new BotReachedAvatarEvent
-                {
-                    RoomId = _roomGrain.RoomId,
-                    CausedBy = ActionContext.CreateForSystem(_roomGrain.RoomId),
-                    BotObjectId = bot.ObjectId,
-                    BotName = bot.Name,
-                    TargetObjectId = target.ObjectId,
-                },
-                ct
-            );
+            await NotifyAvatarReachedAsync(bot, target, ct);
 
             return;
         }
+
+        bot.ReachedObjectId = -1;
 
         if (!RoomAvatarModule.IsFollowDue(bot, targetIdx, now))
             return;

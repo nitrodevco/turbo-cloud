@@ -428,6 +428,12 @@ public abstract partial class FurnitureWiredLogic(
     {
         try
         {
+            update = update with
+            {
+                StuffIds = WithoutUnsignedWallIds(update.StuffIds),
+                StuffIds2 = WithoutUnsignedWallIds(update.StuffIds2),
+            };
+
             var intParams = new List<int>();
             var stringParam = SanitizeStringParam(update.StringParam);
             var stuffIds = new List<int>();
@@ -871,6 +877,25 @@ public abstract partial class FurnitureWiredLogic(
     /// </summary>
     internal static bool PicksOverLimit(UpdateWiredMessage update, int limit) =>
         update.StuffIds.Count > limit || update.StuffIds2.Count > limit;
+
+    /// <summary>
+    /// The client names a wall item by its negative id; a pick that names one by its positive id
+    /// is saved without it (official client capture 2026-10-24, W3 lab addon.19.B4: a crafted
+    /// save of Furni Name Placeholder with a wall item's positive id stored no pick, 2/2).
+    /// </summary>
+    private List<int> WithoutUnsignedWallIds(List<int> proposed) =>
+        proposed.Any(id =>
+            id > 0 && FurniModule.TryGetItem(id, out var item) && item is IRoomWallItem
+        )
+            ?
+            [
+                .. proposed.Where(id =>
+                    id <= 0
+                    || !FurniModule.TryGetItem(id, out var item)
+                    || item is not IRoomWallItem
+                ),
+            ]
+            : proposed;
 
     protected virtual bool GetValidStuffIds(List<int> proposed, out List<int> stuffIds)
     {

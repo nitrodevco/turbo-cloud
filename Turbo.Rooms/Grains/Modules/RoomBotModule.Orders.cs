@@ -192,9 +192,10 @@ public sealed partial class RoomBotModule
     /// <summary>
     /// A bot takes a hand item to an avatar: it carries the item at once, walks to a tile next
     /// to the avatar and hands it over there, the avatar taking the item and the bot's hand
-    /// emptied in the same moment; a bot already next to the avatar hands it over at once
-    /// (official client capture 2026-10-24: CarryObject bot, a walk, ~1.4 s later CarryObject
-    /// avatar then CarryObject bot 0, 1/1; next to the user all three in one tick, 1/1).
+    /// emptied in the same moment; a bot already next to the avatar, or with no way to it, hands
+    /// it over at once (official client capture 2026-10-24: CarryObject bot, a walk, ~1.4 s later
+    /// CarryObject avatar then CarryObject bot 0, 1/1; next to the user all three in one tick,
+    /// 1/1; the user enclosed by furni, all three in the fire's tick, no walk, 1/1).
     /// </summary>
     public async Task GiveHandItemAsync(
         IRoomBot bot,
@@ -207,14 +208,17 @@ public sealed partial class RoomBotModule
 
         bot.HandOverObjectId = avatar.ObjectId;
 
-        await ContinueHandOverAsync(bot, ct);
+        await ContinueHandOverAsync(bot, walked: false, ct);
     }
 
     /// <summary>
-    /// Hands the carried item over when the bot is next to its avatar, otherwise walks it there;
-    /// the order ends once the item is handed over, the avatar has left or no way leads to it.
+    /// Hands the carried item over when the bot is next to its avatar or no way leads to it,
+    /// otherwise walks it there; the order ends once the item is handed over or the avatar has
+    /// left. A bot that <paramref name="walked"/> there reaches the avatar as it hands the item
+    /// over: Bot Reached Avatar fires in that tick (official client capture 2026-10-24T18-02-52,
+    /// 1/1). That a way closed mid-walk hands it over at once too is inferred.
     /// </summary>
-    internal async Task ContinueHandOverAsync(IRoomBot bot, CancellationToken ct)
+    internal async Task ContinueHandOverAsync(IRoomBot bot, bool walked, CancellationToken ct)
     {
         if (!AvatarModule.TryGetAvatar(bot.HandOverObjectId, out var avatar) || bot.HandItemId <= 0)
         {
@@ -225,21 +229,20 @@ public sealed partial class RoomBotModule
 
         var map = MapModule;
         var avatarIdx = map.ToIdx(avatar.X, avatar.Y);
+        var beside = map.GetDistanceBetween(map.ToIdx(bot.X, bot.Y), avatarIdx) <= 1;
 
-        if (map.GetDistanceBetween(map.ToIdx(bot.X, bot.Y), avatarIdx) <= 1)
-        {
-            var handItemId = bot.HandItemId;
-
-            bot.HandOverObjectId = -1;
-
-            await AvatarModule.SetHandItemAsync(avatar, handItemId, ct);
-            await AvatarModule.SetHandItemAsync(bot, 0, ct);
-
+        if (!beside && await WalkBesideAsync(bot, avatarIdx, ct))
             return;
-        }
 
-        if (!await WalkBesideAsync(bot, avatarIdx, ct))
-            bot.HandOverObjectId = -1;
+        var handItemId = bot.HandItemId;
+
+        bot.HandOverObjectId = -1;
+
+        await AvatarModule.SetHandItemAsync(avatar, handItemId, ct);
+        await AvatarModule.SetHandItemAsync(bot, 0, ct);
+
+        if (beside && walked)
+            await BotTickSystem.NotifyAvatarReachedAsync(bot, avatar, ct);
     }
 
     /// <summary>Walks a bot to a free tile beside a tile, trying the four sides in turn.</summary>
