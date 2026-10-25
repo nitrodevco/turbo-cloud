@@ -62,6 +62,17 @@ public sealed class WiredVariable64BitTests
     // action.41.B4h: a division truncates toward zero, a remainder keeps the dividend's sign.
     [InlineData("set -5 = -5; div 2 = -2")]
     [InlineData("set -7 = -7; mod 3 = -1")]
+    // action.41.B4 (wlab8, 2026-10-25T01-28-59, 15 ops): every overflow wraps, the high part read
+    // by dividing by 2^32 after: MIN - 1 is MAX, 2^62 * 4 is 0, 10^30 is 10^30 mod 2^64, and the
+    // absolute value of MIN is MIN (ours threw).
+    [InlineData(
+        "set -9223372036854775808 = -2147483648; sub 1 = 2147483647; div 4294967296 = 2147483647"
+    )]
+    [InlineData("set 4611686018427387904 = 2147483647; mul 4 = 0")]
+    [InlineData("set 10 = 10; pow 30 = 2147483647; div 4294967296 = 1182068202")]
+    [InlineData(
+        "set -9223372036854775808 = -2147483648; abs 0 = -2147483648; div 4294967296 = -2147483648"
+    )]
     public void Change_variable_arithmetic_reads_as_habbo_measured_it(string steps)
     {
         long value = 0;
@@ -80,6 +91,8 @@ public sealed class WiredVariable64BitTests
                     "div" => WiredVariableOperationType.Divide,
                     "mod" => WiredVariableOperationType.Modulo,
                     "pow" => WiredVariableOperationType.Power,
+                    "mul" => WiredVariableOperationType.Multiply,
+                    "abs" => WiredVariableOperationType.Absolute,
                     _ => throw new ArgumentException(step),
                 },
                 value,
@@ -88,6 +101,22 @@ public sealed class WiredVariable64BitTests
 
             new WiredVariableValue(value).ToClient().Should().Be(int.Parse(rest[1].Trim()), step);
         }
+    }
+
+    // MIN / -1 and MIN % -1 threw in ours (OverflowException), ending the stack's run. Inferred:
+    // they wrap as every measured overflow does (Java's long rules: MIN and 0); not recorded.
+    [Fact]
+    [Trait("evidence", "inferred")]
+    public void The_smallest_value_divided_by_minus_one_wraps_instead_of_throwing()
+    {
+        WiredVariableOperations
+            .Apply(WiredVariableOperationType.Divide, long.MinValue, -1)
+            .Should()
+            .Be(long.MinValue);
+        WiredVariableOperations
+            .Apply(WiredVariableOperationType.Modulo, long.MinValue, -1)
+            .Should()
+            .Be(0);
     }
 
     [Fact]
