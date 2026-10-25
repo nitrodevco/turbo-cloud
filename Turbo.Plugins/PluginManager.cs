@@ -329,13 +329,16 @@ public sealed class PluginManager(
         }
         catch (Exception ex)
         {
-            SetStatus(m, folder, PluginStateType.Failed, ex.Message);
+            var reason = PluginHelpers.LoadFailure(ex);
+
+            SetStatus(m, folder, PluginStateType.Failed, reason);
             _logger.LogError(
                 ex,
-                "Failed to load {Name}@{Version} by {Author}",
+                "Failed to load {Name}@{Version} by {Author}: {Reason}",
                 m.Name,
                 m.Version,
-                m.Author
+                m.Author,
+                reason
             );
 
             return ex;

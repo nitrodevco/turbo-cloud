@@ -260,6 +260,29 @@ pick yours and confirm with your fingerprint, face or PIN. There is no name or p
 
 A session lasts 12 hours. Signing out, a server restart, or losing `admin.panel` ends it.
 
+## Calling the admin API
+
+Every route but sign-in takes the session a passkey sign-in gives: `POST /api/auth/passkey`
+answers `{ sessionToken, expiresAtUtc, player }`, and each call sends
+`Authorization: Bearer <sessionToken>`. A call without it, or with an expired one, is a 401. The
+session is the staff member's, so a call may do what they hold and no more, and it ends as a
+panel session does (12 hours, signing out, a restart, losing `admin.panel`).
+
+A passkey needs a browser, so a script borrows the panel's session: sign in to the panel, then
+take the token from the browser's local storage (`turbo-admin-session`, its `state.session.token`)
+and send it:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8090/api/plugins/schedule
+curl -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"   -d '{"path":"RareValues:RepriceRate","value":"0.5"}' http://127.0.0.1:8090/api/settings
+```
+
+A browser lets only a page at `PanelUrl` call it (CORS); curl and other scripts are not asked.
+
+On a hotel of your own for plugin work (no console, nobody admin yet), name yourself the owner
+(`Turbo__Owner__Name=<your player>`) and restart: you join the `admin` group and the log prints your
+setup link ([The first admin](#4-the-first-admin)).
+
 ## Adding staff
 
 1. Give them access: `perm user <name> set admin.panel`, at the console or with an in-game

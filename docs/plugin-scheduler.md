@@ -118,6 +118,9 @@ from a setting is tested with the setting's value. The template's
 
 ## The admin API
 
+Authenticated as [admin-panel.md](admin-panel.md#calling-the-admin-api) says (`Authorization: Bearer
+<session token>`); the panel's Plugins page makes the same calls.
+
 | Endpoint | Needs | Answers |
 | --- | --- | --- |
 | `GET /api/plugins/schedule` | `admin.plugins.view` | `{ tasks: [{ key, plugin, schedule, description, scheduleError, nextRunAt, lastRunAt, lastDurationMs, lastOutcome, lastError, lastManual, runningSince, skipped, servers }], canManage }` (times UTC) |

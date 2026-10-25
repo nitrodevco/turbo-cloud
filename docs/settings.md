@@ -80,6 +80,20 @@ class starts with, though, so those can't be taken away by any configuration, a 
 The panel keeps them first and saves only what follows. A map's default keys can be changed, not
 removed.
 
+## The admin API
+
+The Settings page is these calls, which a script can make too (authenticated as
+[admin-panel.md](admin-panel.md#calling-the-admin-api) says, with the same nodes as below):
+
+| Call | Body or query | Answers |
+| --- | --- | --- |
+| `GET /api/settings` | | `{ settings: [...], canManage, startupError }`: every setting with its value, default, where it comes from (`source`) and whether a change applies now (`live`) |
+| `PUT /api/settings` | `{ "path": "RareValues:RepriceRate", "value": "0.5" }` | The setting as saved. `value` is the JSON text of the value (`"0.5"`, `"true"`, `"\"text\""`, `"[\"a\"]"`). 400 with the reason when it is refused. |
+| `DELETE /api/settings` | `?path=RareValues:RepriceRate` | 204 put back to the file's or the default value, 404 when there was no override |
+| `GET /api/settings/history` | `?page=0` | Who changed what, newest first |
+
+A plugin's settings are under the section its `[PluginSettings("<Section>")]` names.
+
 ## Who can do what
 
 | Node | Allows |
