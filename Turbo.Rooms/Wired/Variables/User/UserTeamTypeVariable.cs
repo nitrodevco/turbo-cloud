@@ -46,10 +46,10 @@ public sealed class UserTeamTypeVariable(RoomGrain roomGrain)
         [NotNullWhen(true)] out IRoomPlayer? avatar
     ) =>
         base.TryGetAvatarForKey(key, out avatar)
-        && GameSystem.GetTeam(avatar.PlayerId) != GameTeamType.None;
+        && GameSystem.GetTeam(avatar.ObjectId) != GameTeamType.None;
 
     protected override WiredVariableValue GetValueForAvatar(IRoomPlayer avatar) =>
-        GameSystem.GetTeamType(avatar.PlayerId) switch
+        GameSystem.GetTeamType(avatar.ObjectId) switch
         {
             WiredTeamType.BattleBanzai => BATTLE_BANZAI,
             WiredTeamType.Freeze => FREEZE,

@@ -372,7 +372,15 @@ internal sealed class WiredChestGrain : Grain, IWiredChestGrain
                 BuildSummary(request.Chest)
             );
 
-        if (_state.Items.Count + items.Length > Capacity(request.Chest, request.Capacity))
+        // A contract payment goes in past the capacity: Habbo completed a payment into a furni
+        // chest at capacity 0, and the chest then passed the item to its owner (official client
+        // capture 2026-10-25, wired matrix action.47.B6, 2/2; FurnitureWiredChestLogic
+        // .OverflowToOwnerAsync).
+        if (
+            request.Type
+                is not (WiredTransactionType.ContractPayment or WiredTransactionType.ContractTrade)
+            && _state.Items.Count + items.Length > Capacity(request.Chest, request.Capacity)
+        )
             return WiredChestMoveResultSnapshot.Failed(
                 WiredTransactionFailureType.ExceedsCapacity,
                 BuildSummary(request.Chest)

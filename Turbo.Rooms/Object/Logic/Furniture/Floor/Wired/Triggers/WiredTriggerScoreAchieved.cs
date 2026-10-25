@@ -60,7 +60,8 @@ public class WiredTriggerScoreAchieved(
         if (ctx.Event is not GameScoreChangedEvent score)
             return Task.FromResult(false);
 
-        if (score.ScoredBy != default && AvatarModule.TryGetPlayer(score.ScoredBy, out var scorer))
+        // A bot scoring fires it too, the bot being the triggerer (trigger.10.R2).
+        if (score.ScoredBy != default && AvatarModule.TryGetAvatar(score.ScoredBy, out var scorer))
             ctx.Selected.SelectedAvatarIds.Add(scorer.ObjectId);
 
         return Task.FromResult(true);

@@ -329,6 +329,58 @@ public abstract class FurnitureWiredChestLogic(
         return result;
     }
 
+    /// <summary>
+    /// After a payment into a full furni chest went through, what the chest holds past its
+    /// capacity (of the <paramref name="paid"/> items, newest first) goes to the chest's owner,
+    /// who is told "You received some credits/items from a full Wired Chest!"
+    /// (<c>wired_chests.earnings</c>). Habbo took a payment into a chest set to capacity 0,
+    /// completed it, then moved the item to the owner's inventory with that dialog and no other
+    /// chest notification (official client capture 2026-10-25, wired matrix action.47.B6, 2/2).
+    /// </summary>
+    public async Task<bool> OverflowToOwnerAsync(
+        int paid,
+        WiredTransactionType type,
+        string definitionInfo,
+        CancellationToken ct
+    )
+    {
+        var excess = Math.Min(paid, AvailableAmount - Capacity);
+
+        if (Kind != WiredChestKind.Furni || excess <= 0)
+            return false;
+
+        var ownerId = _ctx.RoomObject.OwnerId;
+        var result = await Chest.WithdrawAsync(
+            new WiredChestWithdrawRequest
+            {
+                Chest = Settings,
+                ReceiverId = ownerId,
+                ReceiverName = _ctx.RoomObject.OwnerName,
+                Amount = excess,
+                ItemType = null,
+                Order = WiredChestIterationMode.LastInFirstOut,
+                Type = type,
+                DefinitionInfo = definitionInfo,
+            },
+            ct
+        );
+
+        if (!result.Succeeded)
+            return false;
+
+        await ApplySummaryAsync(result.Summary, refresh: true);
+
+        if (_roomGrain._wiredChestConfig.NotificationsEnabled)
+            await _roomGrain._playerNoticeService.SendPersistentAsync(
+                ownerId,
+                WiredChestNotices.EARNINGS,
+                ImmutableDictionary<string, string>.Empty,
+                ct
+            );
+
+        return true;
+    }
+
     /// <summary>How much more the chest takes before it is full: items, or credits.</summary>
     public int FreeCapacity =>
         Math.Max(0, Capacity - (Kind == WiredChestKind.Coins ? Summary.Coins : Summary.ItemCount));

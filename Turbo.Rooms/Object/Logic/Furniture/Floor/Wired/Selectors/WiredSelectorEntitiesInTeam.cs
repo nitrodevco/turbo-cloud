@@ -51,12 +51,8 @@ public class WiredSelectorEntitiesInTeam(
             if (wanted != GameTeamType.None && wanted != team)
                 continue;
 
-            foreach (var playerId in GameSystem.GetTeamMembers(team))
-            {
-                // A team is kept by player id; a selection names the avatar.
-                if (AvatarModule.TryGetPlayer(playerId, out var member))
-                    output.SelectedAvatarIds.Add(member.ObjectId);
-            }
+            foreach (var avatarId in GameSystem.GetTeamMembers(team))
+                output.SelectedAvatarIds.Add(avatarId);
         }
 
         return Task.FromResult<IWiredSelectionSet>(output);

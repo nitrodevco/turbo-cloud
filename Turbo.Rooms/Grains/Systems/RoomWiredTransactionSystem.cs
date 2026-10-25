@@ -119,25 +119,39 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
         CancellationToken ct
     )
     {
-        var failure = await CarryOutTradeAsync(ctx, request, payment, times, ct);
+        var paidInto = new List<(FurnitureWiredChestLogic Chest, int Items)>();
+        var failure = await CarryOutTradeAsync(ctx, request, payment, times, paidInto, ct);
 
         if (failure is { } refused)
+        {
             await FailAsync(ctx.PlayerId, request.SourceId, refused, notify: false, ct);
-        else
-            await CompleteAsync(
-                ctx.PlayerId,
-                request.SourceId,
-                Figures(
-                    times,
-                    payment,
-                    request.Contract.Type == WiredContractType.Trade
-                        ? WiredContractOffers.Reward(request.Contract, times)
-                        : null
-                ),
-                ct
-            );
 
-        return failure;
+            return failure;
+        }
+
+        await CompleteAsync(
+            ctx.PlayerId,
+            request.SourceId,
+            Figures(
+                times,
+                payment,
+                request.Contract.Type == WiredContractType.Trade
+                    ? WiredContractOffers.Reward(request.Contract, times)
+                    : null
+            ),
+            ct
+        );
+
+        var type =
+            request.Contract.Type == WiredContractType.Trade
+                ? WiredTransactionType.ContractTrade
+                : WiredTransactionType.ContractPayment;
+        var info = DefinitionInfo(request.SourceId, times);
+
+        foreach (var (chest, items) in paidInto)
+            await chest.OverflowToOwnerAsync(items, type, info, ct);
+
+        return null;
     }
 
     /// <summary>A transaction ended without going through; the triggers hear why.</summary>
@@ -234,6 +248,7 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
         WiredContractTradeRequest request,
         ImmutableArray<FurnitureItemSnapshot> payment,
         int times,
+        ICollection<(FurnitureWiredChestLogic Chest, int Items)> paidInto,
         CancellationToken ct
     )
     {
@@ -261,9 +276,12 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
         var coinChest = credits.IsEmpty
             ? null
             : ChestWithRoom(chests, WiredChestKind.Coins, creditValue);
+        // A full furni chest still takes the payment and passes the overflow to its owner
+        // (OverflowToOwnerAsync, after the transaction completed).
         var furniChest = furni.IsEmpty
             ? null
-            : ChestWithRoom(chests, WiredChestKind.Furni, furni.Length);
+            : ChestWithRoom(chests, WiredChestKind.Furni, furni.Length)
+                ?? chests.FirstOrDefault(x => x.Kind == WiredChestKind.Furni);
 
         if ((!credits.IsEmpty && coinChest is null) || (!furni.IsEmpty && furniChest is null))
             return WiredTransactionFailureType.ChestFull;
@@ -290,6 +308,8 @@ public sealed class RoomWiredTransactionSystem(RoomGrain roomGrain) : RoomGrainC
 
             if (paid.Failure is { } failure)
                 return failure;
+
+            paidInto.Add((chest, items.Length));
         }
 
         // A trade contract has no earnings category (only RewardContract.as:45-47 offers one):

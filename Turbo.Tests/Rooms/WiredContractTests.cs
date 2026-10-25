@@ -449,6 +449,93 @@ public class WiredContractTests
         shown.Contents.RewardText.Should().Be("well done");
     }
 
+    /// <summary>
+    /// W7 lab action.47.B6 / trigger.25.B1 (2/2): a payment of one item into a furni chest set
+    /// to capacity 0 completed (Success, Transaction Completed fired), then the chest passed the
+    /// item to its owner's inventory with the <c>wired_chests.earnings</c> dialog (official
+    /// client capture 2026-10-25, wlab10-full-20261025-044342). Ours refused it as chest full.
+    /// </summary>
+    [Fact]
+    public async Task A_payment_into_a_full_furni_chest_completes_and_the_item_goes_to_the_owner()
+    {
+        const int OWNER = 1;
+        var (room, _) = CreateRoomWithContract();
+        var chestItem = room.CreateFloorItem(
+            100,
+            3,
+            3,
+            Altitude.Zero,
+            name: "wf_storage_furni1",
+            logic: "wired_chest_furni",
+            createLogic: (stuffDataFactory, ctx) =>
+                new FurnitureWiredFurniChestLogic(stuffDataFactory, ctx)
+        );
+        room.AddToRoom(chestItem);
+        var chest = (FurnitureWiredChestLogic)chestItem.Logic;
+        await chest.SetMapDataAsync(
+            new Dictionary<string, string>
+            {
+                [WiredChestData.IS_WIRED_ENABLED] = WiredChestData.TRUE,
+                [WiredChestData.LOCKED] = WiredChestData.FALSE,
+                [WiredChestData.CAPACITY] = "0",
+            },
+            refresh: false
+        );
+        typeof(FurnitureWiredChestLogic)
+            .GetProperty(nameof(FurnitureWiredChestLogic.Summary))!
+            .SetValue(chest, ChestHolding(0));
+        room.Fakes.Handlers[nameof(IWiredChestGrain.DepositAsync)] = _ =>
+            Task.FromResult(Moved(ChestHolding(1)));
+        room.Fakes.Handlers[nameof(IWiredChestGrain.WithdrawAsync)] = _ =>
+            Task.FromResult(Moved(ChestHolding(0)));
+        var player = room.Fakes.Create<Turbo.Primitives.Rooms.Object.Avatars.IRoomPlayer>(PLAYER);
+        room.Fakes.Handlers["get_PlayerId"] = call =>
+            call.Key is PLAYER ? (PlayerId)PLAYER : Fakes.NotHandled;
+        room.Fakes.Handlers["get_Name"] = call => call.Key is PLAYER ? "player" : Fakes.NotHandled;
+        room.State.AvatarsByPlayerId[PLAYER] = PLAYER;
+        room.State.AvatarsByObjectId[PLAYER] = player;
+        var heard = new HeardEvents();
+        room.Module<RoomEventModule>().Register(heard);
+
+        var failure = await room.Room.WiredTransactionSystem.CompleteTradeAsync(
+            ActionContext.CreateForPlayer(PLAYER, 1),
+            Request([Rule(Furni(Chair, 1))], TradeRequirementRulesType.Single, 1),
+            [Item(99, CHAIR_SPRITE)],
+            times: 1,
+            Ct
+        );
+
+        failure.Should().BeNull();
+        heard.Events.OfType<WiredTransactionCompletedEvent>().Should().ContainSingle();
+        heard.Events.OfType<WiredTransactionFailedEvent>().Should().BeEmpty();
+        var withdrawal = (WiredChestWithdrawRequest)
+            room.Fakes.Log.Of(nameof(IWiredChestGrain.WithdrawAsync)).Single().Args[0]!;
+        withdrawal.ReceiverId.Should().Be((PlayerId)OWNER);
+        withdrawal.Amount.Should().Be(1);
+        withdrawal.Order.Should().Be(WiredChestIterationMode.LastInFirstOut);
+        room.Fakes.Log.Of("SendPersistentAsync")
+            .Select(x => (x.Args[0], x.Args[1]))
+            .Should()
+            .Equal(((PlayerId)OWNER, "wired_chests.earnings"));
+    }
+
+    private static WiredChestSummarySnapshot ChestHolding(int items) =>
+        WiredChestSummarySnapshot.Empty with
+        {
+            ItemCount = items,
+            MaxCapacity = 1000,
+        };
+
+    private static WiredChestMoveResultSnapshot Moved(WiredChestSummarySnapshot summary) =>
+        new()
+        {
+            Failure = null,
+            TransactionId = 1,
+            Coins = 0,
+            Items = [],
+            Summary = summary,
+        };
+
     private sealed class HeardEvents : IRoomEventListener
     {
         public List<RoomEvent> Events { get; } = [];

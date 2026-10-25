@@ -1346,7 +1346,7 @@ public abstract partial class FurnitureWiredLogic(
 
     /// <summary>
     /// The users a selection picked, as <see cref="WiredUsers"/> counts them: players and bots. A
-    /// box asking a user for what only a player has (a group, a badge, a team) finds a bot
+    /// box asking a user for what only a player has (a group, a badge) finds a bot
     /// without it rather than leaving it out: Actor In Group failed for a bot triggering (official
     /// client capture 2026-10-24, W3 lab condition.10.B2, 4/4), where an empty selection passes.
     /// </summary>

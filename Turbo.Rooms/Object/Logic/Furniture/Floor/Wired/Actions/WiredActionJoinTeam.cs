@@ -16,7 +16,8 @@ using Turbo.Rooms.Wired.Rules;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 
 /// <summary>
-/// Puts the selected users in a team. Params, as the client's editor saves them: the team, and
+/// Puts the selected users, players and bots, in a team (a bot picked by Users By Name wore the
+/// red team effect; official client capture 2026-10-25, wired matrix action.9.B3). Params, as the client's editor saves them: the team, and
 /// the kind of team (<c>wiredfurni.params.team_type.0</c> to <c>.2</c>: Wired, Battle Banzai,
 /// Freeze), which sets the team effect they wear.
 /// </summary>
@@ -52,8 +53,8 @@ public class WiredActionJoinTeam(
         var teamType = GetIntParamOrDefault(1, WiredTeamType.Wired);
         var joined = false;
 
-        foreach (var player in GetPlayers(selection))
-            joined |= await GameSystem.JoinTeamAsync(player.PlayerId, team, teamType, ct);
+        foreach (var user in GetUsers(selection))
+            joined |= await GameSystem.JoinTeamAsync(user.ObjectId, team, teamType, ct);
 
         return joined;
     }
