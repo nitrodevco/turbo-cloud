@@ -89,6 +89,9 @@ public interface IRoomAvatar : IRoomObject
     /// <summary>Whether being teleported thaws a frozen avatar. Set with the freeze and gone with it.</summary>
     public bool ThawsOnTeleport { get; }
 
+    /// <summary>The effect the avatar wore when it was frozen, which thawing puts back.</summary>
+    public int EffectBeforeFreeze { get; }
+
     /// <summary>
     /// When the slide a wired move gave the avatar ends (room clock), 0 for none. Until then its
     /// UserUpdates carry <c>wf</c>, which tells the client to let the slide run instead of

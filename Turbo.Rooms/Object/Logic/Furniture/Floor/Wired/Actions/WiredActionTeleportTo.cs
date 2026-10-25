@@ -202,16 +202,4 @@ public class WiredActionTeleportTo(
 
         await AvatarModule.RelocateAvatarAsync(avatar, tileIdx, ct);
     }
-
-    /// <summary>The first avatar cycle after <paramref name="atMs"/>, on the room's cycle grid.</summary>
-    private long AvatarCycleAfter(long atMs)
-    {
-        var tickMs = RoomConfig.AvatarTickMs;
-        var intoCycle = ((atMs - State.NextAvatarBoundaryMs) % tickMs + tickMs) % tickMs;
-
-        return atMs - intoCycle + tickMs;
-    }
-
-    private bool IsInRoom(IRoomAvatar avatar) =>
-        AvatarModule.TryGetAvatar(avatar.ObjectId, out var current) && current == avatar;
 }

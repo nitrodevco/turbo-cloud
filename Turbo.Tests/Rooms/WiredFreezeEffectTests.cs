@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Messages.Outgoing.Room.Action;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -22,6 +23,7 @@ namespace Turbo.Tests.Rooms;
 public sealed class WiredFreezeEffectTests
 {
     private const int CLICK_ME = 23;
+    private const int THAW_ME = 24;
 
     private readonly WiredRoom _room = new(8, 8);
     private long _now = 10_000;
@@ -36,6 +38,7 @@ public sealed class WiredFreezeEffectTests
     {
         _room.Enter(5, 1, 1);
         _room.AddFloorItem(CLICK_ME, 7, 4);
+        _room.AddFloorItem(THAW_ME, 7, 6);
     }
 
     [Theory]
@@ -52,6 +55,55 @@ public sealed class WiredFreezeEffectTests
         await TickAsync(4);
 
         _room.Avatars[5].EffectId.Should().Be(effect);
+    }
+
+    // LAB-W3 wlab9 action.32.R1b (official client capture 2026-10-25,
+    // explore/wlab9-full-20261025-025051.jsonl): Hutch. wore the game effect 223, Freeze sent
+    // AvatarEffect 218 and Unfreeze AvatarEffect 223, which stayed (1/1); with nothing worn,
+    // Unfreeze sends 0 (action.31.R7, action.32.R3, action.32.B3, 2026-10-24).
+    [Theory]
+    [InlineData(223)]
+    [InlineData(0)]
+    public async Task Unfreeze_puts_back_the_effect_worn_before_the_freeze(int worn)
+    {
+        await BuildAsync(0);
+        _room.AddBox<WiredTriggerClickFurni>(3, 1, 0, "wf_trg_click_furni");
+        _room.AddBox<WiredActionUnfreezeUser>(4, 1, 0, "wf_act_unfreeze");
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                3,
+                stuffIds: [THAW_ME],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                4,
+                playerSources:
+                [
+                    [WiredPlayerSourceType.TriggeredUser],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await RebuildAsync(1, 0);
+        _room.Avatars[5].SetEffect(worn);
+
+        await ClickAsync(CLICK_ME);
+        await TickAsync(4);
+        await ClickAsync(THAW_ME);
+        await TickAsync(4);
+
+        _room.Avatars[5].IsFrozen.Should().BeFalse();
+        _room.Avatars[5].EffectId.Should().Be(worn);
+        _room
+            .Harness.Fakes.SentToRoom<AvatarEffectMessageComposer>()
+            .Select(x => x.EffectId)
+            .Should()
+            .Equal(218, worn);
     }
 
     private async Task BuildAsync(int option)
@@ -81,12 +133,17 @@ public sealed class WiredFreezeEffectTests
             )
         ).Should().BeTrue();
 
+        await RebuildAsync(0, 0);
+    }
+
+    private async Task RebuildAsync(int x, int y)
+    {
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent
             {
                 RoomId = 1,
                 CausedBy = ActionContext.CreateForSystem(1),
-                StackIds = [_room.Map.ToIdx(0, 0)],
+                StackIds = [_room.Map.ToIdx(x, y)],
             },
             Ct
         );
@@ -94,9 +151,9 @@ public sealed class WiredFreezeEffectTests
         await TickAsync(1);
     }
 
-    private Task ClickAsync() =>
+    private Task ClickAsync(int item = CLICK_ME) =>
         _room
-            .FloorItem(CLICK_ME)
+            .FloorItem(item)
             .Logic.OnClickAsync(ActionContext.CreateForPlayer((PlayerId)105, (RoomId)1), 0, Ct);
 
     private async Task TickAsync(int ticks)
