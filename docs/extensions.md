@@ -183,7 +183,8 @@ used to write. It is DI only, never a static facade: plugins load in their own c
 The assembly scan (commands, logic, listeners, games, permission nodes, wired variables) is the
 Laravel auto-discovery equivalent and stays the default. New registrations follow it: implement the
 public interface, get found, get removed on unload. Scheduled tasks are one (`IScheduledTask` with a
-cron or interval, run once per cluster: `docs/plugin-scheduler.md`).
+cron or interval, run once per cluster, or on every server with `PerServer = true`:
+`docs/plugin-scheduler.md`).
 
 ### 4.5 Template patches (client)
 
@@ -291,7 +292,9 @@ noted.
 1. **Template patches** (client engine + module API + host listing of `template-patches.json`;
    conflict and unmatched reports).
 2. **Plugin lifecycle isolation** (failure isolation, rollback of a failed load, reload only what
-   changed).
+   changed). A plugin's lifetime is the host's to give: `HotelReadyAsync` once the hotel is up (and
+   after a reload), `ctx.Stopping` cancelled as it starts to stop, and the services it registers
+   built over the host's (`docs/plugin-loading.md`).
 3. **Named messages** (§4.7). Removes header coordination; needs nothing above. Done (`docs/plugin-messages.md`).
 4. **Plugin web routes for players** (§4.8): the hotel's session and permissions on plugin HTTP
    endpoints, `api.http` in the client. Unlocks site/API features a hotel today runs as a separate

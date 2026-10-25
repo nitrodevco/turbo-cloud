@@ -25,6 +25,7 @@ public abstract class TurboPlugin : ITurboPlugin
     private readonly List<IDisposable> _tracked = [];
     private PluginManifest? _manifest;
     private IPluginContext? _context;
+    private CancellationTokenSource? _stopping;
 
     /// <summary>The plugin's manifest, as the host read it.</summary>
     public PluginManifest Manifest =>
@@ -50,6 +51,17 @@ public abstract class TurboPlugin : ITurboPlugin
     protected virtual Task StartingAsync(IPluginContext context, CancellationToken ct) =>
         Task.CompletedTask;
 
+    /// <summary>
+    /// Once the hotel has started (its rooms, players and every plugin loaded at boot are up), and
+    /// at once after a reload or a later install, as the hotel is up then: for work that needs the
+    /// whole hotel, which <see cref="StartingAsync"/> runs too early for at boot. Not awaited by
+    /// the load; <paramref name="ct"/> is <see cref="IPluginContext.Stopping"/>, and an unload
+    /// waits for the hook to end (up to 10 seconds) before <see cref="StoppingAsync"/>. A failure
+    /// is logged.
+    /// </summary>
+    protected virtual Task HotelReadyAsync(IPluginContext context, CancellationToken ct) =>
+        Task.CompletedTask;
+
     /// <summary>As it stops, before what it tracked is disposed.</summary>
     protected virtual Task StoppingAsync(IPluginContext context, CancellationToken ct) =>
         Task.CompletedTask;
@@ -66,7 +78,8 @@ public abstract class TurboPlugin : ITurboPlugin
 
     Task ITurboPlugin.StartAsync(IServiceProvider services, CancellationToken ct)
     {
-        _context = new Context(this, services);
+        _stopping = new CancellationTokenSource();
+        _context = new Context(this, services, _stopping.Token);
 
         return StartingAsync(_context, ct);
     }
@@ -75,6 +88,8 @@ public abstract class TurboPlugin : ITurboPlugin
     {
         try
         {
+            BeginStopping();
+
             if (_context is not null)
                 await StoppingAsync(_context, ct).ConfigureAwait(false);
         }
@@ -82,7 +97,20 @@ public abstract class TurboPlugin : ITurboPlugin
         {
             DisposeTracked();
             _context = null;
+            _stopping?.Dispose();
+            _stopping = null;
         }
+    }
+
+    /// <summary>The host's call once the hotel is up: <see cref="HotelReadyAsync"/>, if it started.</summary>
+    internal Task ReadyAsync() =>
+        _context is { } context ? HotelReadyAsync(context, context.Stopping) : Task.CompletedTask;
+
+    /// <summary>Cancels <see cref="IPluginContext.Stopping"/>; the host's first step of an unload.</summary>
+    internal void BeginStopping()
+    {
+        if (_stopping is { IsCancellationRequested: false } stopping)
+            stopping.Cancel();
     }
 
     Task ITurboPlugin.BindExportsAsync(IExportBinder binder, IServiceProvider services) =>
@@ -111,11 +139,17 @@ public abstract class TurboPlugin : ITurboPlugin
             tracked[i].Dispose();
     }
 
-    private sealed class Context(TurboPlugin plugin, IServiceProvider services) : IPluginContext
+    private sealed class Context(
+        TurboPlugin plugin,
+        IServiceProvider services,
+        CancellationToken stopping
+    ) : IPluginContext
     {
         public PluginManifest Manifest => plugin.Manifest;
 
         public IServiceProvider Services => services;
+
+        public CancellationToken Stopping => stopping;
 
         public T Host<T>()
             where T : notnull =>

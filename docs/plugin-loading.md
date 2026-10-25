@@ -19,6 +19,13 @@ public sealed class SkillsPlugin : TurboPlugin
 - **Services** registers its own services. `StartingAsync(ctx, ct)` and `StoppingAsync(ctx, ct)`
   run as it starts and stops; what it registers by hand there it hands to `ctx.Track(...)`, and
   that is disposed when it stops. `ctx.Host<T>()` is a host service (`IHostServices`).
+- **Hotel ready**: `HotelReadyAsync(ctx, ct)` runs once the hotel has started (at boot
+  `StartingAsync` runs before it has: the host's `ApplicationStarted`), and at once after a reload
+  or a later install. It is not awaited by the load; a failure is logged.
+- **Stopping**: `ctx.Stopping` is cancelled as the plugin starts to stop, before its scheduled
+  runs, hosted services and `StoppingAsync` are stopped; it is also the ready hook's `ct`, and the
+  unload waits for that hook (up to 10 seconds). Work the plugin starts itself takes it, so it
+  needs no `CancellationTokenSource` of its own.
 - **Settings**: a class marked `[PluginSettings("Skills")]` is bound to that section
   (`IOptions<T>`, `IOptionsMonitor<T>`) and listed on the panel's Settings page; a class the plugin
   binds itself is left as it binds it.
@@ -40,7 +47,9 @@ class it declares of these kinds: packet handlers and behaviours, chat commands,
 and argument parsers, permission node sources, room object logic (furni logic and wired boxes),
 wired variables, room event listeners, room games, game reward handlers and access policies.
 
-Each is built by constructor from, in order:
+Each is built by constructor from, in order (and so is every class the plugin registers itself by
+type in `Services`/`ConfigureServices`, `AddSingleton<SkillBook>()` or `AddHostedService<T>()`: no
+`Host<T>()` factory is needed for a host service):
 
 1. the plugin's own container: what its `ConfigureServices` registered, its `PluginManifest`,
    `IPluginCatalog`, `IHostServices`, its prefixed `ILogger<T>` and the host's `IConfiguration`;
@@ -67,9 +76,10 @@ server runs, and with it the plugin's whole assembly. Register such a service in
 (its settings with `[PluginSettings]` or `services.AddOptions<T>()`); one not registered is not
 there, so an optional constructor parameter of it gets its default.
 
-Two host services are handed out per plugin and are only right through `IHostServices` (from `StartAsync` or a factory in
-`ConfigureServices`): `IExtensionPacketRegistry` (it notes the plugin's headers for the admin panel)
-and `IClientModuleRegistry` (it serves the plugin's own folder). The plugin's `StartAsync` and
+Two host services are handed out per plugin: `IExtensionPacketRegistry` (it notes the plugin's
+headers for the admin panel) and `IClientModuleRegistry` (it serves the plugin's own folder). A
+class the plugin registers itself gets the plugin's ones by constructor, as `IHostServices` gives
+them; a class the scan builds reaches them through `IHostServices`. The plugin's `StartAsync` and
 `BindExportsAsync` get its own container only; reach a host service there with
 `services.GetRequiredService<IHostServices>().GetRequiredService<T>()`.
 
