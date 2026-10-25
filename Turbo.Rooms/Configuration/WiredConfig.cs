@@ -319,9 +319,6 @@ public class WiredConfig
     public int LogMessageMaxLength { get; init; } = 400;
     public int MaxRewardsPerBox { get; init; } = 20;
 
-    /// <summary>The most a wired counter shows: 99:59.5, counted in half seconds.</summary>
-    public int ClockMaxHalfSeconds { get; init; } = 11999;
-
     /// <summary>
     /// Variable fx addons a room may hold; each one is drawn over every holder of its variable.
     /// A bound of ours on the room's work, not Habbo's: Habbo limits fx per variable box

@@ -397,6 +397,96 @@ public sealed class WiredPlaceFurniTests
             .Equal(allowed ? picked : LAMP);
     }
 
+    /// <summary>
+    /// action.55.B3 / action.55.B5: Place Furni at a custom location given by the clicking user.
+    /// On the user's own tile nothing was placed and the user got placement_failure (2/2); one
+    /// tile beside it the copy was placed (1/1). A user standing on the door tile was no anchor at
+    /// all: offsets 0, x+1 and x+1,y+1 failed though those tiles were free (6/7); the door tile
+    /// itself is no refused target: a user on 6,4 had copies land on the door 4,4 (4/4) (official
+    /// client capture 2026-10-25T05-29-40 .. 05-46-09).
+    /// </summary>
+    [Theory]
+    [InlineData(3, 5, 0, 0, null)]
+    [InlineData(3, 5, 1, 0, "4,5")]
+    [InlineData(0, 0, 1, 0, null)]
+    [InlineData(0, 0, 1, 1, null)]
+    [InlineData(2, 0, -2, 0, "0,0")]
+    public async Task Place_furni_at_the_user_needs_a_free_tile_and_a_user_off_the_door_action_55_B5(
+        int userX,
+        int userY,
+        int offsetX,
+        int offsetY,
+        string? placedAt
+    )
+    {
+        const int STACK_X = 7;
+
+        _room.Enter(5, userX, userY);
+        _room.AddFloorItem(CLICK_ME, 7, 4);
+        var lamp = _room.AddFloorItem(LAMP, 3, 3);
+
+        _room.Harness.Fakes.Handlers["TryGetDefinition"] = call =>
+            call.Args[0] is int id && id == lamp.Definition.Id ? lamp.Definition : null;
+        _room.Harness.Fakes.Handlers["CreateFloorItem"] = call =>
+        {
+            var item = new RoomFloorItem
+            {
+                ObjectId = (RoomObjectId)call.Args[0]!,
+                OwnerId = (PlayerId)call.Args[1]!,
+                OwnerName = string.Empty,
+                Definition = (FurnitureDefinitionSnapshot)call.Args[2]!,
+            };
+
+            item.SetExtraData(null);
+
+            return item;
+        };
+        _room.AddBox<WiredTriggerClickFurni>(1, STACK_X, 0, "wf_trg_click_furni");
+        _room.AddBox<WiredActionPlaceFurni>(2, STACK_X, 0, "wf_act_place_furni");
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                1,
+                stuffIds: [CLICK_ME],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ]
+            )
+        ).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                2,
+                intParams: [1, 1, 0, offsetX, offsetY, 0, 0, 0, 0, 0],
+                stuffIds: [LAMP],
+                playerSources:
+                [
+                    [WiredPlayerSourceType.TriggeredUser],
+                    [WiredPlayerSourceType.SelectorUsers],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await Wired.OnRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForSystem(1),
+                StackIds = [_room.Map.ToIdx(STACK_X, 0)],
+            },
+            Ct
+        );
+        await TickAsync(1);
+
+        await ClickAsync(105);
+
+        Furni
+            .Items.Where(x => x.IsTemporary)
+            .Select(x => $"{x.X},{x.Y}")
+            .Should()
+            .Equal(placedAt is null ? [] : [placedAt]);
+        Dialogs().Should().Equal(placedAt is null ? [105] : []);
+    }
+
     private Task<WiredSaveResult> SaveLampAsync(int[] stuffIds) =>
         _room.SaveWithResultAsync<UpdateActionMessage>(
             2,

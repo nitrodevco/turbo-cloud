@@ -4,10 +4,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Player;
+using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 
 namespace Turbo.Rooms.Grains.Systems;
@@ -25,6 +27,16 @@ public sealed class RoomWiredChestSystem(RoomGrain roomGrain)
     {
         if (evt is not PlayerLeftEvent left)
             return;
+
+        // A player who leaves with a contract's payment window open has it cancelled as if they
+        // pressed Cancel: WiredTradeCancelled 0, Transaction Failed fired, the offered item kept
+        // (official client capture 2026-10-25T04-56-47 / 04-57-34, wired matrix action.47.B2 /
+        // trigger.26.B2, 2/2). Told, not awaited: the trade grain calls this room back.
+        if (WiredTransactionSystem.TryGetProgress(left.PlayerId, out _))
+            GrainFactory
+                .GetWiredTradeGrain(left.PlayerId)
+                .CancelAsync(WiredTransactionFailureType.UserCancelled, CancellationToken.None)
+                .LogAndForget(Logger, "cancel the wired trade of a player leaving the room");
 
         foreach (var chest in Chests())
         {

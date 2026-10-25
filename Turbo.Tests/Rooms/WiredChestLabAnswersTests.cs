@@ -248,6 +248,46 @@ public sealed class WiredChestLabAnswersTests
         Notices().Should().BeEmpty();
     }
 
+    /// <summary>
+    /// action.47.B2 / trigger.26.B2: the user left the room (hotel view) with the payment window
+    /// open, before and after Accept: WiredTradeCancelled 0 and Transaction Failed fired, the
+    /// offered item kept (official client capture 2026-10-25T04-56-47 / 04-57-34, 2/2). Ours kept
+    /// the trade open until it timed out.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Leaving_the_room_cancels_the_users_open_contract_transaction(bool open)
+    {
+        _room.Enter(USER, 1, 1);
+        var playerId = _room.Avatars[USER].PlayerId;
+
+        if (open)
+            _room.Harness.Room.WiredTransactionSystem.SetProgress(
+                playerId,
+                new WiredTransactionProgressSnapshot
+                {
+                    StartedAtMs = 0,
+                    ContractId = CONTRACT,
+                    State = WiredTransactionStateType.AddingItems,
+                    CanAccept = false,
+                    Multiplier = 0,
+                }
+            );
+
+        await _room.Harness.Room.RemoveAvatarFromPlayerAsync(
+            ActionContext.CreateForPlayer(playerId, 1),
+            playerId,
+            Ct
+        );
+
+        _room
+            .Harness.Fakes.Log.Of(nameof(IWiredTradeGrain.CancelAsync))
+            .Select(x => x.Args[0])
+            .Should()
+            .Equal(open ? [WiredTransactionFailureType.UserCancelled] : []);
+    }
+
     // action.47.R1 (nothing picked), R1b (a contract, no chest), B3 (a chest and a fresh reward
     // contract, which gives nothing): no WiredTransactionFail, no Transaction Failed, the bubble.
     [Theory]

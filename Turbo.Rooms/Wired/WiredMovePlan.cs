@@ -77,12 +77,19 @@ public sealed class WiredMovePlan
         if (!_layout.CanMove(item, x, y, rot, _policy))
             return false;
 
+        var from = Where(item);
+
         if (_policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.KeepAltitude))
-            _layout.Move(item, x, y, z ?? Where(item).Z, rot);
+            _layout.Move(item, x, y, z ?? from.Z, rot);
         else
             _layout.Move(item, x, y, z, rot);
 
-        _steps.Add(ctx => ctx.TryMoveFloorItemAsync(item, x, y, z, rot));
+        // A turn in place lands where the layout put it (WiredGhostLayout.Move), which the map
+        // measured from the anchor tile alone would not.
+        var landing =
+            z ?? (from.X == x && from.Y == y && from.Rotation != rot ? Where(item).Z : null);
+
+        _steps.Add(ctx => ctx.TryMoveFloorItemAsync(item, x, y, landing, rot));
 
         return true;
     }

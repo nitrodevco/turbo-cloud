@@ -72,7 +72,6 @@ RegexMatchTimeoutMs = limit
 KickMessageMaxLength = limit
 LogMessageMaxLength = limit
 MaxRewardsPerBox = limit
-ClockMaxHalfSeconds = client
 VariableFxMaxBoxes = limit
 VariableFxMaxPerVariable = legacy
 VariableFxMaxStatusesPerViewer = limit

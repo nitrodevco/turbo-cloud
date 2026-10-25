@@ -8,9 +8,11 @@ using Orleans;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
@@ -220,9 +222,14 @@ public class WiredActionPlaceFurni(
             (
                 location == WiredPlaceLocationType.CustomLocation
                 || altitude == WiredPlaceAltitudeType.CustomAltitude
-            ) && !TryGetCustomTarget(ctx, out targetX, out targetY, out targetZ)
+            ) && !TryGetCustomTarget(ctx, out targetX, out targetY, out targetZ, out var refused)
         )
+        {
+            if (refused)
+                await NotifyPlacementFailureAsync(ctx, ct);
+
             return false;
+        }
 
         var dx = GetIntParamOrDefault(PARAM_OFFSET_X, 0);
         var dy = GetIntParamOrDefault(PARAM_OFFSET_Y, 0);
@@ -257,8 +264,12 @@ public class WiredActionPlaceFurni(
             var x = source.X + dx;
             var y = source.Y + dy;
 
-            // Off the map is a copy that cannot be placed like any other.
-            if (!map.InBounds(x, y))
+            // Off the map is a copy that cannot be placed like any other, and so is one onto a
+            // user: a copy on the clicking user's own tile failed with placement_failure, for a
+            // chair and for a stackable block, and one tile beside the user was placed (official
+            // client capture 2026-10-25T05-31-43, wired matrix action.55.B3; inference: any
+            // avatar, on any tile the copy would cover).
+            if (!map.InBounds(x, y) || IsOnAnAvatar(definition, x, y, (Rotation)source.Rotation))
             {
                 failed = true;
 
@@ -402,14 +413,41 @@ public class WiredActionPlaceFurni(
         return (variable, value);
     }
 
+    private bool IsOnAnAvatar(FurnitureDefinitionSnapshot definition, int x, int y, Rotation rot)
+    {
+        foreach (
+            var (tileX, tileY) in FloorFootprint
+                .Of(x, y, rot, definition.Width, definition.Length)
+                .Tiles()
+        )
+        {
+            if (
+                MapModule.InBounds(tileX, tileY)
+                && AvatarModule.GetAvatarsOnTile(MapModule.ToIdx(tileX, tileY)).Any()
+            )
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// The custom target's tile and altitude. A user standing on the room's door tile is no
+    /// target, and the run tells of it as of a copy that could not be placed: copies at offsets 0,
+    /// x+1 and x+1,y+1 from a user on the door all failed with placement_failure though those
+    /// tiles were free, while the door tile itself took copies anchored on a user beside it
+    /// (official client capture 2026-10-25T05-29-40 .. 05-46-09, wired matrix action.55.B5).
+    /// </summary>
     private bool TryGetCustomTarget(
         IWiredExecutionContext ctx,
         out int x,
         out int y,
-        out Altitude z
+        out Altitude z,
+        out bool refused
     )
     {
         (x, y, z) = (0, 0, Altitude.Zero);
+        refused = false;
 
         if (GetIntParamOrDefault(PARAM_TARGET_IS_USER, false))
         {
@@ -417,6 +455,17 @@ public class WiredActionPlaceFurni(
 
             if (players.Count == 0)
                 return false;
+
+            if (
+                State.Model is { } model
+                && players[0].X == model.DoorX
+                && players[0].Y == model.DoorY
+            )
+            {
+                refused = true;
+
+                return false;
+            }
 
             (x, y, z) = (players[0].X, players[0].Y, players[0].Z);
 

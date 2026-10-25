@@ -113,7 +113,7 @@ public class FurnitureCounterClockLogic(
         control switch
         {
             WiredClockControlType.Start => StartAfreshAsync(ct),
-            WiredClockControlType.Stop => StopForGoodAsync(),
+            WiredClockControlType.Stop => StopForGoodAsync(ct),
             WiredClockControlType.Reset => ResetAsync(ct),
             // Pause holds the time and Resume runs on from it.
             WiredClockControlType.Pause => StopAsync(),
@@ -123,18 +123,20 @@ public class FurnitureCounterClockLogic(
 
     /// <summary>
     /// Sets, adds or subtracts time; the display follows on the next second. The time jumps
-    /// there: Clock Reaches Time does not fire for it (see <see cref="PublishAsync"/>).
+    /// there: Clock Reaches Time does not fire for it (see <see cref="PublishAsync"/>). It goes
+    /// past 99:59 and stops at 0: adding 5 s at 5999 showed 6004 and subtracting 5 s at 0 showed
+    /// 0 (official client capture 2026-10-25T05-13-28, wired matrix action.38.B2).
     /// </summary>
     public Task AdjustAsync(WiredOperatorType op, int halfSeconds, CancellationToken ct)
     {
-        var next = op switch
+        long next = op switch
         {
-            WiredOperatorType.Add => _halfSeconds + halfSeconds,
-            WiredOperatorType.Subtract => _halfSeconds - halfSeconds,
+            WiredOperatorType.Add => (long)_halfSeconds + halfSeconds,
+            WiredOperatorType.Subtract => (long)_halfSeconds - halfSeconds,
             _ => halfSeconds,
         };
 
-        _halfSeconds = Math.Clamp(next, 0, WiredConfig.ClockMaxHalfSeconds);
+        _halfSeconds = (int)Math.Clamp(next, 0, int.MaxValue);
 
         return PublishAsync(ct, reached: false);
     }
@@ -172,11 +174,22 @@ public class FurnitureCounterClockLogic(
         await StartAsync(ct);
     }
 
-    private Task StopForGoodAsync()
+    /// <summary>
+    /// Control Clock "stop". Stopping the running Wired Game Counter ends the game: Game Ends
+    /// fired in the stop's firing (4/4); a stop on a counter already stopped fired nothing (2/2)
+    /// (official client capture 2026-10-24 13-03-35 and 2026-10-25T05-15-20, wired matrix
+    /// trigger.9.R1 / trigger.9.B1).
+    /// </summary>
+    private async Task StopForGoodAsync(CancellationToken ct)
     {
+        var wasRunning = _isRunning;
+
         _stopped = true;
 
-        return StopAsync();
+        await StopAsync();
+
+        if (wasRunning && IsGameAware && GameSystem.IsGameRunning)
+            await GameSystem.EndGameAsync(ct);
     }
 
     private async Task StartAsync(CancellationToken ct)
@@ -252,15 +265,10 @@ public class FurnitureCounterClockLogic(
 
     private async Task TickAsync(CancellationToken ct)
     {
-        if (!_isRunning)
+        // A running counter counts on past 99:59: 5999, 6000 .. 6005 (official client capture
+        // 2026-10-25T05-14-14, wired matrix action.28.B2).
+        if (!_isRunning || _halfSeconds == int.MaxValue)
             return;
-
-        if (_halfSeconds >= WiredConfig.ClockMaxHalfSeconds)
-        {
-            await StopAsync();
-
-            return;
-        }
 
         _halfSeconds++;
 

@@ -400,6 +400,13 @@ public sealed class WiredGamesTimeLabTests
     [InlineData("trigger.12.E10", "wf_trg_period_long", new[] { 121 }, new[] { 121 })]
     [InlineData("condition.3.E10", "wf_cnd_time_more_than", new[] { 1 }, new[] { 1 })]
     [InlineData("condition.3.E10", "wf_cnd_time_more_than", new[] { 1202 }, new[] { 1202 })]
+    // condition.35.B2: minutes 100 Opened as 99 (official client capture 2026-10-25T05-16-36).
+    [InlineData(
+        "condition.35.B2",
+        "wf_cnd_counter_time_matches",
+        new[] { 5, 100, 0, 1 },
+        new[] { 5, 99, 0, 1 }
+    )]
     public async Task An_out_of_range_save_is_stored_as_measured(
         string caseId,
         string name,
@@ -412,6 +419,12 @@ public sealed class WiredGamesTimeLabTests
             "wf_act_give_score" => _room.AddBox<WiredActionGiveScore>(BOX, 0, 0, name),
             "wf_trg_period_short" => _room.AddBox<WiredTriggerShortPeriodically>(BOX, 0, 0, name),
             "wf_trg_period_long" => _room.AddBox<WiredTriggerLongPeriodically>(BOX, 0, 0, name),
+            "wf_cnd_counter_time_matches" => _room.AddBox<WiredConditionCounterTimeMatch>(
+                BOX,
+                0,
+                0,
+                name
+            ),
             _ => _room.AddBox<WiredConditionTimerMoreThan>(BOX, 0, 0, name),
         };
 
@@ -599,6 +612,114 @@ public sealed class WiredGamesTimeLabTests
 
         Game.GetTeam((PlayerId)(100 + PLAYER)).Should().Be(GameTeamType.Red);
         Game.GetTeam((PlayerId)(100 + OTHER)).Should().Be(GameTeamType.Red);
+    }
+
+    /// <summary>
+    /// action.38.B2: Adjust Clock on a stopped counter SET 99:59 showed 5999, ADD 5 s then 6004
+    /// (no cap at 99:59), ADD 99:59.5 12003, SET 0 then SUB 5 s 0 (never below 0), SET 99:59.5
+    /// 5999 (official client capture 2026-10-25T05-13-28 / 05-13-42, 1/1 each). Ours held it at
+    /// 99:59.5.
+    /// </summary>
+    [Fact]
+    public async Task Adjust_clock_goes_past_99_59_and_stops_at_0_action_38_B2()
+    {
+        var clock = AddClock();
+        var shown = new List<int>();
+
+        foreach (
+            var (op, halfSeconds) in new[]
+            {
+                (WiredOperatorType.Set, 11_998),
+                (WiredOperatorType.Add, 10),
+                (WiredOperatorType.Add, 11_999),
+                (WiredOperatorType.Set, 0),
+                (WiredOperatorType.Subtract, 10),
+                (WiredOperatorType.Set, 11_999),
+            }
+        )
+        {
+            await clock.AdjustAsync(op, halfSeconds, Ct);
+            shown.Add(clock.GetState());
+        }
+
+        shown.Should().Equal(5999, 6004, 12003, 0, 0, 5999);
+    }
+
+    /// <summary>
+    /// action.28.B2 / trigger.15.B2: a counter set to 99:57 and started counted 5998, 5999, 6000
+    /// .. 6005, once a second, and did not stop at 99:59 (official client capture
+    /// 2026-10-25T05-14-14, 1/1). Ours stopped at 5999.
+    /// </summary>
+    [Fact]
+    public async Task A_running_counter_counts_on_past_99_59_action_28_B2()
+    {
+        var clock = AddClock();
+
+        await clock.AdjustAsync(WiredOperatorType.Set, 11_994, Ct);
+        await clock.ControlAsync(WiredClockControlType.Start, Ct);
+
+        await RunClockUntilAsync(clock, 6002);
+    }
+
+    /// <summary>
+    /// condition.35.B2: Clock Time Matches on a counter stopped at 6005 (100:05): "&gt; 99:59.5"
+    /// passed, "= 0:05" and "&lt; 0:10" failed, so the real seconds are compared (2/2 each,
+    /// official client capture 2026-10-25T05-16-05).
+    /// </summary>
+    [Theory]
+    [InlineData(new[] { 59, 99, 1, 2 }, true)]
+    [InlineData(new[] { 5, 0, 0, 1 }, false)]
+    [InlineData(new[] { 10, 0, 0, 0 }, false)]
+    public async Task Clock_time_matches_compares_the_real_seconds_past_99_59_condition_35_B2(
+        int[] ints,
+        bool passes
+    )
+    {
+        var clock = AddClock();
+        var condition = _room.AddBox<WiredConditionCounterTimeMatch>(
+            BOX,
+            0,
+            0,
+            "wf_cnd_counter_time_matches"
+        );
+
+        (
+            await _room.SaveAsync<UpdateConditionMessage>(
+                BOX,
+                intParams: ints,
+                stuffIds: [CLOCK],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await clock.AdjustAsync(WiredOperatorType.Set, 12_010, Ct);
+
+        condition.Evaluate(Context()).Should().Be(passes);
+    }
+
+    /// <summary>
+    /// trigger.9.R1 / trigger.9.B1: Control Clock stop on the running Wired Game Counter fired
+    /// Game Ends (4/4); a stop on the counter already stopped fired nothing and sent no counter
+    /// update (2/2, official client capture 2026-10-24 13-03-35 and 2026-10-25T05-15-20).
+    /// </summary>
+    [Fact]
+    public async Task Stop_ends_the_game_once_trigger_9_B1()
+    {
+        var counter = await BuildGiveScoreAsync(points: 5, timesPerGame: 0);
+        var ends = await BuildGameTriggerAsync<WiredTriggerGameEnds>("wf_trg_game_ends", 1, 40);
+
+        await counter.ControlAsync(WiredClockControlType.Start, Ct);
+        await TickAsync(1);
+        await counter.ControlAsync(WiredClockControlType.Stop, Ct);
+        await TickAsync(1);
+        ends.Logic.GetState().Should().Be(1, "the stop of a running game counter ends the game");
+
+        await counter.ControlAsync(WiredClockControlType.Stop, Ct);
+        await TickAsync(1);
+        ends.Logic.GetState().Should().Be(1, "a stopped counter's stop ends no game");
     }
 
     // A lone stack on (x, 0): the game trigger toggles a pad of its own.
