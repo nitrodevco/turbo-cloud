@@ -45,7 +45,7 @@ public sealed class HotelApiTests : IDisposable
                 .Where(x => x.Namespace == typeof(IHotel).Namespace && x.IsInterface),
         ];
 
-        areas.Should().HaveCount(6);
+        areas.Should().HaveCount(7);
 
         var unmarked = areas
             .SelectMany(area => area.GetMethods().Select(m => $"{area.Name}.{m.Name}"))

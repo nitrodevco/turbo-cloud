@@ -148,6 +148,11 @@ public sealed class FakeRooms : IHotelRooms
     internal RoomId? RoomOf(PlayerId player) =>
         _rooms.FirstOrDefault(x => x.Players.Contains(player))?.Id;
 
+    internal bool IsIn(RoomId room, PlayerId player) =>
+        Find(room)?.Players.Contains(player) == true;
+
+    internal bool IsPopulated(RoomId room) => Find(room) is { Players.Count: > 0 };
+
     private FakeRoom? Find(RoomId room) => _rooms.FirstOrDefault(x => x.Id == room);
 
     private bool Record(RoomId room, object message)

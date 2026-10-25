@@ -131,6 +131,9 @@ internal sealed class PluginTestHost
                 )!,
             new PermissionNodeFeatureProcessor(fakes.Create<IPermissionRegistryProvider>()),
             new RoomObjectLogicFeatureProcessor(fakes.Create<IRoomObjectLogicProvider>()),
+            new Turbo.Rooms.Object.Logic.Plugins.PluginLogicFeatureProcessor(
+                fakes.Create<IRoomObjectLogicProvider>()
+            ),
             new RoomEventListenerFeatureProcessor(fakes.Create<IRoomEventListenerRegistry>()),
             new ScheduledTaskFeatureProcessor(Schedules),
             new GamePolicyFeatureProcessor(Policies),

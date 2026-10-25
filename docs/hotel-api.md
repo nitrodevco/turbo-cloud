@@ -63,7 +63,7 @@ Every member carries `[HotelCall(...)]`, and its guide is this table. The rule t
 | Context | Means | Members |
 | --- | --- | --- |
 | `Anywhere` | in memory; fine inside any turn | `Players.OnlineIds`, `Wallet.CurrencyExists`, `Inventory.FindFurniture`/`Furniture`, `Catalog.Offers`, `Clock` |
-| `NotFromItsGrain` | asks the grain of the player or room it is given; never await it inside that grain's own turn (a room's listener or command awaiting its own room waits on itself) | sends, whispers, room players, current room, club, permissions, wallet changes and balances, furni grants, badges, alerts and notifications |
+| `NotFromItsGrain` | asks the grain of the player or room it is given; never await it inside that grain's own turn (a room's listener or command awaiting its own room waits on itself) | sends, whispers, room players, current room, club, permissions, wallet changes and balances, furni grants, badges, alerts and notifications, wired events |
 | `OffGrain` | reads the database (or waits on other plugins); never inside a room's turn (listener, command, furni logic): copy what you need out of the turn and read it after | player and room reads, search, toplists, public rooms, circulation, catalog edits and publish, staff notices |
 
 ## The areas
@@ -76,6 +76,7 @@ Every member carries `[HotelCall(...)]`, and its guide is this table. The rule t
 | `Inventory` | `FindFurniture(name)`, `Furniture(id)`, `GrantFurnitureAsync(player, definition, cause)`, `HasBadgeAsync`, `GiveBadgeAsync` (false when they had it) |
 | `Catalog` | `Offers(page)` (the live catalog), `CirculationAsync(definitions)` (held by players, system accounts left out), `MoveOfferAsync`, `SetPageExpiryAsync`, `PublishAsync` (the panel's catalog editor, with its checks and history) |
 | `Notify` | `AlertAsync(player, textKey, defaultText, parameters)` (the hotel's alert, its text from the hotel's texts), `NotificationAsync(player, type, parameters)` (a client notification whose `notification.<type>` variable the hotel or the plugin's `external_variables.json` has), `StaffNoticeAsync(notice)` (`docs/plugin-notices.md`) |
+| `Wired` | `FireAsync(room, event, triggerer)` and `FireForPlayerAsync(player, event)`: a plugin's wired event for its own triggers (`docs/plugin-wired.md`); false, and the room not loaded, when no one is in it |
 | `Clock` | a `TimeProvider`: the hotel's time; `FakeHotel.Clock` moves only when the test moves it |
 
 Reads are query methods with their own limits, not `DbSet`s: a plugin never builds a query on a
@@ -105,10 +106,10 @@ plugin does:
   `Inventory.Hold(...)`, `Catalog.AddOffer(...)`;
 - read back: `Players.SentTo(player)`, `Rooms.SentTo(room)`, `Rooms.WhispersTo(player)`,
   `Wallet.Movements`, `Inventory.Grants`, `Notify.Alerts`, `Notify.StaffNotices`,
-  `Catalog.Publishes`;
+  `Catalog.Publishes`, `Wired.Fired`;
 - assert: `Wallet.AssertCredited/AssertDebited/AssertUntouched`, `Players.AssertSent<T>/AssertNothingSent`,
   `Rooms.AssertSent<T>/AssertWhispered`, `Inventory.AssertGranted/AssertHasBadge`,
-  `Notify.AssertAlerted/AssertNotAlerted`. A failure throws `HotelAssertionException` with what
+  `Notify.AssertAlerted/AssertNotAlerted`, `Wired.AssertFired<TEvent>/AssertNothingFired`. A failure throws `HotelAssertionException` with what
   happened instead, so it works in any test framework.
 
 `Turbo.Testing.dll` ships in the server's bin folder beside `Turbo.Contracts.dll`; a plugin's test

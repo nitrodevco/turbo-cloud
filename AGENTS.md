@@ -740,6 +740,11 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   tile form a stack that `RoomWiredSystem` runs: trigger → selectors (filter and invert are
   applied there) → addons mutate the `WiredPolicy` → conditions → the actions the outcome picks.
   Actions whose `IsNegative` is set (the `wf_act_neg_*` boxes) run when the conditions fail.
+- A plugin's box is not one of these: it derives from a contract (`Turbo.Contracts.Wired`) and is
+  hosted by `Object/Logic/Plugins/PluginWired*Logic`, core's own kinds that read its declaration
+  (`FurnitureWiredLogic.Plugins.cs`), so every rule here holds for it too. A rule added to a base
+  class reaches plugin boxes by itself; one added per box needs a contract member
+  (`docs/plugin-wired.md`).
 - Int params follow the Flash client editor exactly; declare them with `GetIntParamRules()` and
   read them with `GetIntParamOrDefault`, as the type the rule declares: a
   `WiredEnumParamRule<T>` param is read as `T` (fallback `T.Member`), a bool rule as `bool`.
