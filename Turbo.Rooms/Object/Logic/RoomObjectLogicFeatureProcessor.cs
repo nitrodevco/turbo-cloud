@@ -36,7 +36,7 @@ internal class RoomObjectLogicFeatureProcessor(IRoomObjectLogicProvider roomObje
                 continue;
 
             // A key already registered (core's, or another plugin's) is replaced: an override.
-            if (_roomObjectLogicFactory.LogicTypes.Contains(attribute.Key))
+            if (_roomObjectLogicFactory.LogicTypes is { } known && known.Contains(attribute.Key))
                 sp.Contributes(
                     PluginContributionKinds.OVERRIDE,
                     attribute.Key,

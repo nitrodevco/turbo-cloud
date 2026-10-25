@@ -186,6 +186,7 @@ public sealed class PluginTemplateTests : IDisposable
             .Contain($"{key}.command.hug");
         _fakes
             .Log.On<IRoomObjectLogicProvider>()
+            .Where(c => c.Method == nameof(IRoomObjectLogicProvider.RegisterLogic))
             .Select(c => c.Args[0])
             .Should()
             .Equal("skill_stove");
