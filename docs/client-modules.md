@@ -96,6 +96,40 @@ themselves (`tools/make.mjs`; the README's "Recipes" table): `command`, `message
 and its handler or client listener), `logic`, `listener`, `setting`, `route`, `window`, `patch`
 and `migration` (the plugin's tables and `dotnet ef migrations add`, no design-time factory).
 `PluginTemplateTests` runs every kind on a copy of the template and loads the result.
+`npm run clean-sample` takes the template's sample out, leaving an empty plugin that loads.
+
+### A hotel to develop a plugin on
+
+The hosts a plugin uses are off by default. One block for the server's
+`appsettings.Development.json` (or the same keys as environment variables, `Turbo__Gamedata__Enabled=true`):
+
+```json
+{
+  "Turbo": {
+    "Plugin": { "DevPluginPaths": [ "<plugin folder>/dist/<key>" ] },
+    "Gamedata": { "Enabled": true, "PublicUrl": "http://127.0.0.1:8094" },
+    "Web": {
+      "Enabled": true,
+      "ClientUrl": "http://localhost:5173/?sso={ticket}",
+      "PluginRoutes": { "PublicUrl": "http://127.0.0.1:8092" }
+    },
+    "Admin": { "Enabled": true, "PanelUrl": "http://localhost:5174" },
+    "Owner": { "Name": "<your player name>" }
+  }
+}
+```
+
+- `Gamedata` serves the module, the plugin's `wwwroot/` and its texts; with `PublicUrl` the module's
+  address is absolute, so the client (nitro-next's dev server on 5173) can load it from 8094 once its
+  configuration lists the host: `"client.modules.hosts": [ "127.0.0.1:8094" ]` (section 4).
+- `Web` serves the plugin's routes (`docs/plugin-web-routes.md`): clients call them at
+  `PluginRoutes:PublicUrl`, and `ClientUrl`'s origin may.
+- `Admin` is the API behind the panel's Settings and Plugins pages; `PanelUrl` is where the panel
+  runs (passkeys are bound to it), here on 5174 beside the client (`yarn dev --port 5174` in
+  turbo-admin). Scripts call the API with the panel's session token (`docs/admin-panel.md`,
+  "Calling the admin API").
+- `Owner:Name` makes your player the owner: the `admin` group, and a setup link for your panel
+  passkey in the log at the next start (`docs/admin-panel.md`, "The first admin").
 
 ## 2. The protocol: `client.modules` (version 1)
 
