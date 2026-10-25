@@ -727,7 +727,22 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         if (extended ? activeEvent is null : activeEvent is not null)
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
 
-        var debitRequests = offer.ToDebitRequests(1);
+        // The hotel's plugins may refuse it or change its price, as for any offer (IPurchasePolicy);
+        // an ad is one ad, so the units they decide are not read.
+        var decision = await DecideAsync(
+            new PurchaseRequest(
+                playerId,
+                CatalogType.Normal,
+                offer,
+                1,
+                RoomAd: new RoomAdRequest(roomId, categoryId, name, description, extended, duration)
+            ),
+            offer,
+            1,
+            1,
+            ct
+        );
+        var debitRequests = ToDebitRequests(decision, offer);
         var cause = MovementCause.New(MovementCauses.CATALOG_ROOM_AD, playerId.Value, offerId);
 
         await DebitAsync(debitRequests, cause, ct);
@@ -773,6 +788,14 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         // Habbo's room ad offer is "room_ad_plus_badge": the ad and a badge product (RADZZ in the
         // official catalogue page). Every ad bought carries it, so one already owned is no refusal.
         await GrantBadgesAsync(offer, ct);
+
+        _events.PublishCommitted(
+            Completed(CatalogType.Normal, offer, decision, 1, null) with
+            {
+                RoomAd = created,
+                RoomAdExtended = extended,
+            }
+        );
 
         return offer;
     }
