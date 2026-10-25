@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -114,7 +115,16 @@ public class WiredAddonVariablePlaceholder(
             _ => ctx.Selected,
         };
 
-        foreach (var targetId in GetTargetIds(targetType, holders))
+        var targetIds = GetTargetIds(targetType, holders).ToList();
+
+        // Nobody to read, a single value leaves the placeholder as written: "V=[$(v)]" (official
+        // client capture 2026-10-25T09-13-22, wired matrix addon.15.R1b 2/2), as Username and
+        // Furni Name do (FurnitureWiredNamePlaceholderLogic); "show all" printing nothing is
+        // inferred from those.
+        if (targetIds.Count == 0 && !GetIntParamOrDefault(0, false))
+            return Task.FromResult(text);
+
+        foreach (var targetId in targetIds)
         {
             var key = new WiredVariableKey(snapshot.VariableId, targetType, targetId);
 

@@ -80,6 +80,35 @@ public sealed class WiredVariablePlaceholderNoValueTests
         (await ctx.FormatTextAsync("V=$(v)", Ct)).Should().Be("V=null");
     }
 
+    // addon.15.R1b (official client capture 2026-10-25T09-13-22, 2/2): single mode over an empty
+    // user selection leaves the token as written, as Username does (addon.14.X6). Ours printed "V=[]".
+    [Fact]
+    public async Task An_empty_selection_leaves_a_single_value_as_written()
+    {
+        _room.Enter(PLAYER_INDEX, 1, 1);
+
+        var variable = _room.AddBox<WiredVariableUser>(10, 6, 6, "wf_var_user");
+
+        (
+            await _room.SaveAsync<UpdateVariableMessage>(
+                10,
+                intParams: [(int)WiredAvailabilityType.UserActive, 1],
+                stringParam: "v"
+            )
+        )
+            .Should()
+            .BeTrue();
+        await LoadAsync(variable);
+
+        var ctx = await PlaceholderAsync(
+            variable.GetVarSnapshot().VariableId.ToString(),
+            WiredVariableTargetType.User,
+            "v"
+        );
+
+        (await ctx.FormatTextAsync("V=[$(v)]", Ct)).Should().Be("V=[$(v)]");
+    }
+
     private async Task<WiredExecutionContext> PlaceholderAsync(
         string variableId,
         WiredVariableTargetType target,
