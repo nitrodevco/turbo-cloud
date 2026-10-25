@@ -159,6 +159,26 @@ public sealed class PlayerWalletReferencedCreditTests : IDisposable
     }
 
     [Fact]
+    public async Task RepeatedReferenceIsAnsweredFromItsReceiptWithoutAFailedSave()
+    {
+        // A retry is what a reference is for: before, it inserted the receipt again, and the
+        // duplicate key was logged as an EF Core error before the wallet answered AlreadyApplied.
+        var wallet = await NewWalletAsync(PLAYER_ID);
+        await wallet.CreditAsync(CurrencyKind.Credits, 25, "plugin:order-1", Cause, Ct);
+        await wallet.CreditAchievementAsync("award-1", CurrencyKind.Credits, 5, Cause, Ct);
+
+        (await wallet.CreditAsync(CurrencyKind.Credits, 25, "plugin:order-1", Cause, Ct))
+            .Should()
+            .Be(WalletCreditResult.AlreadyApplied);
+        (await wallet.CreditAchievementAsync("award-1", CurrencyKind.Credits, 5, Cause, Ct))
+            .Should()
+            .BeTrue();
+
+        _db.FailedSaves.Should().Be(0);
+        (await BalanceAsync(PLAYER_ID)).Should().Be(30);
+    }
+
+    [Fact]
     public async Task RepeatedReferenceIsANoOpAfterReactivation()
     {
         var first = await NewWalletAsync(PLAYER_ID);

@@ -60,7 +60,7 @@ public sealed class RoomModule : IHostPluginModule
         services.AddSingleton<IGameLeaderboardService>(sp =>
             sp.GetRequiredService<GameScoreStore>()
         );
-        services.AddSingleton<DefaultGameAccessPolicy>();
+        services.AddReplaceable<IGameAccessPolicy, DefaultGameAccessPolicy>();
         services.AddSingleton<IAssemblyFeatureProcessor, GameFeatureProcessor>();
 
         services.AddSingleton<IRoomService, RoomService>();

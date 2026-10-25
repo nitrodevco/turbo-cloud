@@ -64,6 +64,12 @@ internal sealed class AdminPanelServer : IAsyncDisposable
 
     public HashSet<string> Holds { get; } = [PermissionNodes.Admin.PANEL];
 
+    /// <summary>Registers more in the API's services, over the fakes, at each start.</summary>
+    public Action<Microsoft.Extensions.DependencyInjection.IServiceCollection>? Configure { get; set; }
+
+    /// <summary>The services the API was last started with.</summary>
+    public IServiceProvider Services { get; private set; } = null!;
+
     public IAdminAuthGrain Auth =>
         (IAdminAuthGrain)Fakes.Instances[(typeof(IAdminAuthGrain), SingletonGrainId.GLOBAL)];
 
@@ -91,10 +97,11 @@ internal sealed class AdminPanelServer : IAsyncDisposable
         Fakes.Instances[(typeof(IAdminAuthGrain), SingletonGrainId.GLOBAL)] = grain;
 
         _port = TestPorts.Free();
-        (_server, _, _) = AdminApiServerTests.Build(
+        (_server, _, Services) = AdminApiServerTests.Build(
             $"http://127.0.0.1:{_port}",
             Fakes,
-            NullLoggerFactory.Instance
+            NullLoggerFactory.Instance,
+            configure: Configure
         );
         await _server.StartAsync(ct);
     }

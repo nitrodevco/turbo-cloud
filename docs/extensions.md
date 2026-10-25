@@ -158,7 +158,7 @@ the trading pass. Trades ask it of both players before they open and pick the re
 (`openfail.3`, `trade.trading_perk`, `openfail.4`); wired chests ask it before they move anything,
 and the marketplace before a sale (locked: no trading privilege; no pass or receive only: no
 trading pass).
-Replacing it in the host's container changes all three; a plugin cannot replace it yet (§4.3).
+A plugin replaces it by registering its own, which changes all three (§4.3).
 
 Purchase (room ads included), room entry, placement (floor plan saves included) and registration
 have plugin policies: `IPurchasePolicy`, `IRoomEntryPolicy`, `IPlacementPolicy` and
@@ -171,9 +171,18 @@ refusal is the answer. Two plugins with a policy of one kind both run and are re
 
 ### 4.3 Service contracts
 
-Plugins must be able to add to host multi-registrations and replace single ones through
-`IHostServices`, with the replacement put back on unload. The furni logic override (§2.8) shows the
-missing piece: replacing something needs a stack, not a dictionary slot.
+A host service marked `[ReplaceableService]` is replaced by a plugin that registers its own in its
+services (`docs/plugin-services.md`): `ICampaignCalendarService`, `IPlayerTradePolicy` and
+`IGameAccessPolicy` today. The host registers each through a slot (`AddReplaceable`), and what its
+container gives for the contract forwards each call to the implementation in use, so core's
+handlers, the login, the admin API and other plugins call the plugin's while it is live, though they
+took the contract before it loaded, and nothing keeps a replaced one. The slot is a stack, as the
+furni logic override (§2.8) showed it must be: the last plugin loaded is used, an overlap is logged
+as a conflict and listed in the inspector (kind `service`), and on unload the one under it is back,
+another plugin's or the host's. A replacement adds to the one it replaced through
+`IServiceSlot<T>.Under(this)`. A host service a plugin registers that is not replaceable stays in the
+plugin's container, and the load logs it. Adding to host multi-registrations
+(`IAchievementFactListener`, `IIncomeRewardSource`, §2.7) is still to come.
 
 The contract a plugin *calls* is the hotel API (`docs/hotel-api.md`): `IHotel` with `Players`,
 `Rooms`, `Wallet`, `Inventory`, `Catalog`, `Notify` and `Clock`, about thirty-five methods, each marked
@@ -332,7 +341,7 @@ noted.
 7. **Policies** for trade, purchase, room entry and placement (§4.2), then post-commit domain events
    (§4.1). Purchase (room ads included), room entry, placement and registration done, with
    `npm run make policy <kind>`, and seven post-commit events (`docs/plugin-policies.md`); trade's
-   policy is not a plugin's yet.
+   policy is a replaceable host service (`docs/plugin-services.md`).
 8. **Data-only plugins** (themes without an assembly) and per-asset overlays (§4.6). Done: a
    manifest with no `AssemblyFile` loads its files only, `theme.json` style properties reach
    patches as `${style:name}` with staff's values from the panel, staff's own patches live in the

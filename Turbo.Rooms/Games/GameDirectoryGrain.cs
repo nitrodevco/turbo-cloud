@@ -31,7 +31,7 @@ namespace Turbo.Rooms.Games;
 internal sealed class GameDirectoryGrain(
     GameRegistry registry,
     GameScoreStore scores,
-    DefaultGameAccessPolicy defaultAccess,
+    IGameAccessPolicy access,
     IOptionsMonitor<GameCenterConfig> config,
     IGrainFactory grainFactory,
     TimeProvider clock,
@@ -39,8 +39,6 @@ internal sealed class GameDirectoryGrain(
 ) : Grain, IGameDirectoryGrain
 {
     private readonly GameDirectoryLiveState _state = new();
-
-    private IGameAccessPolicy Access => registry.AccessPolicy ?? defaultAccess;
 
     public async Task<GameDirectoryStatusSnapshot> GetDirectoryStatusAsync(
         PlayerId playerId,
@@ -76,7 +74,7 @@ internal sealed class GameDirectoryGrain(
     )
     {
         var (total, _) = await scores.CountGamesAsync(playerId, gameTypeId, ct);
-        var left = await Access.GetFreeGamesLeftAsync(playerId, gameTypeId, ct);
+        var left = await access.GetFreeGamesLeftAsync(playerId, gameTypeId, ct);
 
         return new GameAccountStatusSnapshot
         {
@@ -103,7 +101,7 @@ internal sealed class GameDirectoryGrain(
         }
 
         var definition = game.Definition;
-        var left = await Access.GetFreeGamesLeftAsync(playerId, definition.GameTypeId, ct);
+        var left = await access.GetFreeGamesLeftAsync(playerId, definition.GameTypeId, ct);
 
         if (left == 0)
         {

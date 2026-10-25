@@ -16,6 +16,13 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
     private readonly SqliteConnection _conn;
     private readonly DbContextOptions<TurboDbContext> _options;
     private readonly BeforeTransaction _beforeTransaction = new();
+    private readonly CountFailedSaves _failedSaves = new();
+
+    /// <summary>
+    /// The saves that failed (a unique key taken, a constraint broken): each is one error EF Core
+    /// logs on a server, so an expected path should have none.
+    /// </summary>
+    public int FailedSaves => _failedSaves.Count;
 
     /// <summary>
     /// Runs once, just before the next transaction begins, and is then cleared: what another
@@ -31,7 +38,13 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
     {
         _conn = new SqliteConnection("DataSource=:memory:");
         _conn.Open();
-        _options = OptionsFor(_conn, new StampTimestamps(), new NoRowLocks(), _beforeTransaction);
+        _options = OptionsFor(
+            _conn,
+            new StampTimestamps(),
+            new NoRowLocks(),
+            _beforeTransaction,
+            _failedSaves
+        );
         lock (SCHEMA)
             SCHEMA.Value.BackupDatabase(_conn);
     }
@@ -188,6 +201,26 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
                 )
                     entry.Property("UpdatedAt").CurrentValue = DateTime.UtcNow;
             }
+        }
+    }
+
+    private sealed class CountFailedSaves : SaveChangesInterceptor
+    {
+        private int _count;
+
+        public int Count => _count;
+
+        public override void SaveChangesFailed(DbContextErrorEventData eventData) =>
+            Interlocked.Increment(ref _count);
+
+        public override Task SaveChangesFailedAsync(
+            DbContextErrorEventData eventData,
+            CancellationToken ct = default
+        )
+        {
+            Interlocked.Increment(ref _count);
+
+            return Task.CompletedTask;
         }
     }
 

@@ -50,8 +50,14 @@ public static class PluginApi
     /// <c>HotelAvailabilityChangedEvent</c> on each change), and string-keyed dictionaries in named
     /// plugin messages. A plugin built for 1 to 6 loads as before.
     /// </para>
+    /// <para>
+    /// 8: replaceable host services (<c>Primitives.Plugins.ReplaceableServiceAttribute</c>,
+    /// <c>IServiceSlot&lt;T&gt;</c>, <c>docs/plugin-services.md</c>): a plugin that registers its
+    /// own campaign calendar, trade policy or game access policy replaces the host's for the whole
+    /// host while it is live. A plugin built for 1 to 7 loads as before.
+    /// </para>
     /// </summary>
-    public const int VERSION = 7;
+    public const int VERSION = 8;
 
     /// <summary>The oldest plugin API this server still loads.</summary>
     public const int OLDEST = 1;

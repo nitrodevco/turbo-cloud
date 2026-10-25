@@ -15,14 +15,10 @@ public sealed class GameRegistry : IGameRegistry
     private readonly Lock _gate = new();
     private volatile IRoomGame[] _games = [];
     private volatile IGameRewardHandler[] _rewardHandlers = [];
-    private volatile IGameAccessPolicy[] _accessPolicies = [];
 
     public IReadOnlyList<IRoomGame> Games => _games;
 
     public IReadOnlyList<IGameRewardHandler> RewardHandlers => _rewardHandlers;
-
-    /// <summary>The access policy a plugin registered last, or null for the server's own.</summary>
-    public IGameAccessPolicy? AccessPolicy => _accessPolicies.LastOrDefault();
 
     public IRoomGame? Find(int gameTypeId) =>
         _games.FirstOrDefault(game => game.Definition.GameTypeId == gameTypeId);
@@ -35,17 +31,10 @@ public sealed class GameRegistry : IGameRegistry
     public IDisposable Register(
         IEnumerable<IRoomGame> games,
         IEnumerable<IGameRewardHandler> rewardHandlers
-    ) => Register(games, rewardHandlers, []);
-
-    public IDisposable Register(
-        IEnumerable<IRoomGame> games,
-        IEnumerable<IGameRewardHandler> rewardHandlers,
-        IEnumerable<IGameAccessPolicy> accessPolicies
     )
     {
         var gameBatch = games.ToArray();
         var handlerBatch = rewardHandlers.ToArray();
-        var policyBatch = accessPolicies.ToArray();
 
         lock (_gate)
         {
@@ -71,31 +60,24 @@ public sealed class GameRegistry : IGameRegistry
 
             _games = [.. _games, .. gameBatch];
             _rewardHandlers = [.. _rewardHandlers, .. handlerBatch];
-            _accessPolicies = [.. _accessPolicies, .. policyBatch];
         }
 
-        return new Registration(this, gameBatch, handlerBatch, policyBatch);
+        return new Registration(this, gameBatch, handlerBatch);
     }
 
-    private void Remove(
-        IRoomGame[] games,
-        IGameRewardHandler[] handlers,
-        IGameAccessPolicy[] policies
-    )
+    private void Remove(IRoomGame[] games, IGameRewardHandler[] handlers)
     {
         lock (_gate)
         {
             _games = [.. _games.Where(x => !games.Contains(x))];
             _rewardHandlers = [.. _rewardHandlers.Where(x => !handlers.Contains(x))];
-            _accessPolicies = [.. _accessPolicies.Where(x => !policies.Contains(x))];
         }
     }
 
     private sealed class Registration(
         GameRegistry owner,
         IRoomGame[] games,
-        IGameRewardHandler[] handlers,
-        IGameAccessPolicy[] policies
+        IGameRewardHandler[] handlers
     ) : IDisposable
     {
         private int _disposed;
@@ -103,7 +85,7 @@ public sealed class GameRegistry : IGameRegistry
         public void Dispose()
         {
             if (Interlocked.Exchange(ref _disposed, 1) == 0)
-                owner.Remove(games, handlers, policies);
+                owner.Remove(games, handlers);
         }
     }
 }

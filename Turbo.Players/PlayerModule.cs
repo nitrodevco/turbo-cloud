@@ -51,7 +51,7 @@ public sealed class PlayerModule : IHostPluginModule
         services.AddSingleton<IPlayerNoticeService, PlayerNoticeService>();
         services.AddSingleton<IPlayerClothingService, PlayerClothingService>();
         services.AddSingleton<IPlayerFigurePolicy, PlayerFigurePolicy>();
-        services.AddSingleton<IPlayerTradePolicy, PlayerTradePolicy>();
+        services.AddReplaceable<IPlayerTradePolicy, PlayerTradePolicy>();
         services.AddSingleton<GamePolicies>();
         services.AddSingleton<IGamePolicies>(sp => sp.GetRequiredService<GamePolicies>());
         services.AddSingleton<IAssemblyFeatureProcessor, GamePolicyFeatureProcessor>();

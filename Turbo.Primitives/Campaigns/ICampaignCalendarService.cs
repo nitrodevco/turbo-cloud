@@ -3,13 +3,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Messages.Outgoing.Campaign;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Plugins;
 
 namespace Turbo.Primitives.Campaigns;
 
 /// <summary>
 /// The campaign calendars (<c>docs/campaign-calendar.md</c>): what a player's calendar shows, and
-/// opening its doors. A plugin replaces it by registering its own.
+/// opening its doors. A plugin replaces it by registering its own in its services
+/// (<c>docs/plugin-services.md</c>): the door handlers, the login and the admin API then use it.
 /// </summary>
+[ReplaceableService]
 public interface ICampaignCalendarService
 {
     /// <summary>
