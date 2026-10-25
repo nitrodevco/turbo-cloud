@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -17,6 +18,7 @@ using Microsoft.Extensions.Options;
 using Turbo.Contracts.Hotel;
 using Turbo.Contracts.Plugins;
 using Turbo.Contracts.Plugins.Admin;
+using Turbo.Contracts.Plugins.Web;
 using Turbo.Database.Context;
 using Turbo.Database.Migrations;
 using Turbo.Logging.Extensions;
@@ -70,6 +72,12 @@ public sealed class PluginManager(
         StringComparer.OrdinalIgnoreCase
     );
     private ImmutableArray<(string Folder, string Error)> _unreadable = [];
+
+    // What each plugin's last load registered, kept after a failed one: the inspector's list.
+    // Names only, never the plugin's types, so it holds no unloaded context.
+    private readonly ConcurrentDictionary<string, PluginContributionLog> _contributions = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
     internal PluginStateFile State { get; } = new(config.Value.PluginFolderPath);
 
@@ -643,15 +651,20 @@ public sealed class PluginManager(
             );
 
         var extensions = new PluginExtensions();
+        var contributions = new PluginContributionLog();
+
+        _contributions[m.Key] = contributions;
+
         var clientModules = host.GetService<IClientModuleDirectory>() is { } directory
-            ? new PluginClientModules(directory, m, folder)
+            ? new PluginClientModules(directory, m, folder, contributions)
             : null;
         var (sp, contexts, settings) = CreatePluginServiceProvider(
             inst,
             asm.Assembly,
             m,
             extensions,
-            clientModules
+            clientModules,
+            contributions
         );
         var disposables = new List<object> { sp };
         var started = new List<IHostedService>();
@@ -692,6 +705,8 @@ public sealed class PluginManager(
             if (admin is not null && host.GetService<IPermissionRegistryProvider>() is { } nodes)
                 disposables.Insert(0, nodes.Register(admin.Nodes));
 
+            NoteContributions(contributions, folder, contexts, settings, admin, web);
+
             // Its files are served, and its own variables and texts sent, while it is loaded.
             clientModules?.ServeFiles();
 
@@ -700,6 +715,12 @@ public sealed class PluginManager(
 
             await inst.BindExportsAsync(new ExportBinder(_exports), sp).ConfigureAwait(false);
             await StartPluginAsync(inst, sp, started, ct).ConfigureAwait(false);
+
+            foreach (var service in started)
+                contributions.Add(
+                    PluginContributionKinds.HOSTED_SERVICE,
+                    service.GetType().FullName ?? service.GetType().Name
+                );
 
             // Its wwwroot/<key>.js is its client module, unless it registered one itself.
             if (clientModules?.RegisterConventionalModule() is { } module)
@@ -804,12 +825,14 @@ public sealed class PluginManager(
         Assembly assembly,
         PluginManifest manifest,
         PluginExtensions extensions,
-        PluginClientModules? clientModules
+        PluginClientModules? clientModules,
+        PluginContributionLog contributions
     )
     {
         var services = new ServiceCollection();
 
         services.AddSingleton(manifest);
+        services.AddSingleton<IPluginContributionLog>(contributions);
         services.AddSingleton<IPluginCatalog>(new PluginCatalog(_exports));
         services.AddSingleton<IHostServices>(
             new HostServices(_hostForPlugins, extensions, clientModules)
@@ -1013,6 +1036,159 @@ public sealed class PluginManager(
             );
 
         return [.. list];
+    }
+
+    /// <summary>The kinds whose names one live plugin alone may register: a second silently replaces the first.</summary>
+    private static readonly ImmutableHashSet<string> UNIQUE_KINDS =
+    [
+        PluginContributionKinds.FURNI_LOGIC,
+        PluginContributionKinds.COMMAND,
+        PluginContributionKinds.SETTING,
+        PluginContributionKinds.CAPABILITY,
+    ];
+
+    /// <summary>
+    /// Everything the plugin contributes (<see cref="PluginContributions"/>): what its last load
+    /// registered, the protocol it added while live, the names another live plugin registers too,
+    /// and what clients report of its client half. Null when no plugin has the key.
+    /// </summary>
+    internal PluginContributions? ContributionsOf(string key)
+    {
+        if (!_status.TryGetValue(key, out var status))
+            return null;
+
+        var items = new List<PluginContribution>(
+            _contributions.TryGetValue(key, out var log) ? log.Items : []
+        );
+
+        if (_live.TryGetValue(key, out var env))
+        {
+            items.AddRange(
+                env.Extensions.Capabilities.Select(x => new PluginContribution(
+                    PluginContributionKinds.CAPABILITY,
+                    x,
+                    null
+                ))
+            );
+            items.AddRange(
+                env.Extensions.IncomingHeaders.Select(x => new PluginContribution(
+                    PluginContributionKinds.INCOMING_HEADER,
+                    x.ToString(CultureInfo.InvariantCulture),
+                    null
+                ))
+            );
+            items.AddRange(
+                env.Extensions.OutgoingHeaders.Select(x => new PluginContribution(
+                    PluginContributionKinds.OUTGOING_HEADER,
+                    x.ToString(CultureInfo.InvariantCulture),
+                    null
+                ))
+            );
+        }
+
+        items.AddRange(
+            status.Migrations.Select(x => new PluginContribution(
+                PluginContributionKinds.MIGRATION,
+                x,
+                null
+            ))
+        );
+
+        var conflicts = new List<string>();
+
+        if (status.State == PluginStateType.Loaded)
+            foreach (var (otherKey, other) in _contributions)
+            {
+                if (
+                    string.Equals(otherKey, key, StringComparison.OrdinalIgnoreCase)
+                    || !_live.ContainsKey(otherKey)
+                )
+                    continue;
+
+                var theirs = other.Items;
+
+                foreach (
+                    var item in items.Where(x =>
+                        UNIQUE_KINDS.Contains(x.Kind)
+                        && theirs.Any(y => y.Kind == x.Kind && y.Name == x.Name)
+                    )
+                )
+                    conflicts.Add($"{otherKey} registers the {item.Kind} {item.Name} too.");
+            }
+
+        var issues = host.GetService<IClientExtensionReports>()?.IssuesOf(key) ?? [];
+
+        conflicts.AddRange(
+            issues
+                .Where(x => x.Kind == ClientExtensionReportKinds.PATCH_CONFLICT)
+                .Select(x => $"{x.Subject}: {x.Message}")
+        );
+
+        return new PluginContributions(
+            key,
+            status.Manifest.Name,
+            status.State,
+            status.Error,
+            [
+                .. items
+                    .Distinct()
+                    .OrderBy(x => x.Kind, StringComparer.Ordinal)
+                    .ThenBy(x => x.Name, StringComparer.Ordinal),
+            ],
+            [.. conflicts.Distinct()],
+            issues
+        );
+    }
+
+    /// <summary>
+    /// Notes what the load built besides the assembly scan's registrations: its databases,
+    /// settings, admin nodes, pages and endpoints, web routes and the template patches its
+    /// <c>wwwroot/template-patches.json</c> declares.
+    /// </summary>
+    private void NoteContributions(
+        PluginContributionLog log,
+        string folder,
+        List<Type> contexts,
+        List<Type> settings,
+        PluginAdminRoutes.Table? admin,
+        ImmutableArray<PluginWebEndpoint> web
+    )
+    {
+        foreach (var context in contexts)
+            log.Add(PluginContributionKinds.DATABASE, context.Name);
+
+        foreach (var type in settings)
+            log.Add(
+                PluginContributionKinds.SETTING,
+                type.GetCustomAttribute<PluginSettingsAttribute>()?.Section ?? type.Name,
+                type.Name
+            );
+
+        if (admin is not null)
+        {
+            foreach (var page in admin.Pages.Pages)
+                log.Add(PluginContributionKinds.ADMIN_PAGE, page.Id, page.Title);
+
+            foreach (var endpoint in admin.Endpoints)
+                log.Add(
+                    PluginContributionKinds.ADMIN_ENDPOINT,
+                    $"{endpoint.Method} {endpoint.Pattern}",
+                    endpoint.Node
+                );
+
+            foreach (var node in admin.Pages.Nodes)
+                log.Add(PluginContributionKinds.PERMISSION_NODE, node);
+        }
+
+        foreach (var endpoint in web)
+            log.Add(
+                PluginContributionKinds.WEB_ROUTE,
+                $"{endpoint.Method} {endpoint.Pattern}",
+                endpoint.Anonymous ? "anonymous" : string.Join(", ", endpoint.Nodes)
+            );
+
+        foreach (var (template, ops) in PluginHelpers.ReadTemplatePatches(folder, _logger))
+            log.Add(PluginContributionKinds.TEMPLATE_PATCH, template, $"{ops} op(s)");
     }
 
     /// <summary>The live plugin's folder, or where a known plugin with the key lies.</summary>

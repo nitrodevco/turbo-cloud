@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Contracts.Plugins;
 using Turbo.Messages.Registry;
 using Turbo.Pipeline.Delegates;
+using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Plugins.Messages;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
@@ -59,6 +60,13 @@ internal sealed class PluginMessageFeatureProcessor(
                     );
 
                 batch.Add(directory.Register(owner, messageTypes));
+
+                foreach (var type in messageTypes)
+                    sp.Contributes(
+                        PluginContributionKinds.MESSAGE,
+                        PluginMessageSchema.For(type).Name,
+                        type.Name
+                    );
             }
 
             foreach (var (concrete, _, args) in handlers)
@@ -66,7 +74,9 @@ internal sealed class PluginMessageFeatureProcessor(
                 var messageType = args[0];
 
                 // Its schema refuses a type that is no message, before anything is registered.
-                PluginMessageSchema.For(messageType);
+                var schema = PluginMessageSchema.For(messageType);
+
+                sp.Contributes(PluginContributionKinds.MESSAGE_HANDLER, concrete.Name, schema.Name);
 
                 var invoker =
                     (HandlerInvoker<MessageContext>)

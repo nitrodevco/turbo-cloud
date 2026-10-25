@@ -1445,6 +1445,10 @@ public class Revision20260909 : IRevision
                 MessageEvent.TurboWebSessionRequestMessageEvent,
                 new TurboWebSessionRequestMessageParser()
             },
+            {
+                MessageEvent.TurboClientExtensionReportMessageEvent,
+                new TurboClientExtensionReportMessageParser()
+            },
             #endregion
 
             #region Userclassification

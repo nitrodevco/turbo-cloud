@@ -610,6 +610,7 @@ internal static class MessageEvent
     public const int TurboCommandSuggestMessageEvent = 30003;
     public const int TurboStarterRoomPictureMessageEvent = 30006;
     public const int TurboWebSessionRequestMessageEvent = 30011;
+    public const int TurboClientExtensionReportMessageEvent = 30012;
     #endregion
 }
 

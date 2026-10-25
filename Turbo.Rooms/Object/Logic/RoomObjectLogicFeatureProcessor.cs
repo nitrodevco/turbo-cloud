@@ -1,8 +1,10 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Runtime;
@@ -32,6 +34,16 @@ internal class RoomObjectLogicFeatureProcessor(IRoomObjectLogicProvider roomObje
 
             if (attribute is null)
                 continue;
+
+            // A key already registered (core's, or another plugin's) is replaced: an override.
+            if (_roomObjectLogicFactory.LogicTypes.Contains(attribute.Key))
+                sp.Contributes(
+                    PluginContributionKinds.OVERRIDE,
+                    attribute.Key,
+                    $"furni logic {concrete.Name} replaces the one registered before"
+                );
+
+            sp.Contributes(PluginContributionKinds.FURNI_LOGIC, attribute.Key, concrete.Name);
 
             batch.Add(
                 _roomObjectLogicFactory.RegisterLogic(
