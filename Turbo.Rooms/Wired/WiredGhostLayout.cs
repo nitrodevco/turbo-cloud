@@ -60,6 +60,10 @@ internal sealed class WiredGhostLayout(RoomMapModule map, RoomFurniModule furni)
     /// <summary>
     /// Puts a furni where the move would: on the top of the target tile, measured without the
     /// furni itself, unless an altitude is given (<see cref="RoomMapModule.MoveFloorItem"/>).
+    /// A furni turned in place rises onto the highest tile its new footprint covers and never
+    /// sinks: a 2x1 sofa turned onto a stackable block rose to the block's top, and kept that
+    /// height over every later turn off the block (official client capture 2026-10-25T05-33-12 /
+    /// 05-33-38, wired matrix action.4.B1b 1/1, action.4.B9b 4/4).
     /// </summary>
     public void Move(IRoomFloorItem item, int x, int y, Altitude? z, Rotation rotation)
     {
@@ -68,9 +72,9 @@ internal sealed class WiredGhostLayout(RoomMapModule map, RoomFurniModule furni)
         SetFootprint(item, from, add: false);
 
         Altitude landing =
-            from.X == x && from.Y == y && from.Rotation == rotation
-                ? from.Z
-                : GetTile(map.ToIdx(x, y)).Height;
+            from.X == x && from.Y == y && from.Rotation == rotation ? from.Z
+            : from.X == x && from.Y == y ? TurnedInPlaceZ(item, from, rotation)
+            : GetTile(map.ToIdx(x, y)).Height;
         var to = new WiredFurniPlacement(x, y, z ?? landing, rotation);
 
         _placements[item.ObjectId] = to;
@@ -113,6 +117,37 @@ internal sealed class WiredGhostLayout(RoomMapModule map, RoomFurniModule furni)
                     && (blocking?.Contains(other.ObjectId.Value) ?? true)
                 )
         );
+    }
+
+    /// <summary>
+    /// Where a furni turned in place stands: its own altitude, or the top of the highest tile its
+    /// new footprint covers when that is higher. Called with the furni off its own tiles.
+    /// </summary>
+    public Altitude TurnedInPlaceZ(IRoomFloorItem item, WiredFurniPlacement from, Rotation rotation)
+    {
+        var z = from.Z;
+
+        if (
+            map.GetTileIdForSize(
+                from.X,
+                from.Y,
+                rotation,
+                item.Definition.Width,
+                item.Definition.Length,
+                out var tileIds
+            )
+        )
+        {
+            foreach (var idx in tileIds)
+            {
+                var height = GetTile(idx).Height;
+
+                if (height > z)
+                    z = height;
+            }
+        }
+
+        return z;
     }
 
     private IEnumerable<IRoomFloorItem> GetFloorItemsOnTile(int tileIdx) =>
