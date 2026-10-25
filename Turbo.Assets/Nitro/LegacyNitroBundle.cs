@@ -15,7 +15,7 @@ namespace Turbo.Assets.Nitro;
 ///     2  its name's length
 ///        its name (UTF-8)
 ///     4  its data's length
-///        its data, zlib'd
+///        its data, zlib'd or gzip'd
 /// </code>
 /// The asset data in it is of the old layout too: its collections are objects keyed by name or
 /// id, and the spritesheet is inside it (<see cref="Conversion.NitroConverter"/> brings it to the
@@ -26,9 +26,14 @@ public static class LegacyNitroBundle
     // The first byte of a zlib stream: deflate with a window of up to 32K (0x08 | 0x70).
     private const int ZLIB_DEFLATE = 0x08;
 
+    // A gzip member's first bytes: its magic, then deflate as its method.
+    private const byte GZIP_ID1 = 0x1F;
+    private const byte GZIP_ID2 = 0x8B;
+    private const byte GZIP_DEFLATE = 0x08;
+
     /// <summary>
     /// Whether the file is laid out as an old bundle, to its last byte: a count, then that many
-    /// files that each fit, start as a zlib stream does, and end where the file does. Nothing is
+    /// files that each fit, start as a zlib stream or a gzip member does, and end where the file does. Nothing is
     /// inflated to tell.
     /// </summary>
     public static bool IsLegacy(ReadOnlySpan<byte> data)
@@ -60,7 +65,11 @@ public static class LegacyNitroBundle
 
             offset += 4;
 
-            if (length < 2 || length > (uint)(data.Length - offset) || !IsZlib(data[offset..]))
+            if (
+                length < 2
+                || length > (uint)(data.Length - offset)
+                || !IsCompressed(data.Slice(offset, (int)length))
+            )
                 return false;
 
             offset += (int)length;
@@ -119,8 +128,13 @@ public static class LegacyNitroBundle
         return files;
     }
 
+    private static bool IsCompressed(ReadOnlySpan<byte> data) => IsZlib(data) || IsGzip(data);
+
     private static bool IsZlib(ReadOnlySpan<byte> data) =>
         (data[0] & 0x0F) == ZLIB_DEFLATE && ((data[0] << 8) | data[1]) % 31 == 0;
+
+    private static bool IsGzip(ReadOnlySpan<byte> data) =>
+        data.Length >= 3 && data[0] == GZIP_ID1 && data[1] == GZIP_ID2 && data[2] == GZIP_DEFLATE;
 
     /// <summary>One file's data, refused once it unpacks past what the bundle may still hold.</summary>
     private static byte[] Inflate(byte[] data, int offset, int length, string name, long room)
@@ -128,12 +142,14 @@ public static class LegacyNitroBundle
         try
         {
             using var input = new MemoryStream(data, offset, length);
-            using var zlib = new ZLibStream(input, CompressionMode.Decompress);
+            using Stream inflater = IsGzip(data.AsSpan(offset, length))
+                ? new GZipStream(input, CompressionMode.Decompress)
+                : new ZLibStream(input, CompressionMode.Decompress);
             using var output = new MemoryStream();
             var buffer = new byte[81920];
             int read;
 
-            while ((read = zlib.Read(buffer)) > 0)
+            while ((read = inflater.Read(buffer)) > 0)
             {
                 output.Write(buffer, 0, read);
 
