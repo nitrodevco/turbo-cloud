@@ -165,6 +165,11 @@ public static class WiredContractOffers
     public static bool CanMakeTransaction(WiredContractSnapshot contract) =>
         contract.Type == WiredContractType.Payment || Reward(contract, 1) is not null;
 
+    /// <summary>Whether every option of the contract asks for credits, so only credits pay it.</summary>
+    public static bool AsksForCredits(WiredContractSnapshot contract) =>
+        GiveRules(contract) is { Count: > 0 } rules
+        && rules.All(rule => rule.Nodes.Any(x => x.Type == TradeRequirementNodeType.Coin));
+
     /// <summary>What the contract gives, the given number of times; null when it gives nothing.</summary>
     public static TradeRequirementRuleSnapshot? Reward(WiredContractSnapshot contract, int times) =>
         contract.Definition.YouGet is { Nodes.IsDefaultOrEmpty: false } rule

@@ -93,11 +93,14 @@ public class WiredActionMoveAsGroup(
 
         // The furni furthest along the way goes first, so each one steps onto a tile the one
         // before it has just left instead of being blocked by its own group. One that cannot go
-        // (off the room, a user, furni in the way) stays; the rest go on.
+        // (off the room, a user, furni in the way) stays; the rest go on. On one tile the lowest
+        // goes first, so a picked stack lands stacked as it stood, whichever the pick names first
+        // (official client capture 2026-10-24T23-18-27, wired matrix action.57.B9: K and K2 on top
+        // moved keeping z 1 / 2, and re-stacked from the floor when both floated).
         foreach (
-            var (item, at) in placements.OrderByDescending(x =>
-                x.At.X * Math.Sign(dx) + x.At.Y * Math.Sign(dy)
-            )
+            var (item, at) in placements
+                .OrderByDescending(x => x.At.X * Math.Sign(dx) + x.At.Y * Math.Sign(dy))
+                .ThenBy(x => x.At.Z.Value)
         )
         {
             var (x, y) = (at.X + dx, at.Y + dy);

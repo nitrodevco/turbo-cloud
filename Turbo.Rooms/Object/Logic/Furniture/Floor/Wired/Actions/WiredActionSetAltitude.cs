@@ -57,17 +57,24 @@ public class WiredActionSetAltitude(
             // lab action.29.L1, 3/3).
             var maxAltitude = Math.Max(0, maxStackHeight - item.Definition.StackHeight.ToInt());
             var current = plan.Where(item).Z.ToInt();
-            var next = op switch
+            var wanted = op switch
             {
                 WiredOperatorType.Add => current + amount,
                 WiredOperatorType.Subtract => current - amount,
                 _ => amount,
             };
-
-            next = Math.Clamp(next, 0, maxAltitude);
+            var next = Math.Clamp(wanted, 0, maxAltitude);
 
             if (next == current)
+            {
+                // Raised past the height cap with no room left, it is a move that cannot be made:
+                // Has Valid Moves fails (official client capture 2026-10-25T09-03-45, wired matrix
+                // condition.39.B12, 2/2 at z 79, control from z 0 passed 2/2).
+                if (wanted > maxAltitude)
+                    plan.Block();
+
                 continue;
+            }
 
             // Not a placement: the furni stays on its own tile and only its height changes, which
             // is this box's to set, so there is nothing to ask about and nothing to block.

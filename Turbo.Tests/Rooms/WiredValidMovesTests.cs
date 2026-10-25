@@ -5,6 +5,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
@@ -132,6 +133,41 @@ public sealed class WiredValidMovesTests
     }
 
     private int SwitchState() => _room.FloorItem(SWITCH).Logic.GetState();
+
+    // condition.39.B12 (official client capture 2026-10-25T09-03-45, 2/2 + control 2/2): Set
+    // Altitude +1.00 on a block whose top is already at the 80 cap fails the condition, so the
+    // stack's effects do not run; from z 0 it passes and the block rises. Ours passed at the cap.
+    [Theory]
+    [InlineData(7900, 0, 7900)]
+    [InlineData(0, 1, 100)]
+    public async Task An_altitude_raise_past_the_height_cap_is_not_a_valid_move(
+        int z,
+        int switchState,
+        int endZ
+    )
+    {
+        var block = _room.AddFloorItem(LAMP, 1, 3);
+        block.SetPositionZ(Altitude.FromInt(z));
+        _room.AddBox<WiredActionSetAltitude>(FIRST_MOVE, 5, 0, "wf_act_set_altitude");
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                FIRST_MOVE,
+                intParams: [100, 0],
+                stuffIds: [LAMP],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await BuildAsync();
+
+        await ClickAsync();
+
+        SwitchState().Should().Be(switchState);
+        block.Z.ToInt().Should().Be(endZ);
+    }
 
     private async Task BuildAsync(params int[] movements)
     {
