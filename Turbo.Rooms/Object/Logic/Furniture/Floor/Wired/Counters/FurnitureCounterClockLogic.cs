@@ -154,6 +154,12 @@ public class FurnitureCounterClockLogic(
             await StopAsync();
 
             _stopped = true;
+
+            // A game counter's game ends and starts again: Game Ends and Game Starts both fired
+            // in the start's firing and the team score went back to 0 (official client capture
+            // 2026-10-25T01-06/01-10, wired matrix action.28.R2b/R2c, 2/2 each).
+            if (IsGameAware && GameSystem.IsGameRunning)
+                await GameSystem.EndGameAsync(ct);
         }
 
         if (_stopped)

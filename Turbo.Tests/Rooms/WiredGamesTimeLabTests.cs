@@ -8,6 +8,7 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains.Systems;
@@ -504,6 +505,135 @@ public sealed class WiredGamesTimeLabTests
         await clock.ControlAsync(WiredClockControlType.Start, Ct);
         clock.GetState().Should().Be(0, "a start restarts a running counter");
         await RunClockUntilAsync(clock, 2);
+    }
+
+    /// <summary>
+    /// action.28.R2b / R2c: Control Clock start on a running Wired Game Counter ended the game and
+    /// started it again: Game Ends and Game Starts both fired in that firing (2/2 each) and the
+    /// red score went back to 0 (official client capture 2026-10-25T01-06 .. 01-10). Ours went on
+    /// with the game, neither trigger fired and the score stayed.
+    /// </summary>
+    [Fact]
+    public async Task Start_on_a_running_game_counter_ends_and_starts_the_game_action_28_R2()
+    {
+        var counter = await BuildGiveScoreAsync(points: 5, timesPerGame: 0);
+        var ends = await BuildGameTriggerAsync<WiredTriggerGameEnds>("wf_trg_game_ends", 1, 40);
+        var starts = await BuildGameTriggerAsync<WiredTriggerGameStarts>(
+            "wf_trg_game_starts",
+            2,
+            42
+        );
+        (await Game.JoinTeamAsync((PlayerId)(100 + PLAYER), GameTeamType.Red, Ct))
+            .Should()
+            .BeTrue();
+        await counter.ControlAsync(WiredClockControlType.Start, Ct);
+        await TickAsync(1);
+        await ClickAsync();
+        Game.GetScore(GameTeamType.Red).Should().Be(5);
+        (ends.Logic.GetState(), starts.Logic.GetState()).Should().Be((0, 1));
+
+        await counter.ControlAsync(WiredClockControlType.Start, Ct);
+        await TickAsync(1);
+
+        (ends.Logic.GetState(), starts.Logic.GetState()).Should().Be((1, 0), "both fired");
+        Game.IsGameRunning.Should().BeTrue();
+        Game.GetScore(GameTeamType.Red).Should().Be(0);
+    }
+
+    /// <summary>
+    /// trigger.10.R1: results! and Hutch. both in red; Give Score 15 fired by results! crossed
+    /// Score Achieved's 10 and its effects acted on results! alone (rotated and whispered, Hutch.
+    /// 0/2); Give Score To Team crossing it fired with no triggerer (nobody, 1/1), and later gives
+    /// over the target fired nothing (0/3) (official client capture 2026-10-25T01-06 .. 01-10).
+    /// Ours made every red member the triggerer.
+    /// </summary>
+    [Fact]
+    public async Task Score_achieved_acts_on_the_scorer_only_trigger_10_R1()
+    {
+        const int OTHER = 6;
+        var counter = await BuildGiveScoreAsync(points: 15, timesPerGame: 0);
+
+        _room.Enter(OTHER, 2, 2);
+        _room.AddBox<WiredTriggerScoreAchieved>(50, 3, 0, "wf_trg_score_achieved");
+        _room.AddBox<WiredActionJoinTeam>(51, 3, 0, "wf_act_join_team");
+        (await _room.SaveAsync<UpdateTriggerMessage>(50, intParams: [10, 0])).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                51,
+                intParams: [(int)GameTeamType.Yellow, 0],
+                playerSources:
+                [
+                    [WiredPlayerSourceType.TriggeredUser],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await Wired.OnRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForSystem(1),
+                StackIds = [_room.Map.ToIdx(3, 0)],
+            },
+            Ct
+        );
+
+        foreach (var player in new[] { PLAYER, OTHER })
+            (await Game.JoinTeamAsync((PlayerId)(100 + player), GameTeamType.Red, Ct))
+                .Should()
+                .BeTrue();
+
+        await counter.ControlAsync(WiredClockControlType.Start, Ct);
+        await TickAsync(1);
+        await ClickAsync();
+
+        Game.GetTeam((PlayerId)(100 + PLAYER)).Should().Be(GameTeamType.Yellow, "the scorer");
+        Game.GetTeam((PlayerId)(100 + OTHER)).Should().Be(GameTeamType.Red);
+
+        // The team box's points: Give Score To Team scores for no player.
+        await Game.JoinTeamAsync((PlayerId)(100 + PLAYER), GameTeamType.Red, Ct);
+        await counter.ControlAsync(WiredClockControlType.Start, Ct);
+        await TickAsync(1);
+        await Game.GiveScoreAsync(GameTeamType.Red, 15, (RoomObjectId)99, default, 0, Ct);
+        await TickAsync(2);
+
+        Game.GetTeam((PlayerId)(100 + PLAYER)).Should().Be(GameTeamType.Red);
+        Game.GetTeam((PlayerId)(100 + OTHER)).Should().Be(GameTeamType.Red);
+    }
+
+    // A lone stack on (x, 0): the game trigger toggles a pad of its own.
+    private async Task<IRoomFloorItem> BuildGameTriggerAsync<T>(string name, int x, int boxId)
+        where T : FurnitureWiredLogic
+    {
+        var pad = _room.AddFloorItem(boxId + 1, 6, x);
+
+        _room.AddBox<T>(boxId, x, 0, name);
+        _room.AddBox<WiredActionToggleItemState>(boxId + 100, x, 0, "wf_act_toggle_state");
+        (await _room.SaveAsync<UpdateTriggerMessage>(boxId)).Should().BeTrue();
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                boxId + 100,
+                intParams: [0],
+                stuffIds: [boxId + 1],
+                furniSources:
+                [
+                    [WiredFurniSourceType.SelectedItems],
+                ],
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await Wired.OnRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForSystem(1),
+                StackIds = [_room.Map.ToIdx(x, 0)],
+            },
+            Ct
+        );
+        await TickAsync(1);
+
+        return pad;
     }
 
     /// <summary>

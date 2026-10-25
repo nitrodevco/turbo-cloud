@@ -49,16 +49,19 @@ public class WiredTriggerScoreAchieved(
         return Task.FromResult(score.PreviousScore < points && score.Score >= points);
     }
 
+    /// <summary>
+    /// The scorer is the triggerer, not the team: Give Score by results! with Hutch. in red too
+    /// rotated and whispered results! alone (Hutch. 0/2), and Give Score To Team fired it with no
+    /// triggerer (nobody whispered or rotated, 1/1; official client capture 2026-10-25T01-06,
+    /// wired matrix trigger.10.R1).
+    /// </summary>
     public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct)
     {
         if (ctx.Event is not GameScoreChangedEvent score)
             return Task.FromResult(false);
 
-        foreach (var playerId in GameSystem.GetTeamMembers(score.Team))
-        {
-            if (AvatarModule.TryGetPlayer(playerId, out var member))
-                ctx.Selected.SelectedAvatarIds.Add(member.ObjectId);
-        }
+        if (score.ScoredBy != default && AvatarModule.TryGetPlayer(score.ScoredBy, out var scorer))
+            ctx.Selected.SelectedAvatarIds.Add(scorer.ObjectId);
 
         return Task.FromResult(true);
     }
