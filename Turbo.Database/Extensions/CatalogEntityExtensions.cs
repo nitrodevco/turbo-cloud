@@ -36,6 +36,10 @@ public static class CatalogEntityExtensions
             OfferIds = offerIds,
             ChildIds = childIds,
             FolderOnly = entity.FolderOnly,
+            MinRank = entity.MinRank,
+            RequiredNode = string.IsNullOrWhiteSpace(entity.RequiredNode)
+                ? null
+                : entity.RequiredNode.Trim(),
         };
 
     /// <param name="activityPointType">

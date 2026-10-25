@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Turbo.Primitives.Catalog.Enums;
+using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Database.Entities.Catalog;
 
@@ -55,6 +56,23 @@ public class CatalogPageEntity : TurboEntity
     [Column("folder_only")]
     [DefaultValue(false)]
     public bool FolderOnly { get; set; }
+
+    /// <summary>
+    /// The lowest rank that sees the page and what is under it, as retro emulators and their CMS
+    /// panels store it: compared against the player's security level, a regular player (level 0)
+    /// counting as rank 1, so the default of 1 is everyone's. See <c>docs/permissions.md</c> §16.
+    /// </summary>
+    [Column("min_rank")]
+    [DefaultValue(1)]
+    public int MinRank { get; set; } = 1;
+
+    /// <summary>
+    /// A permission node the player must also hold to see the page and what is under it (an event
+    /// team's page, say), or null for none. What <see cref="MinRank"/> cannot say.
+    /// </summary>
+    [Column("required_node")]
+    [MaxLength(PermissionNodeFormat.MAX_LENGTH)]
+    public string? RequiredNode { get; set; }
 
     [ForeignKey(nameof(ParentEntityId))]
     public CatalogPageEntity? ParentEntity { get; set; }

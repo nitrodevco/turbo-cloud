@@ -1,11 +1,15 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Orleans;
 using Turbo.Catalog.Exceptions;
 using Turbo.Database.Context;
 using Turbo.Players.Configuration;
@@ -14,7 +18,11 @@ using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Catalog.Tags;
+using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Players.Providers;
 
 namespace Turbo.Catalog;
 
@@ -23,9 +31,20 @@ public sealed class CatalogService(
     ICatalogSnapshotProvider<NormalCatalog> normalCatalogProvider,
     ICatalogSnapshotProvider<BuildersClubCatalog> buildersClubCatalogProvider,
     IDbContextFactory<TurboDbContext> dbCtxFactory,
-    IOptions<PlayerConfig> playerConfig
+    IOptions<PlayerConfig> playerConfig,
+    IGrainFactory grainFactory,
+    IPermissionRegistryProvider permissionRegistryProvider
 ) : ICatalogService
 {
+    private readonly IGrainFactory _grainFactory = grainFactory;
+    private readonly IPermissionRegistryProvider _permissionRegistryProvider =
+        permissionRegistryProvider;
+
+    // The cuts of a catalog, by which of its gates a player passes: a hotel has a handful of
+    // gates and so a handful of cuts, made once each and let go with the catalog they came from
+    // (a reload or a limited sale makes a new one).
+    private readonly ConditionalWeakTable<CatalogSnapshot, Cuts> _cuts = new();
+
     private readonly ILogger<ICatalogService> _logger = logger;
     private readonly ICatalogSnapshotProvider<NormalCatalog> _normalCatalogProvider =
         normalCatalogProvider;
@@ -48,6 +67,58 @@ public sealed class CatalogService(
             CatalogType.BuildersClub => _buildersClubCatalogProvider.Current,
             _ => throw new CatalogTypeNotSupportedException(catalogType),
         };
+    }
+
+    public async Task<CatalogSnapshot> CutForPlayerAsync(
+        CatalogSnapshot catalog,
+        PlayerId playerId,
+        CancellationToken ct
+    )
+    {
+        var cuts = _cuts.GetValue(catalog, x => new Cuts(x));
+
+        if (cuts.Gates.IsEmpty)
+            return catalog;
+
+        var permissions = await _grainFactory
+            .GetPlayerPermissionGrain(playerId)
+            .GetResolvedAsync(ct)
+            .ConfigureAwait(false);
+        var level = PermissionProjection.SecurityLevelOf(
+            _permissionRegistryProvider.Current,
+            permissions
+        );
+        var passed = new StringBuilder(cuts.Gates.Length);
+
+        foreach (var (minRank, node) in cuts.Gates)
+            passed.Append(CatalogPageAccess.CanSee(minRank, node, permissions, level) ? '1' : '0');
+
+        return cuts.ByPassed.GetOrAdd(
+            passed.ToString(),
+            key =>
+                CatalogPageAccess.Cut(
+                    catalog,
+                    page =>
+                        !CatalogPageAccess.IsGated(page)
+                        || key[cuts.Gates.IndexOf((page.MinRank, page.RequiredNode))] == '1'
+                )
+        );
+    }
+
+    private sealed class Cuts(CatalogSnapshot catalog)
+    {
+        /// <summary>Every distinct gate a page of the catalog has, in a fixed order.</summary>
+        public ImmutableArray<(int MinRank, string? RequiredNode)> Gates { get; } =
+        [
+            .. catalog
+                .PagesById.Values.Where(CatalogPageAccess.IsGated)
+                .Select(x => (x.MinRank, x.RequiredNode))
+                .Distinct()
+                .OrderBy(x => x.MinRank)
+                .ThenBy(x => x.RequiredNode, StringComparer.Ordinal),
+        ];
+
+        public ConcurrentDictionary<string, CatalogSnapshot> ByPassed { get; } = new();
     }
 
     public void SetLtdRemaining(int seriesId, int remaining) =>

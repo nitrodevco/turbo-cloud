@@ -49,7 +49,11 @@ internal sealed partial class CatalogPurchaseGrain
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
         }
 
-        var snapshot = _catalogService.GetCatalogSnapshot(CatalogType.Normal);
+        var snapshot = await _catalogService.GetCatalogSnapshotForPlayerAsync(
+            CatalogType.Normal,
+            this.GetPlayerId(),
+            ct
+        );
 
         if (
             !snapshot.OffersById.TryGetValue(request.OfferId, out var offer)

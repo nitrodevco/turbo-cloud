@@ -25,6 +25,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Catalog.Editing;
 
@@ -1085,6 +1086,17 @@ public sealed partial class CatalogEditService(
         if (draft.Icon < 0)
             return CatalogEditResult.Refused("The icon is a number, 0 for none.");
 
+        if (draft.MinRank is < 1)
+            return CatalogEditResult.Refused("The lowest rank is 1, a player's.");
+
+        if (
+            !string.IsNullOrWhiteSpace(draft.RequiredNode)
+            && !PermissionNodeFormat.IsValidNode(draft.RequiredNode.Trim())
+        )
+            return CatalogEditResult.Refused(
+                $"{draft.RequiredNode.Trim()} is not a permission node."
+            );
+
         if (
             draft.ImageData.Count > LAYOUT_SLOTS_MAX
             || draft.TextData.Count > LAYOUT_SLOTS_MAX
@@ -1470,6 +1482,10 @@ public sealed partial class CatalogEditService(
         page.TextData = [.. draft.TextData];
         page.Display = draft.Display;
         page.FolderOnly = draft.FolderOnly ?? page.FolderOnly;
+        page.MinRank = draft.MinRank ?? page.MinRank;
+
+        if (draft.RequiredNode is { } node)
+            page.RequiredNode = string.IsNullOrWhiteSpace(node) ? null : node.Trim();
     }
 
     /// <param name="existing">The offer as saved, when it is one; null for a new offer.</param>

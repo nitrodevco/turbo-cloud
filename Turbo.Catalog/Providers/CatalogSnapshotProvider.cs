@@ -242,6 +242,7 @@ public sealed class CatalogSnapshotProvider<TTag>(
                     .GroupBy(x => x.LtdSeriesId!.Value)
                     .ToImmutableDictionary(g => g.Key, g => g.Min(x => x.Id)),
                 FrontPageItems = frontPageItems,
+                HasGatedPages = pagesById.Values.Any(CatalogPageAccess.IsGated),
             };
 
             _logger.LogInformation(

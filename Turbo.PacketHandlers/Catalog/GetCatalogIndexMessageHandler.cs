@@ -18,7 +18,10 @@ public class GetCatalogIndexMessageHandler(ICatalogService catalogService)
         CancellationToken ct
     )
     {
-        var snapshot = _catalogService.GetCatalogSnapshot(message.CatalogType);
+        // A page the player may not have is left out of the index, not sent hidden.
+        var snapshot = await _catalogService
+            .GetCatalogSnapshotForPlayerAsync(message.CatalogType, ctx.PlayerId, ct)
+            .ConfigureAwait(false);
 
         // An index is the root page and everything under it, so a hotel that keeps no pages of
         // this type has nothing to answer with. The client leaves that catalog uninitialised,
