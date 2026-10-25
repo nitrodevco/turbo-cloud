@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture.Snapshots.StuffData;
+using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -16,6 +18,7 @@ using Turbo.Primitives.Rooms.Events.Game;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Games;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Highscore;
 
 namespace Turbo.Rooms.Grains.Systems;
@@ -31,7 +34,8 @@ namespace Turbo.Rooms.Grains.Systems;
 ///
 /// It knows nothing of who drives it. A game counter furni starts and ends the game, wired boxes
 /// move players between teams and hand out points, and wired triggers listen for the events;
-/// game furni that comes later (banzai, freeze) uses the same teams and scores.
+/// game furni (<see cref="IRoomGameFurni"/>: the team gates, scoreboards and Banzai tiles, and
+/// Freeze's and Football's on the same teams) is told each change and shows it.
 /// </summary>
 public sealed class RoomGameSystem(RoomGrain roomGrain)
     : RoomGrainComponent(roomGrain),
@@ -62,9 +66,10 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
     public Task OnRoomEventAsync(RoomEvent evt, CancellationToken ct)
     {
         if (evt is PlayerLeftEvent left)
-            ForgetAvatar(left.ObjectId);
-        else if (evt is BotRemovedEvent removed)
-            ForgetAvatar(removed.ObjectId);
+            return ForgetAvatarAsync(left.ObjectId, ct);
+
+        if (evt is BotRemovedEvent removed)
+            return ForgetAvatarAsync(removed.ObjectId, ct);
 
         return Task.CompletedTask;
     }
@@ -205,7 +210,11 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
             : GetTeamEffectId(team, WiredTeamType.Wired);
 
         if (avatar is null)
+        {
+            await UpdateGameFurniAsync(RoomGameChange.Teams, ct);
+
             return true;
+        }
 
         // Only the team colour is taken off. An effect the avatar put on since is theirs.
         if (avatar.EffectId == effectId)
@@ -245,6 +254,8 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
             },
             ct
         );
+
+        await UpdateGameFurniAsync(RoomGameChange.Score, ct);
 
         return true;
     }
@@ -302,6 +313,8 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
             ct
         );
 
+        await UpdateGameFurniAsync(RoomGameChange.Score, ct);
+
         return true;
     }
 
@@ -314,6 +327,8 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
 
         IsGameRunning = true;
         _startedAt = UtcNow;
+
+        await UpdateGameFurniAsync(RoomGameChange.Started, ct);
 
         await _roomGrain.PublishRoomEventAsync(
             new GameStartedEvent
@@ -342,6 +357,8 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
                 .ToList()
         )
             await clock.OnGameEndedAsync(ct);
+
+        await UpdateGameFurniAsync(RoomGameChange.Ended, ct);
 
         await _roomGrain.PublishRoomEventAsync(
             new GameEndedEvent
@@ -415,7 +432,27 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
             await board.RecordGameAsync(teams, seconds, now, ct);
     }
 
-    private Task PublishTeamChangedAsync(
+    /// <summary>
+    /// Tells the game furni what changed and sends the room the states that changed with it,
+    /// together in one update.
+    /// </summary>
+    private async Task UpdateGameFurniAsync(RoomGameChange change, CancellationToken ct)
+    {
+        List<(RoomObjectId, StuffDataSnapshot)> changed = [];
+
+        foreach (var item in FurniModule.Items.ToList())
+        {
+            if (item.Logic is IRoomGameFurni furni && await furni.OnGameChangedAsync(change, ct))
+                changed.Add((item.ObjectId, item.Logic.StuffData.GetSnapshot()));
+        }
+
+        if (changed.Count > 0)
+            _roomGrain.SendComposerToRoomAndForget(
+                new ObjectsDataUpdateMessageComposer { StuffDatas = changed }
+            );
+    }
+
+    private async Task PublishTeamChangedAsync(
         IRoomAvatar avatar,
         GameTeamType team,
         CancellationToken ct
@@ -428,7 +465,9 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
         if (playerId != default)
             SendPlayingGame(playerId, team != GameTeamType.None);
 
-        return _roomGrain.PublishRoomEventAsync(
+        await UpdateGameFurniAsync(RoomGameChange.Teams, ct);
+
+        await _roomGrain.PublishRoomEventAsync(
             new GameTeamChangedEvent
             {
                 RoomId = _roomGrain.RoomId,
@@ -465,13 +504,17 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
         return (int)team < effectIds.Length ? effectIds[(int)team] : NO_EFFECT;
     }
 
-    private void ForgetAvatar(RoomObjectId avatarId)
+    private async Task ForgetAvatarAsync(RoomObjectId avatarId, CancellationToken ct)
     {
-        _teamByAvatarId.Remove(avatarId);
+        var wasOnTeam = _teamByAvatarId.Remove(avatarId);
+
         _teamEffectByAvatarId.Remove(avatarId);
         _teamTypeByAvatarId.Remove(avatarId);
 
         foreach (var key in _scoreGrants.Keys.Where(x => x.avatarId == avatarId).ToList())
             _scoreGrants.Remove(key);
+
+        if (wasOnTeam)
+            await UpdateGameFurniAsync(RoomGameChange.Teams, ct);
     }
 }

@@ -17,6 +17,7 @@ using Turbo.Primitives.Rooms.Providers;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Games;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Highscore;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters;
 using Turbo.Runtime;
@@ -110,6 +111,14 @@ public sealed class RoomObjectLogicProvider(
             && Array.IndexOf(FurnitureGameTimerLogic.CLASSNAMES, timer.Definition.Name) >= 0
         )
             logicType = FurnitureGameTimerLogic.LOGIC_NAME;
+
+        // So are the team gates, team scoreboards and Banzai tiles (GameFurniture).
+        if (
+            (logicType == DEFAULT_FLOOR_LOGIC || !_logics.ContainsKey(logicType))
+            && ctx.RoomObject is IRoomItem gameFurni
+            && GameFurniture.LogicOf(gameFurni.Definition.Name) is { } gameLogic
+        )
+            logicType = gameLogic;
 
         // Clothing furni are known by their furnidata specialtype (figure_purchasable_set), which
         // hotels set without a logic of their own.
