@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
@@ -337,6 +338,75 @@ public sealed class WiredChestLabAnswersTests
         Notices().Should().Equal(TRANSACTION_FAILURE);
     }
 
+    // action.47.B7 (2026-10-25T05-08-34 / 05-08-53, 1/1 + 1/1): a payment contract asking for
+    // credits with only the furni chest picked tells the user 15 and no transaction starts; with
+    // the credit chest picked too the view opened. Ours opened it with the furni chest alone.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_credit_contract_needs_a_credit_chest_among_the_picks(bool creditChest)
+    {
+        const int FURNI_CHEST = 33;
+
+        AddChest(locked: false, coins: CHEST_COINS, furni: true, id: FURNI_CHEST);
+
+        if (creditChest)
+            AddChest(locked: false, coins: CHEST_COINS);
+
+        var contract = _room.AddFloorItem(
+            CONTRACT,
+            5,
+            5,
+            "wired_contract_payment",
+            createLogic: (factory, ctx) => new FurnitureWiredPaymentContractLogic(factory, ctx)
+        );
+        contract.ExtraData.UpdateSection(
+            WiredContractData.SECTION,
+            new WiredContractData
+            {
+                Contract = new()
+                {
+                    ContractId = CONTRACT,
+                    Type = WiredContractType.Payment,
+                    Definition = new()
+                    {
+                        YouGive =
+                        [
+                            new()
+                            {
+                                Nodes =
+                                [
+                                    new()
+                                    {
+                                        Type = TradeRequirementNodeType.Coin,
+                                        Amount = 5,
+                                        ItemType = null,
+                                    },
+                                ],
+                            },
+                        ],
+                        YouGet = null,
+                    },
+                    PaymentMode = WiredContractPaymentMode.Specific,
+                },
+            }
+        );
+        var box = await AddInitiateTransactionAsync(
+            creditChest ? [FURNI_CHEST, CHEST] : [FURNI_CHEST],
+            [CONTRACT]
+        );
+
+        await box.ExecuteAsync(ExecutionContext(userSelected: true), Ct);
+
+        Failures()
+            .Should()
+            .Equal(creditChest ? [] : [WiredTransactionFailureType.NoOrLockedChests]);
+        _room
+            .Harness.Fakes.Log.Of(nameof(IWiredTradeGrain.StartContractAsync))
+            .Should()
+            .HaveCount(creditChest ? 1 : 0);
+    }
+
     // addon.20.E9 (1 of 1): the fresh defaults, both sides off, are refused.
     [Fact]
     public async Task A_custom_contract_with_both_sides_off_is_refused_as_misconfigured()
@@ -353,16 +423,19 @@ public sealed class WiredChestLabAnswersTests
         result.ErrorKey.Should().Be("wiredfurni.error.misconfigured_contract");
     }
 
-    private void AddChest(bool locked, int coins)
+    private void AddChest(bool locked, int coins, bool furni = false, int id = CHEST)
     {
         var chest = (FurnitureWiredChestLogic)
             _room
                 .AddFloorItem(
-                    CHEST,
+                    id,
                     4,
-                    4,
-                    "wired_chest_coins",
-                    createLogic: (factory, ctx) => new FurnitureWiredCoinsChestLogic(factory, ctx)
+                    furni ? 3 : 4,
+                    furni ? "wired_chest_furni" : "wired_chest_coins",
+                    createLogic: (factory, ctx) =>
+                        furni
+                            ? new FurnitureWiredFurniChestLogic(factory, ctx)
+                            : new FurnitureWiredCoinsChestLogic(factory, ctx)
                 )
                 .Logic;
 

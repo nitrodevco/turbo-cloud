@@ -158,7 +158,16 @@ public class WiredActionInitiateTransaction(
         var chests = WiredTransactionSystem.UsableChests(chestIds);
 
         // Only locked chests: told as the give boxes tell it (action.45.B1); inferred for this box.
-        if (chests.Count == 0)
+        // A contract only credits pay needs a credit chest to take them: with only a furni chest
+        // picked each user is told 15 as well, and a credit chest beside it opens the view
+        // (official client capture 2026-10-25T05-08-34 / 05-08-53, wired matrix action.47.B7).
+        if (
+            chests.Count == 0
+            || (
+                WiredContractOffers.AsksForCredits(contract)
+                && !chests.Any(x => x.Kind == WiredChestKind.Coins)
+            )
+        )
         {
             await WiredTransactionSystem.RefuseLockedChestsAsync(
                 players.Select(x => x.PlayerId),
