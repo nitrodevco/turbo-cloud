@@ -13,6 +13,7 @@ using Turbo.Database.Entities.Movements;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Movements;
 using Turbo.Players.Configuration;
+using Turbo.Players.Trading;
 using Turbo.Primitives.Catalog.Marketplace;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
@@ -27,11 +28,13 @@ using Turbo.Primitives.Messages.Outgoing.Marketplace;
 using Turbo.Primitives.Messages.Outgoing.Vault;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Movements.Enums;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Trading;
 using Turbo.Primitives.Trading.Enums;
 using Turbo.Primitives.Vault.Enums;
 using Turbo.Tests.Support;
@@ -470,13 +473,16 @@ public sealed class MarketplaceTests : IDisposable
         return offerId;
     }
 
-    private MarketplaceService NewMarketplace(IAssetMovementRecorder movements) =>
+    private MarketplaceService NewMarketplace(
+        IAssetMovementRecorder movements,
+        IPlayerTradePolicy? tradePolicy = null
+    ) =>
         new(
             _catalog.Db,
             Options.Create(
                 new CatalogConfig { Marketplace = new MarketplaceConfig { Enabled = true } }
             ),
-            _trading,
+            tradePolicy ?? new PlayerTradePolicy(_catalog.Fakes.Create<IGrainFactory>(), _trading),
             _catalog.Fakes.Create<IGrainFactory>(),
             _catalog.Definitions,
             _catalog.Fakes.Create<IInventoryFurnitureLoader>(),
@@ -727,6 +733,43 @@ public sealed class MarketplaceTests : IDisposable
         (await _marketplace.CanMakeOfferAsync(SELLER, Ct))
             .Code.Should()
             .Be(MarketplaceCanMakeOfferCode.Allowed);
+    }
+
+    // Selling is decided by the hotel's trade policy, so a host that replaces it changes who
+    // may sell as it changes who may trade.
+    [Theory]
+    [InlineData(TradeStandingType.Full, MarketplaceCanMakeOfferCode.Allowed)]
+    [InlineData(TradeStandingType.ReceiveOnly, MarketplaceCanMakeOfferCode.NoTradingPass)]
+    [InlineData(TradeStandingType.Locked, MarketplaceCanMakeOfferCode.NoTradingPrivilege)]
+    public async Task A_replaced_trade_policy_decides_who_may_sell(
+        TradeStandingType standing,
+        MarketplaceCanMakeOfferCode expected
+    )
+    {
+        // The badge and permission say the opposite of the policy where they can.
+        _holdsPass = standing != TradeStandingType.Full;
+        var marketplace = NewMarketplace(
+            _catalog.Fakes.Create<IAssetMovementRecorder>(),
+            new FixedTradePolicy(standing)
+        );
+        var lamp = Give(SELLER, LAMP, "");
+
+        (await marketplace.CanMakeOfferAsync(SELLER, Ct)).Code.Should().Be(expected);
+        (await marketplace.MakeOfferAsync(SELLER, 10, [-lamp], Ct))
+            .Should()
+            .Be(
+                standing == TradeStandingType.Full
+                    ? MarketplaceMakeOfferCode.Success
+                    : MarketplaceMakeOfferCode.TechnicalError
+            );
+    }
+
+    private sealed class FixedTradePolicy(TradeStandingType standing) : IPlayerTradePolicy
+    {
+        public Task<TradeStandingType> GetTradeStandingAsync(
+            PlayerId playerId,
+            CancellationToken ct
+        ) => Task.FromResult(standing);
     }
 
     [Fact]

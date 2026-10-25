@@ -7,8 +7,9 @@ namespace Turbo.Primitives.Trading;
 
 /// <summary>
 /// Whether a player may trade, by the hotel's trade rules: the <c>trade</c> permission and the
-/// trading pass. Trades ask it of both players before they open, and wired chests before they
-/// move anything to or from a player; replacing it changes who counts as able to trade in both.
+/// trading pass. Trades ask it of both players before they open, wired chests before they move
+/// anything to or from a player, and the marketplace before a player sells; replacing it changes
+/// who counts as able to trade in all three.
 /// </summary>
 public interface IPlayerTradePolicy
 {

@@ -14,8 +14,6 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Extensions;
 using Turbo.Database.Movements;
-using Turbo.Players.Configuration;
-using Turbo.Players.Trading;
 using Turbo.Primitives.Catalog.Marketplace;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
@@ -28,8 +26,9 @@ using Turbo.Primitives.Movements;
 using Turbo.Primitives.Movements.Enums;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Wallet;
+using Turbo.Primitives.Trading;
+using Turbo.Primitives.Trading.Enums;
 using Turbo.Primitives.Vault.Enums;
 
 namespace Turbo.Catalog.Marketplace;
@@ -47,7 +46,7 @@ namespace Turbo.Catalog.Marketplace;
 public sealed class MarketplaceService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IOptions<CatalogConfig> config,
-    IOptionsMonitor<TradingConfig> tradingConfig,
+    IPlayerTradePolicy tradePolicy,
     IGrainFactory grainFactory,
     IFurnitureDefinitionProvider definitions,
     IInventoryFurnitureLoader furnitureLoader,
@@ -300,14 +299,25 @@ public sealed class MarketplaceService(
     {
         var tokens = await TokensAsync(player, ct).ConfigureAwait(false);
 
-        if (!_config.Enabled || !await CanTradeAsync(player, ct).ConfigureAwait(false))
+        if (!_config.Enabled)
             return new MarketplaceCanMakeOffer(
                 MarketplaceCanMakeOfferCode.NoTradingPrivilege,
                 tokens
             );
 
-        if (!await HoldsPassAsync(player, ct).ConfigureAwait(false))
-            return new MarketplaceCanMakeOffer(MarketplaceCanMakeOfferCode.NoTradingPass, tokens);
+        switch (await TradeStandingAsync(player, ct).ConfigureAwait(false))
+        {
+            case TradeStandingType.Locked:
+                return new MarketplaceCanMakeOffer(
+                    MarketplaceCanMakeOfferCode.NoTradingPrivilege,
+                    tokens
+                );
+            case TradeStandingType.NoPass or TradeStandingType.ReceiveOnly:
+                return new MarketplaceCanMakeOffer(
+                    MarketplaceCanMakeOfferCode.NoTradingPass,
+                    tokens
+                );
+        }
 
         if (TokensUsed && tokens <= 0)
             return new MarketplaceCanMakeOffer(MarketplaceCanMakeOfferCode.NoTokens, 0);
@@ -335,8 +345,8 @@ public sealed class MarketplaceService(
             itemIds.Count == 0
             || price < _config.OfferMinPrice
             || price > _config.OfferMaxPrice
-            || !await CanTradeAsync(player, ct).ConfigureAwait(false)
-            || !await HoldsPassAsync(player, ct).ConfigureAwait(false)
+            || await TradeStandingAsync(player, ct).ConfigureAwait(false)
+                is not TradeStandingType.Full
         )
             return MarketplaceMakeOfferCode.TechnicalError;
 
@@ -896,17 +906,13 @@ public sealed class MarketplaceService(
             x.State == MarketplaceOfferEntity.STATE_OPEN && x.ExpiresAt > now
         );
 
-    private async Task<bool> CanTradeAsync(PlayerId player, CancellationToken ct) =>
-        await grainFactory
-            .HasPermissionAsync(player, PermissionNodes.TRADE, ct)
-            .ConfigureAwait(false);
-
     /// <summary>
-    /// Selling gives items away, so it asks for the trading pass whenever trading does; a hotel
-    /// that lets players without it receive in trades still keeps them from selling.
+    /// Selling gives items away, so the hotel's trade policy decides it as it decides trades: a
+    /// locked account has no trading privilege, and one that only receives in trades, or lacks
+    /// the trading pass, cannot sell.
     /// </summary>
-    private Task<bool> HoldsPassAsync(PlayerId player, CancellationToken ct) =>
-        grainFactory.HoldsTradingPassAsync(tradingConfig.CurrentValue, player, ct);
+    private Task<TradeStandingType> TradeStandingAsync(PlayerId player, CancellationToken ct) =>
+        tradePolicy.GetTradeStandingAsync(player, ct);
 
     private async Task<int> TokensAsync(PlayerId player, CancellationToken ct)
     {
