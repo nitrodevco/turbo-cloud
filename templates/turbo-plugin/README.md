@@ -55,6 +55,7 @@ guide to read (turbo-cloud `docs/`).
 | `npm run make window news` | `client/src/made/NewsWindow.tsx`, opened by the link `skills/news`, and its title text | `client/src/made/index.ts` |
 | `npm run make patch habbo-friend-list-com/friend_list_xml` | an entry in `wwwroot/template-patches.json` to fill with ops | the client, as the plugin loads |
 | `npm run make migration AddPrizes` | `server/Database/SkillsDb.cs` (once; its `TablePrefix` in `manifest.json`) and the migration, by `dotnet ef migrations add` | the host, which migrates the tables as the plugin loads |
+| `npm run make schedule weekly-rotation --cron "0 18 * * MON"` | `server/Tasks/WeeklyRotation.cs`: a scheduled task (`--every 00:05:00` for an interval) | the scheduled task scan |
 
 `make migration` needs `dotnet ef` once per machine (`dotnet tool install --global dotnet-ef`) and
 a built server (`TurboBin`): the context needs no design-time factory. Furni logic derives from
@@ -92,7 +93,7 @@ by constructor (`SkillBook` alerts a player who levels up); its tests use `FakeH
 `IScheduledTask` with `[Schedule("<cron>")]` or `[Every("<interval>")]`. Nothing registers it: the
 server finds it as the plugin loads, runs it once per cluster (never twice at once) and takes it
 away on unload. The admin panel's Plugins page lists it with its last and next run and a Run now
-button. Another one is a copy of that file:
+button. `npm run make schedule <name>` writes another; by hand it is:
 
 ```csharp
 [Schedule("0 18 * * MON")]                 // Mondays 18:00; or [Every("00:05:00")]

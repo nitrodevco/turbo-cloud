@@ -15,6 +15,7 @@ using Turbo.Gamedata.Variables;
 using Turbo.Messages.PluginMessages;
 using Turbo.Messages.Registry;
 using Turbo.Networking.Extensions;
+using Turbo.Operations.Scheduling;
 using Turbo.Players.Permissions;
 using Turbo.Plugins;
 using Turbo.Plugins.Configuration;
@@ -38,7 +39,8 @@ namespace Turbo.Tests.Support;
 
 /// <summary>
 /// A hotel's plugin host with the registries a plugin's pieces go to: modules, messages, texts,
-/// settings, web routes, commands, permission nodes, furni logic, room listeners, and a migrator
+/// settings, web routes, commands, permission nodes, furni logic, room listeners, scheduled tasks
+/// (<see cref="Schedules"/>, reaching the scheduler grain through the fake grain factory), and a migrator
 /// with migrations off (asked for each context, touching no database).
 /// </summary>
 internal sealed class PluginTestHost
@@ -77,8 +79,14 @@ internal sealed class PluginTestHost
             NullLogger<ClientModuleRegistry>.Instance
         );
         Messages = new PluginMessageDirectory(packets);
+        Schedules = new ScheduledTaskHost(
+            fakes.Create<Orleans.IGrainFactory>(),
+            TimeProvider.System,
+            NullLogger<ScheduledTaskHost>.Instance
+        );
         Services = new ServiceCollection()
             .AddSingleton<IHotel>(Hotel)
+            .AddSingleton<IPluginStopping>(Schedules)
             .AddSingleton<IClientModuleDirectory>(Modules)
             .AddSingleton<IExtensionPacketRegistry>(packets)
             .AddSingleton<IConfiguration>(new ConfigurationBuilder().Build())
@@ -121,10 +129,14 @@ internal sealed class PluginTestHost
             new PermissionNodeFeatureProcessor(fakes.Create<IPermissionRegistryProvider>()),
             new RoomObjectLogicFeatureProcessor(fakes.Create<IRoomObjectLogicProvider>()),
             new RoomEventListenerFeatureProcessor(fakes.Create<IRoomEventListenerRegistry>()),
+            new ScheduledTaskFeatureProcessor(Schedules),
         ];
     }
 
     public ServiceProvider Services { get; }
+
+    /// <summary>This server's scheduled tasks.</summary>
+    public ScheduledTaskHost Schedules { get; }
 
     public GamedataTextService Texts { get; }
 

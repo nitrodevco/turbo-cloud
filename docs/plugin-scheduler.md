@@ -45,7 +45,9 @@ public sealed class WeeklyRotation(RareShop shop, ILogger<WeeklyRotation> logger
 That is all: a public class implementing `IScheduledTask` anywhere in the plugin's assembly. It is
 built once with the plugin's services (and the hotel's, as commands are). Its key is
 `<plugin key>.<class name>` (`rares.WeeklyRotation`); `Name = "..."` on the attribute changes the
-second half. The template's `server/SkillsWeeklyReset.cs` is a working example.
+second half. The template's `server/SkillsWeeklyReset.cs` is a working example, and
+`npm run make schedule weekly-rotation --cron "0 18 * * MON"` (or `--every 00:05:00`) in a plugin
+made from it writes `server/Tasks/WeeklyRotation.cs`.
 
 `run.ScheduledFor` is when the run was due; `run.Manual` is true for a run now. A run that throws is
 logged and shown in the panel as failed; the next one runs on schedule.
