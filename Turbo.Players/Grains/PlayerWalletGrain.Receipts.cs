@@ -80,8 +80,9 @@ internal sealed partial class PlayerWalletGrain
     }
 
     /// <summary>
-    /// Runs one balance change with its receipt, in one transaction. The receipt is written first,
-    /// so its primary key answers a repeat, from this activation or another. Applied when
+    /// Runs one balance change with its receipt, in one transaction. A receipt already there is a
+    /// repeat, answered without writing; otherwise the receipt is written first, so its primary
+    /// key answers a repeat racing this one from another activation. Applied when
     /// <paramref name="work"/> made the change, Rejected when it refused (nothing is kept, the
     /// receipt neither), AlreadyApplied when the receipt was there (memory is read again).
     /// </summary>
@@ -91,11 +92,23 @@ internal sealed partial class PlayerWalletGrain
         CancellationToken ct
     )
     {
+        WalletCreditResult result;
+
         try
         {
-            return await _dbCtxFactory.InTransactionAsync(
+            result = await _dbCtxFactory.InTransactionAsync(
                 async db =>
                 {
+                    // A retry is expected (it is what the reference is for): read, not a failed
+                    // insert, which the database's provider logs as an error.
+                    if (
+                        await db.WalletCreditReceipts.AnyAsync(
+                            x => x.PlayerId == PlayerId.Value && x.Reference == reference,
+                            ct
+                        )
+                    )
+                        return UnitOfWork.Rollback(WalletCreditResult.AlreadyApplied);
+
                     db.WalletCreditReceipts.Add(
                         new WalletCreditReceiptEntity
                         {
@@ -117,15 +130,20 @@ internal sealed partial class PlayerWalletGrain
             if (!await ReceiptExistsAsync(reference, ct))
                 throw;
 
+            result = WalletCreditResult.AlreadyApplied;
+        }
+
+        if (result == WalletCreditResult.AlreadyApplied)
+        {
             _logger.LogInformation(
                 "Wallet change {Reference} of player {PlayerId} was already applied",
                 reference,
                 PlayerId
             );
             await HydrateAsync(ct);
-
-            return WalletCreditResult.AlreadyApplied;
         }
+
+        return result;
     }
 
     private async Task<bool> ReceiptExistsAsync(string reference, CancellationToken ct)

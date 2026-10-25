@@ -18,7 +18,8 @@ internal sealed partial class PlayerWalletGrain
     /// <summary>
     /// The award's receipt is written first, in the transaction of the balance, so its primary
     /// key answers a repeat, from this activation or another, as <see cref="ApplyOnceAsync"/>
-    /// does: a repeat credits nothing and succeeds; a repeat with another payload throws.
+    /// does (a receipt already there is read, not inserted again): a repeat credits nothing and
+    /// succeeds; a repeat with another payload throws.
     /// </summary>
     public async Task<bool> CreditAchievementAsync(
         string awardKey,
@@ -41,6 +42,19 @@ internal sealed partial class PlayerWalletGrain
             result = await _dbCtxFactory.InTransactionAsync(
                 async db =>
                 {
+                    if (
+                        await db.AchievementWalletReceipts.FindAsync(
+                            [PlayerId.Value, awardKey],
+                            ct
+                        ) is
+                        { } receipt
+                    )
+                        return receipt.PayloadJson == payload
+                            ? UnitOfWork.Rollback(WalletCreditResult.AlreadyApplied)
+                            : throw new InvalidOperationException(
+                                "Award receipt payload mismatch."
+                            );
+
                     db.AchievementWalletReceipts.Add(
                         new()
                         {
@@ -68,6 +82,10 @@ internal sealed partial class PlayerWalletGrain
                 throw;
             if (receipt.PayloadJson != payload)
                 throw new InvalidOperationException("Award receipt payload mismatch.");
+            result = WalletCreditResult.AlreadyApplied;
+        }
+        if (result == WalletCreditResult.AlreadyApplied)
+        {
             _logger.LogInformation(
                 "Achievement award {AwardKey} of player {PlayerId} was already credited",
                 awardKey,
