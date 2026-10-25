@@ -49,6 +49,9 @@ public sealed class SkillBook(IOptionsMonitor<SkillsSettings> settings, IHotel h
         return after;
     }
 
+    /// <summary>Everyone back to level 1 (<see cref="SkillsWeeklyReset"/>).</summary>
+    public void Reset() => _experience.Clear();
+
     private Skill ToSkill(int total)
     {
         var perLevel = settings.CurrentValue.ExperiencePerLevel;

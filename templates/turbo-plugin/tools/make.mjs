@@ -17,6 +17,8 @@
  *   window <name>                       a window, opened by the link <key>/<name> (client/src/made)
  *   patch <library>/<asset>             a template patch on a core window (wwwroot/template-patches.json)
  *   migration <Name>                    the plugin's tables (server/Database) and a migration (dotnet ef)
+ *   schedule <name> [--cron "0 18 * * MON" | --every 00:05:00]
+ *                                       a scheduled task, run once per cluster (server/Tasks)
  *
  * A file that is there already is left alone (the command says so and stops).
  */
@@ -285,6 +287,37 @@ public sealed class ${type}(IStuffDataFactory stuffData, IRoomFloorItemContext c
 `);
 
         return [ 'extensions.md (Furni and wired logic)' ];
+    },
+
+    schedule() {
+        const type = pascal(name);
+        const every = option('every', null);
+        const cron = option('cron', null);
+
+        if (every === true || cron === true || (every && cron)) fail('A schedule is --cron "<five fields>" or --every <hh:mm:ss>: npm run make schedule weekly-rotation --cron "0 18 * * MON"');
+
+        const attribute = every ? `[Every("${every}")]` : `[Schedule("${cron ?? '0 0 * * MON'}")]`;
+
+        write(path.join(server, 'Tasks', `${type}.cs`), `
+using System.Threading;
+using System.Threading.Tasks;
+using Turbo.Contracts.Plugins.Scheduling;
+
+namespace ${assembly};
+
+/// <summary>
+/// Runs on its schedule, once per cluster and never twice at once; listed on the admin panel's
+/// Plugins page (Schedule) with Run now. A run is cancelled through ct when the plugin unloads.
+/// Found as the plugin loads.
+/// </summary>
+${attribute}
+public sealed class ${type} : IScheduledTask
+{
+    public Task RunAsync(ScheduledTaskRun run, CancellationToken ct) => Task.CompletedTask;
+}
+`);
+
+        return [ 'plugin-scheduler.md' ];
     },
 
     listener() {

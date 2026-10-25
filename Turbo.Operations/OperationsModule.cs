@@ -6,16 +6,19 @@ using Turbo.Contracts.Plugins;
 using Turbo.Operations.Configuration;
 using Turbo.Operations.Movements;
 using Turbo.Operations.OnlineRewards;
+using Turbo.Operations.Scheduling;
+using Turbo.Plugins;
 using Turbo.Primitives.Availability;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Movements;
+using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Operations;
 
 /// <summary>
 /// Running the hotel: sanctions, the word filter, the maintenance and shutdown countdown, the operator
 /// commands (<c>docs/commands.md</c> section 4.1) that put them in staff's hands, and handing the
-/// asset movement outbox to plugins.
+/// asset movement outbox and the scheduler's runs to plugins.
 /// </summary>
 public sealed class OperationsModule : IHostPluginModule
 {
@@ -71,5 +74,11 @@ public sealed class OperationsModule : IHostPluginModule
 
         // A plugin that undoes movements moves assets back through this (docs/movements.md).
         services.AddSingleton<IAssetReversalService, AssetReversalService>();
+
+        // Plugins' scheduled tasks, run once per cluster by the scheduler grain (docs/plugin-scheduler.md).
+        services.AddSingleton<ScheduledTaskHost>();
+        services.AddHostedService(sp => sp.GetRequiredService<ScheduledTaskHost>());
+        services.AddSingleton<IPluginStopping>(sp => sp.GetRequiredService<ScheduledTaskHost>());
+        services.AddSingleton<IAssemblyFeatureProcessor, ScheduledTaskFeatureProcessor>();
     }
 }

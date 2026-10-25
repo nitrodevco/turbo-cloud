@@ -12,4 +12,6 @@
 
 class [GrainType("assetmovementdispatcher")] Turbo.Operations.Grains.AssetMovementDispatcherGrain
 
+class [GrainType("scheduledtask")] Turbo.Operations.Grains.ScheduledTaskGrain
+
 class [GrainType("welcomemessage")] Turbo.Operations.Grains.WelcomeMessageGrain

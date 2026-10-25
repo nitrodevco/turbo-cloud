@@ -167,7 +167,8 @@ used to write. It is DI only, never a static facade: plugins load in their own c
 
 The assembly scan (commands, logic, listeners, games, permission nodes, wired variables) is the
 Laravel auto-discovery equivalent and stays the default. New registrations follow it: implement the
-public interface, get found, get removed on unload.
+public interface, get found, get removed on unload. Scheduled tasks are one (`IScheduledTask` with a
+cron or interval, run once per cluster: `docs/plugin-scheduler.md`).
 
 ### 4.5 Template patches (client)
 
@@ -286,6 +287,10 @@ noted.
     (`docs/plugin-loading.md`, `docs/client-modules.md`); scheduled tasks and policies get their
     `make` kinds with their own steps. Furni logic still derives from `Turbo.Rooms`'
     `FurnitureFloorLogic`, which is not a contract yet (§3, "Public means contract").
+11. **Scheduled tasks** (a registry kind, §4.4): `IScheduledTask` with a cron or interval, run once
+    per cluster, never overlapping, cancelled and removed on unload, listed in the panel with last
+    and next run and Run now; `npm run make schedule <Name>`. Done (`docs/plugin-scheduler.md`);
+    core's own periodic jobs may move onto it later.
 
 10. **Hotel API** (§4.3): `IHotel` for the everyday actions, `FakeHotel` for plugins' tests, contract
     tests on both. Done (`docs/hotel-api.md`); members are added when two plugins need the same one.

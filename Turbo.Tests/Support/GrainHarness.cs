@@ -144,11 +144,28 @@ public static class GrainHarness
             "GetService",
             call => call.Args[0] is Type st && st.IsInterface ? fakes.Create(st) : null
         );
+        Attach(grain, fakes, typeName);
+        return grain;
+    }
+
+    /// <summary>
+    /// Gives a grain built by its own constructor (so its field initializers ran) the fake grain
+    /// context <see cref="Create(Assembly, string, Fakes, IDbContextFactory{TurboDbContext}?, int)"/>
+    /// gives, so its timers and <c>DelayDeactivation</c> are inert.
+    /// </summary>
+    public static TGrain Attach<TGrain>(TGrain grain, Fakes fakes)
+        where TGrain : Grain
+    {
+        Attach(grain, fakes, typeof(TGrain).FullName!);
+        return grain;
+    }
+
+    private static void Attach(object grain, Fakes fakes, string typeName)
+    {
         var ctx = typeof(Grain).GetProperty("GrainContext", All)!.GetSetMethod(true);
         ctx?.Invoke(grain, [fakes.Create<IGrainContext>(typeName)]);
         typeof(Grain)
             .GetField("<Runtime>k__BackingField", All)
             ?.SetValue(grain, fakes.Create<IGrainRuntime>(typeName));
-        return grain;
     }
 }

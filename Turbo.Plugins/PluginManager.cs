@@ -1251,6 +1251,23 @@ public sealed class PluginManager(
     {
         try
         {
+            foreach (var stopping in host.GetServices<IPluginStopping>())
+            {
+                try
+                {
+                    await stopping.StoppingAsync(env.Manifest.Key, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "{Type} failed as {Key} stopped",
+                        stopping.GetType().Name,
+                        env.Manifest.Key
+                    );
+                }
+            }
+
             if (env.ServiceProvider is { } sp)
                 await StopHostedServicesAsync(
                         sp.GetServices<IHostedService>(),
