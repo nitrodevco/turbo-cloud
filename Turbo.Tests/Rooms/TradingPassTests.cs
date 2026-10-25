@@ -1,10 +1,14 @@
 using FluentAssertions;
+using Orleans;
 using Turbo.Players.Configuration;
+using Turbo.Players.Trading;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Trading;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Trading;
 using Turbo.Primitives.Trading.Enums;
 using Turbo.Rooms.Grains;
 using Turbo.Tests.Support;
@@ -180,15 +184,40 @@ public sealed class TradingPassTests
             .Equal(7);
     }
 
+    [Fact]
+    public async Task A_replaced_trade_policy_decides_who_opens_a_trade()
+    {
+        _passHolders.Clear();
+        var trades = NewTradeGrain();
+        GrainHarness.Replace<IPlayerTradePolicy>(trades, new EveryoneTrades());
+
+        (await trades.OpenAsync(Initiator, PARTNER, Ct)).Should().BeTrue();
+
+        _fakes.Sent<NotificationDialogMessageComposer>().Should().BeEmpty();
+        _fakes.SentToPlayer<TradingOpenEventMessageComposer>(PARTNER).Should().ContainSingle();
+    }
+
+    /// <summary>A hotel's own rule in place of the pass: everyone trades both ways.</summary>
+    private sealed class EveryoneTrades : IPlayerTradePolicy
+    {
+        public Task<TradeStandingType> GetTradeStandingAsync(
+            PlayerId playerId,
+            CancellationToken ct
+        ) => Task.FromResult(TradeStandingType.Full);
+    }
+
     private static ActionContext Initiator => ActionContext.CreateForPlayer(INITIATOR, ROOM);
 
     private IRoomTradeGrain NewTradeGrain(TradingPassMode mode = TradingPassMode.Required)
     {
         var grain = GrainHarness.Create<RoomTradeGrain>(_fakes);
         GrainHarness.Replace(grain, new RoomTradeLiveState { RoomId = ROOM });
-        GrainHarness.Replace<Microsoft.Extensions.Options.IOptionsMonitor<TradingConfig>>(
+        GrainHarness.Replace<IPlayerTradePolicy>(
             grain,
-            new TestOptionsMonitor<TradingConfig>(new TradingConfig { PassMode = mode })
+            new PlayerTradePolicy(
+                GrainHarness.Get<IGrainFactory>(grain),
+                new TestOptionsMonitor<TradingConfig>(new TradingConfig { PassMode = mode })
+            )
         );
 
         return (IRoomTradeGrain)grain;

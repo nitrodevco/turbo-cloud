@@ -17,6 +17,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Trading.Enums;
 using Turbo.Primitives.WiredTrading;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
@@ -184,7 +185,8 @@ public class WiredChestRoomTests
         // the trading pass pressed "Start deposit" and got WiredTransactionFail 8, no window.
         var (room, _) = CreateRoomWithChest();
         AddPlayer(room, OWNER);
-        room.Fakes.Handlers["MayTradeAsync"] = _ => Task.FromResult(false);
+        room.Fakes.Handlers["GetTradeStandingAsync"] = _ =>
+            Task.FromResult(TradeStandingType.Locked);
 
         await room.Room.InteractWithItemAsync(
             ActionContext.CreateForPlayer(OWNER, 1),

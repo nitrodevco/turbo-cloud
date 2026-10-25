@@ -12,6 +12,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
+using Turbo.Primitives.Trading.Enums;
 using Turbo.Rooms;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains;
@@ -69,7 +70,7 @@ public sealed class LiveRoomHarness
             GrainId.Create(GrainType.Create("room"), GrainIdKeyExtensions.CreateIntegerKey(1));
         Fakes.Handlers["GetPlayerNameAsync"] = _ => Task.FromResult<string?>("test");
         // Players may trade (IPlayerTradePolicy) unless a test says otherwise.
-        Fakes.Handlers["MayTradeAsync"] = _ => Task.FromResult(true);
+        Fakes.Handlers["GetTradeStandingAsync"] = _ => Task.FromResult(TradeStandingType.Full);
         // A denied node is looked up in the registry, as in the hotel: the room asks it of
         // every player, its owner included (room.control.any decides their level).
         var permissions = new Turbo.Primitives.Players.Permissions.PermissionRegistry([

@@ -6,6 +6,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Trading.Enums;
 using Turbo.Primitives.WiredTrading;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Rooms.Grains.Modules;
@@ -206,7 +207,8 @@ public sealed class WiredInitiateTransactionContractsTests
             },
             refresh: false
         );
-        _room.Harness.Fakes.Handlers["MayTradeAsync"] = _ => Task.FromResult(false);
+        _room.Harness.Fakes.Handlers["GetTradeStandingAsync"] = _ =>
+            Task.FromResult(TradeStandingType.Locked);
     }
 
     private sealed class HeardEvents : IRoomEventListener

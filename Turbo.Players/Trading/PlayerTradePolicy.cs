@@ -20,18 +20,21 @@ public sealed class PlayerTradePolicy(
     IOptionsMonitor<TradingConfig> tradingConfig
 ) : IPlayerTradePolicy
 {
-    public async Task<bool> MayTradeAsync(PlayerId playerId, bool givingAway, CancellationToken ct)
+    public async Task<TradeStandingType> GetTradeStandingAsync(
+        PlayerId playerId,
+        CancellationToken ct
+    )
     {
         if (!await grainFactory.HasPermissionAsync(playerId, PermissionNodes.TRADE, ct))
-            return false;
+            return TradeStandingType.Locked;
 
         var config = tradingConfig.CurrentValue;
 
-        return config.PassMode switch
-        {
-            TradingPassMode.Off => true,
-            TradingPassMode.ReceiveOnly when !givingAway => true,
-            _ => await grainFactory.HoldsTradingPassAsync(config, playerId, ct),
-        };
+        if (await grainFactory.HoldsTradingPassAsync(config, playerId, ct))
+            return TradeStandingType.Full;
+
+        return config.PassMode == TradingPassMode.ReceiveOnly
+            ? TradeStandingType.ReceiveOnly
+            : TradeStandingType.NoPass;
     }
 }
