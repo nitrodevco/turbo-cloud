@@ -23,7 +23,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 /// adjacent player is caught: no move, the collision trigger fires (official client capture
 /// 2026-10-24, W1 lab: away from a player 2 tiles off 8/8, the last way N 5/5 then E 10/10, also
 /// after the furni was moved by hand; blocked E at the map edge -> N 5 / S 3 of 8, whichever
-/// side the player stood, never back W (action.12.B14); adjacent 3/3).
+/// side the player stood, never back W (action.12.B14); adjacent 3/3). The way away from a player
+/// refused, it sidesteps (action.12.B1 / B6).
 /// </summary>
 [RoomObjectLogic("wf_act_flee")]
 public class WiredActionFleeHabbo(
@@ -93,6 +94,26 @@ public class WiredActionFleeHabbo(
 
                     if (map.InBounds(sideX, at.Y))
                         candidates.Add(map.ToIdx(sideX, at.Y));
+                }
+                else
+                {
+                    // The way away refused, it sidesteps: a quarter clockwise, else the other
+                    // quarter (official client capture 2026-10-25, W1 lab: fleeing E from a
+                    // player 2 tiles W, a lamp or a stack at the height cap on the tile E -> S
+                    // 3/3 with both sides free, N 3/3 with a lamp S, action.12.B1 / B6). Clockwise
+                    // first is inferred from that one heading; never back toward the player.
+                    var away = RotationExtensions.FromPoints(
+                        at.X,
+                        at.Y,
+                        map.GetX(candidates[0]),
+                        map.GetY(candidates[0])
+                    );
+
+                    foreach (var turn in new[] { 2, -2 })
+                    {
+                        if (map.TryGetTileInFront(itemIdx, away.Rotate(turn), out var side))
+                            candidates.Add(side);
+                    }
                 }
             }
             else
