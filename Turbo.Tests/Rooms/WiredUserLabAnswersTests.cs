@@ -208,6 +208,7 @@ public sealed class WiredUserLabAnswersTests
         var freeze = await PlaceFreezeAsync(cancelOnTeleport: false);
 
         await freeze.ExecuteAsync(Triggered(USER), Ct);
+        await Wired.ProcessWiredAsync(FIRED_AT, dormant: false, Ct);
 
         owner.IsFrozen.Should().BeTrue();
         owner.EffectId.Should().Be(218);
@@ -231,9 +232,11 @@ public sealed class WiredUserLabAnswersTests
         _room.AddFloorItem(TARGET, 5, 5);
         var freeze = await PlaceFreezeAsync(cancelOnTeleport);
         var teleport = await PlaceTeleportAsync(WiredFurniSourceType.SelectedItems);
-        await Wired.ProcessWiredAsync(FIRED_AT, dormant: false, Ct);
-
+        // Frozen, wearing 218, before the teleport fires.
         await freeze.ExecuteAsync(Triggered(USER), Ct);
+        await Wired.ProcessWiredAsync(FIRED_AT, dormant: false, Ct);
+        user.EffectId.Should().Be(218);
+
         (await teleport.ExecuteAsync(Triggered(USER), Ct)).Should().BeTrue();
         user.EffectId.Should().Be(4);
 

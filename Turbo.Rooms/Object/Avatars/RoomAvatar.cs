@@ -49,6 +49,7 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
     public long ExpressionAtMs { get; private set; } = 0;
     public bool IsFrozen { get; private set; } = false;
     public bool ThawsOnTeleport { get; private set; } = false;
+    public int EffectBeforeFreeze { get; private set; } = 0;
     public long WiredMoveEndsAtMs { get; private set; } = 0;
 
     private int _goalTries = 0;
@@ -238,6 +239,9 @@ public abstract class RoomAvatar<TSelf, TLogic, TContext>
 
     public void SetFrozen(bool isFrozen, bool thawsOnTeleport = false)
     {
+        if (isFrozen && !IsFrozen)
+            EffectBeforeFreeze = EffectId;
+
         IsFrozen = isFrozen;
         ThawsOnTeleport = isFrozen && thawsOnTeleport;
     }

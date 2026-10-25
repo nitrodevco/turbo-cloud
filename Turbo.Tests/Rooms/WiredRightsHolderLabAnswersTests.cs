@@ -114,6 +114,7 @@ public sealed class WiredRightsHolderLabAnswersTests
         ).Should().BeTrue();
 
         (await freeze.ExecuteAsync(Triggered(HOLDER), Ct)).Should().BeTrue();
+        await _room.Harness.Module<RoomWiredSystem>().ProcessWiredAsync(10_000, dormant: false, Ct);
 
         _room
             .Harness.Fakes.SentToRoom<IComposer>()

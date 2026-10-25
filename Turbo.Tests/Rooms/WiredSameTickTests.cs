@@ -7,8 +7,10 @@ using Turbo.Primitives.Achievements.Grains;
 using Turbo.Primitives.Achievements.Snapshots;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Grains;
@@ -220,6 +222,41 @@ public sealed class WiredSameTickTests
         lamp.Logic.GetState().Should().Be(1);
     }
 
+    // trigger.0.R1b (official client capture 2026-10-25, LAB-W3 wlab9,
+    // explore/wlab9-full-20261025-025051): User Says Keyword + Show Message, the whisper reached
+    // the speaker before their own Chat, in the same ms, 13/13. Ours broadcast the line first and
+    // ran the stack when the call ended.
+    [Fact]
+    public async Task A_says_stack_whispers_before_the_speakers_line_goes_out()
+    {
+        _room.Harness.Room.UseEventSystem(new TestEventBus().System);
+        _room.Harness.Room.UseCommands(
+            new Turbo.Commands.CommandRegistryProvider(
+                new CapturingLogger<Turbo.Primitives.Commands.ICommandRegistryProvider>()
+            )
+        );
+        _room.Enter(AVATAR, 5, 9);
+        await BuildSaysStackAsync();
+
+        await CallAsync(() =>
+            _room.Harness.Room.ChatSystem.SendChatFromPlayerAsync(
+                _room.ContextFor(AVATAR),
+                RoomChatType.Chat,
+                "parity hello",
+                0,
+                -1,
+                null,
+                Ct
+            )
+        );
+
+        _room
+            .Harness.Fakes.Sent<ChatMessageComposer>()
+            .Select(x => x.Text)
+            .Should()
+            .Equal("heard", "parity hello");
+    }
+
     private Task UseThroughCallAsync() => CallAsync(UseAsync);
 
     private Task UseAsync() =>
@@ -337,6 +374,33 @@ public sealed class WiredSameTickTests
                 EFFECT,
                 intParams: [1, 0, 5, 1],
                 stringParam: "Lap"
+            )
+        )
+            .Should()
+            .BeTrue();
+        await RebuildAsync(0, 0);
+    }
+
+    /// <summary>User Says Keyword "hello" -> Show Message "heard" to the speaker.</summary>
+    private async Task BuildSaysStackAsync()
+    {
+        _room.AddBox<WiredTriggerHabboSaysKeyword>(TRIGGER, 0, 0, "wf_trg_says_something");
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                TRIGGER,
+                intParams: [0, 0, 0],
+                stringParam: "hello"
+            )
+        )
+            .Should()
+            .BeTrue();
+        _room.AddBox<WiredActionShowMessage>(EFFECT, 0, 0, "wf_act_show_message");
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                EFFECT,
+                intParams: [1, 34, -1],
+                stringParam: "heard",
+                definitionSpecifics: [0]
             )
         )
             .Should()

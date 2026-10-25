@@ -67,6 +67,27 @@ public abstract class FurnitureWiredActionLogic(
             )
             .LogAndForget(Logger, "publish an event in room {RoomId}", _roomGrain.RoomId);
 
+    /// <summary>The first avatar cycle after <paramref name="atMs"/>, on the room's cycle grid.</summary>
+    protected long AvatarCycleAfter(long atMs)
+    {
+        var tickMs = RoomConfig.AvatarTickMs;
+        var intoCycle = ((atMs - State.NextAvatarBoundaryMs) % tickMs + tickMs) % tickMs;
+
+        return atMs - intoCycle + tickMs;
+    }
+
+    /// <summary>Runs <paramref name="work"/> on the wired clock at the room's next avatar cycle.</summary>
+    protected void RunAtNextAvatarCycle(Func<CancellationToken, Task> work)
+    {
+        var now = WiredSystem.DeferredNowMs;
+
+        WiredSystem.RunAfter((int)(AvatarCycleAfter(now) - now), work);
+    }
+
+    /// <summary>Whether <paramref name="avatar"/> is still the one in the room under its id.</summary>
+    protected bool IsInRoom(IRoomAvatar avatar) =>
+        AvatarModule.TryGetAvatar(avatar.ObjectId, out var current) && current == avatar;
+
     protected override async Task FillInternalDataAsync(CancellationToken ct)
     {
         await base.FillInternalDataAsync(ct);
