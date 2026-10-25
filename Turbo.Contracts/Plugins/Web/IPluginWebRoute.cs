@@ -31,5 +31,13 @@ public interface IPluginWebRoute
     /// <summary>Whether someone who is not signed in may call it. Such a request has no player.</summary>
     bool Anonymous => false;
 
+    /// <summary>
+    /// Whether <see cref="PluginWebRequest.Headers"/> keeps the caller's credentials
+    /// (<c>authorization</c>, <c>cookie</c>, <c>proxy-authorization</c>), for a route that checks a
+    /// service's own scheme. Off by default: the host has signed the caller in, and a route that
+    /// never reads them cannot leak a player's session.
+    /// </summary>
+    bool CredentialHeaders => false;
+
     Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct);
 }
