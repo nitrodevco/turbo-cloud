@@ -48,7 +48,8 @@ public class WiredChestNotificationTests
         var parameters = (ImmutableDictionary<string, string>)notice.Args[2]!;
         parameters["chest_name"].Should().Be("Bank");
         parameters["user_name"].Should().Be($"player{GUEST}");
-        parameters["linkUrl"].Should().Be("event:navigator/goto/1");
+        // What Habbo's chest notices carry (official client captures 2026-10-24, 14 of 14).
+        parameters["linkUrl"].Should().Be("navigator/ask_forward/1");
     }
 
     [Fact]

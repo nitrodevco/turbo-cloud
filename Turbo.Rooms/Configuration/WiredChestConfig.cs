@@ -84,12 +84,14 @@ public class WiredChestConfig
 
     /// <summary>
     /// The link a chest notification carries, <c>{0}</c> the chest's room id: clicking the bubble
-    /// goes to the chest's room (<c>wiredchests.notification_settings.notification_info.desc</c>).
-    /// The client strips <c>event:</c> and opens the rest as a client link
-    /// (HabboNotifications.showNotification); the room link is the one the client's own room
-    /// links use (<c>navigator/goto/&lt;id&gt;</c>, FurnitureRoomLinkHandler). Empty sends none.
+    /// asks whether to go to the chest's room (<c>wiredchests.notification_settings.notification_info.desc</c>).
+    /// Habbo sends <c>navigator/ask_forward/&lt;room id&gt;</c>, no <c>event:</c> (official client
+    /// captures 2026-10-24, 14 of 14 chest_empty and chest_wired_transaction notices); a bubble
+    /// opens any link as a client link (HabboNotifications.showNotification), and the navigator
+    /// asks for the room's info, then whether to go there (HabboNewNavigator.linkReceived,
+    /// onRoomInfo). Empty sends none.
     /// </summary>
-    public string NotificationLink { get; init; } = "event:navigator/goto/{0}";
+    public string NotificationLink { get; init; } = "navigator/ask_forward/{0}";
 
     // A contract, as its editor bounds it.
 
