@@ -61,59 +61,7 @@ public sealed class TemplatePatchExampleTests : IDisposable
         await WriteExampleAsync("purse-theme", "PurseThemePlugin.cs");
         await WriteExampleAsync("purse-skills", "PurseSkillsPlugin.cs");
 
-        var loaded = new LoadedPluginGamedata();
-        var config = Options.Create(new GamedataConfig());
-        var files = _fakes.Create<IGamedataFileService>();
-        var writes = new GamedataWriteLock();
-        var variables = new GamedataVariableService(
-            _db,
-            config,
-            files,
-            writes,
-            _fakes.Create<IServerSettings>(),
-            new HabboGamedataClient(
-                _fakes.Create<IHttpClientFactory>(),
-                NullLogger<HabboGamedataClient>.Instance
-            ),
-            NullLogger<GamedataVariableService>.Instance
-        );
-        var texts = new GamedataTextService(
-            _db,
-            config,
-            files,
-            writes,
-            TimeProvider.System,
-            _fakes.Create<IHotelTextProvider>(),
-            NullLogger<GamedataTextService>.Instance
-        );
-        var registry = new ClientModuleRegistry(
-            new TestOptionsMonitor<GamedataConfig>(new GamedataConfig()),
-            NullLogger<ClientModuleRegistry>.Instance
-        );
-        var webRoutes = new PluginWebRoutes();
-        var manager = new PluginManager(
-            new ServiceCollection()
-                .AddSingleton(webRoutes)
-                .AddSingleton<IClientModuleDirectory>(registry)
-                .AddSingleton<Turbo.Primitives.Networking.Extensions.IExtensionPacketRegistry>(
-                    new Turbo.Networking.Extensions.ExtensionPacketRegistry()
-                )
-                .AddSingleton<IPluginGamedataSeeds>(
-                    new PluginGamedataSeeds(
-                        _db,
-                        variables,
-                        texts,
-                        files,
-                        loaded,
-                        registry,
-                        NullLogger<PluginGamedataSeeds>.Instance
-                    )
-                )
-                .BuildServiceProvider(),
-            new AssemblyProcessor([]),
-            Options.Create(new PluginConfig { PluginFolderPath = _folder }),
-            NullLogger<PluginManager>.Instance
-        );
+        var (manager, loaded, registry, webRoutes) = Hotel();
 
         await manager.LoadAllAsync(ct: Ct);
 
@@ -183,6 +131,106 @@ public sealed class TemplatePatchExampleTests : IDisposable
         loaded.OwnedPartsOf(ExternalVariablesFile.TEMPLATE_PATCHES).Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task The_skin_lists_its_module_frame_style_and_frame_art_for_clients()
+    {
+        await WriteExampleAsync("infostand-skin", "InfostandSkinPlugin.cs");
+
+        var (manager, loaded, registry, _) = Hotel();
+
+        await manager.LoadAllAsync(ct: Ct);
+
+        manager.Snapshot().Should().ContainSingle().Which.State.Should().Be(PluginStateType.Loaded);
+        registry.Modules.Should().ContainSingle().Which.Key.Should().Be("infostandskin");
+
+        // The wired setup window's style, as the plugin gives it.
+        JsonDocument
+            .Parse(loaded.OwnedPartsOf(ExternalVariablesFile.FRAME_OVERRIDES).Single().Part)
+            .RootElement.GetProperty("wired-setup")
+            .GetProperty("color")
+            .GetString()
+            .Should()
+            .Be("#2e7d32");
+
+        // The frame art it names by its path in its wwwroot, at its address there.
+        JsonDocument
+            .Parse(loaded.OwnedPartsOf(ExternalVariablesFile.ASSET_OVERLAYS).Single().Part)
+            .RootElement.GetProperty("habbo-window-manager-com/theme-habbo-frame-frame-default")
+            .GetString()
+            .Should()
+            .StartWith("/gamedata/plugins/infostandskin/frame.png?v=");
+
+        await manager.UnloadAllAsync(Ct);
+
+        registry.Modules.Should().BeEmpty();
+        loaded.OwnedPartsOf(ExternalVariablesFile.ASSET_OVERLAYS).Should().BeEmpty();
+    }
+
+    /// <summary>A hotel's plugin manager over the test's plugins folder, with the gamedata services the examples reach.</summary>
+    private (
+        PluginManager Manager,
+        LoadedPluginGamedata Loaded,
+        ClientModuleRegistry Registry,
+        PluginWebRoutes WebRoutes
+    ) Hotel()
+    {
+        var loaded = new LoadedPluginGamedata();
+        var config = Options.Create(new GamedataConfig());
+        var files = _fakes.Create<IGamedataFileService>();
+        var writes = new GamedataWriteLock();
+        var variables = new GamedataVariableService(
+            _db,
+            config,
+            files,
+            writes,
+            _fakes.Create<IServerSettings>(),
+            new HabboGamedataClient(
+                _fakes.Create<IHttpClientFactory>(),
+                NullLogger<HabboGamedataClient>.Instance
+            ),
+            NullLogger<GamedataVariableService>.Instance
+        );
+        var texts = new GamedataTextService(
+            _db,
+            config,
+            files,
+            writes,
+            TimeProvider.System,
+            _fakes.Create<IHotelTextProvider>(),
+            NullLogger<GamedataTextService>.Instance
+        );
+        var registry = new ClientModuleRegistry(
+            new TestOptionsMonitor<GamedataConfig>(new GamedataConfig()),
+            NullLogger<ClientModuleRegistry>.Instance
+        );
+        var webRoutes = new PluginWebRoutes();
+        var manager = new PluginManager(
+            new ServiceCollection()
+                .AddSingleton(webRoutes)
+                .AddSingleton<IClientModuleDirectory>(registry)
+                .AddSingleton<Turbo.Primitives.Networking.Extensions.IExtensionPacketRegistry>(
+                    new Turbo.Networking.Extensions.ExtensionPacketRegistry()
+                )
+                .AddSingleton<IPluginGamedataSeeds>(
+                    new PluginGamedataSeeds(
+                        _db,
+                        variables,
+                        texts,
+                        files,
+                        loaded,
+                        registry,
+                        NullLogger<PluginGamedataSeeds>.Instance
+                    )
+                )
+                .BuildServiceProvider(),
+            new AssemblyProcessor([]),
+            Options.Create(new PluginConfig { PluginFolderPath = _folder }),
+            NullLogger<PluginManager>.Instance
+        );
+
+        return (manager, loaded, registry, webRoutes);
+    }
+
     private async Task WriteExampleAsync(string folder, string source)
     {
         var example = Path.Combine(
@@ -203,10 +251,15 @@ public sealed class TemplatePatchExampleTests : IDisposable
             await File.ReadAllTextAsync(Path.Combine(example, source), Ct)
         );
 
-        foreach (var file in Directory.EnumerateFiles(Path.Combine(example, "wwwroot")))
+        foreach (var part in new[] { "wwwroot", PluginGamedataSeeds.FOLDER })
         {
-            Directory.CreateDirectory(Path.Combine(_folder, key, "wwwroot"));
-            File.Copy(file, Path.Combine(_folder, key, "wwwroot", Path.GetFileName(file)));
+            if (!Directory.Exists(Path.Combine(example, part)))
+                continue;
+
+            Directory.CreateDirectory(Path.Combine(_folder, key, part));
+
+            foreach (var file in Directory.EnumerateFiles(Path.Combine(example, part)))
+                File.Copy(file, Path.Combine(_folder, key, part, Path.GetFileName(file)));
         }
     }
 

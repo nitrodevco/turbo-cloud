@@ -1,0 +1,9 @@
+{
+    "Name": "Infostand skin (example)",
+    "Key": "infostandskin",
+    "Version": "1.0.0",
+    "Author": "Turbo",
+    "AssemblyFile": "InfostandSkin.dll",
+    "Dependencies": [],
+    "ApiVersion": 1
+}
