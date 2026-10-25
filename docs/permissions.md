@@ -231,7 +231,7 @@ client gates from §2. Each names the one place that reads it.
 | `navigator.category.staff` | `NavigatorService`, `EnforceCategoryCtrl` | 7 | the hardcoded `MinRank <= 1` |
 | `moderation.tool` | the moderation packets | 5 | |
 | `wired.menu` | `WiredMenuController` | 4 | |
-| `client.inspector` | the client's extension inspector (alt-click; `docs/extensions.md` step 5) | — | not Habbo's; sent to the client (`ClientVisible`) without raising the security level; development client builds have it for everyone |
+| `client.inspector` | the client's extension inspector (alt-click; `docs/extensions.md` step 5) | — | not Habbo's; sent to the client (`ClientVisible`) without raising the security level; a development client build turns it on for anyone with `NitroInspector()` in the browser console (off by default) |
 | `chat.furni_chooser` | `:furni` | 2 | |
 | `role.ambassador` | `UserRights.IsAmbassador`, ambassador mutes, `ChatStyles.CanSpeakWith` `isAmbassador` | — | hardcoded `false` |
 | `chat.style.staff` | `ChatStyles.CanSpeakWith` `isStaff` (staff bubbles; also meets the ambassador flag) | — | |
