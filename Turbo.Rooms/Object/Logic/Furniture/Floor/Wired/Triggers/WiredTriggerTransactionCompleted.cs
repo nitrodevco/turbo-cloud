@@ -24,4 +24,9 @@ public class WiredTriggerTransactionCompleted(
     public override int WiredCode => (int)WiredTriggerType.TRANSACTION_COMPLETED;
 
     protected override RoomObjectId SourceOf(WiredTransactionCompletedEvent evt) => evt.SourceId;
+
+    // With no contract picked it never fires: neither for a Give Furni From Chest nor for a paid
+    // payment contract (official client capture 2026-10-24 15:26Z, wired matrix trigger.25.R1,
+    // 0/2); with the contract picked it fired on the payment (1/1).
+    protected override bool FiresWithoutPicks => false;
 }
