@@ -1,4 +1,5 @@
 using Turbo.Contracts.Hotel;
+using Turbo.Primitives.Availability;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Testing;
@@ -37,6 +38,11 @@ public sealed class FakeHotelContractTests : HotelContract
 
         public RoomId AddRoom(string name, PlayerId owner, bool isPublic = false) =>
             _hotel.Rooms.Add(name, Player(owner), isPublic);
+
+        public void CloseForMaintenance(string reason) =>
+            _hotel.Status.Set(
+                new HotelAvailabilitySnapshot(HotelAvailabilityPhase.Maintenance, null, reason)
+            );
 
         public void Enter(RoomId room, PlayerId player) =>
             _hotel.Rooms.Enter(_hotel.Rooms.All.Single(x => x.Id == room), Player(player));

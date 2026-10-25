@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Turbo.Contracts.Hotel;
+using Turbo.Primitives.Availability;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Xunit;
@@ -31,6 +32,9 @@ public interface IHotelWorld : IAsyncDisposable
     void Enter(RoomId room, PlayerId player);
 
     int AddFurniture(string name);
+
+    /// <summary>The hotel in maintenance: closed to players without the bypass node.</summary>
+    void CloseForMaintenance(string reason);
 
     /// <summary>Called once everything is added and before the hotel is used.</summary>
     Task StartAsync(CancellationToken ct);
@@ -393,6 +397,23 @@ public abstract class HotelContract
         (await players.UnlinkIdentityAsync(alice, HotelIdentity.DISCORD, Ct)).Should().BeFalse();
         (await players.UnlinkIdentityAsync(bob, HotelIdentity.DISCORD, Ct)).Should().BeTrue();
         (await players.FindByIdentityAsync(HotelIdentity.DISCORD, "111", Ct)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task The_hotel_reads_open_until_it_goes_into_maintenance()
+    {
+        // A plugin could not tell the hotel was closed (a hotel view's night set, fwgaps 10-25).
+        await using var world = NewWorld();
+        await world.StartAsync(Ct);
+
+        world.Hotel.Status.Current.Phase.Should().Be(HotelAvailabilityPhase.Open);
+        world.Hotel.Status.Current.BlocksLogin.Should().BeFalse();
+
+        world.CloseForMaintenance("night");
+
+        world.Hotel.Status.Current.Phase.Should().Be(HotelAvailabilityPhase.Maintenance);
+        world.Hotel.Status.Current.BlocksLogin.Should().BeTrue();
+        world.Hotel.Status.Current.Reason.Should().Be("night");
     }
 }
 

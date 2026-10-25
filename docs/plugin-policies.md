@@ -127,6 +127,7 @@ public sealed class EventRoomPolicy(IOptionsMonitor<EventSettings> settings) : I
 | `PlayerRegistrationFailedEvent` (`Turbo.Primitives.Players.Events`) | an account was asked for and not made (the name's rules, a taken name, a registration policy): the name asked for, the reason given, `Source`, `RemoteAddress` |
 | `PlayerIdentityLinkedEvent` (`Turbo.Primitives.Players.Events`) | an account elsewhere (Discord) was linked to a player (`IHotel.Players.LinkIdentityAsync`); `TakenFrom` when staff moved it from another player |
 | `RoomEnteredEvent` (`Turbo.Primitives.Rooms.Events`) | a player entered a room: it was sent to them and their avatar is in it |
+| `HotelAvailabilityChangedEvent` (`Turbo.Primitives.Availability.Events`) | a maintenance, shutdown or restart was scheduled or called off, or its countdown ran out: `Previous` and `Current` (what `IHotel.Status.Current` reads from now on) |
 
 Each derives from `DomainEvent`: published once, after the change is saved, never for an action that
 was refused or failed (the two `...FailedEvent`s are the refusal itself, raised once it was given), and on the thread pool, not awaited by what raised it. `EventId` is the

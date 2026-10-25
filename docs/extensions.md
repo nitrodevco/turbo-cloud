@@ -94,7 +94,7 @@ say which in its guide. One kind per problem keeps the surface learnable.
 
 | Kind | Use it to | May change the outcome? | Runs |
 | --- | --- | --- | --- |
-| **Event** | observe something that happened (`PurchaseCompletedEvent`, `PlayerLoggedInEvent`, `PlayerLoginFailedEvent`, `PlayerRegisteredEvent`, `PlayerRegistrationFailedEvent`, `PlayerIdentityLinkedEvent`, `RoomEnteredEvent`: `docs/plugin-policies.md`) | no | after the fact |
+| **Event** | observe something that happened (`PurchaseCompletedEvent`, `PlayerLoggedInEvent`, `PlayerLoginFailedEvent`, `PlayerRegisteredEvent`, `PlayerRegistrationFailedEvent`, `PlayerIdentityLinkedEvent`, `RoomEnteredEvent`, `HotelAvailabilityChangedEvent`: `docs/plugin-policies.md`) | no | after the fact |
 | **Pipeline / policy** | allow, refuse or adjust an action before it commits (`IPurchasePolicy` incl. room ads, `IRoomEntryPolicy`, `IPlacementPolicy`, `IRegistrationPolicy`: `docs/plugin-policies.md`) | yes, explicitly | before commit, in the owner's context |
 | **Service contract** | replace or add an implementation of a named contract | yes, the whole behaviour | wherever the contract is called |
 | **Registry** | add a new thing of a known kind (command, logic, game, message, web route) | n/a | as registered |
@@ -137,7 +137,9 @@ The first post-commit events are on the event bus: `DomainEvent` (an `EventId` f
 pool and not awaited, never for a refused action (save the two that tell of a refusal); a plugin's
 `IEventHandler<T>` hears them. `PurchaseCompletedEvent` (room ads included), `PlayerLoggedInEvent`,
 `PlayerLoginFailedEvent`, `PlayerRegisteredEvent`, `PlayerRegistrationFailedEvent`,
-`PlayerIdentityLinkedEvent` and `RoomEnteredEvent` are raised today; the login and registration
+`PlayerIdentityLinkedEvent`, `RoomEnteredEvent` and `HotelAvailabilityChangedEvent` (the hotel
+went into maintenance or out of it, a shutdown was scheduled; `IHotel.Status` reads the state) are
+raised today; the login and registration
 ones carry the client's address, personal data their text leaves out (`docs/plugin-policies.md`,
 "Addresses"). They are delivered in memory: one raised as a server
 stops is not kept, as the asset movement outbox's are.
@@ -315,9 +317,11 @@ noted.
    with the protocol it added, names another live plugin registers too and what clients report
    (`TurboClientExtensionReportMessage`, `docs/client-modules.md` §2); the panel's plugin row has
    Contributions and Client reports tabs. A refused client module is logged naming
-   `client.modules.hosts`. In the client, staff with `client.inspector` (and development builds)
-   alt-click a window element for its template key, the patches on it and a patch to copy
-   (nitro-next `docs/template-patches.md`).
+   `client.modules.hosts`. In the client, staff with `client.inspector` alt-click a window element
+   for its template key, the patches on it and a patch to copy (nitro-next
+   `docs/template-patches.md`); a development build has it only after `NitroInspector()` in the
+   browser console (off by default, remembered in that browser until `NitroInspector(false)`), so an
+   alt-click presses what it always did.
 6. **Typed client SDK**: `ClientModuleApi` published as types with `defineModule`, a narrow read-only
    store API in place of raw stores, namespaced links and layouts. The types, `defineModule`,
    `useApi` and a bundler preset are nitro-next's `packages/client-module-sdk`, kept equal to the

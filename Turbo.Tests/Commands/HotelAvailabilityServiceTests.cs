@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Turbo.Operations;
 using Turbo.Operations.Configuration;
 using Turbo.Primitives.Availability;
+using Turbo.Primitives.Availability.Events;
 using Turbo.Primitives.Messages.Outgoing.Availability;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Networking;
@@ -26,6 +27,11 @@ public class HotelAvailabilityServiceTests
     private readonly ManualTimeProvider _clock = new(START);
     private readonly TestOptionsMonitor<OperationsConfig> _config = new(new OperationsConfig());
     private readonly HotelAvailabilityService _service;
+    private readonly TestEventBus _bus = new();
+
+    // Published on the thread pool, so two may arrive at once.
+    private readonly System.Collections.Concurrent.ConcurrentQueue<HotelAvailabilityChangedEvent> _changes =
+        new();
     private readonly List<int> _disconnected = [];
     private readonly Dictionary<int, IComposer?> _farewells = [];
 
@@ -57,8 +63,10 @@ public class HotelAvailabilityServiceTests
             _fakes.Create<Orleans.IGrainFactory>(),
             _fakes.Create<IHotelTextProvider>(),
             _fakes.Create<IHostApplicationLifetime>(),
-            new CapturingLogger<IHotelAvailability>()
+            new CapturingLogger<IHotelAvailability>(),
+            _bus.System
         );
+        _bus.On<HotelAvailabilityChangedEvent>(_changes.Enqueue);
     }
 
     private Task TickAsync() => _service.TickAsync(CancellationToken.None);
@@ -145,6 +153,33 @@ public class HotelAvailabilityServiceTests
             .BeOfType<HabboBroadcastMessageComposer>()
             .Which.Message.Should()
             .Be("The hotel is now in maintenance. Please come back later.");
+    }
+
+    [Fact]
+    public async Task EveryChange_IsPublishedForPlugins_AndNothingWhenNothingChanged()
+    {
+        // A plugin had no way to know the hotel closed (a hotel view's night set, fwgaps 10-25).
+        _service.ScheduleMaintenance(TimeSpan.FromMinutes(1), "night");
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        await TickAsync();
+        _service.Cancel();
+        _service.Cancel();
+
+        await CountWait.ForAsync(() => _changes.Count, 3);
+
+        _changes
+            .Select(x => (x.Previous.Phase, x.Current.Phase))
+            .Should()
+            .BeEquivalentTo([
+                (HotelAvailabilityPhase.Open, HotelAvailabilityPhase.MaintenanceScheduled),
+                (HotelAvailabilityPhase.MaintenanceScheduled, HotelAvailabilityPhase.Maintenance),
+                (HotelAvailabilityPhase.Maintenance, HotelAvailabilityPhase.Open),
+            ]);
+        _changes
+            .Should()
+            .Contain(x =>
+                x.Current.Phase == HotelAvailabilityPhase.Maintenance && x.Current.Reason == "night"
+            );
     }
 
     [Fact]

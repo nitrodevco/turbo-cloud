@@ -45,8 +45,13 @@ public static class PluginApi
     /// only - and theme style properties (<c>theme.json</c>, <c>docs/plugin-data.md</c>). A server
     /// before 6 refuses a manifest with no assembly; a plugin built for 1 to 5 loads as before.
     /// </para>
+    /// <para>
+    /// 7: the hotel's open or closed state (<c>Hotel.IHotel.Status</c>, and
+    /// <c>HotelAvailabilityChangedEvent</c> on each change), and string-keyed dictionaries in named
+    /// plugin messages. A plugin built for 1 to 6 loads as before.
+    /// </para>
     /// </summary>
-    public const int VERSION = 6;
+    public const int VERSION = 7;
 
     /// <summary>The oldest plugin API this server still loads.</summary>
     public const int OLDEST = 1;

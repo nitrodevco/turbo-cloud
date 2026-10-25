@@ -12,6 +12,7 @@ using Turbo.Inventory.Grains.Badges;
 using Turbo.Main.Hotel;
 using Turbo.Players.Grains;
 using Turbo.Players.Providers;
+using Turbo.Primitives.Availability;
 using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Badges.Snapshots;
@@ -59,6 +60,7 @@ public sealed class HostHotelContractTests : HotelContract
         private readonly List<PlayerId> _players = [];
         private IHotel? _hotel;
         private int _balances;
+        private HotelAvailabilitySnapshot _availability = HotelAvailabilitySnapshot.Open;
 
         public HostWorld()
         {
@@ -121,6 +123,8 @@ public sealed class HostHotelContractTests : HotelContract
                     }
                 );
             fakes.Handlers[nameof(IBadgeDirectoryGrain.GetRequestableBadgeAsync)] = _ => null;
+            fakes.Handlers["get_" + nameof(IHotelAvailability.Current)] = call =>
+                call.Interface == typeof(IHotelAvailability) ? _availability : Fakes.NotHandled;
         }
 
         public IHotel Hotel => _hotel ?? throw new InvalidOperationException("Start it first.");
@@ -194,6 +198,13 @@ public sealed class HostHotelContractTests : HotelContract
 
         public void Enter(RoomId room, PlayerId player) => _inRoom[room].Add(player);
 
+        public void CloseForMaintenance(string reason) =>
+            _availability = new HotelAvailabilitySnapshot(
+                HotelAvailabilityPhase.Maintenance,
+                null,
+                reason
+            );
+
         public int AddFurniture(string name)
         {
             var id = 100 + _players.Count + _inRoom.Count;
@@ -250,6 +261,7 @@ public sealed class HostHotelContractTests : HotelContract
                 .AddSingleton(fakes.Create<ICatalogSnapshotProvider<NormalCatalog>>())
                 .AddSingleton(fakes.Create<ICatalogEditService>())
                 .AddSingleton(fakes.Create<IExpiringPageService>())
+                .AddSingleton(fakes.Create<IHotelAvailability>())
                 .AddSingleton<ICurrencyTypeProvider>(currencies)
                 .AddSingleton<IFurnitureDefinitionProvider>(definitions)
                 .AddSingleton(new TestEventBus().System)

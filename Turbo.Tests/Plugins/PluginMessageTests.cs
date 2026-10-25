@@ -148,11 +148,46 @@ public sealed class PluginMessageTests : IDisposable
     }
 
     [Fact]
+    public void A_string_keyed_dictionary_round_trips_as_a_map_of_its_values_records_and_lists_included()
+    {
+        // A plugin had to send its key/value pairs as a list of records before (fwgaps 10-25).
+        var sent = new WithDictionary(
+            new Dictionary<string, int> { ["mining"] = 2, ["fishing"] = 0 },
+            new Dictionary<string, Inner> { ["a"] = new Inner("x", [1, 2]) },
+            ImmutableDictionary<string, ImmutableArray<string>>.Empty.Add("tags", ["red", "blue"])
+        );
+
+        var read = (WithDictionary)RoundTrip(sent);
+
+        read.Counts.Should().Equal(sent.Counts);
+        read.Records.Should().ContainKey("a").WhoseValue.Should().Be(new Inner("x", [1, 2]));
+        read.Lists.Should().ContainKey("tags").WhoseValue.Should().Equal("red", "blue");
+        PluginMessageSchema
+            .For(typeof(WithDictionary))
+            .Json.Should()
+            .Be(
+                """[["counts",["map","int"]],["records",["map",["object",[["label","string"],["values",["array","int"]]]]]],["lists",["map",["array","string"]]]]"""
+            );
+    }
+
+    [Fact]
+    public void A_dictionary_is_written_as_a_count_then_each_key_and_value_and_null_as_none()
+    {
+        var body = PluginMessageComposer
+            .For(new WithDictionary(new() { ["a"] = 5 }, null!, null!))
+            .Body.ToArray();
+
+        body.Should().Equal([0, 0, 0, 1, 0, 1, (byte)'a', 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0]);
+    }
+
+    [Fact]
     public void A_field_the_codec_cannot_carry_is_refused_naming_the_field()
     {
-        var act = () => PluginMessageSchema.For(typeof(WithDictionary));
+        var act = () => PluginMessageSchema.For(typeof(WithIntKeys));
 
-        act.Should().Throw<ArgumentException>().WithMessage("*test.dictionary.Counts*Dictionary*");
+        act.Should()
+            .Throw<ArgumentException>()
+            .WithMessage("*test.intKeys.ById*keys must be strings*");
     }
 
     [Fact]
@@ -168,6 +203,17 @@ public sealed class PluginMessageTests : IDisposable
     {
         var schema = PluginMessageSchema.For(typeof(Small));
         var payload = PacketHarness.Payload(w => w.Int(1).String("a").Bool(true).Int(int.MaxValue));
+
+        var act = () => schema.Read(new ClientPacket(1, payload));
+
+        act.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void A_hostile_dictionary_count_is_refused_not_allocated()
+    {
+        var schema = PluginMessageSchema.For(typeof(WithDictionary));
+        var payload = PacketHarness.Payload(w => w.Int(int.MaxValue).String("a"));
 
         var act = () => schema.Read(new ClientPacket(1, payload));
 
@@ -754,7 +800,14 @@ public sealed class PluginMessageTests : IDisposable
     public sealed record SmallAgain(int Id) : IPluginMessage;
 
     [PluginMessage("test.dictionary")]
-    public sealed record WithDictionary(Dictionary<string, int> Counts) : IPluginMessage;
+    public sealed record WithDictionary(
+        Dictionary<string, int> Counts,
+        IReadOnlyDictionary<string, Inner> Records,
+        ImmutableDictionary<string, ImmutableArray<string>> Lists
+    ) : IPluginMessage;
+
+    [PluginMessage("test.intKeys")]
+    public sealed record WithIntKeys(Dictionary<int, string> ById) : IPluginMessage;
 
     public sealed record Node(ImmutableArray<Node> Children);
 

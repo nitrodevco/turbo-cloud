@@ -22,6 +22,11 @@ internal sealed class PluginMessageValue
         BindingFlags.NonPublic | BindingFlags.Static
     )!;
 
+    private static readonly MethodInfo MAP_HELPERS = typeof(PluginMessageValue).GetMethod(
+        nameof(MapHelpers),
+        BindingFlags.NonPublic | BindingFlags.Static
+    )!;
+
     private PluginMessageValue(PluginMessageValueKind kind, Type type)
     {
         Kind = kind;
@@ -32,7 +37,7 @@ internal sealed class PluginMessageValue
 
     public Type Type { get; }
 
-    /// <summary>An array's item.</summary>
+    /// <summary>An array's item, or a dictionary's value.</summary>
     public PluginMessageValue? Item { get; private init; }
 
     /// <summary>A record's fields, in constructor order.</summary>
@@ -45,6 +50,15 @@ internal sealed class PluginMessageValue
     private Func<object?, IList>? Items { get; init; }
 
     private Func<Array, object>? FromItems { get; init; }
+
+    // A dictionary's entries to write (null as none), and the entries read back as the field's own
+    // dictionary type.
+    private Func<
+        object?,
+        IReadOnlyCollection<KeyValuePair<string, object?>>
+    >? Entries { get; init; }
+
+    private Func<string[], Array, object>? FromEntries { get; init; }
 
     public static PluginMessageValue For(Type type, string path, Stack<Type> building)
     {
@@ -81,6 +95,26 @@ internal sealed class PluginMessageValue
                 );
 
             return new(PluginMessageValueKind.Int, type);
+        }
+
+        if (MapTypesOf(type) is var (keyType, valueType))
+        {
+            if (keyType != typeof(string))
+                throw Unsupported(path, type, "a dictionary's keys must be strings");
+
+            var value = For(valueType, path + "{}", building);
+            var (entries, fromEntries) = ((
+                Func<object?, IReadOnlyCollection<KeyValuePair<string, object?>>>,
+                Func<string[], Array, object>
+            ))
+                MAP_HELPERS.MakeGenericMethod(valueType).Invoke(null, [type])!;
+
+            return new(PluginMessageValueKind.Map, type)
+            {
+                Item = value,
+                Entries = entries,
+                FromEntries = fromEntries,
+            };
         }
 
         if (ItemTypeOf(type) is { } itemType)
@@ -200,6 +234,18 @@ internal sealed class PluginMessageValue
                     Item!.Write(packet, item);
 
                 break;
+            case PluginMessageValueKind.Map:
+                var entries = Entries!(value);
+
+                packet.WriteInteger(entries.Count);
+
+                foreach (var (key, item) in entries)
+                {
+                    packet.WriteString(key);
+                    Item!.Write(packet, item);
+                }
+
+                break;
             case PluginMessageValueKind.Object:
                 // A null record is sent as its defaults, as a client fills in a missing one.
                 foreach (var field in Fields)
@@ -247,6 +293,25 @@ internal sealed class PluginMessageValue
                     items.SetValue(Item.Read(packet), i);
 
                 return FromItems!(items);
+            case PluginMessageValueKind.Map:
+                var size = packet.PopInt();
+
+                // A key takes at least its 2-byte length.
+                if (size < 0 || size > packet.Remaining / 2)
+                    throw new InvalidDataException(
+                        $"A dictionary of {size} entries with {packet.Remaining} bytes left."
+                    );
+
+                var keys = new string[size];
+                var values = Array.CreateInstance(Item!.Type, size);
+
+                for (var i = 0; i < size; i++)
+                {
+                    keys[i] = packet.PopString();
+                    values.SetValue(Item.Read(packet), i);
+                }
+
+                return FromEntries!(keys, values);
             default:
                 var args = new object?[Fields.Length];
 
@@ -264,6 +329,12 @@ internal sealed class PluginMessageValue
             case PluginMessageValueKind.Array:
                 json.WriteStartArray();
                 json.WriteStringValue("array");
+                Item!.WriteJson(json);
+                json.WriteEndArray();
+                break;
+            case PluginMessageValueKind.Map:
+                json.WriteStartArray();
+                json.WriteStringValue("map");
                 Item!.WriteJson(json);
                 json.WriteEndArray();
                 break;
@@ -321,6 +392,52 @@ internal sealed class PluginMessageValue
             : null;
     }
 
+    private static (Type Key, Type Value)? MapTypesOf(Type type)
+    {
+        if (!type.IsGenericType)
+            return null;
+
+        var definition = type.GetGenericTypeDefinition();
+
+        return
+            definition == typeof(Dictionary<,>)
+            || definition == typeof(IDictionary<,>)
+            || definition == typeof(IReadOnlyDictionary<,>)
+            || definition == typeof(ImmutableDictionary<,>)
+            || definition == typeof(IImmutableDictionary<,>)
+            ? (type.GetGenericArguments()[0], type.GetGenericArguments()[1])
+            : null;
+    }
+
+    private static (
+        Func<object?, IReadOnlyCollection<KeyValuePair<string, object?>>>,
+        Func<string[], Array, object>
+    ) MapHelpers<T>(Type type)
+    {
+        // Written in the dictionary's own order; a key read twice keeps its last value.
+        Func<object?, IReadOnlyCollection<KeyValuePair<string, object?>>> entries = value =>
+            value is IEnumerable<KeyValuePair<string, T>> pairs
+                ? pairs.Select(x => new KeyValuePair<string, object?>(x.Key, x.Value)).ToArray()
+                : [];
+        var immutable =
+            type.GetGenericTypeDefinition() is var definition
+            && (
+                definition == typeof(ImmutableDictionary<,>)
+                || definition == typeof(IImmutableDictionary<,>)
+            );
+        Func<string[], Array, object> fromEntries = (keys, values) =>
+        {
+            var map = new Dictionary<string, T>(keys.Length, StringComparer.Ordinal);
+
+            for (var i = 0; i < keys.Length; i++)
+                map[keys[i]] = (T)values.GetValue(i)!;
+
+            return immutable ? map.ToImmutableDictionary(StringComparer.Ordinal) : map;
+        };
+
+        return (entries, fromEntries);
+    }
+
     private static (Func<object?, IList>, Func<Array, object>) ArrayHelpers<T>(Type type)
     {
         Func<object?, IList> items = value =>
@@ -344,6 +461,6 @@ internal sealed class PluginMessageValue
         new(
             $"{path}: {type.Name} is not a type a plugin message can carry"
                 + (why is null ? "" : $" ({why})")
-                + ". Supported: int, long, bool, string, double, an enum, a record of those, or an array (T[], ImmutableArray<T>, IReadOnlyList<T>) of any of them."
+                + ". Supported: int, long, bool, string, double, an enum, a record of those, an array (T[], ImmutableArray<T>, IReadOnlyList<T>) or a string-keyed dictionary (Dictionary<string, T>, IReadOnlyDictionary<string, T>, ImmutableDictionary<string, T>) of any of them."
         );
 }

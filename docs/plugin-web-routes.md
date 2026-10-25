@@ -126,7 +126,9 @@ The host signs the caller in before the route runs:
 
 1. **The client's token**: `Authorization: Bearer <token>`, which nitro-next attaches for a module
    (`api.http`, below). A token that is not (or no longer) one is answered 401, so the client asks
-   for a new one.
+   for a new one. On an anonymous route with `CredentialHeaders` such a token is the caller's own
+   (a provider's bearer token on its webhook), handed to the route as sent, and the call is
+   anonymous.
 2. **The site's session**: the `turbo_session` cookie the public site sets on sign-in
    (`docs/public-site.md`), for the site's own pages on the same domain.
 

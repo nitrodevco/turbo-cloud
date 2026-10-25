@@ -221,7 +221,9 @@ short, for api version 1:
   read and written from the schema `client.messages` sends: `docs/plugin-messages.md`),
   `config.get` (external variables), `texts.get` (external texts), `sounds.play`,
   `room.avatarOverlay(fn)`, `room.leave()`, `hotelView.addLayer(component, { replacesBackground })` (drawn in the
-  reception behind its widgets), `http.get/post/put/patch/delete` (the plugin's own web routes, signed in as
+  reception behind its widgets), `hotelView.addWidget(slot, component)` (a widget in one of the
+  reception's widget slots 1-6, in place of the hotel's configured one; a plugin that picks its
+  widgets on the server sends them in a named message and the module adds one per slot), `http.get/post/put/patch/delete` (the plugin's own web routes, signed in as
   the player: `docs/plugin-web-routes.md`), `notifications.registerLayout` and `notifications.add` (a bubble that may `stay` up
   until the module takes it down).
 

@@ -40,8 +40,9 @@ git config --local core.hooksPath .githooks
 
 step "Ensuring local development settings exist"
 if [ ! -f "appsettings.Development.json" ]; then
-  cp appsettings.json appsettings.Development.json
-  echo "Created appsettings.Development.json from appsettings.json"
+  # The shipped file logs Turbo at Information; development logs it at Debug.
+  sed 's/"Turbo": "Information"/"Turbo": "Debug"/' appsettings.json > appsettings.Development.json
+  echo "Created appsettings.Development.json from appsettings.json (Turbo logging at Debug)"
 else
   echo "appsettings.Development.json already exists"
 fi

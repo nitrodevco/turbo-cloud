@@ -78,6 +78,8 @@ Orleans listens on every interface for its silo and gateway ports. Leave them cl
 
 To override any other setting from `.env`, use the environment-variable form Program.cs reads: prefix the key with `TURBO__` and replace `:` with `__`, for example `TURBO__Turbo__Rooms__MaxPlayersLimit=75`. `serverOptions` is the exception. SuperSocket reads it through its own host, which ignores the prefix, so its keys go unprefixed (`serverOptions__WebSocketServer__listeners__0__port=9001`). An `appsettings.Production.json` in the repository root is also published with each release.
 
+The shipped `appsettings.json` logs Turbo's own categories at `Information`; `TURBO__Logging__LogLevel__Turbo=Debug` in `.env` turns on the debug lines while you look into something (a local `appsettings.Development.json` from the bootstrap script has `Debug` already).
+
 ## Admin panel
 
 The admin panel runs as a second Ploi site on its own subdomain, from the `turbo-admin`

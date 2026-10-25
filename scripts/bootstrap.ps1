@@ -35,8 +35,10 @@ git config --local core.hooksPath .githooks
 
 Write-Step "Ensuring local development settings exist"
 if (-not (Test-Path "appsettings.Development.json")) {
-    Copy-Item "appsettings.json" "appsettings.Development.json"
-    Write-Host "Created appsettings.Development.json from appsettings.json"
+    # The shipped file logs Turbo at Information; development logs it at Debug.
+    (Get-Content "appsettings.json" -Raw).Replace('"Turbo": "Information"', '"Turbo": "Debug"') |
+        Set-Content "appsettings.Development.json" -NoNewline
+    Write-Host "Created appsettings.Development.json from appsettings.json (Turbo logging at Debug)"
 } else {
     Write-Host "appsettings.Development.json already exists"
 }

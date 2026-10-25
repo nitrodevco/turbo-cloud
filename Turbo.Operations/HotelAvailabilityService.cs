@@ -7,8 +7,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Events;
 using Turbo.Operations.Configuration;
 using Turbo.Primitives.Availability;
+using Turbo.Primitives.Availability.Events;
 using Turbo.Primitives.Messages.Outgoing.Availability;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Networking;
@@ -25,7 +27,8 @@ namespace Turbo.Operations;
 /// maintenance) or sends everybody home and stops the host (a shutdown, or a restart, which ends
 /// the process with the restart exit code). It is process state: a restart opens the hotel again,
 /// which is what a restart is for. The reminders and the exit code are read as they are used, so
-/// a change in the panel applies to a countdown already running.
+/// a change in the panel applies to a countdown already running. Every change of
+/// <see cref="Current"/> is published as a <see cref="HotelAvailabilityChangedEvent"/>.
 /// </summary>
 public sealed class HotelAvailabilityService(
     IOptionsMonitor<OperationsConfig> config,
@@ -34,7 +37,8 @@ public sealed class HotelAvailabilityService(
     IGrainFactory grainFactory,
     IHotelTextProvider textProvider,
     IHostApplicationLifetime lifetime,
-    ILogger<IHotelAvailability> logger
+    ILogger<IHotelAvailability> logger,
+    EventSystem? events = null
 ) : BackgroundService, IHotelAvailability
 {
     private readonly Lock _gate = new();
@@ -84,6 +88,8 @@ public sealed class HotelAvailabilityService(
 
     public bool ScheduleMaintenance(TimeSpan delay, string reason)
     {
+        HotelAvailabilitySnapshot previous;
+
         lock (_gate)
         {
             if (
@@ -93,24 +99,35 @@ public sealed class HotelAvailabilityService(
             )
                 return false;
 
+            previous = _current;
             Schedule(HotelAvailabilityPhase.MaintenanceScheduled, delay, reason);
         }
+
+        Published(previous);
 
         return true;
     }
 
     public void ScheduleShutdown(TimeSpan delay, string reason)
     {
+        HotelAvailabilitySnapshot previous;
+
         lock (_gate)
         {
+            previous = _current;
+
             // Once it is stopping there is nothing to schedule.
             if (_current.Phase != HotelAvailabilityPhase.ShuttingDown)
                 Schedule(HotelAvailabilityPhase.ShutdownScheduled, delay, reason);
         }
+
+        Published(previous);
     }
 
     public bool ScheduleRestart(TimeSpan delay, string reason, string noticeLink = "")
     {
+        HotelAvailabilitySnapshot previous;
+
         lock (_gate)
         {
             // A shutdown was asked for on purpose: a restart does not bring the hotel back from it.
@@ -120,6 +137,7 @@ public sealed class HotelAvailabilityService(
             )
                 return false;
 
+            previous = _current;
             Schedule(
                 HotelAvailabilityPhase.ShutdownScheduled,
                 delay,
@@ -129,11 +147,15 @@ public sealed class HotelAvailabilityService(
             );
         }
 
+        Published(previous);
+
         return true;
     }
 
     public bool Cancel()
     {
+        HotelAvailabilitySnapshot previous;
+
         lock (_gate)
         {
             if (
@@ -141,12 +163,28 @@ public sealed class HotelAvailabilityService(
             )
                 return false;
 
+            previous = _current;
             _current = HotelAvailabilitySnapshot.Open;
             _announcePending = false;
             _announced.Clear();
         }
 
+        Published(previous);
+
         return true;
+    }
+
+    /// <summary>Tells plugins of the change from <paramref name="previous"/>, if there was one.</summary>
+    private void Published(HotelAvailabilitySnapshot previous)
+    {
+        var current = Current;
+
+        if (events is null || ReferenceEquals(previous, current))
+            return;
+
+        events.PublishCommitted(
+            new HotelAvailabilityChangedEvent { Previous = previous, Current = current }
+        );
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -288,6 +326,8 @@ public sealed class HotelAvailabilityService(
             if (scheduled.Restart)
                 _exitCode = config.CurrentValue.RestartExitCode;
         }
+
+        Published(scheduled);
 
         if (scheduled.Phase == HotelAvailabilityPhase.ShutdownScheduled)
         {

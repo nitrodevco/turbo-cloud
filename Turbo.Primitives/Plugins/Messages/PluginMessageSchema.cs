@@ -36,7 +36,8 @@ public sealed class PluginMessageSchema
     /// <summary>
     /// The fields as clients are sent them: a JSON array of <c>[name, type]</c>, where a type is
     /// <c>"int"</c>, <c>"long"</c>, <c>"bool"</c>, <c>"string"</c>, <c>"double"</c>,
-    /// <c>["array", type]</c> or <c>["object", fields]</c>. Names are camelCase.
+    /// <c>["array", type]</c>, <c>["map", type]</c> (string keys) or <c>["object", fields]</c>. Names
+    /// are camelCase.
     /// </summary>
     public string Json { get; }
 
