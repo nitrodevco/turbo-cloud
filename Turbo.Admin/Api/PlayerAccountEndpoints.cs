@@ -192,7 +192,10 @@ internal sealed class PlayerAccountEndpoints(
             : AvatarGenderType.Male;
         var result = await accounts
             .CreateAsync(
-                new NewPlayer(request.Name ?? string.Empty, request.Motto, gender, request.Figure),
+                new NewPlayer(request.Name ?? string.Empty, request.Motto, gender, request.Figure)
+                {
+                    Source = RegistrationSource.Panel,
+                },
                 ct
             )
             .ConfigureAwait(false);
@@ -256,6 +259,8 @@ internal sealed class PlayerAccountEndpoints(
                 player,
                 request.LifetimeMinutes is { } lifetime ? TimeSpan.FromMinutes(lifetime) : null,
                 request.Reusable,
+                // Staff issue it, from their own address, not the player's.
+                string.Empty,
                 ct
             )
             .ConfigureAwait(false);

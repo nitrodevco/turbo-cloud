@@ -11,10 +11,11 @@ using Turbo.Primitives.Rooms;
 
 namespace Turbo.Networking.Session;
 
-public class TcpSessionContext(PackageEncoder packageEncoder, ILogger<ISessionContext> logger)
-    : AppSession(),
-        ISessionContext,
-        ISessionOutbound
+public class TcpSessionContext(
+    PackageEncoder packageEncoder,
+    ClientAddresses addresses,
+    ILogger<ISessionContext> logger
+) : AppSession(), ISessionContext, ISessionOutbound
 {
     private readonly PackageEncoder _packageEncoder = packageEncoder;
     private readonly SessionContextState _state = new(logger);
@@ -29,6 +30,11 @@ public class TcpSessionContext(PackageEncoder packageEncoder, ILogger<ISessionCo
     public IRc4Engine? CryptoIn => _state.CryptoIn;
     public IRc4Engine? CryptoOut => _state.CryptoOut;
     public RoomId ActiveRoomId => _state.ActiveRoomId;
+
+    // A plain TCP connection carries no forwarded header: its address is the connection's.
+    public string RemoteAddress => _remoteAddress ??= addresses.Resolve(RemoteEndPoint, null);
+
+    private string? _remoteAddress;
     public DateTime LastReceivedUtc => _state.LastReceivedUtc;
 
     public void MarkReceived() => _state.MarkReceived();

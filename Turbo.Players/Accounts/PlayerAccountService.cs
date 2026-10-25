@@ -14,13 +14,16 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Events;
+using Turbo.Primitives.Policies;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Players.Accounts;
 
 /// <summary>
 /// <see cref="IPlayerAccountService"/>: a <c>players</c> row, the name checked by
-/// <see cref="PlayerNames"/> and free whatever its case, as the hotel's lookups treat it.
+/// <see cref="PlayerNames"/> and free whatever its case, as the hotel's lookups treat it, then
+/// the hotel's registration policies (<see cref="IRegistrationPolicy"/>). Every refusal raises
+/// <see cref="PlayerRegistrationFailedEvent"/>, every player made <see cref="PlayerRegisteredEvent"/>.
 /// </summary>
 public sealed class PlayerAccountService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -29,7 +32,8 @@ public sealed class PlayerAccountService(
     IOptions<OnboardingConfig> onboarding,
     IPlayerNamePolicy namePolicy,
     ILogger<IPlayerAccountService> logger,
-    EventSystem? events = null
+    EventSystem? events = null,
+    IGamePolicies? policies = null
 ) : IPlayerAccountService
 {
     public const int MOTTO_MAX_LENGTH = 38;
@@ -44,6 +48,24 @@ public sealed class PlayerAccountService(
     public const string FEMALE_FIGURE = "hr-515-42.hd-600-1.ch-635-82.lg-716-66-66.sh-735-68";
 
     public async Task<NewPlayerResult> CreateAsync(NewPlayer player, CancellationToken ct)
+    {
+        var made = await MakeAsync(player, ct).ConfigureAwait(false);
+
+        if (made.Created is null)
+            events?.PublishCommitted(
+                new PlayerRegistrationFailedEvent
+                {
+                    Name = player.Name,
+                    Reason = made.Error ?? string.Empty,
+                    Source = player.Source,
+                    RemoteAddress = player.RemoteAddress,
+                }
+            );
+
+        return made;
+    }
+
+    private async Task<NewPlayerResult> MakeAsync(NewPlayer player, CancellationToken ct)
     {
         if (PlayerNames.Check(player.Name) is { } refused)
             return NewPlayerResult.Refused(refused);
@@ -72,6 +94,29 @@ public sealed class PlayerAccountService(
 
         if (await db.Players.AnyAsync(x => x.NameKey == key, ct).ConfigureAwait(false))
             return NewPlayerResult.Refused($"There is already a player called {name}.");
+
+        // The hotel's plugins have the last word: an address's cap, a look of their own.
+        if (policies is not null)
+        {
+            var decision = await policies
+                .DecideRegistrationAsync(
+                    new RegistrationRequest(
+                        name,
+                        motto,
+                        figure,
+                        player.Gender,
+                        player.Source,
+                        player.RemoteAddress
+                    ),
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            if (!decision.Allowed)
+                return NewPlayerResult.Refused(
+                    decision.Reason ?? "New accounts can't be made right now."
+                );
+        }
 
         var entity = new PlayerEntity
         {
@@ -106,7 +151,13 @@ public sealed class PlayerAccountService(
         await owner.PlayerCreatedAsync(new PlayerId(entity.Id), name, ct).ConfigureAwait(false);
 
         events?.PublishCommitted(
-            new PlayerRegisteredEvent { PlayerId = new PlayerId(entity.Id), Name = name }
+            new PlayerRegisteredEvent
+            {
+                PlayerId = new PlayerId(entity.Id),
+                Name = name,
+                Source = player.Source,
+                RemoteAddress = player.RemoteAddress,
+            }
         );
 
         return NewPlayerResult.Done(entity.Id);

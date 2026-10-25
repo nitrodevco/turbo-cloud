@@ -44,4 +44,12 @@ public class NetworkingConfig
     /// (render data and a 296x284 PNG) and a bug report (JSON and a JPEG at most 1280 px wide).
     /// </summary>
     public int MaxIncomingPacketBytes { get; init; } = 2 * 1024 * 1024;
+
+    /// <summary>
+    /// The proxies in front of the game server whose <c>X-Forwarded-For</c> is believed, as
+    /// addresses or ranges (<c>10.0.0.0/8</c>). Loopback always is, as the site's API believes a
+    /// proxy on the same machine. A hotel whose WebSocket proxy runs on another machine lists it
+    /// here; otherwise every player would seem to connect from the proxy.
+    /// </summary>
+    public string[] TrustedProxies { get; init; } = [];
 }

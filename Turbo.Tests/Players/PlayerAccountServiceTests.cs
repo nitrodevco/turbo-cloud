@@ -168,4 +168,94 @@ public sealed class PlayerAccountServiceTests : IDisposable
         )
             .Error.Should()
             .Contain("motto");
+
+    /// <summary>
+    /// A hotel caps accounts per address and checks the chosen
+    /// look before the player exists, so the policy sees what would be saved and the address, a
+    /// refusal makes nobody and says why, and both outcomes carry the address to their events.
+    /// </summary>
+    [Fact]
+    public async Task A_registration_policy_decides_before_the_player_is_made_and_the_events_carry_the_address()
+    {
+        var asked = new List<Turbo.Primitives.Policies.RegistrationRequest>();
+        var policies = Turbo.Players.Policies.GamePolicies.None;
+
+        policies.Register("frontdoor", new OnePerAddress(asked));
+        _events.Record<PlayerRegistrationFailedEvent>();
+
+        var accounts = new PlayerAccountService(
+            _db,
+            new NoOwner(),
+            new PassThroughWordFilter(),
+            Options.Create(new OnboardingConfig()),
+            new PlayerNamePolicy(Options.Create(new PlayerConfig())),
+            NullLogger<IPlayerAccountService>.Instance,
+            _events.System,
+            policies
+        );
+        NewPlayer FromSite(string name) =>
+            new(name, null, AvatarGenderType.Female, null)
+            {
+                Source = RegistrationSource.Site,
+                RemoteAddress = "203.0.113.7",
+            };
+
+        var first = await accounts.CreateAsync(FromSite(" Erin "), Ct);
+        var second = await accounts.CreateAsync(FromSite("Fay"), Ct);
+
+        first.Created.Should().NotBeNull();
+        second.Created.Should().BeNull();
+        second.Error.Should().Be("One account per address.");
+        asked
+            .Select(x => (x.Name, x.Figure, x.Source, x.RemoteAddress))
+            .Should()
+            .Equal(
+                (
+                    "Erin",
+                    PlayerAccountService.FEMALE_FIGURE,
+                    RegistrationSource.Site,
+                    "203.0.113.7"
+                ),
+                ("Fay", PlayerAccountService.FEMALE_FIGURE, RegistrationSource.Site, "203.0.113.7")
+            );
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+            (await db.Players.AnyAsync(x => x.Name == "Fay", Ct)).Should().BeFalse();
+
+        await _events.WhenPublishedAsync<PlayerRegisteredEvent>(1);
+        await _events.WhenPublishedAsync<PlayerRegistrationFailedEvent>(1);
+        var registered = _events.Of<PlayerRegisteredEvent>().Single();
+        var failed = _events.Of<PlayerRegistrationFailedEvent>().Single();
+
+        (registered.Name, registered.Source, registered.RemoteAddress)
+            .Should()
+            .Be(("Erin", RegistrationSource.Site, "203.0.113.7"));
+        (failed.Name, failed.Reason, failed.RemoteAddress)
+            .Should()
+            .Be(("Fay", "One account per address.", "203.0.113.7"));
+        // The address is personal data: an event written to a log leaves it out.
+        registered.ToString().Should().NotContain("203.0.113.7");
+        failed.ToString().Should().NotContain("203.0.113.7").And.Contain("Fay");
+    }
+
+    public sealed class OnePerAddress(List<Turbo.Primitives.Policies.RegistrationRequest> asked)
+        : Turbo.Primitives.Policies.IRegistrationPolicy
+    {
+        public ValueTask<Turbo.Primitives.Policies.RegistrationDecision> DecideAsync(
+            Turbo.Primitives.Policies.RegistrationRequest request,
+            CancellationToken ct
+        )
+        {
+            var seen = asked.Any(x => x.RemoteAddress == request.RemoteAddress);
+
+            asked.Add(request);
+
+            return ValueTask.FromResult(
+                seen
+                    ? Turbo.Primitives.Policies.RegistrationDecision.Refuse(
+                        "One account per address."
+                    )
+                    : Turbo.Primitives.Policies.RegistrationDecision.Allow
+            );
+        }
+    }
 }

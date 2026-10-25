@@ -129,7 +129,7 @@ internal sealed class AccountEndpoints(
             ? AvatarGenderType.Female
             : AvatarGenderType.Male;
         var created = await accounts
-            .CreateAsync(discord, request.Name ?? string.Empty, gender, ct)
+            .CreateAsync(discord, request.Name ?? string.Empty, gender, AddressOf(http), ct)
             .ConfigureAwait(false);
 
         if (created.Created is not { } player)
@@ -175,14 +175,7 @@ internal sealed class AccountEndpoints(
 
         // The hotel's plugins may ask something of the player first (a vote, a check of the address).
         var play = await playPolicies
-            .CheckAsync(
-                new PlayRequest(
-                    player,
-                    PlaySource.Site,
-                    http.Connection.RemoteIpAddress?.ToString() ?? string.Empty
-                ),
-                ct
-            )
+            .CheckAsync(new PlayRequest(player, PlaySource.Site, AddressOf(http)), ct)
             .ConfigureAwait(false);
 
         if (!play.Allowed)
@@ -195,7 +188,13 @@ internal sealed class AccountEndpoints(
             );
 
         var ticket = await tickets
-            .IssueAsync(player, TimeSpan.FromMinutes(Math.Max(1, Web.PlayTicketMinutes)), false, ct)
+            .IssueAsync(
+                player,
+                TimeSpan.FromMinutes(Math.Max(1, Web.PlayTicketMinutes)),
+                false,
+                AddressOf(http),
+                ct
+            )
             .ConfigureAwait(false);
 
         logger.LogDebug("Issued player {PlayerId} a ticket to play from the site", player);
@@ -254,6 +253,15 @@ internal sealed class AccountEndpoints(
                     : null
             );
     }
+
+    /// <summary>
+    /// The visitor's address, through the site's proxy (<see cref="WebApiServer"/> believes its
+    /// <c>X-Forwarded-For</c>), an IPv4 one as such; empty when not known. Never logged.
+    /// </summary>
+    private static string AddressOf(HttpContext http) =>
+        http.Connection.RemoteIpAddress is { } address
+            ? (address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address).ToString()
+            : string.Empty;
 
     private async Task<BanInfo?> BanAsync(PlayerId player, CancellationToken ct) =>
         await sanctions.GetActiveBanAsync(player, ct).ConfigureAwait(false) is { } ban

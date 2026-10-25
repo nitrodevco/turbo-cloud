@@ -18,6 +18,7 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
     public const string PURCHASE = "purchase";
     public const string ROOM_ENTRY = "room-entry";
     public const string PLACEMENT = "placement";
+    public const string REGISTRATION = "registration";
 
     /// <summary>No policies: the hotel decides as it always does.</summary>
     public static GamePolicies None => new(NullLogger<GamePolicies>.Instance);
@@ -161,8 +162,57 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
         return PlacementDecision.Allow;
     }
 
+    public async ValueTask<RegistrationDecision> DecideRegistrationAsync(
+        RegistrationRequest request,
+        CancellationToken ct
+    )
+    {
+        foreach (var entry in Of(REGISTRATION))
+        {
+            RegistrationDecision decision;
+
+            try
+            {
+                decision = await ((IRegistrationPolicy)entry.Policy)
+                    .DecideAsync(request, ct)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(
+                    ex,
+                    "The {Kind} policy {Policy} of {Owner} failed for new player {PlayerName}; it is passed over",
+                    entry.Kind,
+                    entry.Policy.GetType().Name,
+                    entry.Owner,
+                    request.Name
+                );
+
+                continue;
+            }
+
+            if (!decision.Allowed)
+            {
+                // The name and the reason, never the address it was asked from.
+                logger.LogInformation(
+                    "The {Kind} policy {Policy} of {Owner} refused new player {PlayerName} ({Source}): {Reason}",
+                    entry.Kind,
+                    entry.Policy.GetType().Name,
+                    entry.Owner,
+                    request.Name,
+                    request.Source,
+                    decision.Reason
+                );
+
+                return decision;
+            }
+        }
+
+        return RegistrationDecision.Allow;
+    }
+
     /// <summary>
-    /// Adds <paramref name="owner"/>'s policies (any of the three kinds); disposing the result
+    /// Adds <paramref name="owner"/>'s policies (any of the four kinds); disposing the result
     /// takes them away. A kind another owner already has a policy of is logged as a conflict.
     /// </summary>
     public IDisposable Register(string owner, params object[] policies)
@@ -229,6 +279,7 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
                 (policy is IPurchasePolicy, PURCHASE),
                 (policy is IRoomEntryPolicy, ROOM_ENTRY),
                 (policy is IPlacementPolicy, PLACEMENT),
+                (policy is IRegistrationPolicy, REGISTRATION),
             }
                 .Where(x => x.Is)
                 .Select(x => x.Kind),
@@ -239,6 +290,7 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
         {
             PURCHASE => ((IPurchasePolicy)policy).Order,
             ROOM_ENTRY => ((IRoomEntryPolicy)policy).Order,
+            REGISTRATION => ((IRegistrationPolicy)policy).Order,
             _ => ((IPlacementPolicy)policy).Order,
         };
 

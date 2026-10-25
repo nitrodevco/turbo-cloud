@@ -42,6 +42,11 @@ public sealed class PublicSiteTests : IAsyncDisposable
     private readonly SqliteDb _db = new();
     private readonly Fakes _fakes = new();
     private readonly PlayPolicies _policies = new(NullLogger<PlayPolicies>.Instance);
+    private readonly Turbo.Players.Policies.GamePolicies _gamePolicies = Turbo
+        .Players
+        .Policies
+        .GamePolicies
+        .None;
     private readonly RecordingOwner _owner = new();
     private readonly FakeDiscord _discord = new();
     private readonly int _port;
@@ -108,6 +113,7 @@ public sealed class PublicSiteTests : IAsyncDisposable
         services.AddSingleton<IPlayerAccountService, PlayerAccountService>();
         services.AddSingleton<ILoginTicketService, LoginTicketService>();
         services.AddSingleton<IPlayPolicies>(_policies);
+        services.AddSingleton<Turbo.Primitives.Policies.IGamePolicies>(_gamePolicies);
         services.AddSingleton(_fakes.Create<ISanctionService>());
         // The Wired Variables endpoints ask rooms; none is asked here.
         services.AddSingleton(_fakes.Create<Orleans.IGrainFactory>());
@@ -307,6 +313,34 @@ public sealed class PublicSiteTests : IAsyncDisposable
         (await new LoginTicketService(_db, TimeProvider.System).GetAsync(1, Ct))
             .Should()
             .BeNull("a refused Play hands out no ticket");
+    }
+
+    /// <summary>
+    /// Behind the site's proxy on the same machine, sign-up asks
+    /// the registration policies with the visitor's forwarded address, and Play keeps the address
+    /// beside the ticket it issues (<c>security_tickets.ip_address</c>, written empty before).
+    /// </summary>
+    [Fact]
+    public async Task SignUp_and_Play_carry_the_visitors_address_through_the_proxy()
+    {
+        var asked = new List<Turbo.Primitives.Policies.RegistrationRequest>();
+
+        _gamePolicies.Register(
+            "frontdoor",
+            new Turbo.Tests.Players.PlayerAccountServiceTests.OnePerAddress(asked)
+        );
+        _browser.DefaultRequestHeaders.Add("X-Forwarded-For", "198.51.100.4");
+        await SignInWithDiscordAsync("cool");
+        (await SignUpAsync("cool.user_")).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        (await _browser.PostAsync("/api/play", null, Ct)).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        asked
+            .Select(x => (x.Name, x.Source, x.RemoteAddress))
+            .Should()
+            .Equal(("cool.user_", RegistrationSource.Site, "198.51.100.4"));
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.SecurityTickets.SingleAsync(Ct)).IpAddress.Should().Be("198.51.100.4");
     }
 
     private sealed class RefuseFirst(Action<PlayRequest> seen) : IPlayPolicy

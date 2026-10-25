@@ -12,10 +12,15 @@ namespace Turbo.Primitives.Authentication;
 /// </summary>
 public interface ILoginTicketService
 {
+    /// <param name="issuedTo">
+    /// The address the player asked for it from (the site's Play), kept beside it until it is used
+    /// up; empty when staff issue it or the address is not known. Personal data: never logged.
+    /// </param>
     Task<LoginTicketIssued> IssueAsync(
         PlayerId player,
         TimeSpan? lifetime,
         bool reusable,
+        string issuedTo,
         CancellationToken ct
     );
 
