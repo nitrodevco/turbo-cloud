@@ -22,7 +22,7 @@ namespace Turbo.Tests.Catalog;
 
 /// <summary>
 /// Taking Habbo's catalogues in from packet logs of its client. "Habbo" here is a second hotel,
-/// whose index and pages are sent by the real serializers and logged as G-Earth logs them, its
+/// whose index and pages are sent by the real serializers and logged as a packet logger logs them, its
 /// client opening the catalogue and then each page. Taken in, the normal catalogue's new page
 /// comes with its bundle, badge and effect, and a page hidden there comes hidden; furni this
 /// hotel has none of is left out by its sprite; once in, the same log has nothing left to do.
@@ -130,7 +130,7 @@ public sealed class CatalogLogImportTests : IDisposable
             );
     }
 
-    /// <summary>Habbo's client opening the catalogue, then each page of it, as G-Earth logs it.</summary>
+    /// <summary>Habbo's client opening the catalogue, then each page of it, as a packet logger logs it.</summary>
     private async Task<string> HabboLogAsync(CatalogType type)
     {
         CatalogSnapshot snapshot;
@@ -171,7 +171,7 @@ public sealed class CatalogLogImportTests : IDisposable
         return log.ToString();
     }
 
-    /// <summary>A packet as G-Earth logs it: its name, then its bytes, a byte below 32, 127 and the brackets and braces as <c>[n]</c>.</summary>
+    /// <summary>A packet as a packet logger logs it: its name, then its bytes, a byte below 32, 127 and the brackets and braces as <c>[n]</c>.</summary>
     private static void Logged(StringBuilder log, string name, IComposer composer)
     {
         var serializer = PacketHarness.Revision.Serializers[composer.GetType()];

@@ -9,11 +9,11 @@ using System.Text.RegularExpressions;
 namespace Turbo.Admin.Catalog;
 
 /// <summary>
-/// Reads a G-Earth packet log, where each packet is a <c>[Name]</c> line, then its bytes as
+/// Reads a packet log, where each packet is a <c>[Name]</c> line, then its bytes as
 /// <c>Incoming[header] -&gt; ...</c> (<c>Outgoing</c> for what the client sent), then the same
 /// packet as an expression, <c>{in:Name}{b:true}{i:1}{s:"text"}</c>.
 /// <list type="bullet">
-/// <item>The bytes are the packet whole, its length and header first. G-Earth writes a byte below
+/// <item>The bytes are the packet whole, its length and header first. The log writes a byte below
 /// 32, 127 and the four brackets and braces as <c>[n]</c> and every other byte as the character
 /// of that code, so they are read exactly, and in preference to the expression.</item>
 /// <item>A packet whose bytes do not come to the length they start with (a line cut short, or
@@ -35,7 +35,7 @@ public static partial class PacketLog
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
     /// <summary>
-    /// A log file's text: UTF-8 as G-Earth saves it, or, when it is not UTF-8, each byte the
+    /// A log file's text: UTF-8 as the logger saves it, or, when it is not UTF-8, each byte the
     /// character of its code, as an editor saving it in a single-byte code page leaves it.
     /// </summary>
     public static string TextOf(byte[] file)
@@ -173,7 +173,7 @@ public static partial class PacketLog
         }
     }
 
-    /// <summary>A packet's bytes as G-Earth writes them, checked against the length they start with.</summary>
+    /// <summary>A packet's bytes as the log writes them, checked against the length they start with.</summary>
     private static string? Packet(string text, out int header, out byte[] payload)
     {
         header = 0;
@@ -211,7 +211,7 @@ public static partial class PacketLog
         return null;
     }
 
-    /// <summary><c>[n]</c> at <paramref name="start"/>: a byte G-Earth wrote by its number.</summary>
+    /// <summary><c>[n]</c> at <paramref name="start"/>: a byte the log wrote by its number.</summary>
     private static bool EscapedByte(string text, int start, out byte value, out int end)
     {
         value = 0;
