@@ -30,8 +30,8 @@ namespace Turbo.Rooms.Grains.Systems;
 
 /// <summary>
 /// Room chat pipeline. Every message becomes a <see cref="PlayerChatEvent"/> that is first offered
-/// to the global event pipeline (chat commands, filters), then broadcast, then published to the
-/// room event module so room listeners such as the wired system can react to it.
+/// to the global event pipeline (chat commands, filters), then published to the room event module
+/// so room listeners such as the wired system react to it, then broadcast.
 /// </summary>
 public sealed class RoomChatSystem(RoomGrain roomGrain)
     : RoomGrainComponent(roomGrain),
@@ -161,7 +161,16 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         // Shout both came back as Whisper with the speaker as receiver). The wired still fires.
         // A box whose conditions fail does not hide it (official client video, nitro-tester
         // 2026-10-22: shown to the room beside the furni, whispered back to the speaker on it).
-        if (chatType != RoomChatType.Whisper && await IsHiddenByWiredAsync(evt, ct))
+        var hidden = chatType != RoomChatType.Whisper && await IsHiddenByWiredAsync(evt, ct);
+
+        // The room hears the line, and runs the stacks it fires, before the line goes out: a
+        // Says stack's whisper and the bot lines it makes reach the room before the speaker's
+        // own Chat, in the same ms (official client capture 2026-10-25, LAB-W3 wlab9
+        // trigger.0.R1b, 21/21; the stack's states before the echo, 2026-10-14, 3/3).
+        await _roomGrain.PublishRoomEventAsync(evt, ct);
+        await _roomGrain.RunRaisedWiredInCallAsync(ct);
+
+        if (hidden)
             await GrainFactory.SendComposerToPlayerAsync(
                 speaker.PlayerId,
                 CreateComposer(
@@ -196,8 +205,6 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
                     Text = evt.Text,
                 }
             );
-
-        await _roomGrain.PublishRoomEventAsync(evt, ct);
 
         if (
             chatType == RoomChatType.Whisper
