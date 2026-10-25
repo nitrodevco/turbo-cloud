@@ -29,9 +29,6 @@ public class HotelAvailabilityServiceTests
     private readonly HotelAvailabilityService _service;
     private readonly TestEventBus _bus = new();
 
-    // Published on the thread pool, so two may arrive at once.
-    private readonly System.Collections.Concurrent.ConcurrentQueue<HotelAvailabilityChangedEvent> _changes =
-        new();
     private readonly List<int> _disconnected = [];
     private readonly Dictionary<int, IComposer?> _farewells = [];
 
@@ -66,7 +63,7 @@ public class HotelAvailabilityServiceTests
             new CapturingLogger<IHotelAvailability>(),
             _bus.System
         );
-        _bus.On<HotelAvailabilityChangedEvent>(_changes.Enqueue);
+        _bus.Record<HotelAvailabilityChangedEvent>();
     }
 
     private Task TickAsync() => _service.TickAsync(CancellationToken.None);
@@ -165,9 +162,9 @@ public class HotelAvailabilityServiceTests
         _service.Cancel();
         _service.Cancel();
 
-        await CountWait.ForAsync(() => _changes.Count, 3);
+        await _bus.WhenPublishedAsync<HotelAvailabilityChangedEvent>(3);
 
-        _changes
+        _bus.Of<HotelAvailabilityChangedEvent>()
             .Select(x => (x.Previous.Phase, x.Current.Phase))
             .Should()
             .BeEquivalentTo([
@@ -175,7 +172,7 @@ public class HotelAvailabilityServiceTests
                 (HotelAvailabilityPhase.MaintenanceScheduled, HotelAvailabilityPhase.Maintenance),
                 (HotelAvailabilityPhase.Maintenance, HotelAvailabilityPhase.Open),
             ]);
-        _changes
+        _bus.Of<HotelAvailabilityChangedEvent>()
             .Should()
             .Contain(x =>
                 x.Current.Phase == HotelAvailabilityPhase.Maintenance && x.Current.Reason == "night"
