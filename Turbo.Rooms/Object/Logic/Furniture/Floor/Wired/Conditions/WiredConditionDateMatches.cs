@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
@@ -56,12 +55,17 @@ public class WiredConditionDateMatches(
         if (monthMask != 0 && (monthMask & (1 << (now.Month - 1))) == 0)
             return false;
 
+        // A day range whose min is past its max wraps over the month end (30..26 held on the
+        // 25th, 26..24 did not); a year range like that never holds (2027..2025 failed in 2026)
+        // (official client capture 2026-10-25, wired matrix condition.29.B2b / B2c, 5/5 each).
         if (GetIntParamOrDefault(0, false))
         {
             var min = GetIntParamOrDefault(3, 1);
             var max = GetIntParamOrDefault(4, 31);
+            var inRange =
+                min <= max ? now.Day >= min && now.Day <= max : now.Day >= min || now.Day <= max;
 
-            if (now.Day < Math.Min(min, max) || now.Day > Math.Max(min, max))
+            if (!inRange)
                 return false;
         }
 
@@ -70,7 +74,7 @@ public class WiredConditionDateMatches(
             var min = GetIntParamOrDefault(6, 0);
             var max = GetIntParamOrDefault(7, 9999);
 
-            if (now.Year < Math.Min(min, max) || now.Year > Math.Max(min, max))
+            if (now.Year < min || now.Year > max)
                 return false;
         }
 

@@ -519,6 +519,71 @@ public sealed class WiredGamesTimeEditorTests
         condition.Evaluate(Context()).Should().BeFalse($"{timezone} does not read {other}h");
     }
 
+    /// <summary>
+    /// condition.29.B2-B2c (official client capture 2026-10-25 09:36-09:39Z, wlab13): Saturday
+    /// 23:3x in US/Hawaii, Sunday the 25th in Europe/London. Weekday and day are read in the box's
+    /// zone (11/11); a day range with min past max wraps over the month end (5/5); a year range
+    /// with min past max never holds (5/5). Ours swapped both ranges.
+    /// </summary>
+    [Theory]
+    [InlineData("condition.29.B2", "Europe/London", 64, 0, 0, 0, 0, true)]
+    [InlineData("condition.29.B2", "US/Hawaii", 64, 0, 0, 0, 0, false)]
+    [InlineData("condition.29.B2", "US/Hawaii", 32, 0, 0, 0, 0, true)]
+    [InlineData("condition.29.B2", "Europe/London", 32, 0, 0, 0, 0, false)]
+    [InlineData("condition.29.B2", "US/Hawaii", 127, 24, 24, 0, 0, true)]
+    [InlineData("condition.29.B2", "US/Hawaii", 127, 25, 25, 0, 0, false)]
+    [InlineData("condition.29.B2", "Europe/London", 127, 25, 25, 0, 0, true)]
+    [InlineData("condition.29.B2b", "Europe/London", 127, 30, 26, 0, 0, true)]
+    [InlineData("condition.29.B2b", "Europe/London", 127, 27, 25, 0, 0, true)]
+    [InlineData("condition.29.B2b", "Europe/London", 127, 26, 24, 0, 0, false)]
+    [InlineData("condition.29.B2c", "Europe/London", 127, 0, 0, 2026, 2026, true)]
+    [InlineData("condition.29.B2c", "Europe/London", 127, 0, 0, 2027, 2025, false)]
+    [InlineData("condition.29.B2c", "Europe/London", 127, 0, 0, 2025, 2025, false)]
+    [InlineData("condition.29.B2c", "Europe/London", 127, 0, 0, 2027, 2030, false)]
+    public async Task Date_matches_reads_its_own_zone_and_wraps_only_the_day_range(
+        string caseId,
+        string timezone,
+        int weekdays,
+        int dayMin,
+        int dayMax,
+        int yearMin,
+        int yearMax,
+        bool holds
+    )
+    {
+        var room = new WiredRoom(
+            8,
+            8,
+            clock: new ManualTimeProvider(new DateTimeOffset(2026, 10, 25, 9, 37, 0, TimeSpan.Zero))
+        );
+        var condition = room.AddBox<WiredConditionDateMatches>(BOX, 0, 0, "wf_cnd_match_date");
+        var useDay = dayMin > 0 ? 1 : 0;
+        var useYear = yearMin > 0 ? 1 : 0;
+
+        (
+            await room.SaveAsync<UpdateConditionMessage>(
+                BOX,
+                intParams:
+                [
+                    useDay,
+                    useYear,
+                    weekdays,
+                    Math.Max(dayMin, 1),
+                    Math.Max(dayMax, 1),
+                    4095,
+                    yearMin,
+                    yearMax,
+                ],
+                stringParam: timezone,
+                definitionSpecifics: [0]
+            )
+        )
+            .Should()
+            .BeTrue(caseId);
+
+        condition.Evaluate(Context(room)).Should().Be(holds, caseId);
+    }
+
     private FurnitureWiredLogic Add(Type logic, string name) =>
         (FurnitureWiredLogic)
             typeof(WiredRoom)
@@ -548,8 +613,10 @@ public sealed class WiredGamesTimeEditorTests
             ),
         };
 
-    private WiredProcessingContext Context() =>
-        new(_room.Harness.Room)
+    private WiredProcessingContext Context() => Context(_room);
+
+    private static WiredProcessingContext Context(WiredRoom room) =>
+        new(room.Harness.Room)
         {
             Event = new RoomWiredStackChangedEvent
             {
@@ -557,6 +624,6 @@ public sealed class WiredGamesTimeEditorTests
                 CausedBy = ActionContext.CreateForSystem(1),
                 StackIds = [],
             },
-            Stack = _room.Harness.Fakes.Create<IWiredStack>(),
+            Stack = room.Harness.Fakes.Create<IWiredStack>(),
         };
 }
