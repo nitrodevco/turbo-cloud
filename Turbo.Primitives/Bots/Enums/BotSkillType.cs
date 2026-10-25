@@ -24,6 +24,14 @@ public enum BotSkillType
     /// <summary>Hides the pick-up button; the bot belongs to the hotel.</summary>
     NoPickUp = 12,
     NavigatorSearch = 14,
+
+    // Habbo lists 19-23 on every player bot (official client capture, all 133 recorded), but no
+    // client menu reads them (Flash RentableBotMenuView), so what they stand for is not known.
+    Unnamed19 = 19,
+    Unnamed20 = 20,
+    Unnamed21 = 21,
+    Unnamed22 = 22,
+    Unnamed23 = 23,
     DonateFurnitureToUser = 24,
     DonateFurnitureToAll = 25,
 }

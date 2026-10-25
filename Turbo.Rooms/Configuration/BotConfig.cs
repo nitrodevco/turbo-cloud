@@ -27,7 +27,11 @@ public class BotConfig
     /// </summary>
     public int ChatStyleId { get; init; } = 31;
 
-    /// <summary>Skills every player-owned bot offers in its menu.</summary>
+    /// <summary>
+    /// Skills every player-owned bot lists in <c>Users</c>, in Habbo's order: the five its menu
+    /// offers, then 19-23 (official client capture: all 133 recorded player-bot entries, e.g.
+    /// 2026-10-13T14-17-23-room-wait).
+    /// </summary>
     public BotSkillType[] Skills { get; init; } =
     [
         BotSkillType.DressUp,
@@ -35,5 +39,10 @@ public class BotConfig
         BotSkillType.RandomWalk,
         BotSkillType.Dance,
         BotSkillType.ChangeName,
+        BotSkillType.Unnamed19,
+        BotSkillType.Unnamed20,
+        BotSkillType.Unnamed21,
+        BotSkillType.Unnamed22,
+        BotSkillType.Unnamed23,
     ];
 }
