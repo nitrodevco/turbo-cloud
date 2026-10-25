@@ -26,13 +26,16 @@ export default defineModule({
             tooltip: api.texts.get('skills.toolbar.tooltip', 'Skills'),
             onClick: () => api.windows.toggle('skills'),
         });
+        // Every handler of a prefix gets each of its links: the windows `npm run make window` adds
+        // handle theirs beside this one.
         api.links.handle('skills', (link) => {
             if (link === 'skills/open') api.windows.open('skills');
         });
 
         // A button in the purse like its help button, below its settings button; the purse and its
         // button list grow by the button's height. The names are the purse layout's own (`'@8'` is
-        // the list, which has none). See nitro-next docs/template-patches.md.
+        // the list, which has none). See nitro-next docs/template-patches.md. The button is the help
+        // button's 50 pixels and the purse has no room for more: keep its caption to about seven letters.
         api.templates.patch(PURSE, [
             { element: 'settings_button', insert: 'after', add: { like: 'help_button', name: 'skills', y: 63, children: [ { like: 'help_button/@0', name: 'label', caption: api.texts.get('skills.purse.button', 'Skills') } ] } },
             { element: '@8', set: { height: 62 + 21 } },

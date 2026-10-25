@@ -9,6 +9,7 @@
         "package": "node tools/dev.mjs package",
         "test": "node tools/dev.mjs test",
         "make": "node tools/make.mjs",
+        "clean-sample": "node tools/clean-sample.mjs",
         "typecheck": "tsc -p client/tsconfig.json"
     },
     "devDependencies": {

@@ -17,6 +17,8 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statS
 import path from 'node:path';
 import { crc32, deflateRawSync } from 'node:zlib';
 
+import { buildHint, checkHost } from './host.mjs';
+
 const root = path.resolve(import.meta.dirname, '..');
 const manifest = JSON.parse(readFileSync(path.join(root, 'manifest.json'), 'utf8'));
 const key = manifest.Key;
@@ -245,11 +247,25 @@ const dev = async () => {
 };
 
 const main = async () => {
+    // A server older than the plugin fails its build with errors about names it lacks: say so first.
+    const host = checkHost();
+
+    if (host) {
+        log('server', host);
+
+        if (mode !== 'dev') process.exit(1);
+    }
+
     await ensurePackages();
 
     if (mode === 'test') {
-        const server = await run('dotnet', [ 'test', path.join(root, 'tests', `${assembly}.Tests`), '-nologo' ]);
-        const client = await run('node', [ '--test', 'client/tests/*.test.ts' ]);
+        const serverTests = path.join(root, 'tests', `${assembly}.Tests`);
+        const clientTests = path.join(root, 'client', 'tests');
+        // There are none after `npm run clean-sample`, until the plugin has its own (xunit fails a
+        // test project with no test in it).
+        const has = (folder, pattern) => existsSync(folder) && readdirSync(folder).some(file => pattern.test(file));
+        const server = has(serverTests, /\.cs$/) ? await run('dotnet', [ 'test', serverTests, '-nologo' ]) : { ok: true };
+        const client = has(clientTests, /\.test\.ts$/) ? await run('node', [ '--test', 'client/tests/*.test.ts' ]) : { ok: true };
 
         process.exit(server.ok && client.ok ? 0 : 1);
     }

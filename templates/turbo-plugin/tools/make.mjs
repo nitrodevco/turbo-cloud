@@ -28,6 +28,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { buildErrors, checkHost, turboBin } from './host.mjs';
+
 const root = path.resolve(import.meta.dirname, '..');
 const manifestFile = path.join(root, 'manifest.json');
 const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'));
@@ -129,7 +131,7 @@ export const activateMade = (api: ClientModuleApi) => made.forEach(activate => a
 
 /** The EF Core version of the server the plugin builds against (TurboBin), from its .deps.json. */
 const efVersion = () => {
-    const bin = process.env.TurboBin ?? path.resolve(root, '../turbo-cloud', 'Turbo.Main', 'bin', 'Debug', 'net10.0');
+    const bin = turboBin();
     const deps = existsSync(bin) ? readdirSync(bin).filter(file => file.endsWith('.deps.json')) : [];
 
     for (const file of deps) {
@@ -557,7 +559,9 @@ namespace ${assembly};
 
 /// <summary>
 /// The plugin's tables, named with its manifest's TablePrefix. Found as the plugin loads, which
-/// runs its migrations (server/Database/Migrations, made by \`npm run make migration <Name>\`).
+/// runs its migrations (server/Database/Migrations, made by <c>npm run make migration Name</c>).
+/// A route, task or listener is built once: it takes IServiceScopeFactory and reads the tables in
+/// a scope of its own (turbo-cloud docs/database.md).
 /// </summary>
 public sealed class ${context} : PluginDbContextBase<${context}>
 {
@@ -578,9 +582,15 @@ public sealed class ${assembly}Row
             console.log(`Then: DesignTime=true dotnet ${args.join(' ')}`);
         } else {
             const env = { ...process.env, DesignTime: 'true' };
-            const dotnet = command => spawnSync('dotnet', command, { cwd: root, stdio: 'inherit', env }).status === 0;
+            const dotnet = (command, stdio = 'inherit') => spawnSync('dotnet', command, { cwd: root, stdio, env }).status === 0;
+            // Built here, so a plugin that doesn't build says why instead of dotnet ef's "Build failed".
+            const errors = checkHost() ?? buildErrors(path.join(server, `${assembly}.csproj`), env);
 
-            if (!dotnet([ 'restore', path.join(server, `${assembly}.csproj`) ]) || !dotnet(args)) fail(`dotnet ef failed (once per machine: dotnet tool install --global dotnet-ef). Run again with: DesignTime=true dotnet ${args.join(' ')}`);
+            if (errors) fail(`${errors}\nThe plugin does not build, so no migration was made.`);
+
+            if (!dotnet([ 'ef', '--version' ], 'ignore')) fail('dotnet ef is not installed: dotnet tool install --global dotnet-ef (once per machine), then run this again.');
+
+            if (!dotnet([ ...args, '--no-build' ])) fail(`dotnet ef failed (above). Run it again with: DesignTime=true dotnet ${args.join(' ')}`);
         }
 
         return [ 'database.md' ];

@@ -329,6 +329,249 @@ public sealed class PluginTemplateTests : IDisposable
         File.Exists(Path.Combine(Template, "wwwroot", "skills.png")).Should().BeTrue();
     }
 
+    /// <summary>
+    /// The doc comments <c>npm run make</c> writes are XML, as the plugin's documentation file
+    /// (the Settings page's summaries) needs: the migration recipe's context once had
+    /// <c>&lt;Name&gt;</c> in its summary, warning CS1570 on every build (stranger test S1).
+    /// </summary>
+    [Fact]
+    public async Task Every_doc_comment_make_writes_is_well_formed_xml()
+    {
+        var source = Path.Combine(_folder, "source");
+
+        CopyTemplate(source);
+
+        foreach (
+            var recipe in new[]
+            {
+                "command hug",
+                "message ping",
+                "logic skill_stove",
+                "listener entered",
+                "setting rate",
+                "route rares/values",
+                "migration AddPrizes",
+                "schedule weekly-rotation",
+            }
+        )
+            await MakeAsync(source, recipe);
+
+        var offenders = new List<string>();
+
+        foreach (var file in ServerFiles(source))
+        {
+            var doc = new List<string>();
+
+            foreach (var line in File.ReadLines(file).Append(string.Empty))
+            {
+                if (line.TrimStart().StartsWith("///", StringComparison.Ordinal))
+                {
+                    doc.Add(line.TrimStart()[3..]);
+
+                    continue;
+                }
+
+                if (doc.Count > 0)
+                {
+                    try
+                    {
+                        XElement.Parse($"<doc>{string.Join('\n', doc)}</doc>");
+                    }
+                    catch (System.Xml.XmlException ex)
+                    {
+                        offenders.Add($"{Path.GetRelativePath(source, file)}: {ex.Message}");
+                    }
+                }
+
+                doc.Clear();
+            }
+        }
+
+        offenders.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// A server built before the plugin's code (a <c>TurboBin</c> older than the template, as a
+    /// checkout's bin built before the scheduler was) is named as the cause, with what to rebuild,
+    /// before anything builds: by <c>tools/host.mjs</c>, <c>npm run build</c> and
+    /// <c>make migration</c>, which once said only that dotnet ef failed (stranger test S1, point 1).
+    /// </summary>
+    [Fact]
+    public async Task A_server_older_than_the_plugin_is_named_as_the_cause_before_anything_builds()
+    {
+        var source = Path.Combine(_folder, "source");
+        var stale = Path.Combine(_folder, "stale-bin");
+
+        CopyTemplate(source);
+        Directory.CreateDirectory(stale);
+
+        // Every Turbo namespace the template uses but the scheduler's, in a Turbo.Contracts.dll
+        // beside the server's deps file (make migration reads its EF Core version there).
+        var namespaces = ServerFiles(source)
+            .Concat(
+                Directory.EnumerateFiles(
+                    Path.Combine(source, "tests"),
+                    "*.cs",
+                    SearchOption.AllDirectories
+                )
+            )
+            .SelectMany(File.ReadLines)
+            .Select(line =>
+                System.Text.RegularExpressions.Regex.Match(line, @"^using (Turbo(\.\w+)+);")
+            )
+            .Where(m => m.Success)
+            .Select(m => m.Groups[1].Value)
+            .Where(ns => ns != "Turbo.Contracts.Plugins.Scheduling")
+            .Distinct();
+        var compilation = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create(
+            "Turbo.Contracts",
+            [
+                Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(
+                    string.Concat(
+                        namespaces.Select(ns => $"namespace {ns} {{ public class Old {{ }} }}\n")
+                    ),
+                    cancellationToken: Ct
+                ),
+            ],
+            [
+                Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(
+                    typeof(object).Assembly.Location
+                ),
+            ],
+            new Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions(
+                Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary
+            )
+        );
+
+        using (var dll = File.Create(Path.Combine(stale, "Turbo.Contracts.dll")))
+            compilation.Emit(dll, cancellationToken: Ct).Success.Should().BeTrue();
+
+        File.Copy(
+            Path.Combine(AppContext.BaseDirectory, "Turbo.Tests.deps.json"),
+            Path.Combine(stale, "Turbo.Main.deps.json")
+        );
+
+        foreach (
+            var command in new[]
+            {
+                "tools/host.mjs",
+                "tools/dev.mjs build",
+                "tools/make.mjs migration AddPrizes",
+            }
+        )
+        {
+            var (exit, output) = await NodeAsync(source, command, stale);
+
+            exit.Should().Be(1, command);
+            output
+                .Should()
+                .Contain("is older than this plugin", command)
+                .And.Contain("Turbo.Contracts.Plugins.Scheduling", command)
+                .And.Contain("SkillsWeeklyReset.cs", command)
+                .And.NotContain("dotnet-ef", command);
+        }
+
+        (await NodeAsync(source, "tools/host.mjs", AppContext.BaseDirectory))
+            .Exit.Should()
+            .Be(0, "the server these tests run has every namespace the template uses");
+    }
+
+    /// <summary>
+    /// <c>npm run clean-sample</c> takes the template's sample out (stranger test S1 deleted 11 files
+    /// by hand): the plugin left loads with what <c>npm run make</c> adds and nothing of the sample.
+    /// </summary>
+    [Fact]
+    public async Task Clean_sample_leaves_a_plugin_that_loads_with_only_what_make_adds()
+    {
+        var source = Path.Combine(_folder, "source");
+        var plugins = Path.Combine(_folder, "plugins");
+        var key = TemplateKey();
+
+        CopyTemplate(source);
+        (await NodeAsync(source, "tools/clean-sample.mjs", AppContext.BaseDirectory))
+            .Exit.Should()
+            .Be(0);
+
+        foreach (var recipe in new[] { "command hug", "setting rate --default 5", "window news" })
+            await MakeAsync(source, recipe);
+
+        // The README describes the sample, and tools/ names it to take it out.
+        Directory
+            .EnumerateFiles(source, "*", SearchOption.AllDirectories)
+            .Select(f => Path.GetRelativePath(source, f))
+            .Where(f => !IsBuildOutput(f) && !f.StartsWith("tools", StringComparison.Ordinal))
+            .Where(f => f != "README.md" && Path.GetExtension(f) != ".png")
+            .Where(f =>
+                new[]
+                {
+                    "SkillBook",
+                    "skillStore",
+                    "WeeklyReset",
+                    $"{key}.window.",
+                    $"{key}.state",
+                }.Any(name =>
+                    File.ReadAllText(Path.Combine(source, f))
+                        .Contains(name, StringComparison.Ordinal)
+                )
+            )
+            .Should()
+            .BeEmpty("the sample's skill book, messages, task, window and texts are gone");
+
+        PluginBuilder.Write(plugins, key, ServerSources(source));
+        CopyPluginFiles(source, Path.Combine(plugins, key), key);
+
+        var host = new PluginTestHost(_db, _fakes);
+        var manager = host.Manager(plugins);
+
+        await manager.LoadAllAsync(ct: Ct);
+
+        var status = manager.Snapshot().Single();
+        status.State.Should().Be(PluginStateType.Loaded, status.Error);
+
+        _fakes
+            .Log.On<ICommandRegistryProvider>()
+            .SelectMany(c => (IEnumerable<ICommand>)c.Args[0]!)
+            .Select(c => c.GetType().Name)
+            .Should()
+            .Equal("HugCommand");
+        host.Messages.Messages.Should().BeEmpty();
+        host.Schedules.Keys.Should().BeEmpty();
+
+        await manager.UnloadAllAsync(Ct);
+    }
+
+    private static IEnumerable<string> ServerFiles(string plugin) =>
+        Directory
+            .EnumerateFiles(Path.Combine(plugin, "server"), "*.cs", SearchOption.AllDirectories)
+            .Where(f => !IsBuildOutput(Path.GetRelativePath(plugin, f)));
+
+    private static async Task<(int Exit, string Output)> NodeAsync(
+        string plugin,
+        string command,
+        string turboBin
+    )
+    {
+        var start = new ProcessStartInfo("node")
+        {
+            WorkingDirectory = plugin,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+
+        foreach (var part in command.Split(' '))
+            start.ArgumentList.Add(part);
+
+        start.Environment["TurboBin"] = turboBin;
+
+        using var node = Process.Start(start)!;
+        var output = node.StandardOutput.ReadToEndAsync(Ct);
+        var errors = node.StandardError.ReadToEndAsync(Ct);
+
+        await node.WaitForExitAsync(Ct);
+
+        return (node.ExitCode, await output + await errors);
+    }
+
     private static string TemplateKey() =>
         JsonDocument
             .Parse(File.ReadAllText(Path.Combine(Template, "manifest.json")))

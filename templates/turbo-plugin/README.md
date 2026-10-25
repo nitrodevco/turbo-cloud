@@ -25,12 +25,49 @@ cd Skills && npm run dev
 ```
 
 `npm run dev` installs the client's packages the first time, builds both halves into
-`dist/skills/` and keeps it current. Name that folder once in the hotel's settings and run the
-server in Development:
+`dist/skills/` and keeps it current. It first checks the server it builds against (`TurboBin`, see
+[The rest](#the-rest)): one older than this plugin is named as the cause, with what to rebuild.
+
+`npm run clean-sample` takes the sample (the skill book, its command, messages, weekly reset,
+window, purse button and their tests and texts) out, leaving an empty plugin to build up with
+`npm run make`. Run it once, before the plugin is yours.
+
+## The hotel it runs on
+
+A hotel in the Development environment, with the hosts a plugin uses turned on (they are off by
+default). One block for the server's `appsettings.Development.json`, or the same keys as
+environment variables (`Turbo__Gamedata__Enabled=true`, ...):
 
 ```json
-{ "Turbo": { "Plugin": { "DevPluginPaths": [ "<this folder>/dist/skills" ] } } }
+{
+  "Turbo": {
+    "Plugin": { "DevPluginPaths": [ "<this folder>/dist/skills" ] },
+    "Gamedata": { "Enabled": true, "PublicUrl": "http://127.0.0.1:8094" },
+    "Web": {
+      "Enabled": true,
+      "ClientUrl": "http://localhost:5173/?sso={ticket}",
+      "PluginRoutes": { "PublicUrl": "http://127.0.0.1:8092" }
+    },
+    "Admin": { "Enabled": true, "PanelUrl": "http://localhost:5174" },
+    "Owner": { "Name": "<your player name>" }
+  }
+}
 ```
+
+| Key | Why |
+| --- | --- |
+| `Plugin:DevPluginPaths` | The hotel loads the plugin from `dist/` and reloads it as it changes. |
+| `Gamedata` | Serves the client module and `wwwroot/` (`/gamedata/plugins/skills/`) and the plugin's texts. `PublicUrl` makes the module's address absolute, so a client on another port can load it. |
+| `Web` | Serves the plugin's web routes (`/api/plugins/skills/...`, turbo-cloud `docs/plugin-web-routes.md`). Clients call them at `PluginRoutes:PublicUrl`; `ClientUrl` is the client's address, whose origin may call them. |
+| `Admin` | The admin API, for the panel's Settings and Plugins pages (Schedule, Run now). `PanelUrl` is the panel's own address: passkeys are bound to it. The client's dev server has 5173, so run the panel on another port (`yarn dev --port 5174` in turbo-admin). |
+| `Owner:Name` | Your player becomes the hotel's owner: the `admin` group, and at the next start a setup link for your panel passkey in the server log (turbo-cloud `docs/admin-panel.md`, "The first admin"). |
+
+The client (nitro-next) loads a module from another origin only when its configuration names it:
+`"client.modules.hosts": [ "127.0.0.1:8094" ]` beside its `socket.url` (nitro-next
+`docs/client-modules.md`). The admin API takes `Authorization: Bearer <session token>`, the token
+a panel sign-in gives (turbo-cloud `docs/admin-panel.md`, "Calling the admin API").
+
+As it runs:
 
 - A saved `.cs` file rebuilds the server half; the hotel reloads the plugin (no restart).
 - A saved client file rebundles the module; the hotel sends clients its new version and they run
@@ -59,7 +96,10 @@ guide to read (turbo-cloud `docs/`).
 | `npm run make policy purchase club-discount` | `server/Policies/ClubDiscountPolicy.cs`: allows, refuses or changes a purchase (`room-entry`, `placement` for the others) | the game policy scan |
 
 `make migration` needs `dotnet ef` once per machine (`dotnet tool install --global dotnet-ef`) and
-a built server (`TurboBin`): the context needs no design-time factory. Furni logic derives from
+a built server (`TurboBin`): the context needs no design-time factory. The first run writes the
+context with a placeholder row class (`[Table("rows")]`) and its migration: to start from your own
+table, run `npm run make migration Init` once, edit the row class, `dotnet ef migrations remove`, and
+run it again, or write the context first (turbo-cloud `docs/database.md`). Furni logic derives from
 `FurnitureFloorLogic` in `Turbo.Rooms`, which `make logic` adds a reference to.
 
 ## The rest
@@ -74,11 +114,17 @@ a built server (`TurboBin`): the context needs no design-time factory. Furni log
 The server half builds against a Turbo server's own assemblies, never copied beside the plugin:
 `TurboBin` (`-p:TurboBin=...` or the `TurboBin` environment variable) is the folder holding them,
 by default the `--turbo` checkout's `Turbo.Main/bin/Debug/net10.0`. Point it at the bin folder of the
-server you run.
+server you run. `node tools/host.mjs` checks it, as `npm run dev`, `build`, `test` and
+`make migration` do before they build: a server built before something the plugin uses (the
+scheduler, say) is named as the cause, with the namespace it lacks and what to rebuild.
 
 The client module is written against `@nitrodevco/client-module-sdk` (nitro-next
 `docs/client-modules.md`, "Writing a module with the SDK"): `defineModule`, `useApi`, the client's
-own React and theme. The two halves talk in named messages (turbo-cloud `docs/plugin-messages.md`):
+own React and theme. `api.links.handle(prefix, ...)` adds a handler: every handler of a prefix gets
+each of its links, so `index.tsx`'s and the ones `make window` writes share the plugin's key. The
+purse button (`skills.purse.button` in `gamedata/external_texts.txt`) is as wide as the purse's
+help button, 50 pixels, and the purse has no room for more: a caption longer than about seven
+letters is cut off. The two halves talk in named messages (turbo-cloud `docs/plugin-messages.md`):
 records with `[PluginMessage("skills.<name>")]` in `server/SkillsMessages.cs`, read and sent by name
 in `client/src/skill.ts` (`api.messages.on/send`). The server numbers them and tells the client, so
 there is nothing to keep in step but the names and fields.
@@ -87,6 +133,30 @@ The server half reaches the hotel (players, rooms, wallet, furni, notices) throu
 by constructor (`SkillBook` alerts a player who levels up); its tests use `FakeHotel` from
 `Turbo.Testing.dll` in the same bin folder, with assertions such as
 `hotel.Notify.AssertAlerted(alice, SkillBook.LEVELLED)` (turbo-cloud `docs/hotel-api.md`).
+
+## The plugin's tables from a route or a task
+
+The plugin's database context is scoped (one per request), and its routes, scheduled tasks,
+commands, listeners and singletons are built once, as the plugin loads. So they take
+`IServiceScopeFactory` and read the tables in a scope of their own; one that takes the context by
+constructor does not load, and the plugin's status says so.
+
+```csharp
+public sealed class ValuesRoute(IServiceScopeFactory scopes) : IPluginWebRoute
+{
+    public string Method => "GET";
+
+    public string Pattern => "values";
+
+    public async Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct)
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<SkillsDb>();
+
+        return PluginWebResult.Ok(await db.Rows.CountAsync(ct));
+    }
+}
+```
 
 ## A scheduled task
 
