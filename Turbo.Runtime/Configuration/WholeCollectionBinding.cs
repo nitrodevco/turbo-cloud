@@ -58,11 +58,26 @@ public static class WholeCollectionBinding
         step.GetType() is { IsGenericType: true } type
         && type.GetGenericTypeDefinition() == typeof(WholeCollectionPostConfigure<>);
 
-    /// <summary>The section a config class names in its <c>SECTION_NAME</c> constant; null for none.</summary>
+    /// <summary>
+    /// The section a config class names in its <c>SECTION_NAME</c> constant, or a plugin's in its
+    /// <c>[PluginSettings("...")]</c>; null for none.
+    /// </summary>
     public static string? SectionOf(Type type) =>
         type.GetField(SECTION_NAME, BindingFlags.Public | BindingFlags.Static)
             is { IsLiteral: true } field
             ? field.GetRawConstantValue() as string
+            : PluginSectionOf(type);
+
+    // Turbo.Contracts.Plugins.PluginSettingsAttribute, read by name: this assembly references none
+    // of the server's.
+    private const string PLUGIN_SETTINGS = "Turbo.Contracts.Plugins.PluginSettingsAttribute";
+
+    private static string? PluginSectionOf(Type type) =>
+        type.GetCustomAttributesData()
+            .FirstOrDefault(a => a.AttributeType.FullName == PLUGIN_SETTINGS)
+            ?.ConstructorArguments
+            is [{ Value: string section }]
+            ? section
             : null;
 
     /// <summary>

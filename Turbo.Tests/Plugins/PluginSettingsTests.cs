@@ -41,7 +41,7 @@ public sealed class PluginSettingsTests : IDisposable
         Directory.CreateDirectory(_folder);
         _settings = new SettingsHarness(
             _db,
-            """{ "Sample": { "Plugin": { "Greeting": "from-the-file" } } }""",
+            """{ "Sample": { "Plugin": { "Greeting": "from-the-file" } }, "Rates": { "Steps": [9] } }""",
             (services, configuration) =>
                 services.Configure<TestHotelConfig>(
                     configuration.GetSection(TestHotelConfig.SECTION_NAME)
@@ -236,6 +236,40 @@ public sealed class PluginSettingsTests : IDisposable
                 ("Sample:Plugin:WebhookUrl", null, null, true, (int?)STAFF.Value)
             );
     }
+
+    [Fact]
+    public async Task a_PluginSettings_class_is_bound_whole_and_listed_with_nothing_registered()
+    {
+        PluginBuilder.Write(_folder, "rates", RATES);
+        await _manager.LoadAllAsync(ct: Ct);
+
+        State("rates").Should().Be(PluginStateType.Loaded);
+
+        var steps = _settings.Settings.Get("Rates:Steps")!;
+
+        steps.Plugin.Should().Be("rates");
+        steps
+            .Running.Should()
+            .Be("[9]", "the file's list replaces the class's, as a core setting's does");
+
+        await _settings.Settings.SaveAsync("Rates:Rate", "7", STAFF, Ct);
+
+        _settings.Settings.Get("Rates:Rate")!.Running.Should().Be("7");
+    }
+
+    /// <summary>A plugin of a settings class alone: no plugin class, nothing registered.</summary>
+    private const string RATES = """
+        using System.Collections.Generic;
+        using Turbo.Contracts.Plugins;
+
+        [PluginSettings("Rates")]
+        public sealed class RateSettings
+        {
+            public int Rate { get; init; } = 5;
+
+            public List<int> Steps { get; init; } = [1, 2, 3];
+        }
+        """;
 
     private PluginStateType State(string key) =>
         _manager.Snapshot().Single(x => x.Key == key).State;

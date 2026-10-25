@@ -8,6 +8,7 @@
         "build": "node tools/dev.mjs build",
         "package": "node tools/dev.mjs package",
         "test": "node tools/dev.mjs test",
+        "make": "node tools/make.mjs",
         "typecheck": "tsc -p client/tsconfig.json"
     },
     "devDependencies": {

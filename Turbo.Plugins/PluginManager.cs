@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
 using Turbo.Contracts.Plugins.Admin;
+using Turbo.Database.Context;
 using Turbo.Database.Migrations;
 using Turbo.Logging.Extensions;
 using Turbo.Plugins.Configuration;
@@ -28,6 +29,7 @@ using Turbo.Primitives.Settings;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 using Turbo.Runtime.Configuration;
+using DatabaseServices = Turbo.Database.Extensions.ServiceCollectionExtensions;
 
 namespace Turbo.Plugins;
 
@@ -630,7 +632,7 @@ public sealed class PluginManager(
         CancellationToken ct
     )
     {
-        var inst = CreatePluginInstance(asm.Assembly);
+        var inst = CreatePluginInstance(asm.Assembly, m);
 
         if (!string.Equals(inst.Key, m.Key, StringComparison.Ordinal))
             throw new PluginAssemblyException(
@@ -645,6 +647,7 @@ public sealed class PluginManager(
             : null;
         var (sp, contexts, settings) = CreatePluginServiceProvider(
             inst,
+            asm.Assembly,
             m,
             extensions,
             clientModules
@@ -696,6 +699,14 @@ public sealed class PluginManager(
 
             await inst.BindExportsAsync(new ExportBinder(_exports), sp).ConfigureAwait(false);
             await StartPluginAsync(inst, sp, started, ct).ConfigureAwait(false);
+
+            // Its wwwroot/<key>.js is its client module, unless it registered one itself.
+            if (clientModules?.RegisterConventionalModule() is { } module)
+                _logger.LogInformation(
+                    "Plugin {Key} runs the client module {Module}",
+                    m.Key,
+                    module
+                );
 
             if (admin is not null && Routes is { } routes)
                 disposables.Insert(0, routes.Live(m.Key, admin));
@@ -755,23 +766,33 @@ public sealed class PluginManager(
         }
     }
 
-    private static ITurboPlugin CreatePluginInstance(Assembly asm)
+    /// <summary>
+    /// The assembly's plugin class, or a <see cref="TurboPlugin"/> with nothing of its own when it
+    /// has none: what it declares (commands, messages, routes...) is found by the scan either way.
+    /// </summary>
+    private static ITurboPlugin CreatePluginInstance(Assembly asm, PluginManifest manifest)
     {
-        var pluginType =
-            AssemblyExplorer.FindType(asm, typeof(ITurboPlugin))
-            ?? throw new PluginAssemblyException(
-                PluginAssemblyErrorType.EntryPointNotFound,
-                assemblyLocation: asm.GetName().Name
-            );
+        var pluginType = AssemblyExplorer.FindType(asm, typeof(ITurboPlugin));
+        var plugin = pluginType is null
+            ? new DefaultPlugin()
+            : (ITurboPlugin)Activator.CreateInstance(pluginType)!;
 
-        return (ITurboPlugin)Activator.CreateInstance(pluginType)!;
+        if (plugin is TurboPlugin conventional)
+            conventional.UseManifest(manifest);
+
+        return plugin;
     }
+
+    /// <summary>The plugin of an assembly with no plugin class.</summary>
+    private sealed class DefaultPlugin : TurboPlugin;
 
     /// <summary>
     /// The plugin's own container, the database contexts it registered, whose applied migrations
     /// the admin panel lists, and the config classes it binds, whose settings the panel shows. The
     /// host's configuration is in the container, so a plugin binds a class to its section as a
-    /// module does (<c>services.AddOptions&lt;T&gt;().BindConfiguration(T.SECTION_NAME)</c>).
+    /// module does (<c>services.AddOptions&lt;T&gt;().BindConfiguration(T.SECTION_NAME)</c>); the
+    /// host binds its <see cref="PluginSettingsAttribute"/> classes and registers its
+    /// <see cref="PluginDbContextBase{TContent}"/> contexts that it did not itself.
     /// </summary>
     private (
         ServiceProvider Services,
@@ -779,6 +800,7 @@ public sealed class PluginManager(
         List<Type> Settings
     ) CreatePluginServiceProvider(
         ITurboPlugin plugin,
+        Assembly assembly,
         PluginManifest manifest,
         PluginExtensions extensions,
         PluginClientModules? clientModules
@@ -800,6 +822,7 @@ public sealed class PluginManager(
         }
 
         plugin.ConfigureServices(services, manifest);
+        AddConventionalServices(services, assembly);
 
         var contexts = services
             .Select(d => d.ServiceType)
@@ -818,6 +841,49 @@ public sealed class PluginManager(
             .ToList();
 
         return (services.BuildServiceProvider(SP_OPTIONS), contexts, settings);
+    }
+
+    /// <summary>
+    /// Binds the plugin's <see cref="PluginSettingsAttribute"/> classes to their sections and
+    /// registers its <see cref="PluginDbContextBase{TContent}"/> contexts, each unless the plugin
+    /// did already.
+    /// </summary>
+    private static void AddConventionalServices(IServiceCollection services, Assembly assembly)
+    {
+        var registered = services.Select(d => d.ServiceType).ToHashSet();
+
+        foreach (var type in AssemblyExplorer.FindAssignees(assembly, typeof(object)))
+        {
+            if (
+                type.GetCustomAttribute<PluginSettingsAttribute>() is { } settings
+                && !registered.Contains(typeof(IOptionsChangeTokenSource<>).MakeGenericType(type))
+            )
+                BIND_SETTINGS.MakeGenericMethod(type).Invoke(null, [services, settings.Section]);
+
+            if (IsPluginContext(type) && !registered.Contains(type))
+                ADD_DATABASE.MakeGenericMethod(type).Invoke(null, [services]);
+        }
+    }
+
+    private static readonly MethodInfo BIND_SETTINGS = typeof(PluginManager).GetMethod(
+        nameof(BindSettings),
+        BindingFlags.NonPublic | BindingFlags.Static
+    )!;
+
+    private static readonly MethodInfo ADD_DATABASE = typeof(DatabaseServices).GetMethod(
+        nameof(DatabaseServices.AddPluginDatabase)
+    )!;
+
+    private static void BindSettings<T>(IServiceCollection services, string section)
+        where T : class => services.AddOptions<T>().BindConfiguration(section);
+
+    private static bool IsPluginContext(Type type)
+    {
+        for (var at = type.BaseType; at is not null; at = at.BaseType)
+            if (at.IsGenericType && at.GetGenericTypeDefinition() == typeof(PluginDbContextBase<>))
+                return true;
+
+        return false;
     }
 
     /// <summary>
@@ -1157,12 +1223,9 @@ public sealed class PluginManager(
         try
         {
             var sp = scope.ServiceProvider;
-            var dbModule = sp.GetService<IPluginDbModule>();
 
-            if (dbModule is null)
-                return;
-
-            await dbModule.MigrateAsync(sp, ct).ConfigureAwait(false);
+            foreach (var dbModule in sp.GetServices<IPluginDbModule>())
+                await dbModule.MigrateAsync(sp, ct).ConfigureAwait(false);
         }
         finally
         {

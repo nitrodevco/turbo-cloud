@@ -6,4 +6,8 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Orleans.Core.Abstractions" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- TurboPlugin takes its manifest from the plugin host. -->
+    <InternalsVisibleTo Include="Turbo.Plugins" />
+  </ItemGroup>
 </Project>

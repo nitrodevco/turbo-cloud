@@ -174,6 +174,61 @@ public static class ServiceCollectionExtensions
         where TContext : DbContext
         where TModule : class, IPluginDbModule
     {
+        AddPluginDatabaseServices<TContext, TModule>(services);
+
+        services.AddDbContext<TContext>(ConfigurePluginContext);
+
+        return services;
+    }
+
+    /// <summary>
+    /// A plugin's <see cref="PluginDbContextBase{TContent}"/> with its tables migrated as the
+    /// plugin loads and dropped by an uninstall that drops its data. The host calls it for every
+    /// such context in the plugin's assembly that the plugin did not register itself, so a plugin
+    /// rarely calls it. A context with a constructor taking its options is registered as
+    /// <see cref="AddPluginDatabaseContext{TContext, TModule}"/> does; one with none is given its
+    /// options and prefix as it is made.
+    /// </summary>
+    public static IServiceCollection AddPluginDatabase<TContext>(this IServiceCollection services)
+        where TContext : DbContext
+    {
+        if (
+            typeof(TContext).GetConstructor([
+                typeof(DbContextOptions<TContext>),
+                typeof(TablePrefixProvider),
+            ])
+                is not null
+            || typeof(TContext).GetConstructor([typeof(DbContextOptions<TContext>)]) is not null
+        )
+            return services.AddPluginDatabaseContext<TContext, PluginDbModule<TContext>>();
+
+        if (!typeof(PluginDbContextBase<TContext>).IsAssignableFrom(typeof(TContext)))
+            throw new ArgumentException(
+                $"{typeof(TContext).Name} takes no options: it must derive from PluginDbContextBase<{typeof(TContext).Name}>.",
+                nameof(TContext)
+            );
+
+        AddPluginDatabaseServices<TContext, PluginDbModule<TContext>>(services);
+
+        services.AddScoped(sp =>
+        {
+            var context = (TContext)Activator.CreateInstance(typeof(TContext), nonPublic: true)!;
+
+            ((PluginDbContextBase<TContext>)(object)context).UseHost(
+                sp.GetRequiredService<TablePrefixProvider>(),
+                options => ConfigurePluginContext(sp, options)
+            );
+
+            return context;
+        });
+
+        return services;
+    }
+
+    private static void AddPluginDatabaseServices<TContext, TModule>(IServiceCollection services)
+        where TContext : DbContext
+        where TModule : class, IPluginDbModule
+    {
         services.AddPluginTablePrefix<TContext>();
         services.AddTransient<IPluginDbModule, TModule>();
 
@@ -185,28 +240,24 @@ public static class ServiceCollectionExtensions
                 .GetRequiredService<IOptions<DatabaseConfig>>()
                 .Value
         ));
+    }
 
-        services.AddDbContext<TContext>(
-            (sp, options) =>
-            {
-                var prefix = sp.GetRequiredService<TablePrefixProvider>();
-                var host = sp.GetRequiredService<IHostServices>();
+    private static void ConfigurePluginContext(IServiceProvider sp, DbContextOptionsBuilder options)
+    {
+        var prefix = sp.GetRequiredService<TablePrefixProvider>();
+        var host = sp.GetRequiredService<IHostServices>();
 
-                options.UseInternalServiceProvider(
-                    sp.GetRequiredService<PluginEntityFrameworkServices>().Services
-                );
-
-                // Its logging is the internal services' to set (UseLoggerFactory is refused with them).
-                UseTurboMySql(
-                    options,
-                    host.GetRequiredService<IOptions<DatabaseConfig>>().Value,
-                    mysql => mysql.MigrationsHistoryTable(MigrationHelper.HistoryTableOf(prefix())),
-                    ownLogging: false
-                );
-            }
+        options.UseInternalServiceProvider(
+            sp.GetRequiredService<PluginEntityFrameworkServices>().Services
         );
 
-        return services;
+        // Its logging is the internal services' to set (UseLoggerFactory is refused with them).
+        UseTurboMySql(
+            options,
+            host.GetRequiredService<IOptions<DatabaseConfig>>().Value,
+            mysql => mysql.MigrationsHistoryTable(MigrationHelper.HistoryTableOf(prefix())),
+            ownLogging: false
+        );
     }
 
     /// <summary>

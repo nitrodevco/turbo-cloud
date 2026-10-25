@@ -23,7 +23,11 @@ plugins/hello/
     external_variables.json
 ```
 
-The plugin declares its module as it starts, through the registry its host services give it:
+A plugin's `wwwroot/<key>.js` is its module: the host registers it as the plugin starts, unless
+the plugin registered one itself, and takes it away as it stops. Nothing to write; the template's
+plugin and a plugin with no plugin class at all (`docs/plugin-loading.md`) rely on that. A plugin
+whose module has another name, or that decides as it starts whether to run one, registers it
+through the registry its host services give it:
 
 ```csharp
 public Task StartAsync(IServiceProvider services, CancellationToken ct)
@@ -65,8 +69,8 @@ as a hotel would, so it keeps working as the server changes. Build it with
 ### Start from the template
 
 `templates/turbo-plugin` is a `dotnet new` template for a plugin with both halves: the server
-assembly (a settings class for the panel, a permission node source, a command, packets and their
-handlers) and a client module in TypeScript and React written with nitro-next's
+assembly (a `TurboPlugin` of one line, a `[PluginSettings]` class for the panel, a permission node
+source, a command, named messages and their handlers) and a client module in TypeScript and React written with nitro-next's
 `@nitrodevco/client-module-sdk` (a window, a toolbar icon, a patch to the purse), with server and
 client tests. Three commands:
 
@@ -86,6 +90,12 @@ server's own assemblies (`TurboBin`, by default the checkout's `Turbo.Main/bin/D
 never copied beside the plugin. `Turbo.Tests` (`PluginTemplateTests`) compiles and loads the
 template's server half and checks what its project references against the server's assemblies, so
 the template keeps working as the server changes; the generated `README.md` has the rest.
+
+`npm run make <kind> <name>` adds one piece in the shape the server and the client find by
+themselves (`tools/make.mjs`; the README's "Recipes" table): `command`, `message` (with its fields,
+and its handler or client listener), `logic`, `listener`, `setting`, `route`, `window`, `patch`
+and `migration` (the plugin's tables and `dotnet ef migrations add`, no design-time factory).
+`PluginTemplateTests` runs every kind on a copy of the template and loads the result.
 
 ## 2. The protocol: `client.modules` (version 1)
 

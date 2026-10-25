@@ -25,8 +25,9 @@ environment variable overrides it, and **Put back** (or deleting its row) remove
 ## What the page shows
 
 - **Every setting of every config class** a module registers with `services.Configure<T>(section)`
-  whose class names its section in a `SECTION_NAME` constant. A nested class (`Turbo:Web:Discord`)
-  is listed as settings of its own. A list or map is one setting, edited as JSON.
+  whose class names its section in a `SECTION_NAME` constant, and of every loaded plugin's
+  `[PluginSettings("Section")]` class. A nested class (`Turbo:Web:Discord`) is listed as settings
+  of its own. A list or map is one setting, edited as JSON.
 - **Its summary**, from the `/// <summary>` on its property. The build writes each assembly's XML
   documentation beside it (`GenerateDocumentationFile` in `Directory.Build.props`), and the page
   reads it from there.
