@@ -5,9 +5,11 @@ Plugins that change core windows without shipping a copy of their library (`docs
 (`habbo-toolbar-com/purse_xml`), without knowing about each other, and a skin that uses the rest of
 the framework.
 
-- `purse-theme/`: a theme. Its only content is `wwwroot/template-patches.json`: it recolours the
-  purse's frame and its help button. No client code; the server lists the file for clients because
-  it is there.
+- `purse-theme/`: a theme, and a data plugin (`docs/plugin-data.md`): a manifest with no assembly,
+  `wwwroot/template-patches.json` recolouring the purse's frame and its help button, and
+  `theme.json` declaring those two colours as style properties the patches read
+  (`${style:purse.frame}`), which staff change on the panel's Theme tab. No code on either side;
+  the server lists the file for clients because it is there.
 - `purse-skills/`: an add-on with a server half and a client module. The module adds a "Skills"
   button to the same purse (`api.templates.patch`), gives it a click (`api.templates.bind`) that
   opens a window of its own (`api.windows.register`), and that window asks the plugin's server half
@@ -27,5 +29,6 @@ The purse examples can be installed together, alone, or in either order: the the
 runs it first, and the add-on's elements are named `skills:<name>`, so neither can overwrite the
 other. Turbo.Tests compiles and loads all three (`TemplatePatchExampleTests`).
 
-Build each with `dotnet build docs/examples/template-patches/<name>/<Name>.csproj` and copy
-`bin/Debug/net10.0/` into the server's plugins folder, or name it in `Turbo:Plugin:DevPluginPaths`.
+Copy `purse-theme/` as it is into the server's plugins folder. Build the others with `dotnet build
+docs/examples/template-patches/<name>/<Name>.csproj` and copy `bin/Debug/net10.0/` there, or name
+it in `Turbo:Plugin:DevPluginPaths`.

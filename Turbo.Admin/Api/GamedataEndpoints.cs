@@ -141,7 +141,8 @@ internal sealed class GamedataEndpoints(
         group.MapPost("/texts/import/{versionId:int}", TextImportAsync);
         group.MapGet(
             "/texts",
-            (string? q, int? page, CancellationToken ct) => TextSearchAsync(q, page, ct)
+            (string? q, int? page, string? plugin, CancellationToken ct) =>
+                TextSearchAsync(q, page, plugin, ct)
         );
         group.MapPut("/texts", SaveTextAsync);
         group.MapDelete("/texts", DeleteTextAsync);
@@ -829,8 +830,12 @@ internal sealed class GamedataEndpoints(
         return Results.Ok(new { changed = revoked });
     }
 
-    private async Task<IResult> TextSearchAsync(string? q, int? page, CancellationToken ct) =>
-        Results.Ok(await texts.SearchAsync(q, page ?? 0, ct).ConfigureAwait(false));
+    private async Task<IResult> TextSearchAsync(
+        string? q,
+        int? page,
+        string? plugin,
+        CancellationToken ct
+    ) => Results.Ok(await texts.SearchAsync(q, page ?? 0, ct, plugin).ConfigureAwait(false));
 
     private async Task<IResult> SaveTextAsync(
         TextSaveRequest request,

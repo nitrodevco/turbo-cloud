@@ -27,8 +27,16 @@ public interface IGamedataTextService
         CancellationToken ct
     );
 
-    /// <summary>Texts whose key or value holds the words, by key: a page of them.</summary>
-    public Task<TextSearchResult> SearchAsync(string? query, int page, CancellationToken ct);
+    /// <summary>
+    /// Texts whose key or value holds the words, by key: a page of them; with
+    /// <paramref name="plugin"/>, only the texts that plugin brought (its phrases).
+    /// </summary>
+    public Task<TextSearchResult> SearchAsync(
+        string? query,
+        int page,
+        CancellationToken ct,
+        string? plugin = null
+    );
 
     /// <summary>
     /// Sets a text, adding it when there is none. Throws <see cref="System.ArgumentException"/> for

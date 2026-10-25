@@ -633,6 +633,10 @@ public sealed class PluginManager(
 
     private static LoadedAssembly GetLoadedPluginAssembly(PluginManifest manifest, string folder)
     {
+        // A data plugin: its files are all it has.
+        if (PluginHelpers.IsDataOnly(manifest))
+            return AssemblyMemoryLoader.Empty(folder, $"TurboDataPlugin.{manifest.Key}");
+
         var asmPath = PluginHelpers.GetAssemblyPath(folder, manifest);
 
         return AssemblyMemoryLoader.LoadFromBytes(asmPath);
@@ -727,8 +731,12 @@ public sealed class PluginManager(
                     service.GetType().FullName ?? service.GetType().Name
                 );
 
-            // Its wwwroot/<key>.js is its client module, unless it registered one itself.
-            if (clientModules?.RegisterConventionalModule() is { } module)
+            // Its wwwroot/<key>.js is its client module, unless it registered one itself; a data
+            // plugin runs no code, in the client either.
+            if (
+                !PluginHelpers.IsDataOnly(m)
+                && clientModules?.RegisterConventionalModule() is { } module
+            )
                 _logger.LogInformation(
                     "Plugin {Key} runs the client module {Module}",
                     m.Key,

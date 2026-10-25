@@ -4,9 +4,9 @@
             "template": "habbo-toolbar-com/purse_xml",
             "order": -10,
             "ops": [
-                { "element": "", "set": { "color": 4287261215 } },
-                { "element": "@0", "set": { "color": 4287261215 } },
-                { "element": "help_button", "set": { "color": 4281244476 } }
+                { "element": "", "set": { "color": "${style:purse.frame}" } },
+                { "element": "@0", "set": { "color": "${style:purse.frame}" } },
+                { "element": "help_button", "set": { "color": "${style:purse.help}" } }
             ]
         }
     ]

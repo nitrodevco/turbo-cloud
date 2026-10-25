@@ -1,0 +1,488 @@
+using System.IO;
+using System.IO.Compression;
+using System.Net.Http;
+using System.Text.Json;
+using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Turbo.Gamedata;
+using Turbo.Gamedata.ClientModules;
+using Turbo.Gamedata.Configuration;
+using Turbo.Gamedata.Habbo;
+using Turbo.Gamedata.Plugins;
+using Turbo.Gamedata.Texts;
+using Turbo.Gamedata.Variables;
+using Turbo.Plugins;
+using Turbo.Plugins.Configuration;
+using Turbo.Primitives.ClientModules;
+using Turbo.Primitives.Gamedata;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Plugins;
+using Turbo.Primitives.Settings;
+using Turbo.Primitives.Texts;
+using Turbo.Runtime.AssemblyProcessing;
+using Turbo.Tests.Support;
+using Xunit;
+
+namespace Turbo.Tests.Plugins;
+
+/// <summary>
+/// The no-code path (<c>docs/plugin-data.md</c>): a theme with no assembly loads from its files, its
+/// <c>theme.json</c> styles reach clients as <c>templates.styles</c>, staff's changes to them are the
+/// hotel's own entries, staff's window patches live in the hotel's own data plugin, and either is
+/// packaged as a data plugin another hotel installs. Inferred rules of our framework, not Habbo's.
+/// </summary>
+[Trait("evidence", "inferred")]
+public sealed class DataPluginTests : IDisposable
+{
+    private const string THEME = """
+        { "styles": {
+            "frame.header": { "type": "color", "default": "#6b6861", "group": "Windows" },
+            "frame.art": { "type": "image", "default": "frame.png", "overlay": "habbo-window-manager-com/theme-habbo-frame-frame-default" },
+            "purse.width": { "type": "number", "default": 180, "min": 100, "max": 400 }
+        } }
+        """;
+
+    private const string PATCHES = """
+        { "patches": [ { "template": "habbo-toolbar-com/purse_xml", "order": -10, "ops": [
+            { "element": "help_button", "set": { "color": "${style:frame.header}" } } ] } ] }
+        """;
+
+    private static readonly PlayerId STAFF = PlayerId.Parse(1);
+
+    private readonly SqliteDb _db = new();
+    private readonly Fakes _fakes = new();
+    private readonly string _folder = Path.Combine(
+        Path.GetTempPath(),
+        "turbo-data-plugin-" + Guid.NewGuid().ToString("N")
+    );
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    public void Dispose()
+    {
+        _db.Dispose();
+
+        if (Directory.Exists(_folder))
+            Directory.Delete(_folder, recursive: true);
+    }
+
+    [Fact]
+    public async Task A_theme_with_no_assembly_loads_and_gives_clients_its_patches_and_styles()
+    {
+        WriteTheme("mytheme");
+        // A data plugin runs no code: its wwwroot/<key>.js is a file, not its module.
+        File.WriteAllText(Path.Combine(_folder, "mytheme", "wwwroot", "mytheme.js"), "export {}");
+
+        var hotel = Hotel();
+
+        await hotel.Manager.LoadAllAsync(ct: Ct);
+
+        hotel
+            .Manager.Snapshot()
+            .Should()
+            .ContainSingle()
+            .Which.State.Should()
+            .Be(PluginStateType.Loaded);
+        hotel.Registry.Modules.Should().BeEmpty();
+        Part(hotel, ExternalVariablesFile.TEMPLATE_PATCHES)
+            .GetProperty("mytheme")
+            .GetString()
+            .Should()
+            .StartWith("/gamedata/plugins/mytheme/template-patches.json?v=");
+
+        var styles = Part(hotel, ExternalVariablesFile.TEMPLATE_STYLES);
+
+        // A colour as the 0xAARRGGBB number a patch's color is; an image at its address by hash.
+        styles.GetProperty("mytheme:frame.header").GetUInt32().Should().Be(0xFF6B6861);
+        styles.GetProperty("mytheme:purse.width").GetDouble().Should().Be(180);
+        styles
+            .GetProperty("mytheme:frame.art")
+            .GetString()
+            .Should()
+            .StartWith("/gamedata/plugins/mytheme/frame.png?v=");
+        Part(hotel, ExternalVariablesFile.ASSET_OVERLAYS)
+            .GetProperty("habbo-window-manager-com/theme-habbo-frame-frame-default")
+            .GetString()
+            .Should()
+            .Be(styles.GetProperty("mytheme:frame.art").GetString());
+
+        await hotel.Manager.UnloadAllAsync(Ct);
+
+        hotel.Loaded.OwnedPartsOf(ExternalVariablesFile.TEMPLATE_STYLES).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Staff_change_a_style_as_the_hotel_s_own_entry_and_reset_it_to_the_default()
+    {
+        WriteTheme("mytheme");
+
+        var hotel = Hotel();
+        var folder = Path.Combine(_folder, "mytheme");
+
+        var changed = await hotel.Styles.SetAsync(
+            "mytheme",
+            folder,
+            "frame.header",
+            "#ff0000",
+            STAFF,
+            Ct
+        );
+
+        changed.Changed.Should().BeTrue();
+        changed.Value.Should().Be("#ff0000");
+        (await HotelValueAsync(hotel, ExternalVariablesFile.TEMPLATE_STYLES))
+            .Should()
+            .Be("""{"mytheme:frame.header":4294901760}""");
+
+        // An image standing in for a bitmap is the hotel's overlay of it too.
+        await hotel.Styles.SetAsync(
+            "mytheme",
+            folder,
+            "frame.art",
+            "/gamedata/plugins/hotel/styles/a.png",
+            STAFF,
+            Ct
+        );
+        (await HotelValueAsync(hotel, ExternalVariablesFile.ASSET_OVERLAYS))
+            .Should()
+            .Contain("theme-habbo-frame-frame-default");
+
+        var refused = () =>
+            hotel.Styles.SetAsync("mytheme", folder, "purse.width", "900", STAFF, Ct);
+        await refused.Should().ThrowAsync<ArgumentException>().WithMessage("*from 100 to 400*");
+        var notColour = () =>
+            hotel.Styles.SetAsync("mytheme", folder, "frame.header", "red", STAFF, Ct);
+        await notColour.Should().ThrowAsync<ArgumentException>().WithMessage("*colour*");
+
+        (await hotel.Styles.ListAsync("mytheme", folder, Ct))
+            .Where(x => x.Changed)
+            .Select(x => x.Property.Name)
+            .Should()
+            .BeEquivalentTo("frame.header", "frame.art");
+
+        var reset = await hotel.Styles.ResetAsync("mytheme", folder, "frame.header", STAFF, Ct);
+        await hotel.Styles.ResetAsync("mytheme", folder, "frame.art", STAFF, Ct);
+
+        reset!.Changed.Should().BeFalse();
+        reset.Value.Should().Be("#6b6861");
+        (await HotelValueAsync(hotel, ExternalVariablesFile.TEMPLATE_STYLES)).Should().BeNull();
+        (await HotelValueAsync(hotel, ExternalVariablesFile.ASSET_OVERLAYS)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Staff_patches_live_in_the_hotel_s_data_plugin_and_a_disabled_one_is_not_sent()
+    {
+        var hotel = Hotel();
+        var patches = hotel.HotelPlugin;
+
+        var bad = () =>
+            patches.SavePatchAsync(
+                Patch(
+                    "Bad",
+                    """[ { "element": "help_button", "set": { "colour": 1 }, "remove": true } ]"""
+                ),
+                Ct
+            );
+        await bad.Should()
+            .ThrowAsync<ArgumentException>()
+            .WithMessage("*one of set, remove, insert or move*");
+
+        var green = await patches.SavePatchAsync(
+            Patch(
+                "Green help",
+                """[ { "element": "help_button", "set": { "color": 4281244476 } } ]"""
+            ),
+            Ct
+        );
+        await patches.SavePatchAsync(
+            Patch("Hidden beta", """[ { "element": "beta_sign", "remove": true } ]""") with
+            {
+                Disabled = true,
+            },
+            Ct
+        );
+
+        hotel
+            .Manager.Snapshot()
+            .Should()
+            .ContainSingle(x => x.Key == IHotelDataPlugin.KEY)
+            .Which.State.Should()
+            .Be(PluginStateType.Loaded);
+        Part(hotel, ExternalVariablesFile.TEMPLATE_PATCHES)
+            .GetProperty(IHotelDataPlugin.KEY)
+            .GetString()
+            .Should()
+            .Contain("template-patches.json?v=");
+
+        var served = JsonDocument.Parse(
+            File.ReadAllText(
+                Path.Combine(_folder, IHotelDataPlugin.KEY, "wwwroot", "template-patches.json")
+            )
+        );
+
+        served
+            .RootElement.GetProperty("patches")
+            .GetArrayLength()
+            .Should()
+            .Be(1, "the disabled patch is kept, not sent");
+        (await patches.PatchesAsync(Ct))
+            .Select(x => x.Name)
+            .Should()
+            .Equal("Green help", "Hidden beta");
+
+        (await patches.RemovePatchAsync(green.Id, Ct)).Should().BeTrue();
+        (await patches.PatchesAsync(Ct)).Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task A_theme_with_the_hotel_s_styles_is_packaged_as_a_data_plugin_that_installs_elsewhere()
+    {
+        WriteTheme("mytheme");
+
+        var hotel = Hotel();
+
+        await hotel.Manager.LoadAllAsync(ct: Ct);
+
+        var upload = await hotel.HotelPlugin.SaveFileAsync(
+            "styles/mytheme/frame-art.png",
+            new MemoryStream([1, 2, 3]),
+            Ct
+        );
+
+        upload.Should().StartWith("/gamedata/plugins/hotel/styles/mytheme/frame-art.png?v=");
+        await hotel.Styles.SetAsync(
+            "mytheme",
+            Path.Combine(_folder, "mytheme"),
+            "frame.header",
+            "#123456",
+            STAFF,
+            Ct
+        );
+        await hotel.Styles.SetAsync(
+            "mytheme",
+            Path.Combine(_folder, "mytheme"),
+            "frame.art",
+            upload,
+            STAFF,
+            Ct
+        );
+
+        var zip = await hotel.HotelPlugin.ExportAsync(
+            "mytheme",
+            new PluginExportRequest("ourtheme", "Our theme", "1.0.0", null),
+            Ct
+        );
+
+        using var archive = new ZipArchive(new MemoryStream(zip!));
+        var names = archive.Entries.Select(x => x.FullName).ToList();
+
+        names
+            .Should()
+            .Contain([
+                "manifest.json",
+                "theme.json",
+                "wwwroot/template-patches.json",
+                "wwwroot/styles/frame-art.png",
+            ]);
+
+        var theme = JsonDocument
+            .Parse(archive.GetEntry("theme.json")!.Open())
+            .RootElement.GetProperty("styles");
+
+        theme.GetProperty("frame.header").GetProperty("default").GetString().Should().Be("#123456");
+        theme
+            .GetProperty("frame.art")
+            .GetProperty("default")
+            .GetString()
+            .Should()
+            .Be("styles/frame-art.png");
+        JsonDocument
+            .Parse(archive.GetEntry("manifest.json")!.Open())
+            .RootElement.TryGetProperty("AssemblyFile", out _)
+            .Should()
+            .BeFalse();
+
+        // Another hotel installs it as it installs any package.
+        var other = Path.Combine(_folder, "other");
+        var install = new PluginAdministration(
+            new PluginManager(
+                new ServiceCollection().BuildServiceProvider(),
+                new AssemblyProcessor([]),
+                Options.Create(new PluginConfig { PluginFolderPath = other, UploadEnabled = true }),
+                NullLogger<PluginManager>.Instance
+            ),
+            new Turbo.Plugins.Data.PluginTables(
+                _db,
+                NullLogger<Turbo.Plugins.Data.PluginTables>.Instance
+            ),
+            [],
+            NullLogger<PluginAdministration>.Instance
+        );
+
+        var result = await install.InstallAsync(new MemoryStream(zip!), Ct);
+
+        result.Ok.Should().BeTrue(result.Message);
+        result.Plugin!.State.Should().Be(PluginStateType.Loaded);
+
+        var refused = () =>
+            hotel.HotelPlugin.ExportAsync(
+                "mytheme",
+                new PluginExportRequest(IHotelDataPlugin.KEY, "x", "1", null),
+                Ct
+            );
+        await refused.Should().ThrowAsync<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task A_plugin_s_phrases_list_with_its_default_beside_staff_s_change()
+    {
+        WriteTheme("mytheme");
+        Directory.CreateDirectory(Path.Combine(_folder, "mytheme", PluginGamedataSeeds.FOLDER));
+        File.WriteAllText(
+            Path.Combine(
+                _folder,
+                "mytheme",
+                PluginGamedataSeeds.FOLDER,
+                PluginGamedataSeeds.TEXTS_FILE
+            ),
+            "mytheme.title=My theme\nmytheme.hint=Pick a colour\n"
+        );
+
+        var hotel = Hotel();
+
+        await hotel.Manager.LoadAllAsync(ct: Ct);
+        await hotel.Texts.SaveAsync("mytheme.title", "Our theme", STAFF, Ct);
+        await hotel.Texts.SaveAsync("other.text", "Not the plugin's", STAFF, Ct);
+
+        var phrases = await hotel.Texts.SearchAsync(null, 0, Ct, "mytheme");
+
+        phrases
+            .Items.Select(x => (x.Key, x.Value, x.Plugin, x.PluginValue))
+            .Should()
+            .Equal(
+                ("mytheme.hint", "Pick a colour", "mytheme", "Pick a colour"),
+                ("mytheme.title", "Our theme", "mytheme", "My theme")
+            );
+        (await hotel.Texts.SearchAsync("other", 0, Ct))
+            .Items.Should()
+            .ContainSingle()
+            .Which.Plugin.Should()
+            .BeNull();
+    }
+
+    private static HotelPatch Patch(string name, string ops) =>
+        new(
+            string.Empty,
+            name,
+            "habbo-toolbar-com/purse_xml",
+            null,
+            JsonDocument.Parse(ops).RootElement,
+            false
+        );
+
+    private void WriteTheme(string key)
+    {
+        var folder = Path.Combine(_folder, key);
+
+        Directory.CreateDirectory(Path.Combine(folder, "wwwroot"));
+        File.WriteAllText(
+            Path.Combine(folder, "manifest.json"),
+            $$"""{ "Name": "My theme", "Key": "{{key}}", "Version": "1.0.0", "Author": "a" }"""
+        );
+        File.WriteAllText(Path.Combine(folder, ThemeStyles.FILE), THEME);
+        File.WriteAllText(
+            Path.Combine(folder, "wwwroot", PluginGamedataSeeds.TEMPLATE_PATCHES_FILE),
+            PATCHES
+        );
+        File.WriteAllBytes(Path.Combine(folder, "wwwroot", "frame.png"), [137, 80, 78, 71]);
+    }
+
+    private static JsonElement Part(HotelUnderTest hotel, string variable) =>
+        JsonDocument
+            .Parse(hotel.Loaded.OwnedPartsOf(variable).Should().ContainSingle().Which.Part)
+            .RootElement;
+
+    private static async Task<string?> HotelValueAsync(HotelUnderTest hotel, string key) =>
+        (await hotel.Variables.GetValuesAsync([key], Ct)).GetValueOrDefault(key);
+
+    private sealed record HotelUnderTest(
+        PluginManager Manager,
+        LoadedPluginGamedata Loaded,
+        ClientModuleRegistry Registry,
+        GamedataVariableService Variables,
+        GamedataTextService Texts,
+        IPluginStyles Styles,
+        HotelDataPlugin HotelPlugin
+    );
+
+    /// <summary>A hotel's plugin manager over the test's plugins folder, with the gamedata services data plugins reach.</summary>
+    private HotelUnderTest Hotel()
+    {
+        var loaded = new LoadedPluginGamedata();
+        var config = Options.Create(new GamedataConfig());
+        var files = _fakes.Create<IGamedataFileService>();
+        var writes = new GamedataWriteLock();
+        var variables = new GamedataVariableService(
+            _db,
+            config,
+            files,
+            writes,
+            _fakes.Create<IServerSettings>(),
+            new HabboGamedataClient(
+                _fakes.Create<IHttpClientFactory>(),
+                NullLogger<HabboGamedataClient>.Instance
+            ),
+            NullLogger<GamedataVariableService>.Instance
+        );
+        var texts = new GamedataTextService(
+            _db,
+            config,
+            files,
+            writes,
+            TimeProvider.System,
+            _fakes.Create<IHotelTextProvider>(),
+            NullLogger<GamedataTextService>.Instance
+        );
+        var registry = new ClientModuleRegistry(
+            new TestOptionsMonitor<GamedataConfig>(new GamedataConfig()),
+            NullLogger<ClientModuleRegistry>.Instance
+        );
+        var styles = new PluginStyleService(variables);
+        var host = new ServiceCollection()
+            .AddSingleton<IClientModuleDirectory>(registry)
+            .AddSingleton<IPluginStyles>(styles)
+            .AddSingleton<Turbo.Primitives.Networking.Extensions.IExtensionPacketRegistry>(
+                new Turbo.Networking.Extensions.ExtensionPacketRegistry()
+            )
+            .AddSingleton<IPluginGamedataSeeds>(
+                new PluginGamedataSeeds(
+                    _db,
+                    variables,
+                    texts,
+                    files,
+                    loaded,
+                    registry,
+                    NullLogger<PluginGamedataSeeds>.Instance
+                )
+            )
+            .BuildServiceProvider();
+        var manager = new PluginManager(
+            host,
+            new AssemblyProcessor([]),
+            Options.Create(new PluginConfig { PluginFolderPath = _folder }),
+            NullLogger<PluginManager>.Instance
+        );
+
+        return new HotelUnderTest(
+            manager,
+            loaded,
+            registry,
+            variables,
+            texts,
+            styles,
+            new HotelDataPlugin(manager, host)
+        );
+    }
+}

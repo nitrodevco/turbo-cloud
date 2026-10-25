@@ -38,4 +38,10 @@ public interface IClientModuleDirectory
 
     /// <summary>The SHA-256 of a file <see cref="FindFile"/> answered, lowercase hex; kept while the file is unchanged.</summary>
     string HashOf(string fullPath);
+
+    /// <summary>
+    /// The address clients load a file a plugin serves at (<see cref="FindFile"/>), by its hash;
+    /// null when there is no such file.
+    /// </summary>
+    string? AddressOf(string key, string path);
 }

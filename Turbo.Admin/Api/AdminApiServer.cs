@@ -140,6 +140,7 @@ internal sealed class AdminApiServer(
         ActivatorUtilities.CreateInstance<PermissionPlayerEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<PermissionLookupEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<PluginEndpoints>(services).Map(secured);
+        ActivatorUtilities.CreateInstance<PluginNoCodeEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<PluginScheduleEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<PluginAdminEndpoints>(services).Map(secured);
 

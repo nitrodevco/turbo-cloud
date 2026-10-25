@@ -70,12 +70,19 @@ internal static class ExternalVariablesFile
     public const string ASSET_OVERLAYS = "asset.overlays";
 
     /// <summary>
+    /// The values of themes' style properties their patch files read as <c>${style:name}</c>
+    /// (<see cref="Plugins.ThemeStyles"/>): <c>{ "&lt;plugin key&gt;:&lt;name&gt;": value }</c>. A theme
+    /// brings its defaults; the hotel's own entries are staff's changes.
+    /// </summary>
+    public const string TEMPLATE_STYLES = "templates.styles";
+
+    /// <summary>
     /// The variables a plugin brings a part of rather than the whole: a JSON object whose entries
     /// several plugins add to (<c>asset.bundles.templates.overrides</c>, a url per template
     /// library; <see cref="TEMPLATE_PATCHES"/>, a url per plugin; <see cref="FRAME_OVERRIDES"/>, a
-    /// style per window; <see cref="ASSET_OVERLAYS"/>, a url per bitmap). Each loaded plugin's
-    /// entries are written into the client's file with the hotel's own (<see cref="Merge"/>); none
-    /// is ever given to the hotel.
+    /// style per window; <see cref="ASSET_OVERLAYS"/>, a url per bitmap; <see cref="TEMPLATE_STYLES"/>,
+    /// a value per theme style). Each loaded plugin's entries are written into the client's file
+    /// with the hotel's own (<see cref="Merge"/>); none is ever given to the hotel.
     /// </summary>
     public static readonly IReadOnlyList<string> MERGED =
     [
@@ -83,6 +90,7 @@ internal static class ExternalVariablesFile
         TEMPLATE_PATCHES,
         FRAME_OVERRIDES,
         ASSET_OVERLAYS,
+        TEMPLATE_STYLES,
     ];
 
     public static bool IsLinkable(string file) => LINKABLE.Contains(file, StringComparer.Ordinal);

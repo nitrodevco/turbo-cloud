@@ -92,6 +92,8 @@ internal sealed class PluginGamedataSeeds(
                 overlays
             );
 
+        AddStyles(pluginKey, folder, parts);
+
         loaded.SetParts(pluginKey, parts);
         Invalidate();
 
@@ -163,6 +165,80 @@ internal sealed class PluginGamedataSeeds(
         }
 
         return addressed.ToJsonString();
+    }
+
+    /// <summary>
+    /// A theme's style properties (<see cref="ThemeStyles"/>): their defaults are its entries of
+    /// <see cref="ExternalVariablesFile.TEMPLATE_STYLES"/>, and an image standing in for a library
+    /// bitmap its entry of <see cref="ExternalVariablesFile.ASSET_OVERLAYS"/> (one it names there
+    /// itself first). A <c>theme.json</c> that can't be read is logged and gives nothing.
+    /// </summary>
+    private void AddStyles(string pluginKey, string folder, Dictionary<string, string> parts)
+    {
+        ImmutableArray<ThemeStyleProperty> properties;
+
+        try
+        {
+            properties = ThemeStyles.Read(folder);
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogWarning(
+                "The plugin {Key}'s {File} was left out: {Problem}",
+                pluginKey,
+                ThemeStyles.FILE,
+                ex.Message
+            );
+
+            return;
+        }
+
+        if (properties.IsEmpty)
+            return;
+
+        var wwwroot = Path.Combine(folder, WWWROOT);
+        var styles = new JsonObject();
+        var overlays = ThemeStyles.Entries(
+            parts.GetValueOrDefault(ExternalVariablesFile.ASSET_OVERLAYS)
+        );
+
+        foreach (var property in properties)
+        {
+            try
+            {
+                var value = ThemeStyles.ClientValue(
+                    property,
+                    property.Default,
+                    path => modules.AddressOf(pluginKey, wwwroot, path)
+                );
+
+                styles[ThemeStyles.EntryOf(pluginKey, property.Name)] = value;
+
+                if (property is { Type: ThemeStyleType.Image, Overlay: { } asset })
+                    overlays.TryAdd(asset, value.DeepClone());
+            }
+            catch (ArgumentException ex)
+            {
+                logger.LogWarning(
+                    "The plugin {Key}'s style {Name} was left out: {Problem}",
+                    pluginKey,
+                    property.Name,
+                    ex.Message
+                );
+            }
+        }
+
+        parts[ExternalVariablesFile.TEMPLATE_STYLES] = styles.ToJsonString();
+
+        if (overlays.Count > 0)
+        {
+            var value = new JsonObject();
+
+            foreach (var (asset, node) in overlays)
+                value[asset] = node;
+
+            parts[ExternalVariablesFile.ASSET_OVERLAYS] = value.ToJsonString();
+        }
     }
 
     public async Task<ImmutableArray<PluginDataItem>> FindAsync(

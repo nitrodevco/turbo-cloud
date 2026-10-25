@@ -1,0 +1,6 @@
+{
+    "styles": {
+        "purse.frame": { "type": "color", "default": "#8a6a1f", "group": "Purse", "label": "Frame", "hint": "The purse window and its border." },
+        "purse.help": { "type": "color", "default": "#2e9b3c", "group": "Purse", "label": "Help button" }
+    }
+}

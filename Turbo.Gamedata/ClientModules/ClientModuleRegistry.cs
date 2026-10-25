@@ -212,6 +212,9 @@ internal sealed class ClientModuleRegistry(
         return file is null ? null : Address(key, path, HashOf(file));
     }
 
+    public string? AddressOf(string key, string path) =>
+        FindFile(key, path) is { } file ? Address(key, path, HashOf(file)) : null;
+
     private string Address(string key, string path, string hash)
     {
         var publicUrl = config.CurrentValue.PublicUrl;

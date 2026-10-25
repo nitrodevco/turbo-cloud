@@ -37,6 +37,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPluginAdministration>(sp =>
             sp.GetRequiredService<PluginAdministration>()
         );
+        services.AddSingleton<HotelDataPlugin>();
+        services.AddSingleton<IHotelDataPlugin>(sp => sp.GetRequiredService<HotelDataPlugin>());
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IClientExtensionReports, ClientExtensionReports>();
         services.AddSingleton<PluginJobs>();
