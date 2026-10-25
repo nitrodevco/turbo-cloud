@@ -145,6 +145,40 @@ public sealed class WiredRoomLogsTests
         Wired.GetRoomLogs().Count(x => x.Message == "D").Should().Be(12);
     }
 
+    // A delayed effect prints the name of a user who left before it ran (official client capture
+    // 2026-10-25T02-50-51, golden replay wlab9/0 t=1511871: "D V=null U=a1" 10 s after the
+    // click, the user gone 2 s before; ours printed "U=").
+    [Fact]
+    public async Task A_delayed_username_placeholder_prints_a_user_who_left()
+    {
+        _room.Enter(6, 2, 1, name: "a1");
+        await BuildAsync("D U=$(u)");
+        _room.AddBox<WiredAddonUsernamePlaceholder>(3, 0, 0, "wf_xtra_text_output_username");
+        (
+            await _room.SaveAsync<UpdateAddonMessage>(
+                3,
+                intParams: [0],
+                stringParam: "u",
+                playerSources:
+                [
+                    [WiredPlayerSourceType.TriggeredUser],
+                ]
+            )
+        ).Should().BeTrue();
+        await SaveLogAsync("D U=$(u)", delay: 4);
+
+        await _room.FloorItem(CLICK_ME).Logic.OnClickAsync(_room.ContextFor(6), 0, Ct);
+        await TickAsync(1);
+        await _room.Harness.Room.RemoveAvatarFromPlayerAsync(
+            ActionContext.CreateForPlayer(106, 1),
+            106,
+            Ct
+        );
+        await TickAsync(4);
+
+        Wired.GetRoomLogs().Select(x => x.Message).Should().Equal("D U=a1");
+    }
+
     private async Task BuildAsync(string text)
     {
         _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");

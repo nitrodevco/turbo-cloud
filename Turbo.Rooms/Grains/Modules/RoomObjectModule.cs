@@ -178,6 +178,7 @@ public sealed partial class RoomObjectModule(RoomGrain roomGrain) : RoomGrainCom
                 );
 
                 State.AvatarsByObjectId.Remove(avatar.ObjectId);
+                AvatarModule.RememberDeparted(avatar);
 
                 if (avatar is IRoomPet pet)
                     State.Pets.Remove(pet);

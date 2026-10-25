@@ -427,6 +427,34 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
     public bool TryGetAvatar(RoomObjectId objectId, [NotNullWhen(true)] out IRoomAvatar? avatar) =>
         State.AvatarsByObjectId.TryGetValue(objectId, out avatar);
 
+    /// <summary>How many of the users who left the room are still known by name.</summary>
+    private const int DEPARTED_NAMES_KEPT = 200;
+
+    /// <summary>
+    /// The name of a user (a player or a bot) who has left the room, for what still holds their
+    /// room index: a delayed Username Placeholder printed a leaver's name (official client
+    /// capture 2026-10-25T02-50-51, "D V=null U=a1" 10 s after the click, the user gone 2 s
+    /// before), as the triggerer of Leaves Room is printed (wired matrix action.49.X5 "LV
+    /// U=a2", trigger.23.R2 "P T=frank" for a bot picked up). The newest
+    /// <see cref="DEPARTED_NAMES_KEPT"/> are kept.
+    /// </summary>
+    public bool TryGetDepartedName(RoomObjectId objectId, [NotNullWhen(true)] out string? name) =>
+        State.DepartedAvatarNames.TryGetValue(objectId, out name);
+
+    internal void RememberDeparted(IRoomAvatar avatar)
+    {
+        if (avatar is not (IRoomPlayer or IRoomBot))
+            return;
+
+        if (State.DepartedAvatarNames.TryAdd(avatar.ObjectId, avatar.Name))
+            State.DepartedAvatarOrder.Enqueue(avatar.ObjectId);
+        else
+            State.DepartedAvatarNames[avatar.ObjectId] = avatar.Name;
+
+        while (State.DepartedAvatarOrder.Count > DEPARTED_NAMES_KEPT)
+            State.DepartedAvatarNames.Remove(State.DepartedAvatarOrder.Dequeue());
+    }
+
     /// <summary>The avatars on a tile; none for a tile outside the room.</summary>
     public IEnumerable<IRoomAvatar> GetAvatarsOnTile(int tileIdx)
     {
