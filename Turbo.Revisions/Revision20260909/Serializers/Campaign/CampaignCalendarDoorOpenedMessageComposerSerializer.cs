@@ -3,6 +3,7 @@ using Turbo.Primitives.Packets;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Campaign;
 
+/// <summary>Opened, product name, custom image, furni class name (AS3 CampaignCalendarDoorOpenedMessageParser).</summary>
 internal class CampaignCalendarDoorOpenedMessageComposerSerializer(int header)
     : AbstractSerializer<CampaignCalendarDoorOpenedMessageComposer>(header)
 {
@@ -11,6 +12,9 @@ internal class CampaignCalendarDoorOpenedMessageComposerSerializer(int header)
         CampaignCalendarDoorOpenedMessageComposer message
     )
     {
-        //
+        packet.WriteBoolean(message.DoorOpened);
+        packet.WriteString(message.ProductName);
+        packet.WriteString(message.CustomImage);
+        packet.WriteString(message.FurnitureClassName);
     }
 }

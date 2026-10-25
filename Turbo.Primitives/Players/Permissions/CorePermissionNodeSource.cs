@@ -122,6 +122,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             SecurityLevelType.Community
         ),
         new(
+            PermissionNodes.Campaign.CALENDAR_FORCE_OPEN,
+            "Open any door of the campaign calendar with its staff force open, missed and future ones too."
+        ),
+        new(
             PermissionNodes.Moderation.TOOL,
             "Use the moderation tool.",
             SecurityLevelType.Moderator
@@ -373,6 +377,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
         new(
             PermissionNodes.Admin.REWARD_TRACKS_MANAGE,
             "Manage the reward tracks in the admin panel: tracks, tasks, prizes, premium and dates, and import Habbo's from a capture."
+        ),
+        new(
+            PermissionNodes.Admin.CAMPAIGNS_MANAGE,
+            "Manage the campaign calendars in the admin panel: their dates, days and each door's gift."
         ),
         new(
             PermissionNodes.Admin.GAMEDATA_VIEW,

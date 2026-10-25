@@ -7,6 +7,7 @@ using Turbo.Events;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Authentication;
 using Turbo.Primitives.Availability;
+using Turbo.Primitives.Campaigns;
 using Turbo.Primitives.Figures;
 using Turbo.Primitives.Messages.Incoming.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Availability;
@@ -51,6 +52,7 @@ public class SSOTicketMessageHandler(
     IPlayerNoticeService notices,
     IClientTelemetry telemetry,
     IPlayPolicies playPolicies,
+    ICampaignCalendarService campaignCalendars,
     EventSystem? events = null
 ) : IMessageHandler<SSOTicketMessage>
 {
@@ -360,6 +362,14 @@ public class SSOTicketMessageHandler(
             .GetPlayerHabbiconGrain(playerId)
             .SendLoginAsync(ct)
             .ConfigureAwait(false);
+
+        // The campaign calendar the client opens on openView/calendar: it never asks for it
+        // (HabboCampaigns only listens for CampaignCalendarData), so it comes at login.
+        if (
+            await campaignCalendars.GetCalendarAsync(playerId, ct).ConfigureAwait(false) is
+            { } calendar
+        )
+            await ctx.SendComposerAsync(calendar, ct).ConfigureAwait(false);
         await _grainFactory
             .GetPlayerWalletGrain(playerId)
             .DeliverPendingRewardsAsync(ct)

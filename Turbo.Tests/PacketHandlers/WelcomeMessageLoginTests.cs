@@ -81,7 +81,8 @@ public class WelcomeMessageLoginTests
             _fakes.Create<Turbo.Primitives.Moderation.IModerationIssueService>(),
             _fakes.Create<Turbo.Primitives.Players.Notifications.IPlayerNoticeService>(),
             _fakes.Create<Turbo.Primitives.Tracking.IClientTelemetry>(),
-            _policies
+            _policies,
+            _fakes.Create<Turbo.Primitives.Campaigns.ICampaignCalendarService>()
         );
     }
 

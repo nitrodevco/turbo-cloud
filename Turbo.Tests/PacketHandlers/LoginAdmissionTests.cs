@@ -79,6 +79,7 @@ public class LoginAdmissionTests
             _fakes.Create<Turbo.Primitives.Players.Notifications.IPlayerNoticeService>(),
             _fakes.Create<Turbo.Primitives.Tracking.IClientTelemetry>(),
             _policies,
+            _fakes.Create<Turbo.Primitives.Campaigns.ICampaignCalendarService>(),
             _events.System
         );
         _events.Record<Turbo.Primitives.Players.Events.PlayerLoggedInEvent>();

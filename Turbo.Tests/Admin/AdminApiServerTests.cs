@@ -245,6 +245,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(Turbo.Primitives.Catalog.IExpiringPageService),
                 typeof(Turbo.Primitives.Catalog.IVoucherService),
                 typeof(Turbo.Primitives.Quests.RewardTracks.IRewardTrackStore),
+                typeof(Turbo.Primitives.Campaigns.ICampaignCalendarService),
                 typeof(Turbo.Primitives.Achievements.IAchievementCatalog),
                 typeof(Turbo.Primitives.Navigator.INavigatorProvider),
                 typeof(Turbo.Primitives.Pets.Providers.IPetBreedProvider),
