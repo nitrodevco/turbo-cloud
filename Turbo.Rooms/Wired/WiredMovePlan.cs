@@ -79,6 +79,12 @@ public sealed class WiredMovePlan
 
         var from = Where(item);
 
+        // A furni already where the move would put it stays put and the room hears nothing: Move
+        // Furni To Furni on a furni already on its destination sent no packet, 14 of 14 firings
+        // (official client capture 2026-10-24T12-24-29, W1 lab action.34.R2).
+        if (from.X == x && from.Y == y && from.Rotation == rot && (z is null || z == from.Z))
+            return true;
+
         if (_policy.MovePhysics.HasFlag(WiredMovePhysicsFlags.KeepAltitude))
             _layout.Move(item, x, y, z ?? from.Z, rot);
         else
