@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -78,10 +80,17 @@ internal sealed class PluginGamedataSeeds(
             && modules.AddressOf(pluginKey, Path.Combine(folder, WWWROOT), TEMPLATE_PATCHES_FILE)
                 is { } patches
         )
-            parts[ExternalVariablesFile.TEMPLATE_PATCHES] = new System.Text.Json.Nodes.JsonObject
+            parts[ExternalVariablesFile.TEMPLATE_PATCHES] = new JsonObject
             {
                 [pluginKey] = patches,
             }.ToJsonString();
+
+        if (parts.TryGetValue(ExternalVariablesFile.ASSET_OVERLAYS, out var overlays))
+            parts[ExternalVariablesFile.ASSET_OVERLAYS] = AddressOverlays(
+                pluginKey,
+                Path.Combine(folder, WWWROOT),
+                overlays
+            );
 
         loaded.SetParts(pluginKey, parts);
         Invalidate();
@@ -99,6 +108,62 @@ internal sealed class PluginGamedataSeeds(
     }
 
     public IDisposable Loaded(string pluginKey) => loaded.Add(pluginKey, Invalidate);
+
+    /// <summary>
+    /// A plugin's <see cref="ExternalVariablesFile.ASSET_OVERLAYS"/>: a bitmap it names by its path in
+    /// its <c>wwwroot/</c> (<c>"frame.png"</c>) is given to clients at its address by hash, as its patch
+    /// file is; a url (<c>/...</c>, <c>https://...</c>) is kept as it is. One whose file is not there is
+    /// logged and left out, so the library's own bitmap stays.
+    /// </summary>
+    private string AddressOverlays(string pluginKey, string wwwroot, string json)
+    {
+        JsonNode? node;
+
+        try
+        {
+            node = JsonNode.Parse(json);
+
+            if (node is JsonValue text && text.TryGetValue<string>(out var inner))
+                node = JsonNode.Parse(inner);
+        }
+        catch (JsonException)
+        {
+            return json;
+        }
+
+        if (node is not JsonObject entries)
+            return json;
+
+        var addressed = new JsonObject();
+
+        foreach (var (asset, value) in entries)
+        {
+            if (
+                value is not JsonValue url
+                || !url.TryGetValue<string>(out var path)
+                || path.Length == 0
+                || path.StartsWith('/')
+                || path.Contains("://", StringComparison.Ordinal)
+            )
+            {
+                addressed[asset] = value?.DeepClone();
+
+                continue;
+            }
+
+            if (modules.AddressOf(pluginKey, wwwroot, path) is { } address)
+                addressed[asset] = address;
+            else
+                logger.LogWarning(
+                    "The plugin {Key}'s overlay of {Asset} names {Path}, which is no file of its wwwroot: the library's own is used",
+                    pluginKey,
+                    asset,
+                    path
+                );
+        }
+
+        return addressed.ToJsonString();
+    }
 
     public async Task<ImmutableArray<PluginDataItem>> FindAsync(
         PluginDataScope plugin,
