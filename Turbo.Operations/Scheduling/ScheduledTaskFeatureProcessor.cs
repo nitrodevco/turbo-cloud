@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Turbo.Contracts.Plugins;
 using Turbo.Contracts.Plugins.Scheduling;
 using Turbo.Database.Entities.Scheduling;
+using Turbo.Primitives.Plugins;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 
@@ -51,6 +52,13 @@ internal sealed class ScheduledTaskFeatureProcessor(ScheduledTaskHost host)
                 );
             })
             .ToList();
+
+        foreach (var definition in definitions)
+            sp.Contributes(
+                PluginContributionKinds.SCHEDULED_TASK,
+                definition.Key,
+                definition.Task.GetType().Name
+            );
 
         return Task.FromResult(host.Register(owner, definitions));
     }

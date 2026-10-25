@@ -76,6 +76,7 @@ public sealed class PluginContributionsTests : IDisposable
                 (PluginContributionKinds.CLIENT_MODULE, "inspect.js"),
                 (PluginContributionKinds.TEMPLATE_PATCH, "habbo-toolbar-com/purse_xml"),
                 (PluginContributionKinds.HOSTED_SERVICE, "Ticker"),
+                (PluginContributionKinds.SCHEDULED_TASK, "inspect.Rotation"),
             ]);
         inspected
             .Items.Single(x => x.Kind == PluginContributionKinds.TEMPLATE_PATCH)
@@ -206,6 +207,7 @@ public sealed class PluginContributionsTests : IDisposable
         using Microsoft.Extensions.DependencyInjection;
         using Microsoft.Extensions.Hosting;
         using Turbo.Contracts.Plugins;
+        using Turbo.Contracts.Plugins.Scheduling;
         using Turbo.Contracts.Plugins.Web;
         using Turbo.Primitives.Commands;
         using Turbo.Primitives.Furniture.Providers;
@@ -225,6 +227,12 @@ public sealed class PluginContributionsTests : IDisposable
         {
             public Task StartAsync(CancellationToken ct) => Task.CompletedTask;
             public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
+        }
+
+        [Schedule("0 18 * * MON")]
+        public sealed class Rotation : IScheduledTask
+        {
+            public Task RunAsync(ScheduledTaskRun run, CancellationToken ct) => Task.CompletedTask;
         }
 
         [PluginSettings("Inspect")]
