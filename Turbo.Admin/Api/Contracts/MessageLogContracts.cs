@@ -19,10 +19,15 @@ public sealed record MessageLogEntry(
     bool Delivered
 );
 
-/// <summary>A run of private messages, newest first. Paged by message, not counted: there is no total.</summary>
+/// <summary>
+/// A page of private messages in <see cref="Order"/>, counted no further than the chat log is
+/// (<see cref="TotalCapped"/> when there are more than <see cref="Total"/>).
+/// </summary>
 public sealed record MessageLogResponse(
+    int Total,
+    bool TotalCapped,
+    int Page,
     int PageSize,
-    bool HasOlder,
-    bool HasNewer,
+    ListOrder Order,
     MessageLogEntry[] Entries
 );

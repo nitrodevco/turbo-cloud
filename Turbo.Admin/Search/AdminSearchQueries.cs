@@ -79,7 +79,15 @@ public sealed class AdminSearchQueries(
     private async Task<SearchGroup?> PlayersAsync(string term, int take, CancellationToken ct)
     {
         var page = await players
-            .SearchAsync(term, PlayerSearchMode.Name, onlineOnly: false, page: 1, ct)
+            .SearchAsync(
+                term,
+                PlayerSearchMode.Name,
+                onlineOnly: false,
+                page: 1,
+                sort: null,
+                dir: null,
+                ct
+            )
             .ConfigureAwait(false);
 
         return new SearchGroup(
@@ -100,7 +108,7 @@ public sealed class AdminSearchQueries(
     private async Task<SearchGroup?> RoomsAsync(string term, int take, CancellationToken ct)
     {
         var page = await rooms
-            .SearchAsync(term, RoomSearchMode.Name, page: 1, ct)
+            .SearchAsync(term, RoomSearchMode.Name, page: 1, sort: null, dir: null, ct)
             .ConfigureAwait(false);
 
         return new SearchGroup(

@@ -47,11 +47,14 @@ internal sealed class ReportEndpoints(AdminReportQueries reports, IModerationIss
     private async Task<IResult> ListAsync(
         string? state,
         string? player,
-        int? before,
-        int? after,
+        int? page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     ) =>
-        Results.Ok(await reports.ListAsync(state, player, before, after, ct).ConfigureAwait(false));
+        Results.Ok(
+            await reports.ListAsync(state, player, page ?? 1, sort, dir, ct).ConfigureAwait(false)
+        );
 
     private async Task<IResult> GetAsync(int id, CancellationToken ct) =>
         await reports.GetAsync(id, ct).ConfigureAwait(false) is { } report

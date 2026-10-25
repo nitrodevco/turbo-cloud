@@ -27,12 +27,15 @@ internal sealed class ChatlogEndpoints(AdminChatlogQueries chatlog)
         string? player,
         int? room,
         string? text,
-        int? before,
-        int? after,
+        int? page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     ) =>
         Results.Ok(
-            await chatlog.SearchAsync(player, room, text, before, after, ct).ConfigureAwait(false)
+            await chatlog
+                .SearchAsync(player, room, text, page ?? 1, sort, dir, ct)
+                .ConfigureAwait(false)
         );
 
     private async Task<IResult> AroundAsync(int id, CancellationToken ct) =>

@@ -26,11 +26,13 @@ internal sealed class CurrencyLogEndpoints(AdminCurrencyLog log)
         string? player,
         int? currency,
         string? cause,
-        long? before,
-        long? after,
+        int? page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     ) =>
         Results.Ok(
-            await log.SearchAsync(player, currency, cause, before, after, ct).ConfigureAwait(false)
+            await log.SearchAsync(player, currency, cause, page ?? 1, sort, dir, ct)
+                .ConfigureAwait(false)
         );
 }

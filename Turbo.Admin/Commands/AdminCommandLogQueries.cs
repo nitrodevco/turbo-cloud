@@ -5,15 +5,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Turbo.Admin.Api;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Players;
 
 namespace Turbo.Admin.Commands;
 
 /// <summary>
-/// The command log as staff read it: newest first, a page at a time, narrowed to one player (by
+/// The command log as staff read it: newest first or by command, a page at a time, narrowed to one player (by
 /// name or id), one command, one outcome or one source. Read-only, with the names of the players
 /// and rooms on the page looked up in one query each.
 /// </summary>
@@ -25,16 +27,24 @@ public sealed class AdminCommandLogQueries(
     /// <summary>The source asked for to mean a command typed in a room's chat, which has none.</summary>
     public const string CHAT_SOURCE = "chat";
 
+    /// <summary>The columns the log sorts by, each one its indexes order: when and the command.</summary>
+    private static readonly ListSorts<CommandLogEntity> SORTS = new ListSorts<CommandLogEntity>()
+        .Add("when", ListOrder.DESC, x => x.Id)
+        .Add("command", ListOrder.ASC, x => x.Command, x => x.Id);
+
     public async Task<CommandLogResponse> SearchAsync(
         string? player,
         string? command,
         string? outcome,
         string? source,
         int page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     )
     {
         var pageSize = Math.Max(1, config.Value.CommandLogPageSize);
+        var order = SORTS.Resolve(sort, dir);
 
         page = Math.Max(1, page);
 
@@ -56,7 +66,7 @@ public sealed class AdminCommandLogQueries(
                     .ConfigureAwait(false);
 
             if (playerId is not { } found)
-                return new CommandLogResponse(0, page, pageSize, []);
+                return new CommandLogResponse(0, page, pageSize, order, []);
 
             logs = logs.Where(x => x.PlayerEntityId == found);
         }
@@ -80,7 +90,8 @@ public sealed class AdminCommandLogQueries(
             logs = logs.Where(x => x.Source == from);
 
         var total = await logs.CountAsync(ct).ConfigureAwait(false);
-        var rows = await logs.OrderByDescending(x => x.Id)
+        var rows = await SORTS
+            .Apply(logs, order)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(x => new
@@ -114,6 +125,7 @@ public sealed class AdminCommandLogQueries(
             total,
             page,
             pageSize,
+            order,
             [
                 .. rows.Select(x => new CommandLogEntry(
                     x.Id,

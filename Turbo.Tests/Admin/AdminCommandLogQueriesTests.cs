@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Options;
+using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Commands;
 using Turbo.Admin.Configuration;
 using Turbo.Database.Entities.Players;
@@ -66,14 +67,14 @@ public sealed class AdminCommandLogQueriesTests : IDisposable
     ) =>
         [
             .. (
-                await Queries().SearchAsync(player, command, outcome, source, 1, Ct)
+                await Queries().SearchAsync(player, command, outcome, source, 1, null, null, Ct)
             ).Entries.Select(x => x.Id),
         ];
 
     [Fact]
     public async Task TheLog_IsNewestFirst_WithWhoRanEachAndWhere()
     {
-        var log = await Queries().SearchAsync(null, null, null, null, 1, Ct);
+        var log = await Queries().SearchAsync(null, null, null, null, 1, null, null, Ct);
 
         log.Total.Should().Be(5);
         log.Entries.Select(x => x.Id).Should().Equal(5, 4, 3, 2, 1);
@@ -121,11 +122,36 @@ public sealed class AdminCommandLogQueriesTests : IDisposable
     [Fact]
     public async Task ThePages_FollowOnFromEachOther()
     {
-        var second = await Queries(pageSize: 2).SearchAsync(null, null, null, null, 2, Ct);
+        var second = await Queries(pageSize: 2)
+            .SearchAsync(null, null, null, null, 2, null, null, Ct);
 
         second.Total.Should().Be(5);
         second.PageSize.Should().Be(2);
         second.Entries.Select(x => x.Id).Should().Equal(3, 2);
+    }
+
+    [Fact]
+    public async Task TheLog_SortsByCommand_AndSaysTheOrderItTook()
+    {
+        (await Queries().SearchAsync(null, null, null, null, 1, null, null, Ct))
+            .Order.Should()
+            .Be(new ListOrder("when", ListOrder.DESC), "newest first is the log's own order");
+
+        var byCommand = await Queries().SearchAsync(null, null, null, null, 1, "command", null, Ct);
+
+        byCommand
+            .Entries.Select(x => x.Command)
+            .Should()
+            .Equal("alert", "ban", "kick", "shutdown", "warn");
+        byCommand.Order.Should().Be(new ListOrder("command", ListOrder.ASC));
+        (await Queries().SearchAsync(null, null, null, null, 1, "command", ListOrder.DESC, Ct))
+            .Entries.Select(x => x.Command)
+            .Should()
+            .Equal("warn", "shutdown", "kick", "ban", "alert");
+        (await Queries().SearchAsync(null, null, null, null, 1, "when", ListOrder.ASC, Ct))
+            .Entries.Select(x => x.Id)
+            .Should()
+            .Equal(1, 2, 3, 4, 5);
     }
 
     private static CommandLogEntity Log(

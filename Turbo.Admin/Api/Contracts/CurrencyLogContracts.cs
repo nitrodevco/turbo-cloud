@@ -32,14 +32,17 @@ public sealed record CurrencyLogCurrency(int TypeId, string Name);
 public sealed record CurrencyLogTotal(string Currency, long In, long Out);
 
 /// <summary>
-/// A run of the currency log, newest first, with no total; whether the ledger is being kept now
-/// (movements recorded and the ledger on); the currencies to narrow it to; and, for one player,
-/// their totals per currency.
+/// A page of the currency log in <see cref="Order"/>, counted no further than the chat log is
+/// (<see cref="TotalCapped"/> when there are more than <see cref="Total"/>); whether the ledger is
+/// being kept now (movements recorded and the ledger on); the currencies to narrow it to; and, for
+/// one player, their totals per currency.
 /// </summary>
 public sealed record CurrencyLogResponse(
+    int Total,
+    bool TotalCapped,
+    int Page,
     int PageSize,
-    bool HasOlder,
-    bool HasNewer,
+    ListOrder Order,
     bool Recording,
     CurrencyLogCurrency[] Currencies,
     CurrencyLogEntry[] Entries,

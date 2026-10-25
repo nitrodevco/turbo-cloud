@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Turbo.Admin.Api;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Database.Context;
@@ -16,8 +17,8 @@ namespace Turbo.Admin.Rooms;
 /// <summary>
 /// Who went into which room and when, from the entry log the navigator's history keeps: the room
 /// visits log, narrowed to one player or one room, and the players who visited a room for its
-/// page, newest first. The log is paged by visit id rather than by page number and count: it grows
-/// with every room entered, and a count would read all of it for each page. Read-only.
+/// page, newest first. The log grows with every room entered, so its pages are counted only so far
+/// (<see cref="LogCounts"/>). Read-only.
 /// </summary>
 public sealed class AdminRoomVisits(
     IDbContextFactory<TurboDbContext> database,
@@ -28,19 +29,29 @@ public sealed class AdminRoomVisits(
     public const int LIMIT = 50;
 
     /// <summary>
-    /// A run of the log, narrowed to a player (by name or id) and a room when given.
-    /// <paramref name="before"/> asks for the visits older than that one, <paramref name="after"/>
-    /// for those newer; with neither, the newest.
+    /// The columns the log sorts by, each one its indexes order: when (the visit's id) and the
+    /// room's id.
+    /// </summary>
+    private static readonly ListSorts<RoomEntryLogEntity> SORTS =
+        new ListSorts<RoomEntryLogEntity>()
+            .Add("when", ListOrder.DESC, x => x.Id)
+            .Add("room", ListOrder.ASC, x => x.RoomEntityId, x => x.Id);
+
+    /// <summary>
+    /// A page of the log, narrowed to a player (by name or id) and a room when given, counted up
+    /// to <see cref="LogCounts.LIMIT"/>.
     /// </summary>
     public async Task<RoomVisitLogResponse> SearchAsync(
         string? player,
         int? room,
-        int? before,
-        int? after,
+        int page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     )
     {
         var pageSize = Math.Max(1, config.Value.RoomVisitsPageSize);
+        var order = SORTS.Resolve(sort, dir);
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
@@ -59,7 +70,7 @@ public sealed class AdminRoomVisits(
                     .ConfigureAwait(false);
 
             if (playerId is not { } found)
-                return new RoomVisitLogResponse(pageSize, false, false, []);
+                return new RoomVisitLogResponse(0, false, 1, pageSize, order, []);
 
             visits = visits.Where(x => x.PlayerEntityId == found);
         }
@@ -67,34 +78,26 @@ public sealed class AdminRoomVisits(
         if (room is { } roomId)
             visits = visits.Where(x => x.RoomEntityId == roomId);
 
-        List<RoomVisitLogEntry> rows;
-        bool hasOlder;
-        bool hasNewer;
+        var sorted = SORTS.Apply(visits, order);
+        var (total, capped) = await LogCounts.CountAsync(sorted, ct).ConfigureAwait(false);
 
-        if (after is { } newerThan)
-        {
-            rows = await Entries(visits.Where(x => x.Id > newerThan).OrderBy(x => x.Id), pageSize)
-                .ToListAsync(ct)
-                .ConfigureAwait(false);
-            hasNewer = rows.Count > pageSize;
-            rows = [.. rows.Take(pageSize).Reverse()];
-            hasOlder = await visits.AnyAsync(x => x.Id <= newerThan, ct).ConfigureAwait(false);
-        }
-        else
-        {
-            var page = before is { } olderThan ? visits.Where(x => x.Id < olderThan) : visits;
+        page = LogCounts.Page(page, total, pageSize);
 
-            rows = await Entries(page.OrderByDescending(x => x.Id), pageSize)
-                .ToListAsync(ct)
-                .ConfigureAwait(false);
-            hasOlder = rows.Count > pageSize;
-            rows = [.. rows.Take(pageSize)];
-            hasNewer =
-                before is { } newest
-                && await visits.AnyAsync(x => x.Id >= newest, ct).ConfigureAwait(false);
-        }
+        var rows = await sorted
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => new RoomVisitLogEntry(
+                x.Id,
+                x.CreatedAt,
+                x.PlayerEntityId,
+                x.PlayerEntity != null ? x.PlayerEntity.Name : null,
+                x.RoomEntityId,
+                x.RoomEntity != null ? x.RoomEntity.Name : null
+            ))
+            .ToArrayAsync(ct)
+            .ConfigureAwait(false);
 
-        return new RoomVisitLogResponse(pageSize, hasOlder, hasNewer, [.. rows]);
+        return new RoomVisitLogResponse(total, capped, page, pageSize, order, rows);
     }
 
     /// <summary>The players who went into a room, newest first.</summary>
@@ -119,23 +122,4 @@ public sealed class AdminRoomVisits(
             .ToListAsync(ct)
             .ConfigureAwait(false);
     }
-
-    /// <summary>
-    /// A page of visits in the order given, one more than a page to know whether there are more,
-    /// with the names of their players and rooms.
-    /// </summary>
-    private static IQueryable<RoomVisitLogEntry> Entries(
-        IOrderedQueryable<RoomEntryLogEntity> visits,
-        int pageSize
-    ) =>
-        visits
-            .Take(pageSize + 1)
-            .Select(x => new RoomVisitLogEntry(
-                x.Id,
-                x.CreatedAt,
-                x.PlayerEntityId,
-                x.PlayerEntity != null ? x.PlayerEntity.Name : null,
-                x.RoomEntityId,
-                x.RoomEntity != null ? x.RoomEntity.Name : null
-            ));
 }

@@ -78,15 +78,15 @@ public sealed class AdminSiteAccountsTests : IDisposable
     public async Task APlayer_IsFoundByTheirDiscordName_OrId_AndTheListSaysWhoUsesDiscord()
     {
         foreach (var term in new[] { "DISCORD", "123456789" })
-            (await Queries().SearchAsync(term, PlayerSearchMode.Discord, false, 1, Ct))
+            (await Queries().SearchAsync(term, PlayerSearchMode.Discord, false, 1, null, null, Ct))
                 .Players.Select(x => (x.Name, x.DiscordUsername))
                 .Should()
                 .Equal(("alice", "alice.discord"));
 
-        (await Queries().SearchAsync("12345", PlayerSearchMode.Discord, false, 1, Ct))
+        (await Queries().SearchAsync("12345", PlayerSearchMode.Discord, false, 1, null, null, Ct))
             .Total.Should()
             .Be(0, "an id is matched whole");
-        (await Queries().SearchAsync("bob", PlayerSearchMode.Name, false, 1, Ct))
+        (await Queries().SearchAsync("bob", PlayerSearchMode.Name, false, 1, null, null, Ct))
             .Players.Single()
             .DiscordUsername.Should()
             .BeNull();

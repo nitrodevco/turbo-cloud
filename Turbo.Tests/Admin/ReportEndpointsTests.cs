@@ -213,6 +213,32 @@ public sealed class ReportEndpointsTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Reports_read_a_page_at_a_time_newest_first_or_open_before_picked_before_closed()
+    {
+        Report(1, REPORTED, "Open");
+        Report(2, REPORTED, "Held", picker: OTHER_MODERATOR);
+        Report(3, REPORTED, "Open too");
+        Report(4, REPORTED, "Done", closedAt: DateTime.UtcNow);
+        await _server.StartAsync(Ct);
+
+        var newest = await JsonAsync(await SendAsync(HttpMethod.Get, "/api/reports?state=all"));
+
+        Ids(newest).Should().Equal(4, 3, 2, 1);
+        newest.GetProperty("total").GetInt32().Should().Be(4);
+        newest.GetProperty("order").GetProperty("sort").GetString().Should().Be("sent");
+        Ids(await JsonAsync(await SendAsync(HttpMethod.Get, "/api/reports?state=all&sort=state")))
+            .Should()
+            .Equal(1, 3, 2, 4);
+        Ids(
+                await JsonAsync(
+                    await SendAsync(HttpMethod.Get, "/api/reports?state=all&sort=state&dir=desc")
+                )
+            )
+            .Should()
+            .Equal(4, 2, 3, 1);
+    }
+
+    [Fact]
     public async Task Staff_without_the_mod_tool_can_not_see_reports()
     {
         _holds = node => node != PermissionNodes.Moderation.TOOL;
@@ -232,6 +258,13 @@ public sealed class ReportEndpointsTests : IAsyncDisposable
             .BeFalse();
     }
 
+    private static int[] Ids(JsonElement page) =>
+        [
+            .. page.GetProperty("entries")
+                .EnumerateArray()
+                .Select(x => x.GetProperty("id").GetInt32()),
+        ];
+
     private async Task<List<(string? State, int Picker)>> StatesAsync() =>
         [
             .. (await JsonAsync(await SendAsync(HttpMethod.Get, "/api/reports?state=all")))
@@ -248,7 +281,13 @@ public sealed class ReportEndpointsTests : IAsyncDisposable
                 ),
         ];
 
-    private void Report(int id, int reported, string message, int? picker = null) =>
+    private void Report(
+        int id,
+        int reported,
+        string message,
+        int? picker = null,
+        DateTime? closedAt = null
+    ) =>
         _db.Insert(
             new CfhReportEntity
             {
@@ -259,6 +298,7 @@ public sealed class ReportEndpointsTests : IAsyncDisposable
                 TopicId = 11,
                 Message = message,
                 PickerEntityId = picker,
+                ClosedAt = closedAt,
             }
         );
 

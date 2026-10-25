@@ -83,8 +83,10 @@ internal sealed partial class ContentEndpoints(
             .RequirePermission(PermissionNodes.Command.TAKEBADGE, "You can't take badges.");
         group.MapGet(
             "/groups",
-            async (string? q, int? page, CancellationToken ct) =>
-                Results.Ok(await groups.SearchAsync(q, page ?? 0, ct).ConfigureAwait(false))
+            async (string? q, int? page, string? sort, string? dir, CancellationToken ct) =>
+                Results.Ok(
+                    await groups.SearchAsync(q, page ?? 0, sort, dir, ct).ConfigureAwait(false)
+                )
         );
         group.MapGet(
             "/groups/editor",

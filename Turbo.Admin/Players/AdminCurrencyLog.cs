@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Turbo.Admin.Api;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Database.Configuration;
@@ -20,9 +21,9 @@ namespace Turbo.Admin.Players;
 /// The currency log as staff read it: every change to a wallet the server's ledger kept
 /// (<c>currency_ledger</c>), newest first, narrowed to a player, a currency, or a cause (its
 /// code, or the start of one: <c>market</c> takes in every marketplace cause). With a player, what
-/// came in and went out of each currency across the whole filter. Paged by id as the chat log is.
-/// The ledger only grows while movements are recorded (<c>Turbo:Movements:Enabled</c>), which the
-/// answer says. Read-only.
+/// came in and went out of each currency across the whole filter. Counted and sorted as the chat
+/// log is. The ledger only grows while movements are recorded (<c>Turbo:Movements:Enabled</c>),
+/// which the answer says. Read-only.
 /// </summary>
 public sealed class AdminCurrencyLog(
     IDbContextFactory<TurboDbContext> database,
@@ -32,16 +33,26 @@ public sealed class AdminCurrencyLog(
 {
     private const string ESCAPE = "\\";
 
+    /// <summary>
+    /// The columns the log sorts by: when, the change's id, which its key orders already. An
+    /// amount would sort the whole ledger for each page.
+    /// </summary>
+    private static readonly ListSorts<CurrencyLedgerEntryEntity> SORTS =
+        new ListSorts<CurrencyLedgerEntryEntity>().Add("when", ListOrder.DESC, x => x.Id);
+
+    /// <summary>A page of the log, counted up to <see cref="LogCounts.LIMIT"/>.</summary>
     public async Task<CurrencyLogResponse> SearchAsync(
         string? player,
         int? currency,
         string? cause,
-        long? before,
-        long? after,
+        int page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     )
     {
         var pageSize = Math.Max(1, config.Value.CurrencyLogPageSize);
+        var order = SORTS.Resolve(sort, dir);
         var recording = movements.CurrentValue is { Enabled: true, CurrencyLedger: true };
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
@@ -74,9 +85,11 @@ public sealed class AdminCurrencyLog(
             : type.ToString();
 
         var nobody = new CurrencyLogResponse(
+            0,
+            false,
+            1,
             pageSize,
-            false,
-            false,
+            order,
             recording,
             currencies,
             [],
@@ -114,36 +127,16 @@ public sealed class AdminCurrencyLog(
             entries = entries.Where(x => EF.Functions.Like(x.Cause, like + "%", ESCAPE));
         }
 
-        List<CurrencyLedgerEntryEntity> rows;
-        bool hasOlder;
-        bool hasNewer;
+        var sorted = SORTS.Apply(entries, order);
+        var (total, capped) = await LogCounts.CountAsync(sorted, ct).ConfigureAwait(false);
 
-        if (after is { } newerThan)
-        {
-            rows = await entries
-                .Where(x => x.Id > newerThan)
-                .OrderBy(x => x.Id)
-                .Take(pageSize + 1)
-                .ToListAsync(ct)
-                .ConfigureAwait(false);
-            hasNewer = rows.Count > pageSize;
-            rows = [.. rows.Take(pageSize).Reverse()];
-            hasOlder = await entries.AnyAsync(x => x.Id <= newerThan, ct).ConfigureAwait(false);
-        }
-        else
-        {
-            var page = before is { } olderThan ? entries.Where(x => x.Id < olderThan) : entries;
+        page = LogCounts.Page(page, total, pageSize);
 
-            rows = await page.OrderByDescending(x => x.Id)
-                .Take(pageSize + 1)
-                .ToListAsync(ct)
-                .ConfigureAwait(false);
-            hasOlder = rows.Count > pageSize;
-            rows = [.. rows.Take(pageSize)];
-            hasNewer =
-                before is { } newest
-                && await entries.AnyAsync(x => x.Id >= newest, ct).ConfigureAwait(false);
-        }
+        var rows = await sorted
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
 
         // A player's in and out per currency, across everything the filter takes in.
         CurrencyLogTotal[]? totals = null;
@@ -185,9 +178,11 @@ public sealed class AdminCurrencyLog(
             .ConfigureAwait(false);
 
         return new CurrencyLogResponse(
+            total,
+            capped,
+            page,
             pageSize,
-            hasOlder,
-            hasNewer,
+            order,
             recording,
             currencies,
             [

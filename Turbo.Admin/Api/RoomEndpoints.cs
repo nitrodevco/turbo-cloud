@@ -91,8 +91,13 @@ internal sealed class RoomEndpoints(
         string? q,
         string? by,
         int? page,
+        string? sort,
+        string? dir,
         CancellationToken ct
-    ) => Results.Ok(await rooms.SearchAsync(q, ModeOf(by), page ?? 1, ct).ConfigureAwait(false));
+    ) =>
+        Results.Ok(
+            await rooms.SearchAsync(q, ModeOf(by), page ?? 1, sort, dir, ct).ConfigureAwait(false)
+        );
 
     private async Task<IResult> CategoriesAsync(CancellationToken ct) =>
         Results.Ok(await rooms.GetCategoriesAsync(ct).ConfigureAwait(false));

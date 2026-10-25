@@ -7,6 +7,7 @@ public sealed record PlayerListResponse(
     int Total,
     int Page,
     int PageSize,
+    ListOrder Order,
     int OnlineNow,
     IReadOnlyList<PlayerListItem> Players
 );

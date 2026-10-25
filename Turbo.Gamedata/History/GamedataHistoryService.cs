@@ -55,22 +55,61 @@ internal sealed class GamedataHistoryService(
         CancellationToken ct
     )
     {
-        var size = Math.Max(1, _config.HistoryPageSize);
-
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
+        return await SetsAsync(Of(dbCtx, recordTypes), page, ct).ConfigureAwait(false);
+    }
+
+    public async Task<GamedataHistoryPage> PageAsync(
+        int page,
+        IReadOnlyCollection<GamedataRecordType> recordTypes,
+        CancellationToken ct
+    )
+    {
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var query = Of(dbCtx, recordTypes);
+
+        return new GamedataHistoryPage
+        {
+            Total = await query.CountAsync(ct).ConfigureAwait(false),
+            Page = Math.Max(0, page),
+            PageSize = PageSize,
+            Sets = await SetsAsync(query, page, ct).ConfigureAwait(false),
+        };
+    }
+
+    private int PageSize => Math.Max(1, _config.HistoryPageSize);
+
+    /// <summary>The sets that changed a record of one of the types; every set when none is given.</summary>
+    private static IQueryable<GamedataChangeSetEntity> Of(
+        TurboDbContext dbCtx,
+        IReadOnlyCollection<GamedataRecordType> recordTypes
+    )
+    {
         var query = dbCtx.GamedataChangeSets.AsNoTracking();
 
         // A seek on the (change set, record type) index for each set.
         if (recordTypes.Count > 0)
             query = query.Where(x => x.Changes!.Any(c => recordTypes.Contains(c.RecordType)));
 
+        return query;
+    }
+
+    private async Task<ImmutableArray<GamedataChangeSetSnapshot>> SetsAsync(
+        IQueryable<GamedataChangeSetEntity> query,
+        int page,
+        CancellationToken ct
+    )
+    {
         var sets = await query
             .OrderByDescending(x => x.Id)
-            .Skip(Math.Max(0, page) * size)
-            .Take(size)
+            .Skip(Math.Max(0, page) * PageSize)
+            .Take(PageSize)
             .Select(x => new { Set = x, Count = x.Changes!.Count })
             .ToListAsync(ct)
             .ConfigureAwait(false);

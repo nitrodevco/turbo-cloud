@@ -26,11 +26,14 @@ internal sealed class MessageLogEndpoints(AdminMessageQueries messages)
         string? player,
         string? with,
         string? text,
-        int? before,
-        int? after,
+        int? page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     ) =>
         Results.Ok(
-            await messages.SearchAsync(player, with, text, before, after, ct).ConfigureAwait(false)
+            await messages
+                .SearchAsync(player, with, text, page ?? 1, sort, dir, ct)
+                .ConfigureAwait(false)
         );
 }

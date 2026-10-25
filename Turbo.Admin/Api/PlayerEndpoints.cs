@@ -107,11 +107,13 @@ internal sealed class PlayerEndpoints(
         string? by,
         bool? online,
         int? page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     ) =>
         Results.Ok(
             await players
-                .SearchAsync(q, ModeOf(by), online ?? false, page ?? 1, ct)
+                .SearchAsync(q, ModeOf(by), online ?? false, page ?? 1, sort, dir, ct)
                 .ConfigureAwait(false)
         );
 

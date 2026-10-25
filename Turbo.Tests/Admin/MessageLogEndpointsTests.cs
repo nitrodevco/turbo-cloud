@@ -89,18 +89,20 @@ public sealed class MessageLogEndpointsTests : IAsyncDisposable
         var newest = await GetAsync("/api/messages?player=alice&with=Bob");
 
         Ids(newest).Should().Equal(5, 2);
-        newest.GetProperty("hasOlder").GetBoolean().Should().BeTrue();
+        newest.GetProperty("total").GetInt32().Should().Be(3);
+        newest.GetProperty("totalCapped").GetBoolean().Should().BeFalse();
+        newest.GetProperty("order").GetProperty("sort").GetString().Should().Be("when");
+        newest.GetProperty("order").GetProperty("dir").GetString().Should().Be("desc");
         var icon = newest.GetProperty("entries")[0];
         icon.GetProperty("senderName").GetString().Should().Be("Bob");
         icon.GetProperty("receiverName").GetString().Should().Be("Alice");
         icon.GetProperty("habbiconId").GetInt32().Should().Be(7);
         icon.GetProperty("delivered").GetBoolean().Should().BeFalse();
 
-        var older = await GetAsync($"/api/messages?player=alice&with=Bob&before=2");
-
-        Ids(older).Should().Equal(1);
-        older.GetProperty("hasOlder").GetBoolean().Should().BeFalse();
-        older.GetProperty("hasNewer").GetBoolean().Should().BeTrue();
+        Ids(await GetAsync("/api/messages?player=alice&with=Bob&page=2")).Should().Equal(1);
+        Ids(await GetAsync("/api/messages?player=alice&with=Bob&sort=when&dir=asc"))
+            .Should()
+            .Equal(1, 2);
     }
 
     [Fact]

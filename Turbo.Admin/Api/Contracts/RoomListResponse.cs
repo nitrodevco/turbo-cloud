@@ -7,5 +7,6 @@ public sealed record RoomListResponse(
     int Total,
     int Page,
     int PageSize,
+    ListOrder Order,
     IReadOnlyList<RoomListItem> Rooms
 );

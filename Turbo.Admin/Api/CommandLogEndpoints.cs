@@ -24,11 +24,13 @@ internal sealed class CommandLogEndpoints(AdminCommandLogQueries commandLog)
         string? outcome,
         string? source,
         int? page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     ) =>
         Results.Ok(
             await commandLog
-                .SearchAsync(player, command, outcome, source, page ?? 1, ct)
+                .SearchAsync(player, command, outcome, source, page ?? 1, sort, dir, ct)
                 .ConfigureAwait(false)
         );
 }

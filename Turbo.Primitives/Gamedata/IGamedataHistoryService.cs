@@ -29,6 +29,16 @@ public interface IGamedataHistoryService
         CancellationToken ct
     );
 
+    /// <summary>
+    /// The same page as <see cref="ListAsync(int, IReadOnlyCollection{GamedataRecordType}, CancellationToken)"/>,
+    /// with how many sets those types take in on every page, for a list that shows its pages.
+    /// </summary>
+    public Task<GamedataHistoryPage> PageAsync(
+        int page,
+        IReadOnlyCollection<GamedataRecordType> recordTypes,
+        CancellationToken ct
+    );
+
     /// <summary>The set's changes; null when there is no such set.</summary>
     public Task<ImmutableArray<GamedataChangeSnapshot>?> GetChangesAsync(
         int changeSetId,

@@ -102,7 +102,12 @@ public sealed record GroupItem(
     DateTime CreatedAt
 );
 
-public sealed record GroupSearchResponse(List<GroupItem> Groups, int Total, int PageSize);
+public sealed record GroupSearchResponse(
+    List<GroupItem> Groups,
+    int Total,
+    int PageSize,
+    ListOrder Order
+);
 
 /// <summary>A member, admin, request or block of a group, by its rank.</summary>
 public sealed record GroupMemberItem(int PlayerId, string Name, GuildMemberRank Rank);

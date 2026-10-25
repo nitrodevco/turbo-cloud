@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Turbo.Admin.Api;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Database.Context;
@@ -16,8 +17,8 @@ namespace Turbo.Admin.Rooms;
 /// <summary>
 /// The room chat log as staff read it: newest first, narrowed to one player (what they said and
 /// what was whispered to them), one room, or words in the line, or one line in context, the lines
-/// around it in its room. Paged by line id rather than by page number and count: the log grows
-/// with every word said, and a count would read all of it for each page. Read-only.
+/// around it in its room. The log grows with every word said, so its pages are counted only so far
+/// (<see cref="LogCounts"/>) and it sorts only by when. Read-only.
 /// </summary>
 public sealed class AdminChatlogQueries(
     IDbContextFactory<TurboDbContext> database,
@@ -27,19 +28,25 @@ public sealed class AdminChatlogQueries(
     private const string ESCAPE = "\\";
 
     /// <summary>
-    /// A run of the log. <paramref name="before"/> asks for the lines older than that one,
-    /// <paramref name="after"/> for those newer; with neither, the newest.
+    /// The columns the log sorts by: when, the line's id, which the table's key orders already.
+    /// Names, rooms and words would sort the whole log for each page.
     /// </summary>
+    private static readonly ListSorts<RoomChatlogEntity> SORTS =
+        new ListSorts<RoomChatlogEntity>().Add("when", ListOrder.DESC, x => x.Id);
+
+    /// <summary>A page of the log, counted up to <see cref="LogCounts.LIMIT"/>.</summary>
     public async Task<ChatlogResponse> SearchAsync(
         string? player,
         int? room,
         string? text,
-        int? before,
-        int? after,
+        int page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     )
     {
         var pageSize = PageSize;
+        var order = SORTS.Resolve(sort, dir);
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
@@ -58,7 +65,7 @@ public sealed class AdminChatlogQueries(
                     .ConfigureAwait(false);
 
             if (playerId is not { } found)
-                return new ChatlogResponse(pageSize, false, false, []);
+                return new ChatlogResponse(0, false, 1, pageSize, order, []);
 
             lines = lines.Where(x => x.PlayerEntityId == found || x.TargetPlayerEntityId == found);
         }
@@ -83,41 +90,23 @@ public sealed class AdminChatlogQueries(
             lines = lines.Where(x => EF.Functions.Like(x.Message, "%" + like + "%", ESCAPE));
         }
 
-        List<RoomChatlogEntity> rows;
-        bool hasOlder;
-        bool hasNewer;
+        var sorted = SORTS.Apply(lines, order);
+        var (total, capped) = await LogCounts.CountAsync(sorted, ct).ConfigureAwait(false);
 
-        if (after is { } newerThan)
-        {
-            rows = await lines
-                .Where(x => x.Id > newerThan)
-                .OrderBy(x => x.Id)
-                .Take(pageSize + 1)
-                .ToListAsync(ct)
-                .ConfigureAwait(false);
-            hasNewer = rows.Count > pageSize;
-            rows = [.. rows.Take(pageSize).Reverse()];
-            hasOlder = await lines.AnyAsync(x => x.Id <= newerThan, ct).ConfigureAwait(false);
-        }
-        else
-        {
-            var page = before is { } olderThan ? lines.Where(x => x.Id < olderThan) : lines;
+        page = LogCounts.Page(page, total, pageSize);
 
-            rows = await page.OrderByDescending(x => x.Id)
-                .Take(pageSize + 1)
-                .ToListAsync(ct)
-                .ConfigureAwait(false);
-            hasOlder = rows.Count > pageSize;
-            rows = [.. rows.Take(pageSize)];
-            hasNewer =
-                before is { } newest
-                && await lines.AnyAsync(x => x.Id >= newest, ct).ConfigureAwait(false);
-        }
+        var rows = await sorted
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
 
         return new ChatlogResponse(
+            total,
+            capped,
+            page,
             pageSize,
-            hasOlder,
-            hasNewer,
+            order,
             await NamedAsync(db, rows, ct).ConfigureAwait(false)
         );
     }
@@ -126,7 +115,7 @@ public sealed class AdminChatlogQueries(
     /// One line in context: the lines said around it in its room, before and after, newest first.
     /// Empty when there is no such line.
     /// </summary>
-    public async Task<ChatlogResponse> AroundAsync(int lineId, CancellationToken ct)
+    public async Task<ChatlogContextResponse> AroundAsync(int lineId, CancellationToken ct)
     {
         var side = Math.Max(1, PageSize / 2);
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
@@ -140,7 +129,7 @@ public sealed class AdminChatlogQueries(
             .ConfigureAwait(false);
 
         if (roomId is not { } room)
-            return new ChatlogResponse(PageSize, false, false, []);
+            return new ChatlogContextResponse(false, false, []);
 
         var inRoom = db.Chatlogs.AsNoTracking().Where(x => x.RoomEntityId == room);
         // The line itself and the side before it, and one more to know whether there is more.
@@ -159,8 +148,7 @@ public sealed class AdminChatlogQueries(
 
         List<RoomChatlogEntity> rows = [.. newer.Take(side).Reverse(), .. older.Take(side + 1)];
 
-        return new ChatlogResponse(
-            PageSize,
+        return new ChatlogContextResponse(
             older.Count > side + 1,
             newer.Count > side,
             await NamedAsync(db, rows, ct).ConfigureAwait(false)

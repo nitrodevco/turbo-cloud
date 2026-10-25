@@ -6,9 +6,11 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Admin.Api;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Database.Context;
+using Turbo.Database.Entities.Room;
 using Turbo.Database.Extensions;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -31,14 +33,27 @@ public sealed class AdminRoomQueries(
 {
     private const string ESCAPE = "\\";
 
+    /// <summary>
+    /// The columns the list sorts by. Not by players: who is in a room is in the room directory,
+    /// not the rows.
+    /// </summary>
+    private static readonly ListSorts<RoomEntity> SORTS = new ListSorts<RoomEntity>()
+        .Add("active", ListOrder.DESC, x => x.LastActive, x => x.Id)
+        .Add("name", ListOrder.ASC, x => x.Name, x => x.Id)
+        .Add("owner", ListOrder.ASC, x => x.PlayerEntity.Name, x => x.Id)
+        .Add("access", ListOrder.ASC, x => x.DoorMode, x => x.Id);
+
     public async Task<RoomListResponse> SearchAsync(
         string? text,
         RoomSearchMode mode,
         int page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     )
     {
         var pageSize = Math.Max(1, config.Value.RoomSearchPageSize);
+        var order = SORTS.Resolve(sort, dir);
         var term = (text ?? string.Empty).Trim();
 
         if (term.Length > config.Value.RoomSearchMaxLength)
@@ -75,9 +90,8 @@ public sealed class AdminRoomQueries(
         }
 
         var total = await rooms.CountAsync(ct).ConfigureAwait(false);
-        var rows = await rooms
-            .OrderByDescending(x => x.LastActive)
-            .ThenByDescending(x => x.Id)
+        var rows = await SORTS
+            .Apply(rooms, order)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(x => new
@@ -102,6 +116,7 @@ public sealed class AdminRoomQueries(
             total,
             page,
             pageSize,
+            order,
             [
                 .. rows.Select(x => new RoomListItem(
                     x.Id,

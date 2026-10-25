@@ -1,12 +1,15 @@
 namespace Turbo.Admin.Api.Contracts;
 
 /// <summary>
-/// A run of the chat log, newest first, with whether there are older and newer lines past it.
-/// Paged by line rather than counted, so a long log is never read whole to show one page.
+/// A page of the chat log in <see cref="Order"/>. <see cref="Total"/> stops at
+/// <see cref="Turbo.Admin.Api.LogCounts.LIMIT"/>, with <see cref="TotalCapped"/> when there are
+/// more, so a long log is never read whole to show one page.
 /// </summary>
 public sealed record ChatlogResponse(
+    int Total,
+    bool TotalCapped,
+    int Page,
     int PageSize,
-    bool HasOlder,
-    bool HasNewer,
+    ListOrder Order,
     ChatlogEntry[] Entries
 );

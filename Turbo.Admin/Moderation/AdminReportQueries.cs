@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Turbo.Admin.Api;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Database.Context;
@@ -18,7 +19,7 @@ namespace Turbo.Admin.Moderation;
 
 /// <summary>
 /// The calls for help as staff read them in the panel: newest first, open, closed or all,
-/// narrowed to a player (who sent it or who it is about), paged by id as the chat log is; and
+/// narrowed to a player (who sent it or who it is about), a page at a time; and
 /// one with its chat lines, both players' histories and the other open reports about the same
 /// player. Read-only: picking and closing go through <see cref="IModerationIssueService"/>, as
 /// the client's mod tool does, so moderators in the hotel see it.
@@ -39,19 +40,33 @@ public sealed class AdminReportQueries(
     private const string CATEGORY_TEXT = "help.cfh.reason.";
 
     /// <summary>
-    /// A run of reports in <paramref name="state"/> (open, which takes in picked, closed or all).
-    /// <paramref name="before"/> asks for those older than that one, <paramref name="after"/>
-    /// for those newer; with neither, the newest.
+    /// The columns the list sorts by: when it was sent (its id), and its state, open before picked
+    /// before closed.
+    /// </summary>
+    private static readonly ListSorts<CfhReportEntity> SORTS = new ListSorts<CfhReportEntity>()
+        .Add("sent", ListOrder.DESC, x => x.Id)
+        .Add(
+            "state",
+            ListOrder.ASC,
+            x => x.ClosedAt != null,
+            x => x.PickerEntityId != null,
+            x => x.Id
+        );
+
+    /// <summary>
+    /// A page of reports in <paramref name="state"/> (open, which takes in picked, closed or all).
     /// </summary>
     public async Task<ReportListResponse> ListAsync(
         string? state,
         string? player,
-        int? before,
-        int? after,
+        int page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     )
     {
         var pageSize = Math.Max(1, config.Value.ReportsPageSize);
+        var order = SORTS.Resolve(sort, dir);
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
@@ -79,48 +94,29 @@ public sealed class AdminReportQueries(
         if (who.Length > 0)
         {
             if (await PlayerIdAsync(db, who, ct).ConfigureAwait(false) is not { } found)
-                return new ReportListResponse(pageSize, false, false, openCount, pickedCount, []);
+                return new ReportListResponse(0, 1, pageSize, order, openCount, pickedCount, []);
 
             reports = reports.Where(x =>
                 x.ReporterEntityId == found || x.ReportedEntityId == found
             );
         }
 
-        List<CfhReportEntity> rows;
-        bool hasOlder;
-        bool hasNewer;
+        var total = await reports.CountAsync(ct).ConfigureAwait(false);
 
-        if (after is { } newerThan)
-        {
-            rows = await reports
-                .Where(x => x.Id > newerThan)
-                .OrderBy(x => x.Id)
-                .Take(pageSize + 1)
-                .ToListAsync(ct)
-                .ConfigureAwait(false);
-            hasNewer = rows.Count > pageSize;
-            rows = [.. rows.Take(pageSize).Reverse()];
-            hasOlder = await reports.AnyAsync(x => x.Id <= newerThan, ct).ConfigureAwait(false);
-        }
-        else
-        {
-            var page = before is { } olderThan ? reports.Where(x => x.Id < olderThan) : reports;
+        page = LogCounts.Page(page, total, pageSize);
 
-            rows = await page.OrderByDescending(x => x.Id)
-                .Take(pageSize + 1)
-                .ToListAsync(ct)
-                .ConfigureAwait(false);
-            hasOlder = rows.Count > pageSize;
-            rows = [.. rows.Take(pageSize)];
-            hasNewer =
-                before is { } newest
-                && await reports.AnyAsync(x => x.Id >= newest, ct).ConfigureAwait(false);
-        }
+        var rows = await SORTS
+            .Apply(reports, order)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
 
         return new ReportListResponse(
+            total,
+            page,
             pageSize,
-            hasOlder,
-            hasNewer,
+            order,
             openCount,
             pickedCount,
             await ItemsAsync(db, rows, ct).ConfigureAwait(false)

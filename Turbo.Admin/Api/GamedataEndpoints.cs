@@ -1080,7 +1080,7 @@ internal sealed class GamedataEndpoints(
         int? page,
         GamedataRecordType[]? types,
         CancellationToken ct
-    ) => Results.Ok(await history.ListAsync(page ?? 0, types ?? [], ct).ConfigureAwait(false));
+    ) => Results.Ok(await history.PageAsync(page ?? 0, types ?? [], ct).ConfigureAwait(false));
 
     private async Task<IResult> ChangesAsync(int id, CancellationToken ct) =>
         await history.GetChangesAsync(id, ct).ConfigureAwait(false) is { } changes

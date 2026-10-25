@@ -24,9 +24,12 @@ internal sealed class RoomVisitEndpoints(AdminRoomVisits visits)
     private async Task<IResult> SearchAsync(
         string? player,
         int? room,
-        int? before,
-        int? after,
+        int? page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     ) =>
-        Results.Ok(await visits.SearchAsync(player, room, before, after, ct).ConfigureAwait(false));
+        Results.Ok(
+            await visits.SearchAsync(player, room, page ?? 1, sort, dir, ct).ConfigureAwait(false)
+        );
 }

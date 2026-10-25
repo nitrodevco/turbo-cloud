@@ -6,10 +6,12 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Admin.Api;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Permissions;
+using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -36,15 +38,28 @@ public sealed class AdminPlayerQueries(
     /// <summary>The sanctions a player's page lists, newest first.</summary>
     private const int RECENT_SANCTIONS = 20;
 
+    /// <summary>
+    /// The columns the list sorts by: when they were last seen (who never logged in counts as
+    /// longest ago), their name, the rooms they own and when they joined.
+    /// </summary>
+    private static readonly ListSorts<PlayerEntity> SORTS = new ListSorts<PlayerEntity>()
+        .Add("seen", ListOrder.DESC, x => x.LastLoginAt != null, x => x.LastLoginAt, x => x.Id)
+        .Add("name", ListOrder.ASC, x => x.Name, x => x.Id)
+        .Add("rooms", ListOrder.DESC, x => x.Rooms!.Count, x => x.Id)
+        .Add("joined", ListOrder.DESC, x => x.CreatedAt, x => x.Id);
+
     public async Task<PlayerListResponse> SearchAsync(
         string? text,
         PlayerSearchMode mode,
         bool onlineOnly,
         int page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     )
     {
         var pageSize = Math.Max(1, config.Value.PlayerSearchPageSize);
+        var order = SORTS.Resolve(sort, dir);
         var term = (text ?? string.Empty).Trim();
 
         if (term.Length > config.Value.RoomSearchMaxLength)
@@ -92,11 +107,8 @@ public sealed class AdminPlayerQueries(
         }
 
         var total = await players.CountAsync(ct).ConfigureAwait(false);
-        var rows = await players
-            // Who logged in last first; players who never have go last.
-            .OrderByDescending(x => x.LastLoginAt != null)
-            .ThenByDescending(x => x.LastLoginAt)
-            .ThenByDescending(x => x.Id)
+        var rows = await SORTS
+            .Apply(players, order)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(x => new
@@ -120,6 +132,7 @@ public sealed class AdminPlayerQueries(
             total,
             page,
             pageSize,
+            order,
             online.Count,
             [
                 .. rows.Select(x => new PlayerListItem(

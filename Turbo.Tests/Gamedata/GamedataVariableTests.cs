@@ -697,6 +697,24 @@ public sealed class GamedataVariableTests : IAsyncDisposable
         others.Should().ContainSingle().Which.Id.Should().Be(all[0].Id);
     }
 
+    [Fact]
+    public async Task a_page_of_the_history_says_how_many_sets_the_types_take_in()
+    {
+        var hotel = Hotel();
+
+        await hotel.Variables.SaveAsync("socket.url", "\"wss://hotel.example/ws\"", STAFF, Ct);
+        await hotel.Variables.SaveAsync("socket.url", "\"wss://other.example/ws\"", STAFF, Ct);
+        await hotel.Texts.SaveAsync("hello", "Hello", STAFF, Ct);
+
+        var all = await hotel.History.PageAsync(0, [], Ct);
+        var variables = await hotel.History.PageAsync(0, [GamedataRecordType.Variable], Ct);
+
+        (all.Total, all.Page, all.Sets.Length).Should().Be((3, 0, 3));
+        all.PageSize.Should().BePositive();
+        variables.Total.Should().Be(2);
+        variables.Sets.Select(x => x.Id).Should().Equal(all.Sets[1].Id, all.Sets[2].Id);
+    }
+
     private HotelGamedata Hotel(string publicUrl = "", int previewLimit = 500)
     {
         var config = Options.Create(

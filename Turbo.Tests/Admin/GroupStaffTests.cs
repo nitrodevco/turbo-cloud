@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Content;
@@ -326,7 +327,7 @@ public sealed class GroupStaffTests : IDisposable
             );
 
         await bad.Should().ThrowAsync<ArgumentException>();
-        (await queries.SearchAsync("Rude", 0, Ct))
+        (await queries.SearchAsync("Rude", 0, null, null, Ct))
             .Groups.Should()
             .ContainSingle()
             .Which.Members.Should()
@@ -342,10 +343,80 @@ public sealed class GroupStaffTests : IDisposable
             _fakes.Create<IGamedataFileService>()
         );
 
-        var found = (await queries.SearchAsync("9", 0, Ct)).Groups.Should().ContainSingle().Which;
+        var found = (await queries.SearchAsync("9", 0, null, null, Ct))
+            .Groups.Should()
+            .ContainSingle()
+            .Which;
 
         found.RoomName.Should().Be("homeroom");
         found.Type.Should().Be(GuildType.Regular);
+    }
+
+    [Fact]
+    public async Task Groups_SortByMembers_CountedAsTheListShowsThem()
+    {
+        // A newer group in a room of its own, with one member and a pending request.
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+        {
+            var room = await db.Rooms.AsNoTracking().SingleAsync(x => x.Id == 9, Ct);
+
+            room.Id = 8;
+            room.Name = "otherroom";
+            _db.Insert(room);
+        }
+
+        _db.Insert(
+            new GuildEntity
+            {
+                Id = GROUP + 1,
+                Name = "Quiet",
+                Description = "",
+                BadgeCode = "b05114s19134",
+                PrimaryColorId = 1,
+                SecondaryColorId = 1,
+                GuildType = GuildType.Regular,
+                RightsLevel = GuildRightsLevel.Owner,
+                PlayerEntityId = ALICE,
+                RoomEntityId = 8,
+            }
+        );
+
+        foreach (
+            var (id, player, rank) in new[]
+            {
+                (4, ALICE, GuildMemberRank.Owner),
+                (5, BOB, GuildMemberRank.Requested),
+            }
+        )
+            _db.Insert(
+                new GuildMemberEntity
+                {
+                    Id = id,
+                    GuildEntityId = GROUP + 1,
+                    PlayerEntityId = player,
+                    Rank = rank,
+                    IsFavourite = false,
+                }
+            );
+
+        var queries = new AdminGroupQueries(
+            _db,
+            _fakes.Create<IGrainFactory>(),
+            _fakes.Create<IGamedataFileService>()
+        );
+
+        var newest = await queries.SearchAsync(null, 0, null, null, Ct);
+
+        newest.Groups.Select(x => x.Id).Should().Equal(GROUP + 1, GROUP);
+        newest.Order.Should().Be(new ListOrder("created", ListOrder.DESC));
+        (await queries.SearchAsync(null, 0, "members", null, Ct))
+            .Groups.Select(x => (x.Id, x.Members))
+            .Should()
+            .Equal((GROUP, 3), (GROUP + 1, 1));
+        (await queries.SearchAsync(null, 0, "members", ListOrder.ASC, Ct))
+            .Groups.Select(x => x.Id)
+            .Should()
+            .Equal(GROUP + 1, GROUP);
     }
 
     /// <summary>The group's grain, built without a silo and activated, so it has read the group and its roster.</summary>

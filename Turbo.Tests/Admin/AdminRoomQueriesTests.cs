@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Admin.Rooms;
 using Turbo.Database.Entities.Players;
@@ -109,7 +110,7 @@ public sealed class AdminRoomQueriesTests : IDisposable
     [Fact]
     public async Task ANameSearchFindsInvisibleRoomsToo()
     {
-        var result = await Queries().SearchAsync("alice's", RoomSearchMode.Name, 1, Ct);
+        var result = await Queries().SearchAsync("alice's", RoomSearchMode.Name, 1, null, null, Ct);
 
         result.Rooms.Select(x => x.Id).Should().Equal(10, 11);
         result.Rooms.Should().Contain(x => x.DoorMode == "Invisible");
@@ -119,16 +120,18 @@ public sealed class AdminRoomQueriesTests : IDisposable
     public async Task SearchWildcardsInTheTextAreMatchedLiterally()
     {
         // An _ or % typed in the search is a character to find, not "anything".
-        (await Queries().SearchAsync("alice_s", RoomSearchMode.Name, 1, Ct))
+        (await Queries().SearchAsync("alice_s", RoomSearchMode.Name, 1, null, null, Ct))
             .Total.Should()
             .Be(0);
-        (await Queries().SearchAsync("%", RoomSearchMode.Name, 1, Ct)).Total.Should().Be(0);
+        (await Queries().SearchAsync("%", RoomSearchMode.Name, 1, null, null, Ct))
+            .Total.Should()
+            .Be(0);
     }
 
     [Fact]
     public async Task AnOwnerSearchMatchesTheStartOfTheirName()
     {
-        var result = await Queries().SearchAsync("bo", RoomSearchMode.Owner, 1, Ct);
+        var result = await Queries().SearchAsync("bo", RoomSearchMode.Owner, 1, null, null, Ct);
 
         result.Rooms.Should().ContainSingle().Which.OwnerName.Should().Be("bob");
     }
@@ -140,12 +143,16 @@ public sealed class AdminRoomQueriesTests : IDisposable
         _db.Insert(Player(4, "bobby"));
         _db.Insert(Room(13, "Bobby's Den", 4, RoomDoorModeType.Open, lastActiveDaysAgo: 1));
 
-        (await Queries().SearchAsync("bob", RoomSearchMode.Owner, 1, Ct)).Total.Should().Be(2);
-        (await Queries().SearchAsync("2", RoomSearchMode.OwnerId, 1, Ct)) // bob
+        (await Queries().SearchAsync("bob", RoomSearchMode.Owner, 1, null, null, Ct))
+            .Total.Should()
+            .Be(2);
+        (await Queries().SearchAsync("2", RoomSearchMode.OwnerId, 1, null, null, Ct)) // bob
             .Rooms.Select(x => x.Id)
             .Should()
             .Equal(12);
-        (await Queries().SearchAsync("bob", RoomSearchMode.OwnerId, 1, Ct)).Total.Should().Be(0);
+        (await Queries().SearchAsync("bob", RoomSearchMode.OwnerId, 1, null, null, Ct))
+            .Total.Should()
+            .Be(0);
     }
 
     [Theory]
@@ -154,7 +161,7 @@ public sealed class AdminRoomQueriesTests : IDisposable
     [InlineData("twelve", 0)]
     public async Task AnIdSearchFindsThatRoomOnly(string text, int found)
     {
-        var result = await Queries().SearchAsync(text, RoomSearchMode.Id, 1, Ct);
+        var result = await Queries().SearchAsync(text, RoomSearchMode.Id, 1, null, null, Ct);
 
         result.Total.Should().Be(found);
     }
@@ -164,12 +171,31 @@ public sealed class AdminRoomQueriesTests : IDisposable
     {
         var queries = Queries(new AdminConfig { RoomSearchPageSize = 2 });
 
-        var first = await queries.SearchAsync("", RoomSearchMode.Name, 1, Ct);
-        var second = await queries.SearchAsync("", RoomSearchMode.Name, 2, Ct);
+        var first = await queries.SearchAsync("", RoomSearchMode.Name, 1, null, null, Ct);
+        var second = await queries.SearchAsync("", RoomSearchMode.Name, 2, null, null, Ct);
 
         first.Total.Should().Be(3);
         first.Rooms.Select(x => x.Id).Should().Equal(10, 11);
         second.Rooms.Select(x => x.Id).Should().Equal(12);
+        first.Order.Should().Be(new ListOrder("active", ListOrder.DESC));
+    }
+
+    [Fact]
+    public async Task Rooms_SortByName_OwnerOrAccess_EitherWay()
+    {
+        (await Queries().SearchAsync("", RoomSearchMode.Name, 1, "name", ListOrder.DESC, Ct))
+            .Rooms.Select(x => x.Id)
+            .Should()
+            .Equal(12, 11, 10);
+        (await Queries().SearchAsync("", RoomSearchMode.Name, 1, "owner", ListOrder.DESC, Ct))
+            .Rooms.Select(x => x.OwnerName)
+            .Should()
+            .Equal("bob", "alice", "alice");
+
+        var byAccess = await Queries().SearchAsync("", RoomSearchMode.Name, 1, "access", null, Ct);
+
+        byAccess.Rooms.Select(x => x.DoorMode).Should().Equal("Open", "Password", "Invisible");
+        byAccess.Order.Should().Be(new ListOrder("access", ListOrder.ASC));
     }
 
     [Fact]
@@ -177,7 +203,7 @@ public sealed class AdminRoomQueriesTests : IDisposable
     {
         _activeRooms = [Active(10, population: 4)];
 
-        var result = await Queries().SearchAsync("", RoomSearchMode.Name, 1, Ct);
+        var result = await Queries().SearchAsync("", RoomSearchMode.Name, 1, null, null, Ct);
 
         var cafe = result.Rooms.Single(x => x.Id == 10);
         cafe.IsLoaded.Should().BeTrue();

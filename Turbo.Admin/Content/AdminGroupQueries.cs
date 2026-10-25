@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Orleans;
+using Turbo.Admin.Api;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Guilds;
@@ -34,6 +35,8 @@ public sealed partial class AdminGroupQueries(
     public async Task<GroupSearchResponse> SearchAsync(
         string? query,
         int page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     )
     {
@@ -41,6 +44,8 @@ public sealed partial class AdminGroupQueries(
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
+        var sorts = Sorts(dbCtx);
+        var order = sorts.Resolve(sort, dir);
         var groups = dbCtx.Guilds.AsNoTracking();
 
         if (words.Length > 0)
@@ -49,8 +54,8 @@ public sealed partial class AdminGroupQueries(
                 : groups.Where(x => x.Name.Contains(words) || x.PlayerEntity!.Name == words);
 
         var total = await groups.CountAsync(ct).ConfigureAwait(false);
-        var rows = await groups
-            .OrderByDescending(x => x.Id)
+        var rows = await sorts
+            .Apply(groups, order)
             .Skip(Math.Max(0, page) * PAGE_SIZE)
             .Take(PAGE_SIZE)
             .Select(x => new GroupItem(
@@ -70,8 +75,29 @@ public sealed partial class AdminGroupQueries(
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        return new GroupSearchResponse(rows, total, PAGE_SIZE);
+        return new GroupSearchResponse(rows, total, PAGE_SIZE, order);
     }
+
+    /// <summary>
+    /// The columns the list sorts by; created is the group's id, which grows with each, and members
+    /// are counted as the list shows them, without requests and blocks.
+    /// </summary>
+    private static ListSorts<GuildEntity> Sorts(TurboDbContext dbCtx) =>
+        new ListSorts<GuildEntity>()
+            .Add("created", ListOrder.DESC, x => x.Id)
+            .Add("name", ListOrder.ASC, x => x.Name, x => x.Id)
+            .Add("owner", ListOrder.ASC, x => x.PlayerEntity!.Name, x => x.Id)
+            .Add("room", ListOrder.ASC, x => x.RoomEntity!.Name, x => x.Id)
+            .Add("kind", ListOrder.ASC, x => x.GuildType, x => x.Id)
+            .Add(
+                "members",
+                ListOrder.DESC,
+                x =>
+                    dbCtx.GuildMembers.Count(m =>
+                        m.GuildEntityId == x.Id && m.Rank <= GuildMemberRank.Member
+                    ),
+                x => x.Id
+            );
 
     public async Task<GroupDetailResponse?> GetAsync(int id, CancellationToken ct)
     {

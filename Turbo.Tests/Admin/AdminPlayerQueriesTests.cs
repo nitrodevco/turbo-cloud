@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Admin.Players;
 using Turbo.Admin.Rooms;
@@ -125,17 +126,17 @@ public sealed class AdminPlayerQueriesTests : IDisposable
     [Fact]
     public async Task ANameSearch_IgnoresCase_AndMatchesWildcardsLiterally()
     {
-        (await Queries().SearchAsync("CAROL", PlayerSearchMode.Name, false, 1, Ct))
+        (await Queries().SearchAsync("CAROL", PlayerSearchMode.Name, false, 1, null, null, Ct))
             .Players.Select(x => x.Name)
             .Should()
             .Equal("Carol");
 
-        (await Queries().SearchAsync("100%", PlayerSearchMode.Name, false, 1, Ct))
+        (await Queries().SearchAsync("100%", PlayerSearchMode.Name, false, 1, null, null, Ct))
             .Players.Select(x => x.Name)
             .Should()
             .Equal("bob_100%");
 
-        (await Queries().SearchAsync("al_ce", PlayerSearchMode.Name, false, 1, Ct))
+        (await Queries().SearchAsync("al_ce", PlayerSearchMode.Name, false, 1, null, null, Ct))
             .Total.Should()
             .Be(0);
     }
@@ -143,7 +144,8 @@ public sealed class AdminPlayerQueriesTests : IDisposable
     [Fact]
     public async Task SearchResults_CarryEachPlayersFigure()
     {
-        var found = await Queries().SearchAsync("", PlayerSearchMode.Name, false, 1, Ct);
+        var found = await Queries()
+            .SearchAsync("", PlayerSearchMode.Name, false, 1, null, null, Ct);
 
         found.Players.Should().OnlyContain(x => x.Figure == $"hd-180-{x.Id}");
         found.Players.Should().Contain(x => x.Name == "Carol");
@@ -152,12 +154,12 @@ public sealed class AdminPlayerQueriesTests : IDisposable
     [Fact]
     public async Task AnIdSearch_FindsThatPlayerOnly()
     {
-        (await Queries().SearchAsync("2", PlayerSearchMode.Id, false, 1, Ct))
+        (await Queries().SearchAsync("2", PlayerSearchMode.Id, false, 1, null, null, Ct))
             .Players.Should()
             .ContainSingle()
             .Which.Name.Should()
             .Be("bob_100%");
-        (await Queries().SearchAsync("two", PlayerSearchMode.Id, false, 1, Ct))
+        (await Queries().SearchAsync("two", PlayerSearchMode.Id, false, 1, null, null, Ct))
             .Total.Should()
             .Be(0);
     }
@@ -165,13 +167,41 @@ public sealed class AdminPlayerQueriesTests : IDisposable
     [Fact]
     public async Task Players_ComeMostRecentlyLoggedInFirst_NeverLoggedInLast()
     {
-        var result = await Queries().SearchAsync("", PlayerSearchMode.Name, false, 1, Ct);
+        var result = await Queries()
+            .SearchAsync("", PlayerSearchMode.Name, false, 1, null, null, Ct);
 
         result
             .Players.Select(x => x.Name)
             .Should()
             .Equal("alice", "moderator", "bob_100%", "Carol");
         result.Players[0].RoomsOwned.Should().Be(2);
+        result.Order.Should().Be(new ListOrder("seen", ListOrder.DESC));
+    }
+
+    [Fact]
+    public async Task Players_SortByAnyColumnTheListShows_EitherWay()
+    {
+        // Alice owns two rooms; the rest none, and tie by id.
+        (await Queries().SearchAsync("", PlayerSearchMode.Name, false, 1, "rooms", null, Ct))
+            .Players.Select(x => x.Name)
+            .Should()
+            .Equal("alice", "moderator", "Carol", "bob_100%");
+        (
+            await Queries()
+                .SearchAsync("", PlayerSearchMode.Name, false, 1, "rooms", ListOrder.ASC, Ct)
+        )
+            .Players.Select(x => x.Name)
+            .Should()
+            .Equal("bob_100%", "Carol", "moderator", "alice");
+
+        // Turned round, who never logged in counts as longest ago.
+        (
+            await Queries()
+                .SearchAsync("", PlayerSearchMode.Name, false, 1, "seen", ListOrder.ASC, Ct)
+        )
+            .Players.Select(x => x.Name)
+            .Should()
+            .Equal("Carol", "bob_100%", "moderator", "alice");
     }
 
     [Fact]
@@ -179,7 +209,8 @@ public sealed class AdminPlayerQueriesTests : IDisposable
     {
         _online = [new PlayerId(BOB)];
 
-        var result = await Queries().SearchAsync("", PlayerSearchMode.Name, true, 1, Ct);
+        var result = await Queries()
+            .SearchAsync("", PlayerSearchMode.Name, true, 1, null, null, Ct);
 
         result.OnlineNow.Should().Be(1);
         result.Players.Should().ContainSingle().Which.IsOnline.Should().BeTrue();
@@ -260,7 +291,7 @@ public sealed class AdminPlayerQueriesTests : IDisposable
         // A last login is optional (never logged in); it used to come back unmarked, and the panel
         // showed a login minutes ago as hours in the future to anyone west of UTC.
         var players = (
-            await Queries().SearchAsync("alice", PlayerSearchMode.Name, false, 1, Ct)
+            await Queries().SearchAsync("alice", PlayerSearchMode.Name, false, 1, null, null, Ct)
         ).Players;
         var alice = (await Queries().GetAsync(ALICE, Ct))!;
 
@@ -336,6 +367,7 @@ public sealed class AdminPlayerQueriesTests : IDisposable
             await visits.SearchAsync(
                 ALICE.ToString(CultureInfo.InvariantCulture),
                 null,
+                1,
                 null,
                 null,
                 Ct
@@ -359,51 +391,47 @@ public sealed class AdminPlayerQueriesTests : IDisposable
 
         var visits = Visits();
 
-        (await visits.SearchAsync(null, null, null, null, Ct))
+        (await visits.SearchAsync(null, null, 1, null, null, Ct))
             .Entries.Select(x => x.Id)
             .Should()
             .Equal(3, 2, 1);
-        (await visits.SearchAsync("ALICE", null, null, null, Ct))
+        (await visits.SearchAsync("ALICE", null, 1, null, null, Ct))
             .Entries.Select(x => x.Id)
             .Should()
             .Equal(3, 1);
-        (await visits.SearchAsync(null, CAFE, null, null, Ct))
+        (await visits.SearchAsync(null, CAFE, 1, null, null, Ct))
             .Entries.Select(x => x.PlayerName)
             .Should()
             .Equal("bob_100%", "alice");
-        (await visits.SearchAsync("alice", CAFE, null, null, Ct))
+        (await visits.SearchAsync("alice", CAFE, 1, null, null, Ct))
             .Entries.Select(x => x.Id)
             .Should()
             .Equal(1);
-        (await visits.SearchAsync("nobody", null, null, null, Ct)).Entries.Should().BeEmpty();
+        (await visits.SearchAsync("nobody", null, 1, null, null, Ct)).Entries.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task TheVisitsLog_GoesOlderAndNewerAPageAtATime()
+    public async Task TheVisitsLog_IsNumberedPages_ByWhenOrByRoom()
     {
         for (var id = 1; id <= 5; id++)
-            _db.Insert(Visit(id, ALICE, CAFE, NOW.AddMinutes(-10 + id)));
+            _db.Insert(Visit(id, ALICE, id % 2 == 0 ? CAFE : 11, NOW.AddMinutes(-10 + id)));
 
         var visits = Visits(pageSize: 2);
-        var newest = await visits.SearchAsync(null, null, null, null, Ct);
+        var second = await visits.SearchAsync(null, null, 2, null, null, Ct);
 
-        newest.Entries.Select(x => x.Id).Should().Equal(5, 4);
-        (newest.HasOlder, newest.HasNewer).Should().Be((true, false));
+        second.Entries.Select(x => x.Id).Should().Equal(3, 2);
+        (second.Total, second.TotalCapped, second.Page).Should().Be((5, false, 2));
+        second.Order.Should().Be(new ListOrder("when", ListOrder.DESC));
 
-        var older = await visits.SearchAsync(null, null, 4, null, Ct);
-
-        older.Entries.Select(x => x.Id).Should().Equal(3, 2);
-        (older.HasOlder, older.HasNewer).Should().Be((true, true));
-
-        var oldest = await visits.SearchAsync(null, null, 2, null, Ct);
-
-        oldest.Entries.Select(x => x.Id).Should().Equal(1);
-        (oldest.HasOlder, oldest.HasNewer).Should().Be((false, true));
-
-        var back = await visits.SearchAsync(null, null, null, 1, Ct);
-
-        back.Entries.Select(x => x.Id).Should().Equal(3, 2);
-        (back.HasOlder, back.HasNewer).Should().Be((true, true));
+        // The café (10) before the attic (11), each newest last as the room's ids come.
+        (await Visits().SearchAsync(null, null, 1, "room", null, Ct))
+            .Entries.Select(x => x.Id)
+            .Should()
+            .Equal(2, 4, 1, 3, 5);
+        (await Visits().SearchAsync(null, null, 1, "when", ListOrder.ASC, Ct))
+            .Entries.Select(x => x.Id)
+            .Should()
+            .Equal(1, 2, 3, 4, 5);
     }
 
     private AdminRoomVisits Visits(int pageSize = 100) =>

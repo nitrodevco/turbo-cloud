@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Turbo.Admin.Api;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Database.Context;
@@ -17,8 +18,8 @@ namespace Turbo.Admin.Players;
 /// Players' private messages as staff read them: what friends sent each other in the messenger,
 /// newest first, narrowed to one player (what they sent and what was sent to them), a
 /// conversation between two, or words in the message. The hotel keeps every message sent to a
-/// friend (<c>messenger_messages</c>); group chats are not kept. Paged by id as the chat log is,
-/// with no total. Read-only.
+/// friend (<c>messenger_messages</c>); group chats are not kept. Counted and sorted as the chat log
+/// is. Read-only.
 /// </summary>
 public sealed class AdminMessageQueries(
     IDbContextFactory<TurboDbContext> database,
@@ -30,26 +31,31 @@ public sealed class AdminMessageQueries(
     /// <summary>The longest text searched for; the rest is ignored.</summary>
     private const int TEXT_MAX_LENGTH = 255;
 
+    /// <summary>The columns the log sorts by: when, the message's id, which its key orders already.</summary>
+    private static readonly ListSorts<MessengerMessageEntity> SORTS =
+        new ListSorts<MessengerMessageEntity>().Add("when", ListOrder.DESC, x => x.Id);
+
     /// <summary>
-    /// A run of the log. <paramref name="player"/> and <paramref name="with"/> are names or ids;
-    /// both given, the conversation between them. <paramref name="before"/> asks for the messages
-    /// older than that one, <paramref name="after"/> for those newer; with neither, the newest.
+    /// A page of the log, counted up to <see cref="LogCounts.LIMIT"/>. <paramref name="player"/>
+    /// and <paramref name="with"/> are names or ids; both given, the conversation between them.
     /// </summary>
     public async Task<MessageLogResponse> SearchAsync(
         string? player,
         string? with,
         string? text,
-        int? before,
-        int? after,
+        int page,
+        string? sort,
+        string? dir,
         CancellationToken ct
     )
     {
         var pageSize = Math.Max(1, config.Value.MessagesPageSize);
+        var order = SORTS.Resolve(sort, dir);
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbScope = db.ConfigureAwait(false);
 
         var messages = db.MessengerMessages.AsNoTracking();
-        var nobody = new MessageLogResponse(pageSize, false, false, []);
+        var nobody = new MessageLogResponse(0, false, 1, pageSize, order, []);
         int? first = null;
         int? second = null;
 
@@ -96,36 +102,16 @@ public sealed class AdminMessageQueries(
             messages = messages.Where(x => EF.Functions.Like(x.Message, "%" + like + "%", ESCAPE));
         }
 
-        List<MessengerMessageEntity> rows;
-        bool hasOlder;
-        bool hasNewer;
+        var sorted = SORTS.Apply(messages, order);
+        var (total, capped) = await LogCounts.CountAsync(sorted, ct).ConfigureAwait(false);
 
-        if (after is { } newerThan)
-        {
-            rows = await messages
-                .Where(x => x.Id > newerThan)
-                .OrderBy(x => x.Id)
-                .Take(pageSize + 1)
-                .ToListAsync(ct)
-                .ConfigureAwait(false);
-            hasNewer = rows.Count > pageSize;
-            rows = [.. rows.Take(pageSize).Reverse()];
-            hasOlder = await messages.AnyAsync(x => x.Id <= newerThan, ct).ConfigureAwait(false);
-        }
-        else
-        {
-            var page = before is { } olderThan ? messages.Where(x => x.Id < olderThan) : messages;
+        page = LogCounts.Page(page, total, pageSize);
 
-            rows = await page.OrderByDescending(x => x.Id)
-                .Take(pageSize + 1)
-                .ToListAsync(ct)
-                .ConfigureAwait(false);
-            hasOlder = rows.Count > pageSize;
-            rows = [.. rows.Take(pageSize)];
-            hasNewer =
-                before is { } newest
-                && await messages.AnyAsync(x => x.Id >= newest, ct).ConfigureAwait(false);
-        }
+        var rows = await sorted
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
 
         var ids = rows.SelectMany(x => new[] { x.SenderPlayerEntityId, x.ReceiverPlayerEntityId })
             .Distinct()
@@ -137,9 +123,11 @@ public sealed class AdminMessageQueries(
             .ConfigureAwait(false);
 
         return new MessageLogResponse(
+            total,
+            capped,
+            page,
             pageSize,
-            hasOlder,
-            hasNewer,
+            order,
             [
                 .. rows.Select(x => new MessageLogEntry(
                     x.Id,

@@ -1,12 +1,14 @@
 namespace Turbo.Admin.Api.Contracts;
 
 /// <summary>
-/// A run of the room visits log, newest first, with whether there are older and newer visits past
-/// it. Paged by visit rather than counted, so a long log is never read whole to show one page.
+/// A page of the room visits log in <see cref="Order"/>, counted no further than the chat log is
+/// (<see cref="TotalCapped"/> when there are more than <see cref="Total"/>).
 /// </summary>
 public sealed record RoomVisitLogResponse(
+    int Total,
+    bool TotalCapped,
+    int Page,
     int PageSize,
-    bool HasOlder,
-    bool HasNewer,
+    ListOrder Order,
     RoomVisitLogEntry[] Entries
 );

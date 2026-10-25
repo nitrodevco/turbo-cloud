@@ -63,6 +63,27 @@ undone open as a sheet from the bottom.
 
 `Ctrl K` (or `/`) searches everything, and `g` then a letter goes to a page; `?` lists the keys.
 
+### Lists and tables
+
+Every list that comes a page at a time shows its pages the same way, at the right of the bar over
+it: which rows these are of how many (`1–50 of 1,234`) and the first, previous, next and last page
+buttons; on a phone, the page's number of how many between previous and next. A list of one page
+shows only its count.
+
+A column whose header shows a faint pair of arrows sorts the list: click it to sort by it, and
+again to turn it round. The column the list is sorted by is in the accent colour with an arrow its
+way (up ascending, down descending), the server's own order included when you have picked none.
+Times and counts sort newest or largest first on the first click, words A to Z. On a phone, where
+the headers are hidden, a **Sorted by** bar over the rows does the same. A list the server pages
+is sorted by the server, and the order is in the address with its page, so it is kept when you
+share or reload it; a list the panel has whole is sorted in the browser.
+
+Not every column sorts. The logs that grow with everything players do (the chat log, messages,
+the currency log, room visits) sort only by what their database indexes keep in order, mostly
+when, as anything else would sort the whole log for each page. Lists in an order of their own
+(reward tracks and notices, which you arrange; a report's chat; the login and usage funnels) and
+the tables you edit in place keep that order.
+
 ## Setting it up locally
 
 1. **Turn on the API.** In `appsettings.Development.json`:
@@ -987,7 +1008,8 @@ for them.
 
 Staff with `admin.commandlog.view` get a **Command log** page: every logged command, newest first,
 with when, who ran it, where (the room, or where it came from), what they typed after the command,
-and how it went. A player's page links to their own commands.
+and how it went. It sorts by when and by command ([Lists and tables](#lists-and-tables)). A
+player's page links to their own commands.
 
 Narrow it to one player (exact name or id), one command (`ban`, `:ban` and `Ban` all work), one
 outcome (done, not allowed, failed, ...), or where it came from:
@@ -1013,7 +1035,7 @@ page works without them, just more slowly on a large log.
 Staff with `moderation.tool`, the node the client's mod tool needs, get **Moderation**, whose
 **Reports** tab lists the
 calls for help players send, newest first, the open ones by default (**Closed** and **All** show
-the rest). Each shows its topic, where it was sent from (the help window, the messenger, a photo
+the rest); they sort by when they were sent and by state, open before picked before closed. Each shows its topic, where it was sent from (the help window, the messenger, a photo
 or a group forum), who it is about, who sent it, and whether a moderator holds it. Narrow it to a
 player (exact name or id) to see the reports they sent or that are about them. The list and a
 report's page are fetched again the moment one changes, in the panel or in the hotel ([Live
@@ -1060,9 +1082,10 @@ Narrow it to one player (exact name or id: what they said and what was whispered
 room (by id), or words in the line (case is ignored). Any line's **Show in context** button shows
 what was said in its room just before and after it, with the line marked.
 
-The page goes **Older** and **Newer** a page at a time and shows no total. The chat log grows with
-every line said, and counting it for each page would read all of it. Paging follows the line id,
-which the room and player indexes already keep in order, so no migration is needed.
+The page goes a page at a time (`ChatlogPageSize`) and sorts by when, newest or oldest first. The
+chat log grows with every line said, and counting all of it for each page would read all of it, so
+the server counts at most 10,000 lines: past that the count reads `10,000+` and the pages stop at
+the 10,000th line. Sort it oldest first, or narrow it, to reach further back.
 
 What is logged is the hotel's rule: lines players type into a room's chat, when
 `Turbo:Rooms:ChatlogEnabled` is on (the default), cut to 100 characters. Bots, pets, wired messages
@@ -1078,8 +1101,8 @@ player's page links to their own messages.
 
 Narrow it to one player (exact name or id: what they sent and what was sent to them), add
 **With** for the conversation between two, or words in the message (case is ignored). Any
-message's **Conversation** button opens the conversation it is in. Like the chat log, it goes
-**Older** and **Newer** a page at a time (`MessagesPageSize`) and shows no total.
+message's **Conversation** button opens the conversation it is in. Like the chat log, it goes a
+page at a time (`MessagesPageSize`), sorts by when, and counts at most 10,000 messages.
 
 The hotel keeps every message sent to a friend, online or not (`messenger_messages`), word-filtered
 as the friend saw it. Group chats in the messenger are not kept, so they are not here. The admin
@@ -1095,7 +1118,7 @@ or from another player, onto or off a marketplace offer, into or out of a wired 
 to a player (exact name or id), a currency, or a cause: a cause's start takes in its kin, so
 `market` is every marketplace cause, and clicking a cause narrows to it. With a player, the top
 shows what came in and went out of each currency across the filter. A player's page links to
-their own. It pages like the chat log (`CurrencyLogPageSize`).
+their own. It pages, sorts and counts like the chat log (`CurrencyLogPageSize`).
 
 It reads the server's currency ledger ([movements.md](movements.md#the-servers-currency-ledger)),
 which grows only while movements are recorded: turn `Turbo:Movements:Enabled` on in the settings
@@ -1109,9 +1132,9 @@ newest first, from the entry log the navigator's history keeps. Narrow it to one
 name or id) or one room (by id). A player's page and a room's **Visitors** tab each link to their
 own visits.
 
-Like the chat log, the page goes **Older** and **Newer** a page at a time and shows no total: the
-log grows with every room entered. Paging follows the visit id, so no migration is needed. A
-player or room that is gone shows by its id.
+Like the chat log, the page goes a page at a time (`RoomVisitsPageSize`) and counts at most 10,000
+visits: the log grows with every room entered. It sorts by when and by room id, both of which its
+indexes keep in order. A player or room that is gone shows by its id.
 
 ## Permission editor
 

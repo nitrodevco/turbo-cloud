@@ -32,13 +32,14 @@ public sealed record ReportItem(
 );
 
 /// <summary>
-/// A run of reports, newest first, paged by id as the chat log is; with how many are open and how
-/// many of those a moderator holds, whatever the filter.
+/// A page of reports in <see cref="Order"/>; with how many are open and how many of those a
+/// moderator holds, whatever the filter.
 /// </summary>
 public sealed record ReportListResponse(
+    int Total,
+    int Page,
     int PageSize,
-    bool HasOlder,
-    bool HasNewer,
+    ListOrder Order,
     int Open,
     int Picked,
     ReportItem[] Entries

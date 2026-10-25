@@ -1,5 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Options;
+using Turbo.Admin.Api;
+using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Configuration;
 using Turbo.Admin.Rooms;
 using Turbo.Database.Entities.Players;
@@ -14,7 +16,8 @@ namespace Turbo.Tests.Admin;
 
 /// <summary>
 /// Staff reading the room chat log: newest first, narrowed to a player (what they said and what
-/// was whispered to them), a room or words, paged by line, and one line in its room's context.
+/// was whispered to them), a room or words, a numbered page at a time counted only so far, and
+/// one line in its room's context.
 /// </summary>
 public sealed class AdminChatlogQueriesTests : IDisposable
 {
@@ -62,14 +65,15 @@ public sealed class AdminChatlogQueriesTests : IDisposable
         _db.Insert(Line(1, ALICE, CAFE, "hello"));
         _db.Insert(Line(2, BOB, CAFE, "psst", target: ALICE));
 
-        var log = await Queries().SearchAsync(null, null, null, null, null, Ct);
+        var log = await Queries().SearchAsync(null, null, null, 1, null, null, Ct);
 
         log.Entries.Select(x => x.Message).Should().Equal("psst", "hello");
         log.Entries[0].PlayerName.Should().Be("bob");
         log.Entries[0].RoomName.Should().Be("Café");
         log.Entries[0].TargetPlayerName.Should().Be("alice");
-        log.HasOlder.Should().BeFalse();
-        log.HasNewer.Should().BeFalse();
+        log.Total.Should().Be(2);
+        log.TotalCapped.Should().BeFalse();
+        log.Order.Should().Be(new ListOrder("when", ListOrder.DESC));
     }
 
     [Fact]
@@ -80,15 +84,15 @@ public sealed class AdminChatlogQueriesTests : IDisposable
         _db.Insert(Line(3, BOB, CAFE, "bob talks"));
         _db.Insert(Line(4, CAROL, POOL, "carol talks"));
 
-        (await Queries().SearchAsync("alice", null, null, null, null, Ct))
+        (await Queries().SearchAsync("alice", null, null, 1, null, null, Ct))
             .Entries.Select(x => x.Message)
             .Should()
             .Equal("to alice", "alice talks");
-        (await Queries().SearchAsync(BOB.ToString(), null, null, null, null, Ct))
+        (await Queries().SearchAsync(BOB.ToString(), null, null, 1, null, null, Ct))
             .Entries.Select(x => x.Message)
             .Should()
             .Equal("bob talks", "to alice");
-        (await Queries().SearchAsync("nobody", null, null, null, null, Ct))
+        (await Queries().SearchAsync("nobody", null, null, 1, null, null, Ct))
             .Entries.Should()
             .BeEmpty();
     }
@@ -100,44 +104,71 @@ public sealed class AdminChatlogQueriesTests : IDisposable
         _db.Insert(Line(2, ALICE, CAFE, "1000 sure"));
         _db.Insert(Line(3, ALICE, POOL, "100% wet"));
 
-        (await Queries().SearchAsync(null, CAFE, "100%", null, null, Ct))
+        (await Queries().SearchAsync(null, CAFE, "100%", 1, null, null, Ct))
             .Entries.Select(x => x.Message)
             .Should()
             .Equal("100% sure");
-        (await Queries().SearchAsync(null, null, "SURE", null, null, Ct))
+        (await Queries().SearchAsync(null, null, "SURE", 1, null, null, Ct))
             .Entries.Should()
             .HaveCount(2, "case is ignored");
     }
 
     [Fact]
-    public async Task Pages_GoOlderAndNewerByLine()
+    public async Task Pages_AreNumbered_AndTheLogReadsOldestFirstWhenAsked()
     {
         for (var id = 1; id <= 5; id++)
             _db.Insert(Line(id, ALICE, CAFE, $"line {id}"));
 
-        var newest = await Queries(pageSize: 2).SearchAsync(null, null, null, null, null, Ct);
+        var queries = Queries(pageSize: 2);
+        var second = await queries.SearchAsync(null, null, null, 2, null, null, Ct);
 
-        newest.Entries.Select(x => x.Id).Should().Equal(5, 4);
-        newest.HasOlder.Should().BeTrue();
-        newest.HasNewer.Should().BeFalse();
+        second.Entries.Select(x => x.Id).Should().Equal(3, 2);
+        (second.Total, second.Page, second.PageSize).Should().Be((5, 2, 2));
 
-        var older = await Queries(pageSize: 2).SearchAsync(null, null, null, 4, null, Ct);
+        var oldest = await queries.SearchAsync(null, null, null, 1, "when", ListOrder.ASC, Ct);
 
-        older.Entries.Select(x => x.Id).Should().Equal(3, 2);
-        older.HasOlder.Should().BeTrue();
-        older.HasNewer.Should().BeTrue();
+        oldest.Entries.Select(x => x.Id).Should().Equal(1, 2);
+        oldest.Order.Should().Be(new ListOrder("when", ListOrder.ASC));
 
-        var oldest = await Queries(pageSize: 2).SearchAsync(null, null, null, 2, null, Ct);
+        // A page past the last is the last; a column the log does not sort by is its default.
+        (await queries.SearchAsync(null, null, null, 9, null, null, Ct))
+            .Entries.Select(x => x.Id)
+            .Should()
+            .Equal(1);
+        (await queries.SearchAsync(null, null, null, 1, "message", ListOrder.ASC, Ct))
+            .Order.Should()
+            .Be(new ListOrder("when", ListOrder.DESC));
+    }
 
-        oldest.Entries.Select(x => x.Id).Should().Equal(1);
-        oldest.HasOlder.Should().BeFalse();
+    [Fact]
+    public async Task ALogPastTheCountLimit_IsCountedToIt_AndPagesNoFurther()
+    {
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+        {
+            db.Chatlogs.AddRange(
+                Enumerable
+                    .Range(1, LogCounts.LIMIT + 5)
+                    .Select(id => Line(id, ALICE, CAFE, $"line {id}"))
+            );
+            await db.SaveChangesAsync(Ct);
+        }
 
-        var back = await Queries(pageSize: 2).SearchAsync(null, null, null, null, 1, Ct);
+        var queries = Queries(pageSize: 100);
+        var first = await queries.SearchAsync(null, null, null, 1, null, null, Ct);
 
-        // The lines just newer than 1, newest first.
-        back.Entries.Select(x => x.Id).Should().Equal(3, 2);
-        back.HasNewer.Should().BeTrue();
-        back.HasOlder.Should().BeTrue();
+        first.Total.Should().Be(LogCounts.LIMIT);
+        first.TotalCapped.Should().BeTrue();
+
+        var last = await queries.SearchAsync(null, null, null, 1_000, null, null, Ct);
+
+        last.Page.Should().Be(LogCounts.LIMIT / 100, "the pages stop where the count does");
+        last.Entries.Select(x => x.Id).Should().HaveCount(100).And.StartWith(105);
+
+        // Turned round, the oldest are a page away.
+        (await queries.SearchAsync(null, null, null, 1, "when", ListOrder.ASC, Ct))
+            .Entries[0]
+            .Id.Should()
+            .Be(1);
     }
 
     [Fact]
