@@ -49,8 +49,10 @@ public sealed class WiredKeywordCaptureTests
     [InlineData("the price 9 please", 0, 9)]
     [InlineData("the price 9 please", 1, 0)]
     [InlineData("price two", 0, 0)]
+    [InlineData("price +11", 0, 11)]
+    [InlineData("price 2147483648", 0, 2147483648)]
     [InlineData("hello", 0, 0)]
-    public async Task The_typed_value_is_captured(string said, int matchMode, int price)
+    public async Task The_typed_value_is_captured(string said, int matchMode, long price)
     {
         await BuildAsync(matchMode);
         await SayAsync(said);
@@ -165,12 +167,17 @@ public sealed class WiredKeywordCaptureTests
 
     /// <summary>
     /// In text mode, text the connector has no line for stops the trigger (official client
-    /// capture); a number that does not parse is only not captured.
+    /// capture); in number mode so does anything but a whole 64-bit number (official client
+    /// capture 2026-10-25T03-16-09, LAB-W5 wlab9 addon.16.B5 "cap abc" / "cap 3.7" 2/2, B4 a
+    /// 20-digit number).
     /// </summary>
     [Theory]
     [InlineData("price silver", "7=Silver", true)]
     [InlineData("price bronze", "7=Silver", false)]
-    [InlineData("price two", null, true)]
+    [InlineData("price two", null, false)]
+    [InlineData("price 3.7", null, false)]
+    [InlineData("price 99999999999999999999", null, false)]
+    [InlineData("price -5", null, true)]
     public async Task Text_the_connector_lacks_stops_the_trigger(
         string said,
         string? connector,

@@ -1,7 +1,11 @@
 using FluentAssertions;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Rooms.Grains.Systems;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Tests.Support;
 using Xunit;
@@ -60,6 +64,60 @@ public sealed class WiredSaysKeywordHideTests
 
         ToRoom().Select(c => c.Text).Should().Equal("parity hello");
         WhispersTo(100 + SPEAKER).Should().BeEmpty();
+    }
+
+    // trigger.0.R1c (official client capture 2026-10-25T03-16-09, LAB-W3 wlab9): a line the word
+    // filter changes for the room still fires User Says Keyword with what was typed. Ours read the
+    // filtered line, so "secret" never matched once the room filtered it.
+    [Fact]
+    public async Task A_filtered_line_fires_the_keyword_as_it_was_typed()
+    {
+        _room.Harness.State.FilterWords.Add("secret");
+        _room.Harness.State.IsFilterLoaded = true;
+        _room.AddBox<WiredTriggerHabboSaysKeyword>(1, 0, 0, "wf_trg_says_something");
+        (
+            await _room.SaveAsync<UpdateTriggerMessage>(
+                1,
+                intParams: [0, 0, 0],
+                stringParam: "my secret"
+            )
+        )
+            .Should()
+            .BeTrue();
+        _room.AddBox<WiredActionShowMessage>(2, 0, 0, "wf_act_show_message");
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                2,
+                intParams: [1, 34, -1],
+                stringParam: "heard",
+                definitionSpecifics: [0]
+            )
+        )
+            .Should()
+            .BeTrue();
+        _room.Enter(SPEAKER, 2, 2);
+        var wired = _room.Harness.Module<RoomWiredSystem>();
+        await wired.OnRoomEventAsync(
+            new RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForSystem(1),
+                StackIds = [_room.Map.ToIdx(0, 0)],
+            },
+            CancellationToken.None
+        );
+        await wired.ProcessWiredAsync(11_000, dormant: false, CancellationToken.None);
+
+        await SayAsync("my secret", RoomChatType.Chat);
+        await wired.ProcessWiredAsync(12_000, dormant: false, CancellationToken.None);
+        await wired.ProcessWiredAsync(13_000, dormant: false, CancellationToken.None);
+
+        ToRoom().First().Text.Should().Be("my bobba");
+        _room
+            .Harness.Fakes.Sent<ChatMessageComposer>()
+            .Select(c => c.Text)
+            .Should()
+            .Contain("heard");
     }
 
     private async Task AddSaysKeywordAsync(bool hide)

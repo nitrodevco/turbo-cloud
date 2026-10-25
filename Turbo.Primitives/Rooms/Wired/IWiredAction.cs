@@ -12,5 +12,11 @@ public interface IWiredAction : IWiredBox
     /// they pass.
     /// </summary>
     public bool IsNegative { get; }
+
+    /// <summary>
+    /// Where the effect runs among effects of other types in one execution without "Execute In
+    /// Order": lower first; effects with the same value run in a random order.
+    /// </summary>
+    public int RunOrder { get; }
     public Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct);
 }

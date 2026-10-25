@@ -97,8 +97,10 @@ public class WiredTriggerHabboSaysKeyword(
     {
         var said = evt switch
         {
-            // A whisper counts unless its speaker opted out (RoomChatSystem decides WiredMayRead).
-            PlayerChatEvent { WiredMayRead: true } chatEvt => chatEvt.Text,
+            // A whisper counts unless its speaker opted out (RoomChatSystem decides WiredMayRead);
+            // a line the word filter changed is read as typed.
+            PlayerChatEvent { WiredMayRead: true } chatEvt => chatEvt.UnfilteredText
+                ?? chatEvt.Text,
             BotChatEvent botEvt => botEvt.Text,
             _ => null,
         };

@@ -329,6 +329,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
 
         State.AvatarsByBotId.Remove(botId);
         _lastPersistedTileByBotId.Remove(botId);
+        _recentLineAtMsByBotObjectId.Remove(bot.ObjectId);
 
         // Wired hears a bot picked up as a user leaving (official client capture 2026-10-24, W3
         // lab trigger.23.R2: Leave Room fired 2/2).

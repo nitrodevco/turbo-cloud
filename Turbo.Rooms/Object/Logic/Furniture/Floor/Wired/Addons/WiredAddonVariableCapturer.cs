@@ -83,11 +83,13 @@ public class WiredAddonVariableCapturer(
     /// <summary>
     /// Whether what was typed at this box's marker lets the trigger fire: in text mode it must
     /// be a line of the variable's text connector (official client capture: a character missing
-    /// from the connector stops the trigger). A number that does not parse is not captured and
-    /// does not stop it.
+    /// from the connector stops the trigger); otherwise it must be a whole 64-bit number: "abc",
+    /// "3.7" and a 20-digit number do not fire it, "-5", "+11" and "2147483648" do (official client
+    /// capture 2026-10-25T03-16-09, LAB-W5 wlab9 addon.16.B5 2/2 and B4 4/4). A trailing
+    /// exact-mode marker left empty does not stop it (inference: measured in text mode only).
     /// </summary>
     internal bool Accepts(string typed) =>
-        !GetIntParamOrDefault(0, false) || TryGetValue(typed, out _);
+        (typed.Length == 0 && !GetIntParamOrDefault(0, false)) || TryGetValue(typed, out _);
 
     /// <summary>
     /// The value <paramref name="typed"/> stands for: in text mode the connector line whose text
@@ -158,7 +160,7 @@ public class WiredAddonVariableCapturer(
         if (
             variable is null
             || GetStringParam().Length == 0
-            || !trigger.TryCapture(chat.Text.Trim(), out var captures)
+            || !trigger.TryCapture((chat.UnfilteredText ?? chat.Text).Trim(), out var captures)
             || captures.FirstOrDefault(x => x.Capturer == this).Typed is not { } typed
             || !TryGetValue(typed, out var value)
         )

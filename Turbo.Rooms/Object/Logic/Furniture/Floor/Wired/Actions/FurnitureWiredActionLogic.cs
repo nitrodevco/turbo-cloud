@@ -33,6 +33,16 @@ public abstract class FurnitureWiredActionLogic(
 
     public virtual bool IsNegative => false;
 
+    /// <summary>
+    /// Effects of different types run in one fixed order, whatever their stacking or ids: Give
+    /// Variable before Change Variable (18/18) and Remove Variable (8/8), Toggle State before Match
+    /// Snapshot (14/14), Freeze before Unfreeze (4/4), while same-type effects run in a random
+    /// order (official client capture 2026-10-25, LAB-W5 wlab9 S67, LAB-W2 S55, LAB-W3 S51; LAB-W4
+    /// action.49.L4). Every measured pair follows the box codes but Show Message's (see there);
+    /// that the codes order the unmeasured pairs too is an inference.
+    /// </summary>
+    public virtual int RunOrder => WiredCode * 10;
+
     public virtual Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct) =>
         Task.FromResult(true);
 

@@ -44,5 +44,13 @@ public sealed record PlayerChatEvent : PlayerEvent
     [Id(8)]
     public bool WiredMayRead { get; init; } = true;
 
+    /// <summary>
+    /// The line as the player typed it, before the word filter: what wired reads (official client
+    /// capture 2026-10-25T03-16-09: a line the hotel filter replaced for the room still fired User
+    /// Says Keyword and captured its number). Null when nothing was filtered out.
+    /// </summary>
+    [Id(9)]
+    public string? UnfilteredText { get; init; }
+
     public void Cancel() => IsCancelled = true;
 }

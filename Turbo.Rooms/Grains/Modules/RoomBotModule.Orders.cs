@@ -20,6 +20,17 @@ namespace Turbo.Rooms.Grains.Modules;
 /// </summary>
 public sealed partial class RoomBotModule
 {
+    // A bot says at most ten lines in five seconds; what it is told to say past that is not said
+    // (official client capture 2026-10-25, LAB-W8 wlab9 action.23.L3b / L4: a bot line re-firing
+    // its own Says Keyword stack stopped at 10 lines, 9 when its greeting came 3.6 s before; a
+    // firing 2.1, 3.6 or 4.6 s after a burst flashed the stack but the bot said nothing 3/3, 5.7
+    // and 7.2 s after it said 10 again 2/2; 12 Bot Talk boxes in one firing said 10). The window
+    // lies between 4.6 and 5.7 s; 5 s and the count per placed bot are inferences.
+    private const int BOT_FLOOD_MAX_LINES = 10;
+    private const long BOT_FLOOD_WINDOW_MS = 5_000;
+
+    private readonly Dictionary<RoomObjectId, Queue<long>> _recentLineAtMsByBotObjectId = [];
+
     /// <summary>
     /// Every bot in the room with this name, case ignored and nothing trimmed: a name with a
     /// space before or after it names no bot, and two bots with the same name are both named
@@ -33,7 +44,7 @@ public sealed partial class RoomBotModule
 
     /// <summary>
     /// A bot speaks or shouts to the whole room; <paramref name="hideName"/> leaves its name off
-    /// the bubble.
+    /// the bubble. A bot that said ten lines in the last five seconds says nothing.
     /// </summary>
     public Task TalkAsync(
         IRoomBot bot,
@@ -43,18 +54,38 @@ public sealed partial class RoomBotModule
         bool hideName,
         CancellationToken ct
     ) =>
-        ChatSystem.SayAsAvatarAsync(
-            bot,
-            text,
-            new AvatarSpeech
-            {
-                StyleId = Config.ChatStyleId,
-                Shout = shout,
-                BubbleWidth = bubbleWidth,
-                HideUsername = hideName,
-            },
-            ct
-        );
+        string.IsNullOrWhiteSpace(text) || !TryTakeLine(bot)
+            ? Task.CompletedTask
+            : ChatSystem.SayAsAvatarAsync(
+                bot,
+                text,
+                new AvatarSpeech
+                {
+                    StyleId = Config.ChatStyleId,
+                    Shout = shout,
+                    BubbleWidth = bubbleWidth,
+                    HideUsername = hideName,
+                },
+                ct
+            );
+
+    private bool TryTakeLine(IRoomBot bot)
+    {
+        var now = NowMs();
+
+        if (!_recentLineAtMsByBotObjectId.TryGetValue(bot.ObjectId, out var lines))
+            _recentLineAtMsByBotObjectId[bot.ObjectId] = lines = new Queue<long>();
+
+        while (lines.Count > 0 && now - lines.Peek() >= BOT_FLOOD_WINDOW_MS)
+            lines.Dequeue();
+
+        if (lines.Count >= BOT_FLOOD_MAX_LINES)
+            return false;
+
+        lines.Enqueue(now);
+
+        return true;
+    }
 
     /// <summary>A bot whispers to one player; only that player sees the bubble.</summary>
     public Task WhisperAsync(

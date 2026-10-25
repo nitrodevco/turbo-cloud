@@ -33,6 +33,9 @@ public class WiredActionMatchToSnapshot(
 {
     public override int WiredCode => (int)WiredActionType.SET_FURNI_STATE;
 
+    // After the other effects but Set Furni Altitude (RoomWiredSystem.ChooseActions).
+    public override int RunOrder => int.MaxValue - 1;
+
     protected override bool AllowsWallFurni => true;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
