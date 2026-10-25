@@ -18,6 +18,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Wallet;
+using Turbo.Primitives.Policies;
 
 namespace Turbo.Catalog.Grains;
 
@@ -72,7 +73,16 @@ internal sealed partial class CatalogPurchaseGrain
 
         var buyer = await _grainFactory.GetPlayerGrain(buyerId).GetSummaryAsync(ct);
 
-        var debitRequests = offer.ToDebitRequests(1);
+        // A gift holds one item whatever a policy says of the amount; its price it may change.
+        var decision = await DecideAsync(
+            new PurchaseRequest(buyerId, CatalogType.Normal, offer, 1, receiverId),
+            offer,
+            1,
+            1,
+            ct
+        );
+
+        var debitRequests = ToDebitRequests(decision, offer);
 
         if (paidWrapping)
             AddWrappingPrice(debitRequests, wrapping.Price);
@@ -122,6 +132,8 @@ internal sealed partial class CatalogPurchaseGrain
             content.Name,
             receiverId
         );
+
+        _events.PublishCommitted(Completed(CatalogType.Normal, offer, decision, 1, receiverId));
 
         return offer;
     }

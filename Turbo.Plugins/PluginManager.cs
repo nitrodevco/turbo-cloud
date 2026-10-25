@@ -26,6 +26,7 @@ using Turbo.Plugins.Exports;
 using Turbo.Primitives.ClientModules;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Plugins;
+using Turbo.Primitives.Policies;
 using Turbo.Primitives.Settings;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
@@ -961,6 +962,7 @@ public sealed class PluginManager(
     internal ImmutableArray<PluginSnapshot> Snapshot()
     {
         var list = new List<PluginSnapshot>();
+        var policies = host.GetService<IGamePolicies>()?.Registered ?? [];
 
         foreach (
             var status in _status.Values.OrderBy(
@@ -987,7 +989,12 @@ public sealed class PluginManager(
                     extensions?.IncomingHeaders ?? [],
                     extensions?.OutgoingHeaders ?? [],
                     status.Migrations,
-                    status.LoadedAtUtc
+                    status.LoadedAtUtc,
+                    [
+                        .. policies.Where(x =>
+                            string.Equals(x.Owner, m.Key, StringComparison.OrdinalIgnoreCase)
+                        ),
+                    ]
                 )
             );
         }
@@ -1008,7 +1015,8 @@ public sealed class PluginManager(
                     [],
                     [],
                     [],
-                    null
+                    null,
+                    []
                 )
             );
 

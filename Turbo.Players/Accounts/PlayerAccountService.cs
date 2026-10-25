@@ -7,11 +7,13 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
+using Turbo.Events;
 using Turbo.Players.Configuration;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Events;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Players.Accounts;
@@ -26,7 +28,8 @@ public sealed class PlayerAccountService(
     IWordFilter wordFilter,
     IOptions<OnboardingConfig> onboarding,
     IPlayerNamePolicy namePolicy,
-    ILogger<IPlayerAccountService> logger
+    ILogger<IPlayerAccountService> logger,
+    EventSystem? events = null
 ) : IPlayerAccountService
 {
     public const int MOTTO_MAX_LENGTH = 38;
@@ -101,6 +104,10 @@ public sealed class PlayerAccountService(
         logger.LogInformation("Created player {PlayerId} ({PlayerName})", entity.Id, name);
 
         await owner.PlayerCreatedAsync(new PlayerId(entity.Id), name, ct).ConfigureAwait(false);
+
+        events?.PublishCommitted(
+            new PlayerRegisteredEvent { PlayerId = new PlayerId(entity.Id), Name = name }
+        );
 
         return NewPlayerResult.Done(entity.Id);
     }

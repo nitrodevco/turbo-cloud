@@ -19,6 +19,8 @@
  *   migration <Name>                    the plugin's tables (server/Database) and a migration (dotnet ef)
  *   schedule <name> [--cron "0 18 * * MON" | --every 00:05:00]
  *                                       a scheduled task, run once per cluster (server/Tasks)
+ *   policy <purchase|room-entry|placement> [<name>]
+ *                                       a game policy: allow, refuse or change the action (server/Policies)
  *
  * A file that is there already is left alone (the command says so and stops).
  */
@@ -318,6 +320,57 @@ public sealed class ${type} : IScheduledTask
 `);
 
         return [ 'plugin-scheduler.md' ];
+    },
+
+    policy() {
+        const kinds = {
+            purchase: {
+                contract: 'IPurchasePolicy',
+                decision: 'PurchaseDecision',
+                parameters: 'PurchaseRequest request, PurchaseDecision proposed, CancellationToken ct',
+                body: 'ValueTask.FromResult(proposed)',
+                summary: 'Asked before a catalogue purchase is paid for: return proposed to let it stand, proposed with { CostCredits = ... } to change\n/// what it costs or gives, or PurchaseDecision.Refuse("why") to refuse it.',
+            },
+            'room-entry': {
+                contract: 'IRoomEntryPolicy',
+                decision: 'RoomEntryDecision',
+                parameters: 'RoomEntryRequest request, CancellationToken ct',
+                body: 'ValueTask.FromResult(RoomEntryDecision.Allow)',
+                summary: 'Asked before a player enters a room the hotel lets them into: RoomEntryDecision.Allow,\n/// .Refuse("why") or .Redirect(roomId).',
+            },
+            placement: {
+                contract: 'IPlacementPolicy',
+                decision: 'PlacementDecision',
+                parameters: 'PlacementRequest request, CancellationToken ct',
+                body: 'ValueTask.FromResult(PlacementDecision.Allow)',
+                summary: 'Asked before a player places a furni or saves a floor plan: PlacementDecision.Allow or\n/// .Refuse("why").',
+            },
+        };
+        const policy = kinds[name];
+
+        if (!policy) fail(`A policy is one of ${Object.keys(kinds).join(', ')}: npm run make policy purchase club-discount`);
+
+        const type = `${pascal(rest.find(arg => !arg.startsWith('--')) ?? name)}Policy`;
+
+        write(path.join(server, 'Policies', `${type}.cs`), `
+using System.Threading;
+using System.Threading.Tasks;
+using Turbo.Primitives.Policies;
+
+namespace ${assembly};
+
+/// <summary>
+/// ${policy.summary}
+/// Found as the plugin loads; several run in Order, then plugin key.
+/// </summary>
+public sealed class ${type} : ${policy.contract}
+{
+    public ValueTask<${policy.decision}> DecideAsync(${policy.parameters}) =>
+        ${policy.body};
+}
+`);
+
+        return [ 'plugin-policies.md' ];
     },
 
     listener() {

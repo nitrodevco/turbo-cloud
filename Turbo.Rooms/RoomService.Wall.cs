@@ -6,6 +6,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Policies;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 
@@ -38,6 +39,22 @@ internal sealed partial class RoomService
             if (snapshot is null || snapshot.Definition.ProductType != ProductType.Wall)
                 return;
 
+            if (
+                !await PassesPlacementPolicyAsync(
+                        new PlacementRequest(
+                            ctx.PlayerId,
+                            ctx.RoomId,
+                            PlacementKind.WallItem,
+                            snapshot.Definition,
+                            x,
+                            y
+                        ),
+                        ct
+                    )
+                    .ConfigureAwait(false)
+            )
+                return;
+
             var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
 
             var result = await roomGrain
@@ -67,6 +84,26 @@ internal sealed partial class RoomService
     )
     {
         if (ctx.Origin != ActionOrigin.Player || ctx.PlayerId <= 0 || ctx.RoomId <= 0)
+            return;
+
+        // A sheet is a wall item from its pad; the pad's furni is the one the player holds.
+        var pad = await _grainFactory
+            .GetInventoryGrain(ctx.PlayerId)
+            .GetItemSnapshotAsync(padId, ct)
+            .ConfigureAwait(false);
+
+        if (
+            !await PassesPlacementPolicyAsync(
+                    new PlacementRequest(
+                        ctx.PlayerId,
+                        ctx.RoomId,
+                        PlacementKind.WallItem,
+                        pad?.Definition
+                    ),
+                    ct
+                )
+                .ConfigureAwait(false)
+        )
             return;
 
         var result = await _grainFactory

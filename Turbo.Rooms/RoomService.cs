@@ -6,8 +6,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Events;
+using Turbo.Players.Policies;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Catalog;
+using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Handshake;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Messages.Outgoing.Nft;
@@ -24,25 +27,35 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Messenger;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Grains.Messenger;
+using Turbo.Primitives.Policies;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Rooms.Configuration;
 
 namespace Turbo.Rooms;
 
+/// <param name="policies">The hotel's plugins' room entry and placement policies; none decide without.</param>
+/// <param name="events">Where a room entry is told once it is done; nowhere without.</param>
+/// <param name="catalog">The builders club offers, whose furni a placement policy is told of.</param>
 internal sealed partial class RoomService(
     ILogger<IRoomService> logger,
     IOptions<RoomConfig> roomConfig,
     IGrainFactory grainFactory,
-    TimeProvider time
+    TimeProvider time,
+    IGamePolicies? policies = null,
+    EventSystem? events = null,
+    ICatalogService? catalog = null,
+    IFurnitureDefinitionProvider? definitions = null
 ) : IRoomService
 {
     private readonly ILogger<IRoomService> _logger = logger;
     private readonly RoomConfig _roomConfig = roomConfig.Value;
     private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly TimeProvider _time = time;
+    private readonly IGamePolicies _policies = policies ?? GamePolicies.None;
 
     public async Task<FollowFriendErrorCodeType?> FollowFriendAsync(
         PlayerId playerId,
@@ -281,15 +294,31 @@ internal sealed partial class RoomService(
                 return;
 
             case RoomEntryAccessType.Doorbell:
+                if (
+                    !await PassesEntryPolicyAsync(playerPresence, playerId, roomId, true, ct)
+                        .ConfigureAwait(false)
+                )
+                    return;
+
                 await RingDoorbellAsync(playerPresence, playerId, room, roomId, ct)
                     .ConfigureAwait(false);
                 return;
 
             case RoomEntryAccessType.Allowed:
+                if (
+                    !await PassesEntryPolicyAsync(playerPresence, playerId, roomId, false, ct)
+                        .ConfigureAwait(false)
+                )
+                    return;
+
                 await playerPresence
                     .SetPendingRoomAsync(roomId, RoomEntryState.Approved, ct)
                     .ConfigureAwait(false);
                 await EnterRoomAsync(ctx, playerPresence, room, roomId, ct).ConfigureAwait(false);
+
+                events?.PublishCommitted(
+                    new RoomEnteredEvent { PlayerId = playerId, RoomId = roomId }
+                );
                 return;
 
             default:
@@ -543,6 +572,59 @@ internal sealed partial class RoomService(
                 .ConfigureAwait(false);
 
         await playerPresence.ClearPendingRoomAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Asks the room entry policies (<see cref="IRoomEntryPolicy"/>) about an entry the room
+    /// allows. A refusal is told as the room's own "no entry", after the policy's reason when it
+    /// gives one; a redirect closes this entry and forwards the player to the other room, which
+    /// they enter as any other. False when the player does not go on into this room.
+    /// </summary>
+    private async Task<bool> PassesEntryPolicyAsync(
+        IPlayerPresenceGrain playerPresence,
+        PlayerId playerId,
+        RoomId roomId,
+        bool doorbell,
+        CancellationToken ct
+    )
+    {
+        var decision = await _policies
+            .DecideRoomEntryAsync(new RoomEntryRequest(playerId, roomId, doorbell), ct)
+            .ConfigureAwait(false);
+
+        if (decision.Allowed)
+            return true;
+
+        var notice = string.IsNullOrEmpty(decision.Reason)
+            ? null
+            : PolicyRefusals.Notification(PolicyRefusals.ROOM_ENTRY, decision.Reason);
+
+        if (decision.RedirectRoomId is { } redirect && redirect > 0 && redirect != roomId)
+        {
+            await RejectEntryAsync(
+                    playerPresence,
+                    new CloseConnectionMessageComposer(),
+                    ct,
+                    notice,
+                    closeConnection: false
+                )
+                .ConfigureAwait(false);
+            await _grainFactory
+                .ForwardPlayerToRoomAsync(playerId, redirect, ct)
+                .ConfigureAwait(false);
+
+            return false;
+        }
+
+        await RejectEntryAsync(
+                playerPresence,
+                new CantConnectMessageComposer { ErrorType = RoomConnectionErrorType.NoEntry },
+                ct,
+                notice
+            )
+            .ConfigureAwait(false);
+
+        return false;
     }
 
     /// <param name="notice">Sent before the refusal, in the same batch: what explains it, or what Habbo sends ahead of it.</param>

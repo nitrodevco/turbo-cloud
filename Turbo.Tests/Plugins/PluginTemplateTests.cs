@@ -157,6 +157,9 @@ public sealed class PluginTemplateTests : IDisposable
                 "patch habbo-friend-list-com/friend_list_xml",
                 "migration AddPrizes",
                 "schedule weekly-rotation --every 01:00:00",
+                "policy purchase club-discount",
+                "policy room-entry",
+                "policy placement",
             }
         )
             await MakeAsync(source, recipe);
@@ -200,6 +203,13 @@ public sealed class PluginTemplateTests : IDisposable
             .Be("""[["level","int"],["name","string"]]""");
         host.Messages.Messages.Select(x => x.Name).Should().Contain($"{key}.ping");
         host.WebRoutes.MethodsAt(key, "rares/values").Should().Equal("GET");
+        host.Policies.Registered.Select(x => (x.Kind, x.Policy))
+            .Should()
+            .BeEquivalentTo([
+                ("purchase", "ClubDiscountPolicy"),
+                ("room-entry", "RoomEntryPolicy"),
+                ("placement", "PlacementPolicy"),
+            ]);
         host.Schedules.Keys.Should()
             .BeEquivalentTo($"{key}.SkillsWeeklyReset", $"{key}.WeeklyRotation");
         host.MigratorLog.Entries.Select(e => e.Message)

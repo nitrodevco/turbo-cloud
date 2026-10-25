@@ -136,6 +136,9 @@ public static class GrainHarness
                         new TestOptionsMonitor<Turbo.Players.Configuration.TradingConfig>(new())
                     )
                 );
+            // No game policies: the hotel decides as it always does.
+            else if (t == typeof(Turbo.Primitives.Policies.IGamePolicies))
+                f.SetValue(grain, Turbo.Players.Policies.GamePolicies.None);
             else if (t == typeof(Turbo.Primitives.Moderation.IWordFilter))
                 f.SetValue(grain, new PassThroughWordFilter());
         }

@@ -8,6 +8,7 @@ using Turbo.Players.Configuration;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Accounts;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Events;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Tests.Support;
 using Xunit;
@@ -21,6 +22,7 @@ namespace Turbo.Tests.Players;
 public sealed class PlayerAccountServiceTests : IDisposable
 {
     private readonly SqliteDb _db = new();
+    private readonly TestEventBus _events = new();
     private readonly PlayerAccountService _accounts;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -45,8 +47,10 @@ public sealed class PlayerAccountServiceTests : IDisposable
             new PlayerNamePolicy(
                 Options.Create(new PlayerConfig { BlockedNames = ["Admin", "MOD-*"] })
             ),
-            NullLogger<IPlayerAccountService>.Instance
+            NullLogger<IPlayerAccountService>.Instance,
+            _events.System
         );
+        _events.Record<PlayerRegisteredEvent>();
     }
 
     private sealed class NoOwner : IOwnerBootstrap
@@ -82,6 +86,28 @@ public sealed class PlayerAccountServiceTests : IDisposable
         );
 
         result.Error.Should().Be(PlayerNames.FILTERED);
+    }
+
+    [Theory]
+    [InlineData("Carol", 1)]
+    [InlineData("alice", 0)]
+    public async Task A_new_player_raises_PlayerRegistered_once_and_a_refused_name_none(
+        string name,
+        int raised
+    )
+    {
+        var result = await _accounts.CreateAsync(
+            new NewPlayer(name, null, AvatarGenderType.Male, null),
+            Ct
+        );
+
+        await _events.WhenPublishedAsync<PlayerRegisteredEvent>(raised);
+
+        _events
+            .Of<PlayerRegisteredEvent>()
+            .Select(x => (x.PlayerId, x.Name))
+            .Should()
+            .Equal(raised == 0 ? [] : [(result.Created!.Value, name)]);
     }
 
     [Fact]

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Policies;
 using Turbo.Primitives.Rooms.Snapshots.Mapping;
 
 namespace Turbo.Rooms;
@@ -22,6 +23,20 @@ internal sealed partial class RoomService
 
         try
         {
+            if (
+                !await PassesPlacementPolicyAsync(
+                        new PlacementRequest(
+                            ctx.PlayerId,
+                            ctx.RoomId,
+                            PlacementKind.FloorPlan,
+                            ModelData: modelData
+                        ),
+                        ct
+                    )
+                    .ConfigureAwait(false)
+            )
+                return;
+
             var room = _grainFactory.GetRoomGrain(ctx.RoomId);
 
             var evicted = await room.SaveFloorPlanAsync(ctx, modelData, properties, ct)

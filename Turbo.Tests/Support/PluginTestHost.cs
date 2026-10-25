@@ -17,6 +17,7 @@ using Turbo.Messages.Registry;
 using Turbo.Networking.Extensions;
 using Turbo.Operations.Scheduling;
 using Turbo.Players.Permissions;
+using Turbo.Players.Policies;
 using Turbo.Plugins;
 using Turbo.Plugins.Configuration;
 using Turbo.Primitives.ClientModules;
@@ -130,6 +131,7 @@ internal sealed class PluginTestHost
             new RoomObjectLogicFeatureProcessor(fakes.Create<IRoomObjectLogicProvider>()),
             new RoomEventListenerFeatureProcessor(fakes.Create<IRoomEventListenerRegistry>()),
             new ScheduledTaskFeatureProcessor(Schedules),
+            new GamePolicyFeatureProcessor(Policies),
         ];
     }
 
@@ -137,6 +139,9 @@ internal sealed class PluginTestHost
 
     /// <summary>This server's scheduled tasks.</summary>
     public ScheduledTaskHost Schedules { get; }
+
+    /// <summary>The game policies the plugin's classes registered.</summary>
+    public GamePolicies Policies { get; } = GamePolicies.None;
 
     public GamedataTextService Texts { get; }
 
