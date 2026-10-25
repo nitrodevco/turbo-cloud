@@ -524,7 +524,8 @@ public abstract class FurnitureWiredVariableLogic
         // hhus, WIN63-202610121709: a room variable counted down 5,4,5,4 then up 2,3,2,3).
         // A give flashes it to 6 (official client capture 2026-10-24T15-54-49 user variable and
         // 22-59-11 furni variable, 1/1 each, the +1 changes after it 2,3,2); 7 for the next give
-        // follows the pairs above (inference).
+        // follows the pairs above (inference). A removal flashes it to 8 (official client capture
+        // 2026-10-25T01-22-35, furni and user variable, 1/1 each); 9 next is inferred the same way.
         if (changeType == WiredVariableChangeType.Updated && value.Value != previous.Value)
         {
             var resting = value.Value > previous.Value ? 2 : 4;
@@ -535,6 +536,11 @@ public abstract class FurnitureWiredVariableLogic
         else if (changeType == WiredVariableChangeType.Created)
         {
             FlashWithinAsync(6, 7)
+                .LogAndForget(Logger, "flash a wired box in room {RoomId}", _roomGrain.RoomId);
+        }
+        else if (changeType == WiredVariableChangeType.Removed)
+        {
+            FlashWithinAsync(8, 9)
                 .LogAndForget(Logger, "flash a wired box in room {RoomId}", _roomGrain.RoomId);
         }
 
