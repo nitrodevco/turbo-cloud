@@ -225,8 +225,20 @@ public abstract class FurnitureWiredGiveFromChestLogic(
                     Kind == WiredChestKind.Coins ? result.Coins : result.Items.Sum(x => x.Count);
         }
 
+        // Nothing to give: the receiver is told 6 and the room counts a transaction failure
+        // (official client capture 2026-10-25T05-02-44, give furni from an empty chest to a user
+        // who may trade, W7 lab action.46.B1d, 2/2; inferred for credits).
         if (coins == 0 && furni.Count == 0)
+        {
+            await WiredTransactionSystem.TellFailureAsync(
+                receiver.PlayerId,
+                WiredTransactionFailureType.InsufficientFunds,
+                ct
+            );
+            WiredTransactionSystem.ReportMisconfigured();
+
             return false;
+        }
 
         await _grainFactory.SendComposerToPlayerAsync(
             receiver.PlayerId,

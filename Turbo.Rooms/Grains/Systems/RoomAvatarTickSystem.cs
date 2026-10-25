@@ -268,12 +268,22 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
                 return;
             }
 
-            await AvatarModule.NotifyWalkOffAsync(avatar, prevTileId, ct);
+            // A step between two tiles of one furni neither leaves nor enters it: Walks Off and
+            // Walks On both stayed quiet on a 2x2 floor (official client capture 2026-10-25, W2
+            // lab trigger.2.B1, 3/3).
+            var withinOneFurni =
+                MapModule.TryGetHighestFloorItem(prevTileId, out var left)
+                && MapModule.TryGetHighestFloorItem(nextTileId, out var entered)
+                && ReferenceEquals(left, entered);
+
+            if (!withinOneFurni)
+                await AvatarModule.NotifyWalkOffAsync(avatar, prevTileId, ct);
 
             MapModule.RemoveAvatarAtIdx(avatar, prevTileId, false);
             MapModule.AddAvatarAtIdx(avatar, nextTileId, false);
 
-            await AvatarModule.NotifyWalkOnAsync(avatar, nextTileId, ct, prevTileId);
+            if (!withinOneFurni)
+                await AvatarModule.NotifyWalkOnAsync(avatar, nextTileId, ct, prevTileId);
 
             avatar.RemoveStatus(AvatarStatusType.Lay, AvatarStatusType.Sit);
             avatar.AddStatus(

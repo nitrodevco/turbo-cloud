@@ -200,6 +200,23 @@ public sealed class WiredChestLabAnswersTests
         Notices().Should().Equal(TRANSACTION_FAILURE);
     }
 
+    // action.46.B1d (2/2, give furni, 2026-10-25T05-02-44): an empty chest and a user who may
+    // trade: 6 to the user and the bubble. Ours told the user nothing. Measured on the furni box;
+    // the credit box runs the same give, so its 6 is inferred.
+    [Fact]
+    [Trait("evidence", "inferred")]
+    public async Task Give_from_an_empty_chest_tells_the_user_6_and_the_room()
+    {
+        AddChest(locked: false, coins: 0);
+        var box = await AddGiveCurrencyAsync([CHEST], mode: 0);
+
+        (await box.ExecuteAsync(ExecutionContext(userSelected: true), Ct)).Should().BeFalse();
+
+        Failures().Should().Equal(WiredTransactionFailureType.InsufficientFunds);
+        Notices().Should().Equal(TRANSACTION_FAILURE);
+        _withdrawn.Should().BeEmpty();
+    }
+
     // action.45.B1b (an amount and everything, 4 of 4): the user may not trade, so 8 comes before
     // anything about what the chest holds, and no bubble.
     [Theory]
