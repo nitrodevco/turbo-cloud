@@ -202,6 +202,40 @@ public sealed class PluginUnloadTests : IDisposable
         GC.KeepAlive(held);
     }
 
+    [Fact]
+    public async Task Compiling_a_plugin_does_not_hold_a_plugin_context_another_test_is_unloading()
+    {
+        // 10-25 dumps of the suite: a plugin compiled in one test held every plugin context
+        // loaded at that moment for as long as its references were read (the list of loaded
+        // assemblies they were taken from), and under load that outlasted 50 collections.
+        var (alc, references) = CompiledWhileAnotherIsLoaded();
+
+        (await AssemblyMemoryLoader.WaitForUnloadAsync(alc, maxMs: 0, Ct, minCollections: 50))
+            .Should()
+            .BeTrue();
+
+        GC.KeepAlive(references);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static (
+        WeakReference Alc,
+        IEnumerable<Microsoft.CodeAnalysis.MetadataReference> References
+    ) CompiledWhileAnotherIsLoaded()
+    {
+        var alc = new AssemblyLoadContext("other", isCollectible: true);
+
+        alc.LoadFromStream(
+            new MemoryStream(PluginBuilder.Compile("other", "public class Other { }"))
+        );
+
+        var references = PluginBuilder.References();
+
+        alc.Unload();
+
+        return (new WeakReference(alc), references);
+    }
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static WeakReference HeldByFinalizers(int steps)
     {
