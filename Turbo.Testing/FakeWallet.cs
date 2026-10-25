@@ -36,6 +36,7 @@ public sealed class FakeWallet : IHotelWallet
     private readonly HashSet<(PlayerId, string)> _credited = new(new BalanceKey());
     private readonly HashSet<(PlayerId, string)> _debited = new(new BalanceKey());
     private readonly List<FakeMovement> _movements = [];
+    private readonly FakeFaults _faults = new();
 
     internal FakeWallet(FakeHotel hotel) => _hotel = hotel;
 
@@ -43,6 +44,15 @@ public sealed class FakeWallet : IHotelWallet
     public IReadOnlyList<FakeMovement> Movements => _movements;
 
     public void AddCurrency(string name) => _currencies.Add(name);
+
+    /// <summary>
+    /// The next <paramref name="count"/> credits or debits fail: the balance stays and no receipt
+    /// is kept, as when the hotel's write fails. Each answers <see cref="WalletOutcome.Refused"/>,
+    /// or throws <paramref name="throws"/> when given (a crash mid-call). A retry under the same
+    /// reference afterwards goes through.
+    /// </summary>
+    public void FailNext(int count = 1, Exception? throws = null) =>
+        _faults.FailNext(count, throws);
 
     /// <summary>Sets a balance as the test needs it (no movement).</summary>
     public void Set(PlayerId player, string currency, int amount)
@@ -133,6 +143,9 @@ public sealed class FakeWallet : IHotelWallet
 
         if (receipts.Contains((player, reference)))
             return WalletOutcome.AlreadyDone;
+
+        if (_faults.Trip())
+            return WalletOutcome.Refused;
 
         var balance = (long)Balance(player, currency) + delta;
 

@@ -189,6 +189,19 @@ public interface IFurnitureCustody
     );
 
     /// <summary>
+    /// None -> inventory, once per <paramref name="reference"/> for the owner: the row and its
+    /// receipt (<c>furniture_grant_receipts</c>) in one transaction. Null when the owner was
+    /// granted under that reference already: nothing is made.
+    /// </summary>
+    Task<CustodyFurni?> CreateInInventoryOnceAsync(
+        PlayerId owner,
+        FurniToMake furni,
+        string reference,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
+    /// <summary>
     /// None -> inventory, two linked teleporters per definition: each row names the other in its
     /// <c>room_linker</c> section, and no half is ever left unlinked. Answers the rows pair by pair.
     /// </summary>

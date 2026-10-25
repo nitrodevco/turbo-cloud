@@ -128,7 +128,8 @@ internal sealed record ScheduledTaskView(
     bool LastManual,
     DateTimeOffset? RunningSince,
     int Skipped,
-    int Servers
+    int Servers,
+    bool PerServer
 )
 {
     public static ScheduledTaskView From(ScheduledTaskSnapshot s) =>
@@ -146,6 +147,7 @@ internal sealed record ScheduledTaskView(
             s.LastRun?.Manual ?? false,
             s.RunningSince,
             s.Skipped,
-            s.Servers
+            s.Servers,
+            s.PerServer
         );
 }

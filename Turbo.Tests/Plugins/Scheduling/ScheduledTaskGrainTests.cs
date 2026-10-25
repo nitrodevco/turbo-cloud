@@ -133,6 +133,48 @@ public sealed class ScheduledTaskGrainTests : IDisposable
         reread.NextRunAt.Should().Be(listed.NextRunAt);
     }
 
+    /// <summary>
+    /// Pins the 10-25 migration's measure: 8 tasks every few seconds wrote 148 rows a minute. A
+    /// routine run of a task due again soon is written once a minute; a failure at once.
+    /// </summary>
+    [Fact]
+    public async Task A_task_every_second_writes_its_last_run_once_a_minute_and_a_failure_at_once()
+    {
+        var grain = Grain();
+        await SubscribeAsync(grain, "00:00:01");
+
+        async Task RunOnceAsync(ScheduledTaskOutcome outcome)
+        {
+            _clock.Advance(TimeSpan.FromSeconds(1));
+            await grain.TickAsync(Ct);
+            await grain.CompletedAsync(KEY, _server.Starts[^1].RunId, Result(outcome), Ct);
+        }
+
+        DateTime StoredStart()
+        {
+            using var db = _db.CreateDbContext();
+
+            return db.ScheduledTaskRuns.Single().StartedAtUtc;
+        }
+
+        await RunOnceAsync(ScheduledTaskOutcome.Succeeded);
+        var first = StoredStart();
+
+        for (var i = 0; i < 10; i++)
+            await RunOnceAsync(ScheduledTaskOutcome.Succeeded);
+
+        StoredStart().Should().Be(first, "ten routine runs within the minute write nothing");
+        (await grain.ListAsync(Ct)).Single().LastRun!.StartedAt.Should().Be(_clock.GetUtcNow());
+
+        await RunOnceAsync(ScheduledTaskOutcome.Failed);
+        StoredStart().Should().Be(_clock.GetUtcNow().UtcDateTime, "a failure is written at once");
+
+        await RunOnceAsync(ScheduledTaskOutcome.Succeeded);
+        _clock.Advance(ScheduledTaskTimes.StoreEvery);
+        await grain.TickAsync(Ct);
+        StoredStart().Should().Be((_clock.GetUtcNow() - ScheduledTaskTimes.StoreEvery).UtcDateTime);
+    }
+
     [Fact]
     public async Task A_server_that_stops_answering_loses_its_run_and_its_tasks()
     {

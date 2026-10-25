@@ -20,7 +20,7 @@
  *   window <name>                       a window, opened by the link <key>/<name> (client/src/made)
  *   patch <library>/<asset>             a template patch on a core window (wwwroot/template-patches.json)
  *   migration <Name>                    the plugin's tables (server/Database) and a migration (dotnet ef)
- *   schedule <name> [--cron "0 18 * * MON" | --every 00:05:00]
+ *   schedule <name> [--cron "0 18 * * MON" | --every 00:05:00] [--per-server]
  *                                       a scheduled task, run once per cluster (server/Tasks)
  *   policy <purchase|room-entry|placement> [<name>]
  *                                       a game policy: allow, refuse or change the action (server/Policies)
@@ -389,7 +389,12 @@ ${body}
 
         if (every === true || cron === true || (every && cron)) fail('A schedule is --cron "<five fields>" or --every <hh:mm:ss>: npm run make schedule weekly-rotation --cron "0 18 * * MON"');
 
-        const attribute = every ? `[Every("${every}")]` : `[Schedule("${cron ?? '0 0 * * MON'}")]`;
+        const perServer = option('per-server', false) === true;
+        const times = every ? `Every("${every}"` : `Schedule("${cron ?? '0 0 * * MON'}"`;
+        const attribute = `[${times}${perServer ? ', PerServer = true' : ''})]`;
+        const runs = perServer
+            ? 'on every server, each on its own clock (for what a server holds in memory),'
+            : 'once per cluster';
 
         write(path.join(server, 'Tasks', `${type}.cs`), `
 using System.Threading;
@@ -399,7 +404,7 @@ using Turbo.Contracts.Plugins.Scheduling;
 namespace ${assembly};
 
 /// <summary>
-/// Runs on its schedule, once per cluster and never twice at once; listed on the admin panel's
+/// Runs on its schedule, ${runs} and never twice at once; listed on the admin panel's
 /// Plugins page (Schedule) with Run now. A run is cancelled through ct when the plugin unloads.
 /// Found as the plugin loads.
 /// </summary>

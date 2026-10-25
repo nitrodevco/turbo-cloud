@@ -176,7 +176,25 @@ public sealed class WeeklyRotation(MyService service) : IScheduledTask
 }
 ```
 
+A task about what one server holds in memory (its online players, a cache) says
+`[Every("00:00:30", PerServer = true)]` (`--per-server`): every server runs it on its own clock.
 Recipes, the cron format and the schedule-from-a-setting form: turbo-cloud `docs/plugin-scheduler.md`.
+
+## Once the hotel is up, and until the plugin stops
+
+`StartingAsync` runs as the plugin loads, which at boot is before the hotel has started. Work that
+needs the whole hotel goes in `HotelReadyAsync(ctx, ct)`: called once the hotel has started, and
+at once after a reload. Work the plugin starts itself takes `ctx.Stopping`, cancelled as the
+plugin starts to stop; no token source of its own, no `ApplicationStarted.Register`:
+
+```csharp
+protected override Task HotelReadyAsync(IPluginContext ctx, CancellationToken ct) =>
+    ctx.Services.GetRequiredService<MyService>().WarmUpAsync(ct); // ct is ctx.Stopping
+```
+
+A service the plugin registers (`services.AddSingleton<SkillBook>()`, a hosted service) takes host
+services by constructor as its commands do (`IGrainFactory`, `TimeProvider`, `IHotel`), with no
+factory.
 
 ## A policy, and what happened
 

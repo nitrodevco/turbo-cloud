@@ -430,6 +430,7 @@ public sealed class PluginManager(
                 .ConfigureAwait(false);
 
             next.Disposables.Add(disp);
+            WhenHotelReady(next);
         }
         catch
         {
@@ -856,6 +857,7 @@ public sealed class PluginManager(
 
         plugin.ConfigureServices(services, manifest);
         AddConventionalServices(services, assembly);
+        BuildOwnTypesOverTheHost(services, assembly);
 
         var contexts = services
             .Select(d => d.ServiceType)
@@ -874,6 +876,46 @@ public sealed class PluginManager(
             .ToList();
 
         return (services.BuildServiceProvider(SP_OPTIONS), contexts, settings);
+    }
+
+    /// <summary>
+    /// The plugin's own classes it registers by type (<c>AddSingleton&lt;SkillBook&gt;()</c>, a
+    /// hosted service) are built over its container and then the host's, as the classes its
+    /// assembly declares are: they take <c>IGrainFactory</c>, a provider or a host service by
+    /// constructor without a <c>Host&lt;T&gt;</c> factory. They reach the host as
+    /// <see cref="IHostServices"/> does (the plugin's own packet registry and client modules), and
+    /// the host is never asked for one of the plugin's types (<see cref="PluginHostServiceProvider"/>).
+    /// Open generics and keyed services stay as registered.
+    /// </summary>
+    private void BuildOwnTypesOverTheHost(IServiceCollection services, Assembly assembly)
+    {
+        var hostForPlugins = _hostForPlugins;
+
+        for (var i = 0; i < services.Count; i++)
+        {
+            var descriptor = services[i];
+
+            if (
+                descriptor.IsKeyedService
+                || descriptor.ImplementationType is not { } type
+                || type.Assembly != assembly
+                || type.IsGenericTypeDefinition
+            )
+                continue;
+
+            services[i] = ServiceDescriptor.Describe(
+                descriptor.ServiceType,
+                sp =>
+                    ActivatorUtilities.CreateInstance(
+                        new CompositeServiceProvider(
+                            sp,
+                            sp.GetService<IHostServices>() as IServiceProvider ?? hostForPlugins
+                        ),
+                        type
+                    ),
+                descriptor.Lifetime
+            );
+        }
     }
 
     /// <summary>
@@ -1438,6 +1480,8 @@ public sealed class PluginManager(
     {
         try
         {
+            await CancelStoppingAsync(env, ct).ConfigureAwait(false);
+
             foreach (var stopping in host.GetServices<IPluginStopping>())
             {
                 try
@@ -1480,6 +1524,83 @@ public sealed class PluginManager(
         }
 
         return env.Alc is null ? null : AssemblyMemoryLoader.BeginUnload(env.Alc);
+    }
+
+    /// <summary>How long an unload waits for a plugin's hotel-ready hook to end once it is cancelled.</summary>
+    private static readonly TimeSpan READY_WAIT = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// Calls the plugin's hotel-ready hook once the hotel has started: when it does at boot, at
+    /// once on a reload or a later install (a token already cancelled runs its callback as it is
+    /// registered). Without an application lifetime (a test's host) the hotel counts as up.
+    /// </summary>
+    private void WhenHotelReady(PluginEnvelope env)
+    {
+        if (env.Instance is not TurboPlugin plugin)
+            return;
+
+        if (host.GetService<IHostApplicationLifetime>() is not { } lifetime)
+        {
+            env.Ready = RunReadyAsync(env.Manifest.Key, plugin);
+
+            return;
+        }
+
+        env.Disposables.Add(
+            lifetime.ApplicationStarted.Register(() =>
+                env.Ready = RunReadyAsync(env.Manifest.Key, plugin)
+            )
+        );
+    }
+
+    private Task RunReadyAsync(string key, TurboPlugin plugin) =>
+        // Off the caller: the started callbacks run one after another on the host's start.
+        Task.Run(async () =>
+        {
+            try
+            {
+                await plugin.ReadyAsync().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "The hotel-ready hook of plugin {Key} failed", key);
+            }
+        });
+
+    /// <summary>
+    /// The first step of an unload: the plugin's <see cref="IPluginContext.Stopping"/> is
+    /// cancelled, and its hotel-ready hook, if still going, is waited for.
+    /// </summary>
+    private async Task CancelStoppingAsync(PluginEnvelope env, CancellationToken ct)
+    {
+        if (env.Instance is not TurboPlugin plugin)
+            return;
+
+        try
+        {
+            plugin.BeginStopping();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "A stopping callback of plugin {Key} failed", env.Manifest.Key);
+        }
+
+        if (env.Ready is not { IsCompleted: false } ready)
+            return;
+
+        try
+        {
+            await ready.WaitAsync(READY_WAIT, ct).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            _logger.LogWarning(
+                "The hotel-ready hook of plugin {Key} did not stop within {Wait}; the unload goes on without it",
+                env.Manifest.Key,
+                READY_WAIT
+            );
+        }
     }
 
     private async Task StopHostedServicesAsync(

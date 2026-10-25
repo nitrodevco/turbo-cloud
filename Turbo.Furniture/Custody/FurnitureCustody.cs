@@ -387,6 +387,67 @@ public sealed class FurnitureCustody(
         return [.. rows.Select(ToCustody)];
     }
 
+    public async Task<CustodyFurni?> CreateInInventoryOnceAsync(
+        PlayerId owner,
+        FurniToMake furni,
+        string reference,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        if (await GrantedAsync(owner, reference, ct).ConfigureAwait(false))
+            return null;
+
+        var row = NewRow(owner, furni);
+
+        try
+        {
+            await dbCtxFactory
+                .InTransactionAsync(
+                    async dbCtx =>
+                    {
+                        dbCtx.Add(row);
+                        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+
+                        dbCtx.Add(
+                            new FurnitureGrantReceiptEntity
+                            {
+                                PlayerId = owner.Value,
+                                Reference = reference,
+                                FurnitureId = row.Id,
+                                CreatedAt = DateTime.UtcNow,
+                            }
+                        );
+                        movements.Record(dbCtx, Created(cause, [row], _ => Inventory(owner)));
+
+                        return UnitOfWork.Commit(true);
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
+        }
+        catch (DbUpdateException)
+        {
+            // Another server granted it between the look and the write: its receipt won.
+            if (await GrantedAsync(owner, reference, ct).ConfigureAwait(false))
+                return null;
+
+            throw;
+        }
+
+        return ToCustody(row);
+    }
+
+    private async Task<bool> GrantedAsync(PlayerId owner, string reference, CancellationToken ct)
+    {
+        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+
+        return await dbCtx
+            .FurnitureGrantReceipts.AsNoTracking()
+            .AnyAsync(r => r.PlayerId == owner.Value && r.Reference == reference, ct)
+            .ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<CustodyFurni>> CreateTeleportPairsInInventoryAsync(
         PlayerId owner,
         IReadOnlyList<int> definitionIds,

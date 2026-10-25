@@ -26,8 +26,15 @@ public static class PluginApi
     /// against these contracts alone, and plugin wired events (<c>Hotel.IHotel.Wired</c>,
     /// <c>docs/plugin-wired.md</c>). A plugin built for 1 or 2 loads as before.
     /// </para>
+    /// <para>
+    /// 4: the plugin's lifetime (<see cref="TurboPlugin"/>'s <c>HotelReadyAsync</c>,
+    /// <see cref="IPluginContext.Stopping"/>, its registered services built over the host's),
+    /// per-server scheduled tasks (<c>PerServer</c>), furni grants under a reference
+    /// (<c>Hotel.GrantOutcome</c>) and the fake hotel's <c>FailNext</c> and starting ids. A plugin
+    /// built for 1 to 3 loads as before.
+    /// </para>
     /// </summary>
-    public const int VERSION = 3;
+    public const int VERSION = 4;
 
     /// <summary>The oldest plugin API this server still loads.</summary>
     public const int OLDEST = 1;

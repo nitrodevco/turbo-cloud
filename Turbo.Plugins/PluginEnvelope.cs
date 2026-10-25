@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Turbo.Contracts.Plugins;
 using Turbo.Runtime.AssemblyProcessing;
 
@@ -16,4 +17,7 @@ internal sealed class PluginEnvelope : AssemblyDescriptor
     public required IServiceProvider ServiceProvider { get; init; }
     public required List<object> Disposables { get; init; }
     public required PluginExtensions Extensions { get; init; }
+
+    /// <summary>Its hotel-ready hook, once it has been called; an unload waits for it.</summary>
+    public Task? Ready { get; set; }
 }
