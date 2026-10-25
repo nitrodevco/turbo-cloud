@@ -73,18 +73,19 @@ public sealed class WiredMovementsPacketTests
         Describe(packets[0].Users).Should().Equal("5: 3,3 -> 1,3");
     }
 
-    // W1 X1 with Execute In Order (2026-10-22 capture: only the furni's last step is sent): the
-    // carried user's last step goes with it.
+    // W1 addon.17.X1 (official client capture 2026-10-25T00-59-45: two Move and Rotate +x on
+    // one block, Execute In Order on the stack, one WiredMovements 7,7 -> 9,7, 3/3): the add-on
+    // changes nothing, the room is told start to final. Ours sent only the last step.
     [Fact]
-    public async Task With_execute_in_order_a_carried_user_is_told_its_last_step()
+    public async Task With_execute_in_order_a_carried_user_is_told_once_from_start_to_final()
     {
         await BuildAsync(inOrder: true, MOVE_WEST, MOVE_WEST);
 
         var packets = await ClickAsync();
 
         packets.Should().ContainSingle();
-        Describe(packets[0].FloorItems).Should().Equal("21: 2,3 -> 1,3");
-        Describe(packets[0].Users).Should().Equal("5: 2,3 -> 1,3");
+        Describe(packets[0].FloorItems).Should().Equal("21: 3,3 -> 1,3");
+        Describe(packets[0].Users).Should().Equal("5: 3,3 -> 1,3");
     }
 
     [Fact]

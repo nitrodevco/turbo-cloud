@@ -10,10 +10,15 @@ namespace Turbo.Rooms.Wired;
 /// they have, in one WiredMovements, one move per furni, wall item and user (official client
 /// capture, WIN63-202610201032: two move and two rotate effects on one sofa sent one
 /// WiredMovements per firing, never one per effect; 2026-10-03: a walk tile moved with the user
-/// it carried, both in one packet). Without "Execute In Order" the room sees the effects' moves
-/// of a furni as one, from where it stood to where they leave it, facing the way they leave it.
-/// With it, the room sees only the last move, from where the move before it left the furni. A
-/// furni left on the tile it stood on was only turned: that is a plain update of it
+/// it carried, both in one packet). The room sees the effects' moves of a furni as one, from
+/// where it stood to where they leave it, facing the way they leave it, also with "Execute In
+/// Order" (official client capture 2026-10-25T00-59-45, W1 lab addon.17.X1: two Move and Rotate
+/// +x on one block sent 7,7 -> 9,7, 3/3 with the add-on and 3/3 without). With the add-on a step
+/// that only turns the furni ends what was held of it, so the room sees only what comes after
+/// the last turn: of move, turn, move, turn only the turn, as a plain update, and of move, turn,
+/// move the last move from where the one before it left the furni (2026-10-22, two move and two
+/// rotate effects on one sofa). That the turn is what makes the difference is inferred: it is
+/// the one rule that fits both captures. A furni left on the tile it stood on was only turned: that is a plain update of it
 /// (<see cref="PlainUpdates"/>), with or without the add-on (official client capture,
 /// 2026-10-22T22-02-10: one rotate effect 6/6, and two rotates picked by the random add-on 1/1).
 /// Wall items and users are held the same way as furni (inferred: a carried user's move has to
@@ -88,7 +93,9 @@ internal sealed class WiredHeldMoves(bool inOrder, bool instant = false)
                         SourceX = held.SourceX,
                         SourceY = held.SourceY,
                         SourceZ = held.SourceZ,
-                    }
+                    },
+                static x =>
+                    x.SourceX == x.TargetX && x.SourceY == x.TargetY && x.SourceZ == x.TargetZ
             );
 
         foreach (var move in wallMoves)
@@ -103,7 +110,12 @@ internal sealed class WiredHeldMoves(bool inOrder, bool instant = false)
                         SourceY = held.SourceY,
                         SourceOffsetX = held.SourceOffsetX,
                         SourceOffsetY = held.SourceOffsetY,
-                    }
+                    },
+                static x =>
+                    x.SourceX == x.TargetX
+                    && x.SourceY == x.TargetY
+                    && x.SourceOffsetX == x.TargetOffsetX
+                    && x.SourceOffsetY == x.TargetOffsetY
             );
 
         foreach (var move in userMoves)
@@ -117,7 +129,9 @@ internal sealed class WiredHeldMoves(bool inOrder, bool instant = false)
                         SourceX = held.SourceX,
                         SourceY = held.SourceY,
                         SourceZ = held.SourceZ,
-                    }
+                    },
+                static x =>
+                    x.SourceX == x.TargetX && x.SourceY == x.TargetY && x.SourceZ == x.TargetZ
             );
 
         foreach (var direction in userDirections)
@@ -145,24 +159,24 @@ internal sealed class WiredHeldMoves(bool inOrder, bool instant = false)
     }
 
     /// <summary>
-    /// Holds <paramref name="move"/>: in order, in place of the object's earlier move; else as
-    /// the earlier move carried on to where this one leaves it (<paramref name="fromHeld"/>).
+    /// Holds <paramref name="move"/> as the object's earlier move carried on to where this one
+    /// leaves it (<paramref name="fromHeld"/>); in order, a step that only turns it
+    /// (<paramref name="isTurnOnly"/>) and the step after one take the earlier move's place.
     /// </summary>
     private void Hold<T>(
         List<T> held,
         T move,
         Func<T, RoomObjectId> objectIdOf,
-        Func<T, T, T> fromHeld
+        Func<T, T, T> fromHeld,
+        Func<T, bool> isTurnOnly
     )
     {
         var objectId = objectIdOf(move);
         var index = held.FindIndex(x => objectIdOf(x) == objectId);
 
-        if (inOrder)
+        if (inOrder && index >= 0 && (isTurnOnly(move) || isTurnOnly(held[index])))
         {
-            if (index >= 0)
-                held.RemoveAt(index);
-
+            held.RemoveAt(index);
             held.Add(move);
 
             return;
