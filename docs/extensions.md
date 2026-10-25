@@ -94,8 +94,8 @@ say which in its guide. One kind per problem keeps the surface learnable.
 
 | Kind | Use it to | May change the outcome? | Runs |
 | --- | --- | --- | --- |
-| **Event** | observe something that happened | no | after the fact |
-| **Pipeline / policy** | allow, refuse or adjust an action before it commits | yes, explicitly | before commit, in the owner's context |
+| **Event** | observe something that happened (`PurchaseCompletedEvent`, `PlayerLoggedInEvent`, `PlayerRegisteredEvent`, `RoomEnteredEvent`: `docs/plugin-policies.md`) | no | after the fact |
+| **Pipeline / policy** | allow, refuse or adjust an action before it commits (`IPurchasePolicy`, `IRoomEntryPolicy`, `IPlacementPolicy`: `docs/plugin-policies.md`) | yes, explicitly | before commit, in the owner's context |
 | **Service contract** | replace or add an implementation of a named contract | yes, the whole behaviour | wherever the contract is called |
 | **Registry** | add a new thing of a known kind (command, logic, game, message, web route) | n/a | as registered |
 | **Template patch** | change or extend an existing window, as data | presentation only | where the template is read |
@@ -132,6 +132,13 @@ the state change is saved, carrying a stable event id for idempotency, delivered
 turn. The asset movement outbox already has these semantics; the new tier generalises it rather
 than inventing a second mechanism.
 
+The first post-commit events are on the event bus: `DomainEvent` (an `EventId` for idempotency and
+`OccurredAtUtc`) published by `EventSystem.PublishCommitted` once the change is saved, on the thread
+pool and not awaited, never for a refused action; a plugin's `IEventHandler<T>` hears them.
+`PurchaseCompletedEvent`, `PlayerLoggedInEvent`, `PlayerRegisteredEvent` and `RoomEnteredEvent`
+are raised today (`docs/plugin-policies.md`). They are delivered in memory: one raised as a server
+stops is not kept, as the asset movement outbox's are.
+
 ### 4.2 Pipelines and policies
 
 `IMessageBehavior<T>` (packets) and `IEventBehavior<T>` exist. Packet middleware is the wrong level
@@ -147,6 +154,14 @@ the trading pass. Trades ask it of both players before they open and pick the re
 and the marketplace before a sale (locked: no trading privilege; no pass or receive only: no
 trading pass).
 Replacing it in the host's container changes all three; a plugin cannot replace it yet (§4.3).
+
+Purchase, room entry and placement (floor plan saves included) have plugin policies:
+`IPurchasePolicy`, `IRoomEntryPolicy` and `IPlacementPolicy`, found in a plugin's assembly as it
+loads and removed as it unloads, run in `Order`, then plugin key. A purchase's policies compose
+(each takes the decision of the ones before, the offer's own price first); for the others the first
+refusal is the answer. Two plugins with a policy of one kind both run and are reported as a conflict
+(logged, and listed on each plugin in the admin API). With none the hotel decides as it always did.
+`docs/plugin-policies.md`.
 
 ### 4.3 Service contracts
 
@@ -272,7 +287,8 @@ noted.
    `useApi` and a bundler preset are nitro-next's `packages/client-module-sdk`, kept equal to the
    client's API by its type check; the store API, links and layouts are next.
 7. **Policies** for trade, purchase, room entry and placement (§4.2), then post-commit domain events
-   (§4.1).
+   (§4.1). Purchase, room entry and placement done, with `npm run make policy <kind>`, and the first
+   four post-commit events (`docs/plugin-policies.md`); trade's policy is not a plugin's yet.
 8. **Data-only plugins** (themes without an assembly) and per-asset overlays (§4.6).
 9. **Scaffolding and dev loop**: `dotnet new turbo-plugin` generating both halves and their tests,
    one command that rebuilds and hot-reloads both while a player is online, one that packages the

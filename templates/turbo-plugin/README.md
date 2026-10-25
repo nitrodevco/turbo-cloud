@@ -56,6 +56,7 @@ guide to read (turbo-cloud `docs/`).
 | `npm run make patch habbo-friend-list-com/friend_list_xml` | an entry in `wwwroot/template-patches.json` to fill with ops | the client, as the plugin loads |
 | `npm run make migration AddPrizes` | `server/Database/SkillsDb.cs` (once; its `TablePrefix` in `manifest.json`) and the migration, by `dotnet ef migrations add` | the host, which migrates the tables as the plugin loads |
 | `npm run make schedule weekly-rotation --cron "0 18 * * MON"` | `server/Tasks/WeeklyRotation.cs`: a scheduled task (`--every 00:05:00` for an interval) | the scheduled task scan |
+| `npm run make policy purchase club-discount` | `server/Policies/ClubDiscountPolicy.cs`: allows, refuses or changes a purchase (`room-entry`, `placement` for the others) | the game policy scan |
 
 `make migration` needs `dotnet ef` once per machine (`dotnet tool install --global dotnet-ef`) and
 a built server (`TurboBin`): the context needs no design-time factory. Furni logic derives from
@@ -105,6 +106,28 @@ public sealed class WeeklyRotation(MyService service) : IScheduledTask
 
 Recipes, the cron format and the schedule-from-a-setting form: turbo-cloud `docs/plugin-scheduler.md`.
 
+## A policy, and what happened
+
+A policy decides before something is done: a public class implementing `IPurchasePolicy`,
+`IRoomEntryPolicy` or `IPlacementPolicy` (`Turbo.Primitives.Policies`) allows, refuses with a reason
+the player is shown, or changes the action (a purchase's price, a room to go to instead):
+
+```csharp
+public sealed class ClubDiscountPolicy(IHotel hotel) : IPurchasePolicy
+{
+    public async ValueTask<PurchaseDecision> DecideAsync(
+        PurchaseRequest request, PurchaseDecision proposed, CancellationToken ct) =>
+        (await hotel.Players.ClubAsync(request.PlayerId, ct)).Active
+            ? proposed with { CostCredits = proposed.CostCredits / 2 }
+            : proposed;
+}
+```
+
+What happened afterwards is an event: an `IEventHandler<PurchaseCompletedEvent>` (or
+`PlayerLoggedInEvent`, `PlayerRegisteredEvent`, `RoomEnteredEvent`) hears it once it is done, never
+for a refused action, and cannot undo it. Both are found as the plugin loads: turbo-cloud
+`docs/plugin-policies.md`.
+
 Guides (turbo-cloud `docs/`): `extensions.md` (the model), `hotel-api.md`, `client-modules.md`, `plugin-messages.md`,
 `commands.md`, `permissions.md`, `settings.md`, `database.md` (when the plugin keeps data),
-`plugin-scheduler.md`.
+`plugin-scheduler.md`, `plugin-policies.md`.
