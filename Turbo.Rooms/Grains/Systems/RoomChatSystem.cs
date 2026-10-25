@@ -116,6 +116,8 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
         if (text.Length == 0)
             return false;
 
+        var typed = text;
+
         text = ModerationModule.ApplyFilter(text);
 
         if (text.Length == 0)
@@ -140,6 +142,7 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             ObjectId = speaker.ObjectId,
             ChatType = chatType,
             Text = text,
+            UnfilteredText = typed == text ? null : typed,
             StyleId = styleId,
             TrackingId = trackingId,
             Gesture = GetGestureForText(text),

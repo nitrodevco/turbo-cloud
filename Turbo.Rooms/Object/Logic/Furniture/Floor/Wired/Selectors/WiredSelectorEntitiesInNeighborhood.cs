@@ -20,10 +20,6 @@ public class WiredSelectorEntitiesInNeighborhood(
 
     public override bool SelectsUsers => true;
 
-    // Ascending room index, bots included (official client capture 2026-10-24T18-20-40, W4 lab
-    // selector.12.R4: "Frank,Hutch.,frank" for indices 0,2,3, 2/2).
-    public override WiredUserOrderType UserOrder => WiredUserOrderType.RoomIndex;
-
     protected override void CollectTile(int tileId, WiredSelectionSet output)
     {
         foreach (var avatar in AvatarModule.GetAvatarsOnTile(tileId))

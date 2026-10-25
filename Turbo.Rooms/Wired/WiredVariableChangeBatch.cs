@@ -62,11 +62,7 @@ public sealed class WiredVariableChangeBatch
                 value = WiredVariableOperations.Apply(change.Operation, value, change.Operand);
 
             // Written even when it stays the same: "Variable Changed" can react to "unchanged".
-            changed |= await variable.SetValueAsync(
-                ctx,
-                group.Key,
-                new WiredVariableValue((int)value)
-            );
+            changed |= await variable.SetValueAsync(ctx, group.Key, new WiredVariableValue(value));
         }
 
         return changed;

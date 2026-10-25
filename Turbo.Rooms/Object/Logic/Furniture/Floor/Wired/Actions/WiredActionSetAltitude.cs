@@ -27,6 +27,9 @@ public class WiredActionSetAltitude(
 {
     public override int WiredCode => (int)WiredActionType.SET_FURNI_ALTITUDE;
 
+    // After every other effect (RoomWiredSystem.ChooseActions).
+    public override int RunOrder => int.MaxValue;
+
     protected override bool AllowsWallFurni => true;
 
     public override List<IWiredParamRule> GetIntParamRules() =>

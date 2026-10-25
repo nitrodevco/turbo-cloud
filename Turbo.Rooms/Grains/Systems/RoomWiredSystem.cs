@@ -1308,6 +1308,12 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 }
             }
 
+            // The held changes are made before the next effect of another type, which sees them
+            // (official client capture 2026-10-25T04-08-08, LAB-W5 wlab9 action.40.X3b: Show
+            // Message after Change Variable showed the changed value 8/8).
+            if (action is not WiredActionChangeVariable)
+                await FlushVariableChangesAsync(pending, ct);
+
             var succeeded = false;
 
             try
@@ -1710,17 +1716,19 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     }
 
     /// <summary>
-    /// The effects a run of the stack makes and their order. Effects run in a random order unless
-    /// "Execute In Order" keeps them in stacking order (<see cref="IWiredPolicy.ExecuteInOrder"/>).
-    /// In the random order Set Furni Altitude comes after the other effects: a furni moved and
-    /// given an altitude in one firing always ended at that altitude, the altitude box below or
-    /// above the mover (official client capture 2026-10-24, W1 lab action.29.X1, 16/16; the move
-    /// alone drops the furni to the target tile's top). Match Snapshot comes after the others too:
-    /// a lamp toggled and matched to its snapshot in one firing always ended in the snapshot's
-    /// state, the snapshot box below or above the toggle (official client capture 2026-10-24, W2
-    /// lab action.0.X1, 12/12 and W1 lab 6/6). Whether a snapshot goes before or after an altitude
-    /// box was not measured; it goes before, so the altitude still comes last. Nothing is
-    /// remembered until <see cref="CommitPick"/>.
+    /// The effects a run of the stack makes and their order. Unless "Execute In Order" keeps them in
+    /// stacking order (<see cref="IWiredPolicy.ExecuteInOrder"/>), effects of different types run
+    /// in a fixed order by their <see cref="IWiredAction.RunOrder"/> and same-type effects in a
+    /// random order (official client capture 2026-10-25, LAB-W5 wlab9 S67 and LAB-W4
+    /// action.49.L4). Set Furni Altitude comes after the other effects: a furni moved and given an
+    /// altitude in one firing always ended at that altitude, the altitude box below or above the
+    /// mover (official client capture 2026-10-24, W1 lab action.29.X1, 16/16; the move alone drops
+    /// the furni to the target tile's top). Match Snapshot comes after the others too: a lamp
+    /// toggled and matched to its snapshot in one firing always ended in the snapshot's state, the
+    /// snapshot box below or above the toggle (official client capture 2026-10-24, W2 lab
+    /// action.0.X1, 12/12 and W1 lab 6/6). Whether a snapshot goes before or after an altitude box
+    /// was not measured; it goes before, so the altitude still comes last. Nothing is remembered
+    /// until <see cref="CommitPick"/>.
     /// </summary>
     private WiredActionPick ChooseActions(
         List<IWiredAction> actions,
@@ -1734,23 +1742,14 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         {
             Random.Shared.Shuffle(CollectionsMarshal.AsSpan(pick.Actions));
 
-            MoveToEnd<WiredActionMatchToSnapshot>(pick.Actions);
-            MoveToEnd<WiredActionSetAltitude>(pick.Actions);
+            // OrderBy is stable: same-type effects keep their shuffled order.
+            var ordered = pick.Actions.OrderBy(x => x.RunOrder).ToList();
+
+            pick.Actions.Clear();
+            pick.Actions.AddRange(ordered);
         }
 
         return pick;
-    }
-
-    private static void MoveToEnd<T>(List<IWiredAction> actions)
-        where T : IWiredAction
-    {
-        var late = actions.FindAll(x => x is T);
-
-        if (late.Count == 0 || late.Count == actions.Count)
-            return;
-
-        actions.RemoveAll(x => x is T);
-        actions.AddRange(late);
     }
 
     private WiredActionPick PickActions(

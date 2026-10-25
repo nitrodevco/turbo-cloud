@@ -64,6 +64,91 @@ public sealed class WiredBotBoxesTests
         _room.Harness.Fakes.SentToRoom<ChatMessageComposer>().Should().HaveCount(talking);
     }
 
+    // action.23.L4 (LAB-W8 wlab9, official client capture 2026-10-25T02-57-3*): twelve Bot Talks
+    // in one firing said 10 lines (3/3); a firing 2.1 to 4.6 s after a burst said nothing (3/3),
+    // one 5.7 s after it 10 again (2/2). Ours said every line.
+    [Fact]
+    public async Task A_bot_says_ten_lines_then_nothing_until_five_seconds_have_passed()
+    {
+        AddBot(FRANK, "Frank", 1, 1);
+        var talk = await SaveBotBoxAsync<WiredActionBotTalk>(
+            "wf_act_bot_talk",
+            "Frank\thi",
+            ints: [0, -1, 0]
+        );
+
+        async Task<int> TwelveLinesAsync()
+        {
+            var before = _room.Harness.Fakes.SentToRoom<ChatMessageComposer>().Count();
+
+            for (var i = 0; i < 12; i++)
+                await talk.ExecuteAsync(Execution(), Ct);
+
+            return _room.Harness.Fakes.SentToRoom<ChatMessageComposer>().Count() - before;
+        }
+
+        (await TwelveLinesAsync()).Should().Be(10);
+        _room.Clock.AdvanceMs(4_600);
+        (await TwelveLinesAsync()).Should().Be(0);
+        _room.Clock.AdvanceMs(1_100);
+        (await TwelveLinesAsync()).Should().Be(10);
+    }
+
+    // action.23.L3b / trigger.0.L3b (LAB-W8 wlab9, 2026-10-25T02-53..02-55): Says Keyword "hi" +
+    // Bot Talk "Frank\thi" on one tile, a user says "hi": the bot's line fires its own stack again,
+    // and the loop stops at 10 bot lines (10/10/10/10), not at the 100 executions wired allows.
+    [Fact]
+    public async Task A_bot_line_firing_its_own_says_stack_stops_at_ten_lines()
+    {
+        AddBot(FRANK, "Frank", 1, 1);
+        _room.Enter(USER, 5, 5, name: "Hutch.");
+        _room.AddBox<WiredTriggerHabboSaysKeyword>(BOX, 0, 11, "wf_trg_says_something");
+        (await _room.SaveAsync<UpdateTriggerMessage>(BOX, intParams: [0, 0, 0], stringParam: "hi"))
+            .Should()
+            .BeTrue();
+        _room.AddBox<WiredActionBotTalk>(2, 0, 11, "wf_act_bot_talk");
+        (
+            await _room.SaveAsync<UpdateActionMessage>(
+                2,
+                intParams: [0, -1, 0],
+                playerSources:
+                [
+                    [WiredPlayerSourceType.BotByName],
+                ],
+                stringParam: "Frank\thi",
+                definitionSpecifics: [0]
+            )
+        ).Should().BeTrue();
+        await Wired.OnRoomEventAsync(
+            new Turbo.Primitives.Rooms.Events.Wired.RoomWiredStackChangedEvent
+            {
+                RoomId = 1,
+                CausedBy = Turbo.Primitives.Action.ActionContext.CreateForSystem(1),
+                StackIds = [_room.Map.ToIdx(0, 11)],
+            },
+            Ct
+        );
+        await TickAsync(1);
+
+        await Wired.OnRoomEventAsync(
+            new Turbo.Primitives.Rooms.Events.Player.PlayerChatEvent
+            {
+                RoomId = 1,
+                CausedBy = _room.ContextFor(USER),
+                PlayerId = (Turbo.Primitives.Players.PlayerId)(100 + USER),
+                ObjectId = USER,
+                ChatType = Turbo.Primitives.Rooms.Enums.RoomChatType.Chat,
+                StyleId = 0,
+                TrackingId = 0,
+                Gesture = default,
+                Text = "hi",
+            },
+            Ct
+        );
+
+        (await TickAsync(4)).Should().Be(10);
+    }
+
     // action.25.B1 (2/2, a different bot each run) and action.25.B1b (stop: one bot).
     [Fact]
     public async Task Bot_follow_takes_one_bot_of_the_name()
