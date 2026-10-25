@@ -191,6 +191,22 @@ public abstract class FurnitureWiredVariableLogic
     {
         var snapshot = GetVarSnapshot();
 
+        // A delayed give whose selected user left the room gives nothing, yet the box flashes as
+        // for a give (official client capture 2026-10-24T18-17-45, wired matrix action.39.B2,
+        // 2/2); Change and Remove on a leaver do not flash (action.40.B2, 2/2).
+        if (
+            key.TargetType == WiredVariableTargetType.User
+            && snapshot.Flags.Has(WiredVariableFlags.CanCreateAndDelete)
+            && CanBind(key)
+            && !AvatarModule.TryGetAvatar(RoomObjectId.Parse(key.TargetId), out _)
+        )
+        {
+            FlashWithinAsync(6, 7)
+                .LogAndForget(Logger, "flash a wired box in room {RoomId}", _roomGrain.RoomId);
+
+            return Task.FromResult(false);
+        }
+
         if (
             !snapshot.Flags.Has(WiredVariableFlags.CanCreateAndDelete)
             || !CanBind(key)
