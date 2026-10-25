@@ -12,7 +12,7 @@ using Xunit;
 namespace Turbo.Tests.Assets;
 
 /// <summary>
-/// A <c>.nitro</c> of the old layout - a count, then each file's name and zlib'd data, its asset
+/// A <c>.nitro</c> of the old layout - a count, then each file's name and zlib'd (or gzip'd) data, its asset
 /// data keyed by name and id with the spritesheet inside - is told apart by its layout, read, and
 /// repacked as the zip the client reads.
 /// </summary>
@@ -45,7 +45,7 @@ public sealed class LegacyNitroBundleTests
         // Its files' data is zlib'd: a file of plain bytes is not one.
         LegacyNitroBundle
             .IsLegacy(
-                Pack(new Dictionary<string, byte[]> { ["a.json"] = "{}"u8.ToArray() }, zlib: false)
+                Pack(new Dictionary<string, byte[]> { ["a.json"] = "{}"u8.ToArray() }, raw => raw)
             )
             .Should()
             .BeFalse();
@@ -113,6 +113,30 @@ public sealed class LegacyNitroBundleTests
     }
 
     [Fact]
+    public void An_old_bundle_of_gzipd_files_reads_as_one_of_zlibd_files()
+    {
+        // Bundles in the wild hold gzip members (1f 8b) as well as zlib streams.
+        var gzipped = Legacy(gzip: true);
+
+        gzipped[2 + 2 + $"{NAME}.json".Length + 4].Should().Be(0x1F);
+        LegacyNitroBundle.IsLegacy(gzipped).Should().BeTrue();
+
+        var files = LegacyNitroBundle.Read(gzipped);
+        var zlibbed = LegacyNitroBundle.Read(Legacy());
+
+        files.Keys.Should().Equal(zlibbed.Keys);
+        files[$"{NAME}.json"].Should().Equal(zlibbed[$"{NAME}.json"]);
+        files[$"{NAME}.png"].Should().Equal(IMAGE);
+
+        FurnitureAssetReader.Read(gzipped, NAME).Logic.Should().Be("furniture_dice");
+        NitroBundle
+            .Read(NitroConverter.Convert(gzipped, NAME).Write())
+            .Files[$"{NAME}.png"]
+            .Should()
+            .Equal(IMAGE);
+    }
+
+    [Fact]
     public void A_file_of_an_old_bundle_that_is_not_zlib_data_is_refused()
     {
         var legacy = Legacy();
@@ -126,7 +150,7 @@ public sealed class LegacyNitroBundleTests
     }
 
     /// <summary>An old bundle of a chest: a dice's logic, 2 by 1 and half a tile high, two states, three colours.</summary>
-    internal static byte[] Legacy(string name = NAME)
+    internal static byte[] Legacy(string name = NAME, bool gzip = false)
     {
         JsonObject Frames(int id) =>
             new()
@@ -235,11 +259,15 @@ public sealed class LegacyNitroBundleTests
             {
                 [$"{name}.json"] = Encoding.UTF8.GetBytes(data.ToJsonString()),
                 [$"{name}.png"] = IMAGE,
-            }
+            },
+            gzip ? Gzip : Zlib
         );
     }
 
-    private static byte[] Pack(IReadOnlyDictionary<string, byte[]> files, bool zlib = true)
+    private static byte[] Pack(
+        IReadOnlyDictionary<string, byte[]> files,
+        Func<byte[], byte[]> compress
+    )
     {
         using var output = new MemoryStream();
         Span<byte> number = stackalloc byte[4];
@@ -250,7 +278,7 @@ public sealed class LegacyNitroBundleTests
         foreach (var (name, raw) in files)
         {
             var nameBytes = Encoding.UTF8.GetBytes(name);
-            var data = zlib ? Zlib(raw) : raw;
+            var data = compress(raw);
 
             BinaryPrimitives.WriteUInt16BigEndian(number, (ushort)nameBytes.Length);
             output.Write(number[..2]);
@@ -269,6 +297,16 @@ public sealed class LegacyNitroBundleTests
 
         using (var zlib = new ZLibStream(output, CompressionLevel.Optimal, leaveOpen: true))
             zlib.Write(raw);
+
+        return output.ToArray();
+    }
+
+    private static byte[] Gzip(byte[] raw)
+    {
+        using var output = new MemoryStream();
+
+        using (var gzip = new GZipStream(output, CompressionLevel.Optimal, leaveOpen: true))
+            gzip.Write(raw);
 
         return output.ToArray();
     }

@@ -237,7 +237,7 @@ pieces.
 | `.swf` | `SwfLibrary` | Habbo's SWF libraries: `FWS` and zlib `CWS`. LZMA `ZWS` is refused for now. |
 | `.hab` | `HabLibrary` | The HTML client's libraries: a zlib'd JSON manifest and its entries. |
 | `.nitro` | `NitroBundle` | The client's bundles: a zip of the asset data, the sheet and its frames. |
-| `.nitro` (old layout) | `LegacyNitroBundle` | Bundles from before they were zips: a big-endian count, then each file's name and zlib'd data. Its asset data keys its lists by name or id and holds the spritesheet. |
+| `.nitro` (old layout) | `LegacyNitroBundle` | Bundles from before they were zips: a big-endian count, then each file's name and zlib'd or gzip'd data. Its asset data keys its lists by name or id and holds the spritesheet. |
 
 `FurnitureAssetReader.Read` tells them apart by their first bytes and reads a furniture's
 `FurnitureAssetInfo` from any of them. Each file is checked against `AssetLimits` before it is
