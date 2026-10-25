@@ -9,8 +9,8 @@ internal class SetSoundSettingsMessageParser : IParser
     public IMessageEvent Parse(IClientPacket packet) =>
         new SetSoundSettingsMessage
         {
-            TraxVolume = packet.PopInt(),
-            FurniVolume = packet.PopInt(),
             GenericVolume = packet.PopInt(),
+            FurniVolume = packet.PopInt(),
+            TraxVolume = packet.PopInt(),
         };
 }
