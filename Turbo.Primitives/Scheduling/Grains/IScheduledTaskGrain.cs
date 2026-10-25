@@ -66,12 +66,17 @@ public interface IScheduledTaskServer : IGrainObserver
 /// <param name="Plugin">The plugin it belongs to.</param>
 /// <param name="Schedule">Its schedule as written (<see cref="TaskSchedule"/>); null for run-now only.</param>
 /// <param name="RunMissed">Whether a run missed while no server was up runs once at the next start.</param>
+/// <param name="PerServer">
+/// Run by every server on its own clock (<c>[Every(..., PerServer = true)]</c>): the grain lists it,
+/// keeps its last run and asks every server on a run now, but never starts its scheduled runs.
+/// </param>
 [GenerateSerializer, Immutable]
 public sealed record ScheduledTaskEntry(
     [property: Id(0)] string Key,
     [property: Id(1)] string Plugin,
     [property: Id(2)] string? Schedule,
-    [property: Id(3)] bool RunMissed
+    [property: Id(3)] bool RunMissed,
+    [property: Id(4)] bool PerServer = false
 );
 
 [GenerateSerializer]
@@ -136,6 +141,10 @@ public sealed record ScheduledTaskSnapshot
     /// <summary>How many servers have it loaded.</summary>
     [Id(9)]
     public int Servers { get; init; }
+
+    /// <summary>Whether every server runs it on its own clock rather than one per tick for the cluster.</summary>
+    [Id(10)]
+    public bool PerServer { get; init; }
 }
 
 [GenerateSerializer]
@@ -163,4 +172,10 @@ public static class ScheduledTaskTimes
 
     /// <summary>How long an unload waits for a cancelled run to end before it goes on without it.</summary>
     public static readonly TimeSpan CancelWait = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// At most how often a routine run of a task due again within this long writes its last run
+    /// (<c>scheduled_task_runs</c>); failures, run now and longer schedules are written at once.
+    /// </summary>
+    public static readonly TimeSpan StoreEvery = TimeSpan.FromMinutes(1);
 }

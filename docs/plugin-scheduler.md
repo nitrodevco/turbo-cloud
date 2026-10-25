@@ -9,15 +9,22 @@ What the server promises:
 
 - **One run per cluster.** However many servers the hotel runs, each run happens on one of them.
   The schedule is kept by one Orleans grain for the whole cluster; every server tells it which tasks
-  it has loaded, and it asks one of them for each run.
+  it has loaded, and it asks one of them for each run. A task about what one server holds in its
+  own memory says `PerServer = true` instead (see [One run per server](#one-run-per-server)).
 - **Never two runs at once.** A run that falls due while the one before is still going is skipped
   and counted (the panel shows how many). There is no queue of late runs.
 - **Missed runs are skipped, unless you ask.** When no server was up at the time a run was due, it
   is not run later, and the next run is the next one due from then. A task with `RunMissed = true`
   runs once as the first server with it starts, however many runs it missed.
 - **The schedule survives restarts.** Each task's last run is kept in the database
-  (`scheduled_task_runs`), so a weekly job counts its week from the last time it ran, not from the
-  last restart.
+  (`scheduled_task_runs`, one row per task, updated in place), so a weekly job counts its week from
+  the last time it ran, not from the last restart. A task due again within a minute writes its
+  routine runs at most once a minute (a restart counts it from then anyway); a failure, a cancel,
+  a run now and any task due less often are written as they end.
+- **Quiet in the log.** A routine run is logged at `Trace`, below the shipped `"Turbo": "Debug"`,
+  so a task every few seconds does not fill the log. Its first run on a server, a run now and a
+  cancelled run are `Information`, a failure is an `Error` with its exception, and a skipped run
+  is a `Warning`.
 - **Unload cancels.** A plugin that unloads (a reload, a disable, the server stopping) has its
   running task's `CancellationToken` cancelled, and the unload waits for the run to end (up to 10
   seconds) before the plugin's own `StopAsync` and before its services are disposed.
@@ -116,6 +123,26 @@ from a setting is tested with the setting's value. The template's
 `tests/Skills.Tests/SkillsWeeklyResetTests.cs` is a working example. `TaskSchedule.Parse(text)
 .Next(after)` and `.Describe()` (in `Turbo.Primitives`) check a schedule on its own.
 
+## One run per server
+
+By default a task runs once per tick for the whole cluster: right for anything that changes the
+database, pays players or sends hotel-wide notices, as two servers doing it would do it twice.
+A task that works on what one server holds in its own memory (the players online there, a cache it
+keeps, pending checks it remembers) would then tick on one server only. Such a task says so:
+
+```csharp
+[Every("00:00:30", PerServer = true)]
+public sealed class AfkCheck(AfkWatch watch) : IScheduledTask
+{
+    public Task RunAsync(ScheduledTaskRun run, CancellationToken ct) => watch.SweepAsync(ct);
+}
+```
+
+Every server that has the plugin loaded runs it on its own clock, whether or not it can reach the
+scheduler grain, never two runs at once on the same server. The panel lists it once with how many
+servers have it, its last run is the latest any of them reported, and **Run now** runs it once on
+every one of them. Its runs count from the server's start, so `RunMissed` does not apply.
+
 ## The admin API
 
 Authenticated as [admin-panel.md](admin-panel.md#calling-the-admin-api) says (`Authorization: Bearer
@@ -123,7 +150,7 @@ Authenticated as [admin-panel.md](admin-panel.md#calling-the-admin-api) says (`A
 
 | Endpoint | Needs | Answers |
 | --- | --- | --- |
-| `GET /api/plugins/schedule` | `admin.plugins.view` | `{ tasks: [{ key, plugin, schedule, description, scheduleError, nextRunAt, lastRunAt, lastDurationMs, lastOutcome, lastError, lastManual, runningSince, skipped, servers }], canManage }` (times UTC) |
+| `GET /api/plugins/schedule` | `admin.plugins.view` | `{ tasks: [{ key, plugin, schedule, description, scheduleError, nextRunAt, lastRunAt, lastDurationMs, lastOutcome, lastError, lastManual, runningSince, skipped, servers, perServer }], canManage }` (times UTC) |
 | `POST /api/plugins/schedule/{key}/run` | `admin.plugins.manage` | 200 started, 409 already running, 404 no such task, 503 no server could run it. Written to the command log. |
 
 ## Not in this

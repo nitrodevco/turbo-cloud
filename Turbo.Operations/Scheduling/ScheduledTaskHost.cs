@@ -12,6 +12,7 @@ using Orleans;
 using Turbo.Contracts.Plugins.Scheduling;
 using Turbo.Plugins;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Scheduling;
 using Turbo.Primitives.Scheduling.Grains;
 
 namespace Turbo.Operations.Scheduling;
@@ -19,7 +20,9 @@ namespace Turbo.Operations.Scheduling;
 /// <summary>
 /// This server's side of the scheduler: the scheduled tasks of the plugins loaded here, told to
 /// the cluster's <see cref="IScheduledTaskGrain"/> as they come and go (and every few seconds
-/// besides), and run here when the grain picks this server for a run. A plugin that starts to
+/// besides), and run here when the grain picks this server for a run. A per-server task
+/// (<see cref="TaskScheduleAttribute.PerServer"/>) is run here on this server's own clock, grain
+/// or no grain, and only reported to it. A plugin that starts to
 /// stop has its runs cancelled and waited for first (<see cref="IPluginStopping"/>), so a run
 /// never outlives the services it uses.
 /// </summary>
@@ -37,6 +40,9 @@ internal sealed class ScheduledTaskHost(
 
     /// <summary>The keys of the tasks loaded here, for tests and the log.</summary>
     internal IReadOnlyCollection<string> Keys => [.. _tasks.Keys];
+
+    /// <summary>Done when every run in progress here has ended and been reported, for tests.</summary>
+    internal Task IdleAsync() => Task.WhenAll(_tasks.Values.Select(t => t.Running).OfType<Task>());
 
     /// <summary>
     /// Adds <paramref name="tasks"/> of <paramref name="plugin"/>; disposing the result takes them
@@ -111,6 +117,15 @@ internal sealed class ScheduledTaskHost(
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            try
+            {
+                RunDuePerServer();
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Scheduled tasks: the per-server tasks could not be run");
+            }
+
             try
             {
                 _reference ??= grains.CreateObjectReference<IScheduledTaskServer>(this);
@@ -193,6 +208,59 @@ internal sealed class ScheduledTaskHost(
         CancellationToken ct
     ) => grains.GetScheduledTaskGrain().SubscribeAsync(_serverId, reference, entries, ct);
 
+    /// <summary>
+    /// Starts every per-server task that is due on this server's clock; one still running when
+    /// it falls due again skips that run. The loop calls it each tick, tests with their clock.
+    /// </summary>
+    internal void RunDuePerServer()
+    {
+        var now = time.GetUtcNow();
+
+        foreach (var local in _tasks.Values)
+        {
+            if (!local.Definition.PerServer || local.Stopped.IsCancellationRequested)
+                continue;
+
+            var expression = ScheduleOf(local);
+
+            if (
+                !local.ScheduleRead
+                || !string.Equals(expression, local.Expression, StringComparison.Ordinal)
+            )
+            {
+                local.ScheduleRead = true;
+                local.Expression = expression;
+                local.Schedule = TaskSchedule.TryParse(expression, out _);
+                local.NextRunAt = local.Schedule?.Next(now);
+            }
+
+            if (local.NextRunAt is not { } due || due > now || local.Schedule is not { } schedule)
+                continue;
+
+            local.NextRunAt =
+                schedule.Next(due) is { } next && next > now ? next : schedule.Next(now);
+
+            lock (local)
+            {
+                if (local.Running is { IsCompleted: false })
+                {
+                    logger.LogWarning(
+                        "Scheduled task {Key}: the run due {Due:u} was skipped, the one before is still going",
+                        local.Definition.Key,
+                        due
+                    );
+
+                    continue;
+                }
+
+                local.Running = Task.Run(
+                    () => RunAsync(local, Guid.NewGuid(), due, manual: false),
+                    CancellationToken.None
+                );
+            }
+        }
+    }
+
     private ImmutableArray<ScheduledTaskEntry> Entries() =>
         [
             .. _tasks
@@ -202,7 +270,8 @@ internal sealed class ScheduledTaskHost(
                     t.Definition.Key,
                     t.Plugin,
                     ScheduleOf(t),
-                    t.Definition.RunMissed
+                    t.Definition.RunMissed,
+                    t.Definition.PerServer
                 )),
         ];
 
@@ -268,9 +337,16 @@ internal sealed class ScheduledTaskHost(
             manual
         );
 
-        // A failure is logged above with its exception; a task every second would fill the log.
+        // A failure is logged above with its exception. A routine run is Trace, below the
+        // shipped "Turbo": "Debug": a task every few seconds would otherwise fill the log (8
+        // tasks, 148 lines a minute). Its first run here, a run now and a cancel say so once.
+        var first = !local.Ran;
+        local.Ran = true;
+
         logger.Log(
-            outcome == ScheduledTaskOutcome.Cancelled ? LogLevel.Information : LogLevel.Debug,
+            outcome != ScheduledTaskOutcome.Succeeded || manual || first
+                ? LogLevel.Information
+                : LogLevel.Trace,
             "Scheduled task {Key} {Outcome} in {DurationMs} ms{Manual}",
             key,
             outcome,
@@ -355,6 +431,18 @@ internal sealed class ScheduledTaskHost(
         public CancellationTokenSource Stopped { get; } = new();
 
         public Task? Running { get; set; }
+
+        /// <summary>Whether it has run here since it was registered (its first run is logged).</summary>
+        public bool Ran { get; set; }
+
+        // A per-server task's own clock: the schedule last read and the next run it gives.
+        public bool ScheduleRead { get; set; }
+
+        public string? Expression { get; set; }
+
+        public TaskSchedule? Schedule { get; set; }
+
+        public DateTimeOffset? NextRunAt { get; set; }
     }
 
     private sealed class Registration(ScheduledTaskHost host, List<LocalTask> tasks) : IDisposable
@@ -377,4 +465,6 @@ internal sealed record ScheduledTaskDefinition(
 )
 {
     public bool RunMissed => Attribute?.RunMissed ?? false;
+
+    public bool PerServer => Attribute?.PerServer ?? false;
 }

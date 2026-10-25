@@ -12,6 +12,15 @@ public abstract class TaskScheduleAttribute : Attribute
     /// </summary>
     public bool RunMissed { get; init; }
 
+    /// <summary>
+    /// Runs on every server that has the plugin loaded, each on its own clock, rather than once
+    /// for the cluster: for work on what each server holds in its own memory (its online players,
+    /// a cache it keeps). Its runs are not counted from the last one after a restart, so
+    /// <see cref="RunMissed"/> does not apply. Default: once per cluster, which is what a task that
+    /// changes the database or pays players wants.
+    /// </summary>
+    public bool PerServer { get; init; }
+
     /// <summary>The task's name in its key (<c>&lt;plugin key&gt;.&lt;name&gt;</c>); the class name by default.</summary>
     public string? Name { get; init; }
 
