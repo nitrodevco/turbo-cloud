@@ -299,6 +299,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<ScheduledTaskRunEntity> ScheduledTaskRuns { get; init; }
 
+    public DbSet<FurnitureGrantReceiptEntity> FurnitureGrantReceipts { get; init; }
+
     protected override void OnModelCreating(ModelBuilder mb)
     {
         base.OnModelCreating(mb);

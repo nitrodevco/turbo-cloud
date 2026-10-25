@@ -66,17 +66,23 @@ public sealed class FakePlayers : IHotelPlayers
 
     public IReadOnlyList<FakePlayer> All => _players;
 
+    /// <summary>
+    /// The id the next <see cref="Add"/> gets (1 to start); set it when the code under test keeps
+    /// ids of its own (a system account at 1, ids from a recorded hotel).
+    /// </summary>
+    public int NextId { get; set; } = 1;
+
     /// <summary>Every message and composer sent to a player who was online, in order.</summary>
     public IReadOnlyList<(PlayerId Player, object Message)> Sent => _sent;
 
-    /// <summary>A new player, ids counting up from 1.</summary>
+    /// <summary>A new player, ids counting up from <see cref="NextId"/>.</summary>
     public FakePlayer Add(string name, bool online = false)
     {
         if (_players.Any(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
             throw new ArgumentException($"The fake hotel already has a player called {name}.");
 
         var player = new FakePlayer(
-            new PlayerId(_players.Count + 1),
+            new PlayerId(TakeId(name)),
             name,
             _hotel.Clock.GetUtcNow().UtcDateTime
         )
@@ -87,6 +93,16 @@ public sealed class FakePlayers : IHotelPlayers
         _players.Add(player);
 
         return player;
+    }
+
+    private int TakeId(string name)
+    {
+        if (_players.Any(x => x.Id.Value == NextId))
+            throw new ArgumentException(
+                $"The fake hotel already has a player {NextId}; {name} needs another NextId."
+            );
+
+        return NextId++;
     }
 
     public Task<HotelPlayer?> GetAsync(PlayerId player, CancellationToken ct) =>

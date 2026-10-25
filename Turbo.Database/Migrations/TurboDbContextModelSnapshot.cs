@@ -2057,6 +2057,30 @@ namespace Turbo.Database.Migrations
                     b.ToTable("furniture");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Furniture.FurnitureGrantReceiptEntity", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("reference");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("FurnitureId")
+                        .HasColumnType("int")
+                        .HasColumnName("furniture_id");
+
+                    b.HasKey("PlayerId", "Reference");
+
+                    b.ToTable("furniture_grant_receipts");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.GamedataBuildEntity", b =>
                 {
                     b.Property<int>("Id")

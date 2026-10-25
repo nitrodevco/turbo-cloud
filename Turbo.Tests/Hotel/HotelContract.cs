@@ -225,6 +225,38 @@ public abstract class HotelContract
             .BeEquivalentTo(new Dictionary<int, int> { [throne] = 2 });
     }
 
+    /// <summary>
+    /// Pins the 10-25 migration's gap: a prize claimed twice (a retry after a crash) granted its
+    /// furni twice, as the grant had no reference.
+    /// </summary>
+    [Fact]
+    public async Task A_furni_grant_under_a_reference_is_made_once_per_player()
+    {
+        await using var world = NewWorld();
+        var alice = world.AddPlayer("Alice");
+        var bob = world.AddPlayer("Bob");
+        var throne = world.AddFurniture("throne");
+        await world.StartAsync(Ct);
+        var inventory = world.Hotel.Inventory;
+
+        (await inventory.GrantFurnitureAsync(alice, throne, "test:prize-1", "test.prize", Ct))
+            .Should()
+            .Be(GrantOutcome.Granted);
+        (await inventory.GrantFurnitureAsync(alice, throne, "test:prize-1", "test.prize", Ct))
+            .Should()
+            .Be(GrantOutcome.AlreadyGranted);
+        (await inventory.GrantFurnitureAsync(bob, throne, "test:prize-1", "test.prize", Ct))
+            .Should()
+            .Be(GrantOutcome.Granted, "a reference is per player");
+        (await inventory.GrantFurnitureAsync(alice, 999, "test:prize-2", "test.prize", Ct))
+            .Should()
+            .Be(GrantOutcome.Refused);
+
+        (await world.Hotel.Catalog.CirculationAsync([throne], Ct))
+            .Should()
+            .BeEquivalentTo(new Dictionary<int, int> { [throne] = 2 });
+    }
+
     [Fact]
     public async Task A_badge_is_given_once()
     {

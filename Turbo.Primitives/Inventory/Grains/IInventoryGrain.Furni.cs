@@ -121,6 +121,18 @@ public partial interface IInventoryGrain
         CancellationToken ct
     );
 
+    /// <summary>
+    /// Creates one furniture row of a definition in this inventory once per
+    /// <paramref name="reference"/>: true when it did, false when this player was granted under
+    /// that reference already (or the definition does not exist), and nothing is made.
+    /// </summary>
+    public Task<bool> GrantFurnitureOnceAsync(
+        int definitionId,
+        string reference,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
     public Task<FurnitureItemSnapshot?> GetItemSnapshotAsync(
         RoomObjectId itemId,
         CancellationToken ct

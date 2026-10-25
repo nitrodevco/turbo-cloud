@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -57,10 +58,16 @@ public sealed class FakeRooms : IHotelRooms
 
     public IReadOnlyList<(RoomId Room, PlayerId Player, string Text)> Whispers => _whispers;
 
-    /// <summary>A new room, ids counting up from 1.</summary>
+    /// <summary>The id the next <see cref="Add"/> gets (1 to start); set it to match the ids a test needs.</summary>
+    public int NextId { get; set; } = 1;
+
+    /// <summary>A new room, ids counting up from <see cref="NextId"/>.</summary>
     public FakeRoom Add(string name, FakePlayer owner, bool isPublic = false)
     {
-        var room = new FakeRoom(new RoomId(_rooms.Count + 1), name, owner) { IsPublic = isPublic };
+        if (_rooms.Any(x => x.Id.Value == NextId))
+            throw new ArgumentException($"The fake hotel already has a room {NextId}.");
+
+        var room = new FakeRoom(new RoomId(NextId++), name, owner) { IsPublic = isPublic };
 
         _rooms.Add(room);
 

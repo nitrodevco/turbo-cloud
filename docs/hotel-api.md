@@ -73,7 +73,7 @@ Every member carries `[HotelCall(...)]`, and its guide is this table. The rule t
 | `Players` | `GetAsync(id)`, `FindAsync(name)` (any case), `NamesAsync(ids)`, `SearchAsync(prefix, take)` (at most 50), `OnlineIds()`, `CurrentRoomAsync(id)`, `ClubAsync(id)` (active, streak days), `HasPermissionAsync(id, node)`, `TopByAsync(stat, take, skip)` (respects, achievement score or a currency's balance; at most 100; system accounts never ranked), `SendAsync(id, message or composer)` (false when offline) |
 | `Rooms` | `GetAsync(id)` (name, owner, owner's name, on the public list), `PublicIdsAsync()`, `PlayersAsync(id)`, `SendAsync(id, message or composer)` and `WhisperAsync(id, player, text)` (false, and the room not loaded, when no one is in it), `LoadAsync(id)` |
 | `Wallet` | `CurrencyExists(name)`, `BalanceAsync`, `CreditAsync` and `DebitAsync(player, currency, amount, reference, cause)` |
-| `Inventory` | `FindFurniture(name)`, `Furniture(id)`, `GrantFurnitureAsync(player, definition, cause)`, `HasBadgeAsync`, `GiveBadgeAsync` (false when they had it) |
+| `Inventory` | `FindFurniture(name)`, `Furniture(id)`, `GrantFurnitureAsync(player, definition, cause)`, `GrantFurnitureAsync(player, definition, reference, cause)` (once per reference: `Granted`, `AlreadyGranted`, `Refused`), `HasBadgeAsync`, `GiveBadgeAsync` (false when they had it) |
 | `Catalog` | `Offers(page)` (the live catalog), `CirculationAsync(definitions)` (held by players, system accounts left out), `MoveOfferAsync`, `SetPageExpiryAsync`, `PublishAsync` (the panel's catalog editor, with its checks and history) |
 | `Notify` | `AlertAsync(player, textKey, defaultText, parameters)` (the hotel's alert, its text from the hotel's texts), `NotificationAsync(player, type, parameters)` (a client notification whose `notification.<type>` variable the hotel or the plugin's `external_variables.json` has), `StaffNoticeAsync(notice)` (`docs/plugin-notices.md`) |
 | `Wired` | `FireAsync(room, event, triggerer)` and `FireForPlayerAsync(player, event)`: a plugin's wired event for its own triggers (`docs/plugin-wired.md`); false, and the room not loaded, when no one is in it |
@@ -94,6 +94,12 @@ keep apart receipts: a debit under a credit's reference takes it back, once. A b
 too long or one starting with `#op:`/`#debit:` throws (`HotelReference.ThrowIfInvalid`): that is a
 bug in the plugin, not something a player did (`docs/wallet-idempotent-credit.md`).
 
+A furni grant takes a reference the same way when giving it twice would be wrong (a prize, a
+claim, a reward a retry may ask for again): the item and its receipt (`furniture_grant_receipts`,
+per player and reference) are written in one transaction, so a repeat makes nothing and answers
+`AlreadyGranted`, and the reference is the movement's cause ref in the movement log. The grant
+without a reference stays for things given once per call.
+
 ## FakeHotel
 
 `new FakeHotel()` (optionally from a start time) holds what the test adds and records what the
@@ -103,7 +109,12 @@ plugin does:
   `AchievementScore`, `Club` and `Permissions` the test sets; it passes as its `PlayerId`),
   `Rooms.Add(name, owner, isPublic)`, `Rooms.Enter(room, player)`, `Wallet.Set(player, currency,
   amount)`, `Wallet.AddCurrency(name)` (credits, duckets and diamonds are there), `Inventory.AddFurniture(name)`,
-  `Inventory.Hold(...)`, `Catalog.AddOffer(...)`;
+  `Inventory.Hold(...)`, `Catalog.AddOffer(...)`; ids count up from 1, or from `Players.NextId`,
+  `Rooms.NextId` and `Inventory.NextFurnitureId` when the test sets them;
+- fail: `Wallet.FailNext(count, throws)` and `Inventory.FailNext(count, throws)` make the next
+  credits, debits, grants or badge gifts fail as a hotel write that failed does (refused, nothing
+  changed, no receipt kept, so a retry under the same reference goes through), or throw the
+  exception given, as a crash mid-call does;
 - read back: `Players.SentTo(player)`, `Rooms.SentTo(room)`, `Rooms.WhispersTo(player)`,
   `Wallet.Movements`, `Inventory.Grants`, `Notify.Alerts`, `Notify.StaffNotices`,
   `Catalog.Publishes`, `Wired.Fired`;
@@ -119,7 +130,7 @@ project references it from `$(TurboBin)` (the template's does).
 
 `Turbo.Tests/Hotel/HotelContract.cs` is one set of scenarios (wallet references and refusals,
 names in any case, search, toplists without system accounts, rooms no one is in, grants and
-circulation, badges, sends to offline players) run twice: `FakeHotelContractTests` on `FakeHotel`,
+circulation, grants under a reference, badges, sends to offline players) run twice: `FakeHotelContractTests` on `FakeHotel`,
 `HostHotelContractTests` on the host's implementation over a database and the real wallet,
 inventory and badge grains. A rule changed in one and not the other fails one of them.
 

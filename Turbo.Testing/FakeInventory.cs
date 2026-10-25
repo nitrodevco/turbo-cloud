@@ -8,8 +8,13 @@ using Turbo.Primitives.Players;
 
 namespace Turbo.Testing;
 
-/// <summary>One furni a <see cref="FakeInventory"/> made for a player.</summary>
-public sealed record FakeGrant(PlayerId Player, int DefinitionId, string Cause);
+/// <summary>One furni a <see cref="FakeInventory"/> made for a player; <paramref name="Reference"/> when granted under one.</summary>
+public sealed record FakeGrant(
+    PlayerId Player,
+    int DefinitionId,
+    string Cause,
+    string? Reference = null
+);
 
 /// <summary>The furni definitions, held furni and badges of a <see cref="FakeHotel"/>.</summary>
 public sealed class FakeInventory : IHotelInventory
@@ -19,15 +24,32 @@ public sealed class FakeInventory : IHotelInventory
     private readonly Dictionary<(PlayerId Player, int DefinitionId), int> _held = [];
     private readonly HashSet<(PlayerId, string)> _badges = [];
     private readonly List<FakeGrant> _grants = [];
+    private readonly HashSet<(PlayerId, string)> _receipts = [];
+    private readonly FakeFaults _faults = new();
 
     internal FakeInventory(FakeHotel hotel) => _hotel = hotel;
 
     public IReadOnlyList<FakeGrant> Grants => _grants;
 
-    /// <summary>A new furni definition, ids counting up from 1.</summary>
+    /// <summary>The id the next <see cref="AddFurniture"/> gets (1 to start); set it to match the ids a test needs.</summary>
+    public int NextFurnitureId { get; set; } = 1;
+
+    /// <summary>
+    /// The next <paramref name="count"/> furni grants and badge gifts fail: nothing is given and no
+    /// receipt kept, as when the hotel's write fails. A grant answers false or
+    /// <see cref="GrantOutcome.Refused"/>, a badge false; or each throws <paramref name="throws"/>
+    /// when given (a crash mid-call). A retry afterwards goes through.
+    /// </summary>
+    public void FailNext(int count = 1, Exception? throws = null) =>
+        _faults.FailNext(count, throws);
+
+    /// <summary>A new furni definition, ids counting up from <see cref="NextFurnitureId"/>.</summary>
     public HotelFurniture AddFurniture(string name, bool isWallItem = false)
     {
-        var furniture = new HotelFurniture(_definitions.Count + 1, name, isWallItem);
+        if (Furniture(NextFurnitureId) is not null)
+            throw new ArgumentException($"The fake hotel already has furni {NextFurnitureId}.");
+
+        var furniture = new HotelFurniture(NextFurnitureId++, name, isWallItem);
 
         _definitions.Add(furniture);
 
@@ -61,7 +83,7 @@ public sealed class FakeInventory : IHotelInventory
         CancellationToken ct
     )
     {
-        if (Furniture(definitionId) is null || !_hotel.IsPlayer(player))
+        if (Furniture(definitionId) is null || !_hotel.IsPlayer(player) || _faults.Trip())
             return Task.FromResult(false);
 
         Hold(player, definitionId);
@@ -70,11 +92,42 @@ public sealed class FakeInventory : IHotelInventory
         return Task.FromResult(true);
     }
 
+    public Task<GrantOutcome> GrantFurnitureAsync(
+        PlayerId player,
+        int definitionId,
+        string reference,
+        string cause,
+        CancellationToken ct
+    )
+    {
+        HotelReference.ThrowIfInvalid(reference);
+
+        if (Furniture(definitionId) is null || !_hotel.IsPlayer(player))
+            return Task.FromResult(GrantOutcome.Refused);
+
+        if (_receipts.Contains((player, reference)))
+            return Task.FromResult(GrantOutcome.AlreadyGranted);
+
+        if (_faults.Trip())
+            return Task.FromResult(GrantOutcome.Refused);
+
+        Hold(player, definitionId);
+        _receipts.Add((player, reference));
+        _grants.Add(new(player, definitionId, cause, reference));
+
+        return Task.FromResult(GrantOutcome.Granted);
+    }
+
     public Task<bool> HasBadgeAsync(PlayerId player, string badgeCode, CancellationToken ct) =>
         Task.FromResult(_badges.Contains((player, badgeCode)));
 
     public Task<bool> GiveBadgeAsync(PlayerId player, string badgeCode, CancellationToken ct) =>
-        Task.FromResult(_hotel.IsPlayer(player) && _badges.Add((player, badgeCode)));
+        Task.FromResult(
+            _hotel.IsPlayer(player)
+                && !_badges.Contains((player, badgeCode))
+                && !_faults.Trip()
+                && _badges.Add((player, badgeCode))
+        );
 
     /// <summary>How many of the definition players hold, system accounts left out (the catalog's circulation).</summary>
     internal int Circulation(int definitionId) =>

@@ -73,6 +73,13 @@ internal sealed partial class InventoryGrain
         CancellationToken ct
     ) => FurniModule.GrantAsync(definitionId, extraDataJson, cause, ct);
 
+    public Task<bool> GrantFurnitureOnceAsync(
+        int definitionId,
+        string reference,
+        MovementCause cause,
+        CancellationToken ct
+    ) => FurniModule.GrantOnceAsync(definitionId, reference, cause, ct);
+
     public Task GrantLtdFurnitureAsync(
         int catalogProductId,
         int serialNumber,

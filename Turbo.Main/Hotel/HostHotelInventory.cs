@@ -38,6 +38,32 @@ internal sealed class HostHotelInventory(
             .ConfigureAwait(false)
             is not null;
 
+    public async Task<GrantOutcome> GrantFurnitureAsync(
+        PlayerId player,
+        int definitionId,
+        string reference,
+        string cause,
+        CancellationToken ct
+    )
+    {
+        HotelReference.ThrowIfInvalid(reference);
+
+        if (definitions.TryGetDefinition(definitionId) is null)
+            return GrantOutcome.Refused;
+
+        return await grains
+            .GetInventoryGrain(player)
+            .GrantFurnitureOnceAsync(
+                definitionId,
+                reference,
+                MovementCause.New(cause, player, reference),
+                ct
+            )
+            .ConfigureAwait(false)
+            ? GrantOutcome.Granted
+            : GrantOutcome.AlreadyGranted;
+    }
+
     public Task<bool> HasBadgeAsync(PlayerId player, string badgeCode, CancellationToken ct) =>
         grains.GetPlayerBadgeGrain(player).HasBadgeAsync(badgeCode, ct);
 

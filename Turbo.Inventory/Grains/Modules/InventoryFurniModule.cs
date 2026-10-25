@@ -649,6 +649,37 @@ internal sealed class InventoryFurniModule(
         return granted.Length > 0 ? granted[0] : null;
     }
 
+    /// <summary>
+    /// One item of a definition, once per <paramref name="reference"/> for this player
+    /// (<see cref="IFurnitureCustody.CreateInInventoryOnceAsync"/>): false when it was granted
+    /// under the reference already, or the definition is missing.
+    /// </summary>
+    public async Task<bool> GrantOnceAsync(
+        int definitionId,
+        string reference,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        if (_definitionProvider.TryGetDefinition(definitionId) is not { } definition)
+            return false;
+
+        var row = await _custody.CreateInInventoryOnceAsync(
+            PlayerId,
+            new FurniToMake(definition.Id, null),
+            reference,
+            cause,
+            ct
+        );
+
+        if (row is null)
+            return false;
+
+        await ListGrantedAsync([row], [definition], ct);
+
+        return true;
+    }
+
     /// <summary>A limited edition item: the serial travels in the stuff section of its extra data.</summary>
     public async Task GrantLimitedAsync(
         int catalogProductId,
