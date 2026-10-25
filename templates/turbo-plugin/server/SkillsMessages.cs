@@ -40,5 +40,10 @@ public sealed class TrainHandler(SkillBook book) : IPluginMessageHandler<TrainMe
         TrainMessage message,
         PluginMessageContext ctx,
         CancellationToken ct
-    ) => await ctx.ReplyAsync(SkillMessage.Of(book.Train(ctx.PlayerId)), ct).ConfigureAwait(false);
+    ) =>
+        await ctx.ReplyAsync(
+                SkillMessage.Of(await book.TrainAsync(ctx.PlayerId, ct).ConfigureAwait(false)),
+                ct
+            )
+            .ConfigureAwait(false);
 }

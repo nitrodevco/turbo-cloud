@@ -5,3 +5,4 @@ skills.window.experience=%experience% / %needed% experience
 skills.window.train=Train
 skills.toolbar.tooltip=Skills
 skills.purse.button=Skills
+skills.levelled=You reached level %0%!

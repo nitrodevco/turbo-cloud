@@ -69,6 +69,8 @@
     <ProjectReference Include="..\Turbo.Revisions\Turbo.Revisions.csproj" />
     <ProjectReference Include="..\Turbo.Rooms\Turbo.Rooms.csproj" />
     <ProjectReference Include="..\Turbo.Runtime\Turbo.Runtime.csproj" />
+    <!-- Ships beside the server: plugins' tests reference FakeHotel from its bin folder (docs/hotel-api.md). -->
+    <ProjectReference Include="..\Turbo.Testing\Turbo.Testing.csproj" />
     <ProjectReference Include="..\Turbo.Commands\Turbo.Commands.csproj" />
   </ItemGroup>
 </Project>

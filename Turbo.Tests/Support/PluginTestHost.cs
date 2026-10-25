@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Commands;
+using Turbo.Contracts.Hotel;
 using Turbo.Database.Configuration;
 using Turbo.Database.Migrations;
 using Turbo.Gamedata;
@@ -31,6 +32,7 @@ using Turbo.Primitives.Texts;
 using Turbo.Rooms;
 using Turbo.Rooms.Object.Logic;
 using Turbo.Runtime.AssemblyProcessing;
+using Turbo.Testing;
 
 namespace Turbo.Tests.Support;
 
@@ -76,6 +78,7 @@ internal sealed class PluginTestHost
         );
         Messages = new PluginMessageDirectory(packets);
         Services = new ServiceCollection()
+            .AddSingleton<IHotel>(Hotel)
             .AddSingleton<IClientModuleDirectory>(Modules)
             .AddSingleton<IExtensionPacketRegistry>(packets)
             .AddSingleton<IConfiguration>(new ConfigurationBuilder().Build())
@@ -124,6 +127,9 @@ internal sealed class PluginTestHost
     public ServiceProvider Services { get; }
 
     public GamedataTextService Texts { get; }
+
+    /// <summary>The hotel API the host gives every plugin; in memory here.</summary>
+    public FakeHotel Hotel { get; } = new();
 
     public ClientModuleRegistry Modules { get; }
 

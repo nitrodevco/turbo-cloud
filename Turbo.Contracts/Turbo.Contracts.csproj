@@ -9,5 +9,7 @@
   <ItemGroup>
     <!-- TurboPlugin takes its manifest from the plugin host. -->
     <InternalsVisibleTo Include="Turbo.Plugins" />
+    <!-- The hotel API (Hotel/) speaks in the primitives' ids, messages and composers. -->
+    <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
   </ItemGroup>
 </Project>

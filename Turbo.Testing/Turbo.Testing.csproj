@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The hotel API in memory, for plugins' tests: FakeHotel and its assertions (docs/hotel-api.md).
+    It builds on the contracts alone, so a plugin's test project references it as it does them,
+    from the server's bin folder.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
+    <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
+  </ItemGroup>
+</Project>

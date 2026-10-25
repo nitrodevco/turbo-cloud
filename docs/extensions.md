@@ -38,6 +38,7 @@ What already works (each with its guide):
 | Need | How | Guide |
 | --- | --- | --- |
 | Services, DI, settings with panel forms | `TurboPlugin.Services`, `[PluginSettings]` classes | `settings.md` |
+| Everyday hotel actions (players, rooms, wallet, furni, badges, catalog, notices) and a fake for tests | `IHotel`, `Turbo.Testing.FakeHotel` | `hotel-api.md` |
 | Own tables and migrations | `PluginDbContextBase` (found and migrated as the plugin loads) | `database.md` |
 | Packet handlers and packet middleware | `IMessageHandler<T>`, `IMessageBehavior<T>` | `plugin-packets.md` |
 | Commands | `ICommand<TArgs>` | `commands.md` |
@@ -152,6 +153,15 @@ Replacing it in the host's container changes all three; a plugin cannot replace 
 Plugins must be able to add to host multi-registrations and replace single ones through
 `IHostServices`, with the replacement put back on unload. The furni logic override (§2.8) shows the
 missing piece: replacing something needs a stack, not a dictionary slot.
+
+The contract a plugin *calls* is the hotel API (`docs/hotel-api.md`): `IHotel` with `Players`,
+`Rooms`, `Wallet`, `Inventory`, `Catalog`, `Notify` and `Clock`, about thirty-five methods, each marked
+with where it may be called from (`[HotelCall]`: anywhere, not from the grain it asks, or off the
+grain because it reads the database). Reads are query methods with limits (a toplist, circulation,
+a name search), never a `DbSet`. Every plugin's container has it, and `Turbo.Testing.FakeHotel` is
+the same API in memory with assertions, kept equal to the host's by one set of contract scenarios
+run on both. It replaces the per-plugin adapter over grains and tables that every tested plugin
+used to write. It is DI only, never a static facade: plugins load in their own contexts.
 
 ### 4.4 Registries
 
@@ -276,6 +286,9 @@ noted.
     (`docs/plugin-loading.md`, `docs/client-modules.md`); scheduled tasks and policies get their
     `make` kinds with their own steps. Furni logic still derives from `Turbo.Rooms`'
     `FurnitureFloorLogic`, which is not a contract yet (§3, "Public means contract").
+
+10. **Hotel API** (§4.3): `IHotel` for the everyday actions, `FakeHotel` for plugins' tests, contract
+    tests on both. Done (`docs/hotel-api.md`); members are added when two plugins need the same one.
 
 **How we know it works** (run after steps 6 and 9, then every release):
 - **The stranger test**: an author with no knowledge of either code base - in practice an agent given

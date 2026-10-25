@@ -80,5 +80,10 @@ records with `[PluginMessage("skills.<name>")]` in `server/SkillsMessages.cs`, r
 in `client/src/skill.ts` (`api.messages.on/send`). The server numbers them and tells the client, so
 there is nothing to keep in step but the names and fields.
 
-Guides (turbo-cloud `docs/`): `extensions.md` (the model), `client-modules.md`, `plugin-messages.md`,
+The server half reaches the hotel (players, rooms, wallet, furni, notices) through `IHotel`, taken
+by constructor (`SkillBook` alerts a player who levels up); its tests use `FakeHotel` from
+`Turbo.Testing.dll` in the same bin folder, with assertions such as
+`hotel.Notify.AssertAlerted(alice, SkillBook.LEVELLED)` (turbo-cloud `docs/hotel-api.md`).
+
+Guides (turbo-cloud `docs/`): `extensions.md` (the model), `hotel-api.md`, `client-modules.md`, `plugin-messages.md`,
 `commands.md`, `permissions.md`, `settings.md`, `database.md` (when the plugin keeps data).

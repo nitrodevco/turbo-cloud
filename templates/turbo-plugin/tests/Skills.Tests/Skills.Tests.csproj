@@ -18,6 +18,8 @@
   <ItemGroup>
     <Reference Include="$(TurboBin)/Turbo.Contracts.dll" />
     <Reference Include="$(TurboBin)/Turbo.Primitives.dll" />
+    <!-- FakeHotel: the hotel API in memory, which the server ships for plugins' tests. -->
+    <Reference Include="$(TurboBin)/Turbo.Testing.dll" />
     <Reference Include="$(TurboBin)/Orleans.Core.Abstractions.dll" />
     <Reference Include="$(TurboBin)/Orleans.Serialization.Abstractions.dll" />
   </ItemGroup>
