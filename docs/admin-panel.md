@@ -1461,7 +1461,8 @@ not load is taken out again and the one it replaced put back, with why it failed
 say which plugin API it was built for (`ApiVersion`, and `BuiltAgainst`: the turbo-cloud ref, for
 people to read); a server takes `PluginApi.OLDEST` to `PluginApi.VERSION` and refuses any other,
 saying both. Both are 1: no plugin outside this project has been published, so the API stays 1
-while it changes, and counts up from the first one that is.
+while it changes, and counts up from the first one that is. The hotel's own plugin (`hotel`, staff's
+patches), whose manifest the server writes, is stamped with the server's API as it loads.
 
 **Linked from GitHub**: a plugin can be installed from a GitHub repository's releases and kept up
 to date. Link one by its URL (`https://github.com/owner/repo`) or `owner/repo`, following its
