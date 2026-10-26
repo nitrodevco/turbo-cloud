@@ -7,7 +7,7 @@ namespace Turbo.Primitives.Plugins.Events;
 /// Something a plugin tells whoever relays notices (a Discord plugin, a log), without knowing who
 /// does or whether anyone is loaded: a new client error, a bug report, a room copy finished. Each
 /// plugin loads in its own load context, so two plugins share only the host's types; this one is
-/// the host's. Publish it with <c>EventSystem.PublishAsync</c> (taken from the host services) and
+/// the host's. Publish it with <see cref="IEventPublisher.PublishAsync"/> (taken from the host services) and
 /// handle it with an <c>IEventHandler&lt;PluginNoticeEvent&gt;</c>. A relay routes by
 /// <see cref="Source"/> and <see cref="Topic"/>, and passes on the texts as they are. See
 /// <c>docs/plugin-notices.md</c>.

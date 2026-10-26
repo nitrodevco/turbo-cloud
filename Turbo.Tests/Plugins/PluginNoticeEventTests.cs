@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using Turbo.Events;
 using Turbo.Events.Extensions;
 using Turbo.Events.Registry;
 using Turbo.Primitives.Events;
@@ -27,7 +26,8 @@ public sealed class PluginNoticeEventTests
             .AddTurboEventSystem()
             .BuildServiceProvider();
         var relay = new ServiceCollection().AddSingleton(sink).BuildServiceProvider();
-        var events = host.GetRequiredService<EventSystem>();
+        // What a plugin publishes through: the contract, which the host's event system is.
+        var events = host.GetRequiredService<IEventPublisher>();
         var notice = new PluginNoticeEvent
         {
             Source = "clienterrors",

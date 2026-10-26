@@ -12,17 +12,17 @@ plugin sees as the same one, and it holds only texts and named values.
 
 ## Publishing
 
-Take `EventSystem` (`Turbo.Events`) from the host services and publish. The plugin references
-`Turbo.Events` from the turbo-cloud checkout it builds against, as it does `Turbo.Primitives`. A
-relay that only handles notices does not: `IEventHandler<T>` is in `Turbo.Primitives`
-(`docs/plugin-policies.md`).
+Take `IEventPublisher` (`Turbo.Primitives.Events`) from the host services and publish: the host's
+event system is it. Like `IEventHandler<T>` for a relay, it is in `Turbo.Primitives`, which every
+plugin references already (`docs/plugin-policies.md`), so the plugin needs no `Turbo.Events`
+reference.
 
 ```csharp
-private EventSystem? _events;
+private IEventPublisher? _events;
 
 public Task StartAsync(IServiceProvider services, CancellationToken ct)
 {
-    _events = services.GetRequiredService<IHostServices>().GetRequiredService<EventSystem>();
+    _events = services.GetRequiredService<IHostServices>().GetRequiredService<IEventPublisher>();
 
     return Task.CompletedTask;
 }

@@ -5,7 +5,11 @@ using Turbo.Primitives.Events;
 
 namespace Turbo.Events;
 
-public sealed class EventSystem(EventRegistry registry)
+/// <summary>
+/// The hotel's event system. A plugin publishes through the contract it implements,
+/// <see cref="IEventPublisher"/>, which the host services give as this same instance.
+/// </summary>
+public sealed class EventSystem(EventRegistry registry) : IEventPublisher
 {
     private readonly EventRegistry _registry = registry;
 

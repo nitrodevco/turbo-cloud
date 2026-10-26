@@ -221,7 +221,10 @@ What happened afterwards is an event: an `IEventHandler<PurchaseCompletedEvent>`
 `PlayerLoggedInEvent`, `PlayerRegisteredEvent`, `RoomEnteredEvent`) hears it once it is done, never
 for a refused action, and cannot undo it. Both are found as the plugin loads, and both are in
 `Turbo.Primitives`, which the project references already (`using Turbo.Events.Registry;` for the
-handler): turbo-cloud `docs/plugin-policies.md`.
+handler): turbo-cloud `docs/plugin-policies.md`. So are the plugin's own publishing
+(`IEventPublisher` from the host services: `docs/plugin-notices.md`) and a handler of a client's
+packet (`IMessageHandler<T>` and `MessageContext`, `using Turbo.Messages.Registry;`:
+`docs/plugin-packets.md`).
 
 Guides (turbo-cloud `docs/`): `extensions.md` (the model), `hotel-api.md`, `client-modules.md`, `plugin-messages.md`,
 `commands.md`, `permissions.md`, `settings.md`, `database.md` (when the plugin keeps data),
