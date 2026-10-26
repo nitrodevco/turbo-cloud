@@ -160,10 +160,12 @@ never asks is never sent one, the later changes included.
 plugins' client halves, for the extension inspector (`docs/extensions.md` roadmap step 5). `owner`
 is a plugin key; `kind` is `module.refused` (reason `host`, `hash`, `load`, `url` or `exports`),
 `module.failed` (`activate` threw), `patch.unmatched` (subject the template, reason the element key),
-`patch.conflict` or `patch.applied` (reason the ops applied). It is never answered. The server keeps
+`patch.ineffective` (an op that matched but changes nothing the window draws, its code setting that
+field: reason `<element key>.<field>`), `patch.conflict` or `patch.applied` (reason the ops applied).
+It is never answered. The server keeps
 each distinct line per plugin in memory, counted by player and bounded (100 plugins, 50 lines each,
 texts cut to 300 characters), lists it under the plugin's `GET /api/plugins/{key}/contributions`,
-and logs a refused module or an unmatched patch once per line and quarter hour, naming what to change:
+and logs a refused module, an unmatched or an ineffective patch once per line and quarter hour, naming what to change:
 
 ```
 A client refused plugin rarevalues's client module http://localhost:18441/...: its origin is not in

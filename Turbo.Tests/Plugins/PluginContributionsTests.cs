@@ -173,6 +173,47 @@ public sealed class PluginContributionsTests : IDisposable
         await manager.UnloadAllAsync(Ct);
     }
 
+    /// <summary>
+    /// S2 (B/framework/DX-PLAN-20261026.md 3.2, stuck point 1): a root caption patch on the catalogue,
+    /// whose code sets its caption, was reported applied and did nothing. The client reports it
+    /// <c>patch.ineffective</c>; the server keeps it on the plugin and logs what to do instead.
+    /// </summary>
+    [Fact]
+    public void An_ineffective_patch_op_shows_on_the_plugin_and_is_logged()
+    {
+        var log = new CapturingLogger<ClientExtensionReports>();
+        var reports = new ClientExtensionReports(log, TimeProvider.System);
+
+        reports.Report(
+            1,
+            [
+                new ClientExtensionReport(
+                    "theme",
+                    ClientExtensionReportKinds.PATCH_INEFFECTIVE,
+                    "habbo-catalog-com/catalog_ubuntu_with_tabs",
+                    ".caption",
+                    "theme's patch sets caption of '', which changes nothing."
+                ),
+            ]
+        );
+
+        reports
+            .IssuesOf("theme")
+            .Select(x => (x.Kind, x.Subject))
+            .Should()
+            .BeEquivalentTo([
+                (
+                    ClientExtensionReportKinds.PATCH_INEFFECTIVE,
+                    "habbo-catalog-com/catalog_ubuntu_with_tabs"
+                ),
+            ]);
+        log.AtLeast(LogLevel.Warning)
+            .Should()
+            .ContainSingle()
+            .Which.Message.Should()
+            .Contain("override: true");
+    }
+
     [Fact]
     public void Reports_of_unknown_kinds_or_malformed_owners_are_dropped()
     {
