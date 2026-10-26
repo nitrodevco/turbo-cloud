@@ -135,7 +135,7 @@ than inventing a second mechanism.
 The first post-commit events are on the event bus: `DomainEvent` (an `EventId` for idempotency and
 `OccurredAtUtc`) published by `IEventPublisher.PublishCommitted` once the change is saved, on the thread
 pool and not awaited, never for a refused action (save the two that tell of a refusal); a plugin's
-`IEventHandler<T>` hears them. `PurchaseCompletedEvent` (room ads included), `PlayerLoggedInEvent`,
+`IEventHandler<T>` hears them. `PurchaseCompletedEvent` (room ads and limited editions included), `PlayerLoggedInEvent`,
 `PlayerLoginFailedEvent`, `PlayerRegisteredEvent`, `PlayerRegistrationFailedEvent`,
 `PlayerIdentityLinkedEvent`, `RoomEnteredEvent` and `HotelAvailabilityChangedEvent` (the hotel
 went into maintenance or out of it, a shutdown was scheduled; `IHotel.Status` reads the state) are

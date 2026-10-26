@@ -11,8 +11,10 @@ using Turbo.Catalog.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Extensions;
+using Turbo.Events;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
+using Turbo.Primitives.Catalog.Events;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
@@ -39,6 +41,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
     private readonly CatalogConfig _config;
     private readonly IGrainFactory _grainFactory;
     private readonly ICatalogService _catalogService;
+    private readonly EventSystem _events;
     private readonly ILogger<ICatalogLtdRaffleGrain> _logger;
 
     private readonly CatalogLtdRaffleLiveState _state;
@@ -50,6 +53,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         IOptions<CatalogConfig> config,
         IGrainFactory grainFactory,
         ICatalogService catalogService,
+        EventSystem events,
         ILogger<ICatalogLtdRaffleGrain> logger
     )
     {
@@ -57,6 +61,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         _config = config.Value;
         _grainFactory = grainFactory;
         _catalogService = catalogService;
+        _events = events;
         _logger = logger;
 
         // The grain is keyed by the limited series it raffles.
@@ -450,6 +455,23 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                     CancellationToken.None
                 );
             }
+
+            // A limited edition is a catalogue offer bought like any other, raffled or not, so
+            // what counts catalogue purchases (HC Payday's spend) counts it too.
+            _events.PublishCommitted(
+                new PurchaseCompletedEvent
+                {
+                    PlayerId = PlayerId.Parse(playerId),
+                    CatalogType = CatalogType.Normal,
+                    OfferId = offer.Id,
+                    ProductCode = offer.LocalizationId,
+                    Units = 1,
+                    CostCredits = offer.CostCredits,
+                    CostSilver = offer.CostSilver,
+                    CostActivityPoints = offer.CostCurrency,
+                    ActivityPointType = offer.ActivityPointType,
+                }
+            );
 
             return true;
         }
