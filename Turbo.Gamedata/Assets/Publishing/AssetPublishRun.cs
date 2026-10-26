@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Assets;
 using Turbo.Primitives.Gamedata;
+using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Players;
 
@@ -48,6 +49,14 @@ internal sealed class AssetPublishRun(
 
     private const double BYTES_PER_MEGABYTE = 1024d * 1024d;
 
+    private const double BYTES_PER_KILOBYTE = 1024d;
+
+    /// <summary>
+    /// A dry run names this many of the files it would send, largest first, within the job's log;
+    /// the target's pending list has them all.
+    /// </summary>
+    private const int DRY_RUN_NAMED = 100;
+
     private const string STOPPED = "Stopped before it finished.";
 
     private int _uploaded;
@@ -67,12 +76,35 @@ internal sealed class AssetPublishRun(
         IEnumerable<AssetBundleFile> files,
         IReadOnlyDictionary<string, string> recorded,
         IReadOnlySet<string>? gone = null
-    ) =>
-        files.Where(x =>
-            !recorded.TryGetValue(x.Path, out var hash)
-            || hash != x.Hash
-            || gone?.Contains(x.Path) == true
-        );
+    ) => Pending(files, recorded, gone).Select(x => x.File);
+
+    /// <summary>What <see cref="ToSend"/> picks, each with why it is sent.</summary>
+    public static IEnumerable<AssetPublishPendingFile> Pending(
+        IEnumerable<AssetBundleFile> files,
+        IReadOnlyDictionary<string, string> recorded,
+        IReadOnlySet<string>? gone = null
+    )
+    {
+        foreach (var file in files)
+        {
+            if (!recorded.TryGetValue(file.Path, out var hash))
+                yield return new(file, AssetPublishChange.New);
+            else if (hash != file.Hash)
+                yield return new(file, AssetPublishChange.Changed);
+            else if (gone?.Contains(file.Path) == true)
+                yield return new(file, AssetPublishChange.Gone);
+        }
+    }
+
+    /// <summary>How a dry run's log names why a file would be sent.</summary>
+    public static string WordFor(AssetPublishChange change) =>
+        change switch
+        {
+            AssetPublishChange.New => "new",
+            AssetPublishChange.Changed => "changed",
+            AssetPublishChange.Gone => "gone from the target",
+            _ => throw new ArgumentOutOfRangeException(nameof(change), change, null),
+        };
 
     public async Task<string> RunAsync(
         bool dryRun,
@@ -110,12 +142,25 @@ internal sealed class AssetPublishRun(
                         ct
                     )
                     .ConfigureAwait(false);
-                var send = ToSend(files, recorded, gone).OrderByDescending(x => x.Size).ToList();
+                var pending = Pending(files, recorded, gone)
+                    .OrderByDescending(x => x.File.Size)
+                    .ToList();
+                var send = pending.Select(x => x.File).ToList();
 
                 already = files.Count - send.Count;
 
                 if (dryRun)
                 {
+                    foreach (var file in pending.Take(DRY_RUN_NAMED))
+                        progress.Log(
+                            $"{WordFor(file.Change)}: {file.File.Path} ({SizeOf(file.File.Size)})"
+                        );
+
+                    if (pending.Count > DRY_RUN_NAMED)
+                        progress.Log(
+                            $"and {pending.Count - DRY_RUN_NAMED} more: the target's pending list names every one"
+                        );
+
                     var counted =
                         $"{send.Count} to send ({Megabytes(send.Sum(x => x.Size))}), {already} already there, {delete.Count} to delete"
                         + (gone.Count > 0 ? $", {gone.Count} gone from the target" : "");
@@ -220,6 +265,12 @@ internal sealed class AssetPublishRun(
     }
 
     private static string Megabytes(long bytes) => $"{bytes / BYTES_PER_MEGABYTE:0.0} MB";
+
+    /// <summary>One file's size, in the unit that reads best.</summary>
+    private static string SizeOf(long bytes) =>
+        bytes >= BYTES_PER_MEGABYTE ? Megabytes(bytes)
+        : bytes >= BYTES_PER_KILOBYTE ? $"{bytes / BYTES_PER_KILOBYTE:0.0} KB"
+        : $"{bytes} B";
 
     /// <summary>
     /// The recorded files the target no longer holds, found by listing each folder they are in: a

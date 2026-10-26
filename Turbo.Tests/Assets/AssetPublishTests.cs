@@ -10,7 +10,7 @@ namespace Turbo.Tests.Assets;
 /// <summary>
 /// Publishing bundles to a folder target, end to end through the real store, jobs and publish
 /// service: the first publish sends everything and records it, the next sends only what changed,
-/// "delete removed" takes away what the hotel dropped, a dry run only counts, and each publish is
+/// "delete removed" takes away what the hotel dropped, a dry run only counts and names the files, and each publish is
 /// kept in the target's history.
 /// </summary>
 public sealed class AssetPublishTests : IDisposable
@@ -116,6 +116,7 @@ public sealed class AssetPublishTests : IDisposable
             .StartWith("1 to send")
             .And.Contain("1 already there")
             .And.EndWith("1 gone from the target");
+        dry.Log.Should().Contain("gone from the target: bundled/furniture/table.nitro (900 B)");
         File.Exists(_hotel.TargetFileOf("table")).Should().BeFalse("a dry run sends nothing");
 
         var job = await _hotel.PublishAsync(target.Id, Ct);
@@ -167,7 +168,12 @@ public sealed class AssetPublishTests : IDisposable
 
         job.Status.Should().Be(AssetJobStatus.Done);
         job.Result.Should().StartWith("2 to send").And.Contain("0 already there, 0 to delete");
-        job.Log.Should().ContainSingle().Which.Should().Be(job.Result);
+        job.Log.Should()
+            .Equal(
+                "new: bundled/furniture/table.nitro (900 B)",
+                "new: bundled/furniture/chair.nitro (300 B)",
+                job.Result
+            );
         Directory.EnumerateFileSystemEntries(_hotel.TargetFolder).Should().BeEmpty();
         (await _hotel.RecordedAsync(target.Id, Ct)).Should().BeEmpty();
         (await _hotel.Publishing.GetTargetAsync(target.Id, Ct))!.Pending.Should().Be(2);
@@ -177,6 +183,38 @@ public sealed class AssetPublishTests : IDisposable
         entry.DryRun.Should().BeTrue();
         entry.Uploaded.Should().Be(0);
         entry.FinishedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task The_pending_list_names_each_bundle_a_target_lacks_or_holds_an_older_copy_of_and_why()
+    {
+        // A live hotel 2026-10-26: a target said "20 pending" and nothing named the 20.
+        await _hotel.PutBundleAsync("chair", Bytes("chair", 300), Ct);
+        await _hotel.PutBundleAsync("table", Bytes("table", 900), Ct);
+        var target = await _hotel.AddFolderTargetAsync(Ct);
+        await _hotel.PublishAsync(target.Id, Ct);
+        await _hotel.PutBundleAsync("chair", Bytes("chair-v2", 400), Ct);
+        await _hotel.PutBundleAsync("sofa", Bytes("sofa", 50), Ct);
+
+        var pending = (await _hotel.Publishing.GetPendingAsync(target.Id, null, 0, Ct))!;
+
+        pending
+            .Items.Select(x => (x.File.Path, x.File.Size, x.Change))
+            .Should()
+            .Equal(
+                ("bundled/furniture/chair.nitro", 400L, AssetPublishChange.Changed),
+                ("bundled/furniture/sofa.nitro", 50L, AssetPublishChange.New)
+            );
+        (pending.Count, pending.Matched, pending.Bytes, pending.New, pending.Changed)
+            .Should()
+            .Be((2, 2, 450L, 1, 1));
+        (await _hotel.Publishing.GetTargetAsync(target.Id, Ct))!.Pending.Should().Be(pending.Count);
+
+        var searched = (await _hotel.Publishing.GetPendingAsync(target.Id, " SOFA ", 0, Ct))!;
+
+        searched.Items.Should().ContainSingle().Which.File.Name.Should().Be("sofa");
+        (searched.Matched, searched.Count).Should().Be((1, 2));
+        (await _hotel.Publishing.GetPendingAsync(target.Id + 1, null, 0, Ct)).Should().BeNull();
     }
 
     [Fact]
