@@ -25,14 +25,18 @@ namespace Turbo.Admin.Api;
 /// <c>admin.plugins.view</c>: a theme's style properties with the hotel's values, the window
 /// patches staff made (the hotel's own data plugin), and a data plugin made from either. Changing
 /// a style or a patch, uploading an image and making a package need <c>admin.plugins.manage</c>;
-/// each change goes to the command log (<see cref="AdminActionLog"/>).
+/// each change goes to the command log (<see cref="AdminActionLog"/>). Staff's edits land in the
+/// plugin the route names (the panel's "Working on"): the hotel's own, or a data theme, whose files
+/// they are then written into (<see cref="IHotelDataPlugin.EditableFolderOf"/>); a style's value goes
+/// to the hotel unless <c>?target=</c> names the theme itself.
 /// </summary>
 internal sealed class PluginNoCodeEndpoints(
     IGrainFactory grainFactory,
     AdminActionLog audit,
     IPluginStyles? stylesService = null,
     IHotelDataPlugin? hotelService = null,
-    IPluginAdministration? plugins = null
+    IPluginAdministration? plugins = null,
+    IThemeAuthoring? authoring = null
 )
 {
     private const string NO_ACCESS = "You can't see the server's plugins.";
@@ -61,10 +65,11 @@ internal sealed class PluginNoCodeEndpoints(
             );
 
         group.MapGet("/themes", ThemesAsync);
+        group.MapPost("/themes", CreateThemeAsync);
         group.MapGet("/{key}/template-patches", PluginPatchesAsync);
-        group.MapGet("/hotel-patches", PatchesAsync);
-        group.MapPost("/hotel-patches", SavePatchAsync);
-        group.MapDelete("/hotel-patches/{id}", RemovePatchAsync);
+        group.MapGet("/{key}/patches", PatchesAsync);
+        group.MapPost("/{key}/patches", SavePatchAsync);
+        group.MapDelete("/{key}/patches/{id}", RemovePatchAsync);
         group.MapGet("/{key}/styles", StylesAsync);
         group.MapPut("/{key}/styles/{name}", SetStyleAsync);
         group.MapDelete("/{key}/styles/{name}", ResetStyleAsync);
@@ -75,7 +80,7 @@ internal sealed class PluginNoCodeEndpoints(
         group.MapGet("/{key}/fonts", FontsAsync);
         group.MapPost("/{key}/fonts", UploadFontAsync);
         group.MapDelete("/{key}/fonts", RemoveFontAsync);
-        group.MapPut("/hotel-overlays", SetOverlaysAsync);
+        group.MapPut("/{key}/overlays", SetOverlaysAsync);
         group.MapPost("/{key}/package", PackageAsync);
     }
 
@@ -183,15 +188,23 @@ internal sealed class PluginNoCodeEndpoints(
         string key,
         string name,
         PluginStyleInput input,
+        string? target,
         HttpContext http,
         CancellationToken ct
     ) =>
         ManageAsync(
             http,
-            $"style {key} {name}={input.Value}",
+            $"style {key} {name}={input.Value}{Into(key, target)}",
             ct,
             async player =>
-                Hotel.FolderOf(key) is { } folder
+                IntoTheme(key, target)
+                    ? Results.Ok(
+                        PluginStyleView.From(
+                            await SetDefaultAsync(key, name, input.Value ?? string.Empty, ct)
+                                .ConfigureAwait(false)
+                        )
+                    )
+                : Hotel.FolderOf(key) is { } folder
                     ? Results.Ok(
                         PluginStyleView.From(
                             await Styles
@@ -206,21 +219,28 @@ internal sealed class PluginNoCodeEndpoints(
                                 .ConfigureAwait(false)
                         )
                     )
-                    : AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
+                : AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
         );
 
     private Task<IResult> ResetStyleAsync(
         string key,
         string name,
+        string? target,
         HttpContext http,
         CancellationToken ct
     ) =>
         ManageAsync(
             http,
-            $"style {key} {name} reset",
+            $"style {key} {name} reset{Into(key, target)}",
             ct,
             async player =>
-                Hotel.FolderOf(key) is not { } folder
+                IntoTheme(key, target)
+                    ? Results.Ok(
+                        PluginStyleView.From(
+                            await SetDefaultAsync(key, name, null, ct).ConfigureAwait(false)
+                        )
+                    )
+                : Hotel.FolderOf(key) is not { } folder
                     ? AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
                 : await Styles.ResetAsync(key, folder, name, player, ct).ConfigureAwait(false)
                     is { } style
@@ -235,12 +255,13 @@ internal sealed class PluginNoCodeEndpoints(
     private Task<IResult> UploadStyleImageAsync(
         string key,
         string name,
+        string? target,
         HttpContext http,
         CancellationToken ct
     ) =>
         ManageAsync(
             http,
-            $"style {key} {name} image",
+            $"style {key} {name} image{Into(key, target)}",
             ct,
             async player =>
             {
@@ -270,6 +291,25 @@ internal sealed class PluginNoCodeEndpoints(
                 var safe = new string([.. name.Select(c => char.IsLetterOrDigit(c) ? c : '-')]);
 
                 memory.Position = 0;
+
+                // Into the theme staff work on: its own file, named by its path in its theme.json.
+                if (IntoTheme(key, target))
+                {
+                    var own = await Hotel
+                        .SaveImageAsync(
+                            key,
+                            $"{safe}-{hash}{Path.GetExtension(file.FileName).ToLowerInvariant()}",
+                            memory,
+                            ct
+                        )
+                        .ConfigureAwait(false);
+
+                    return Results.Ok(
+                        PluginStyleView.From(
+                            await SetDefaultAsync(key, name, own.Path, ct).ConfigureAwait(false)
+                        )
+                    );
+                }
 
                 // Kept in the hotel's own plugin, so it stays when the theme is updated.
                 var image = await Hotel
@@ -404,12 +444,17 @@ internal sealed class PluginNoCodeEndpoints(
 
                 await Styles
                     .SetFontAsync(
+                        key,
+                        Hotel.EditableFolderOf(key),
                         font.Family,
-                        font.Url ?? $"/gamedata/plugins/{key}/{font.Path}",
+                        key == IHotelDataPlugin.KEY
+                            ? font.Url ?? $"/gamedata/plugins/{key}/{font.Path}"
+                            : font.Path,
                         player,
                         ct
                     )
                     .ConfigureAwait(false);
+                await ReloadThemeAsync(key, ct).ConfigureAwait(false);
 
                 return Results.Ok(font);
             }
@@ -434,8 +479,16 @@ internal sealed class PluginNoCodeEndpoints(
                     );
 
                 await Styles
-                    .SetFontAsync(Path.GetFileNameWithoutExtension(path), null, player, ct)
+                    .SetFontAsync(
+                        key,
+                        Hotel.EditableFolderOf(key),
+                        Path.GetFileNameWithoutExtension(path),
+                        null,
+                        player,
+                        ct
+                    )
                     .ConfigureAwait(false);
+                await ReloadThemeAsync(key, ct).ConfigureAwait(false);
 
                 return Results.NoContent();
             }
@@ -446,30 +499,92 @@ internal sealed class PluginNoCodeEndpoints(
     /// checked before any is written (<see cref="IPluginStyles.SetOverlaysAsync"/>).
     /// </summary>
     private Task<IResult> SetOverlaysAsync(
+        string key,
         HotelOverlaysInput input,
         HttpContext http,
         CancellationToken ct
     ) =>
         ManageAsync(
             http,
-            $"overlays {input.Overlays?.Count ?? 0} bitmap(s)",
+            $"overlays {key} {input.Overlays?.Count ?? 0} bitmap(s)",
             ct,
             async player =>
-                Hotel.FolderOf(IHotelDataPlugin.KEY) is { } folder
-                    ? Results.Ok(
-                        new HotelOverlaysResponse(
-                            await Styles
-                                .SetOverlaysAsync(
-                                    folder,
-                                    input.Overlays ?? new Dictionary<string, string?>(),
-                                    player,
-                                    ct
-                                )
-                                .ConfigureAwait(false)
-                        )
+            {
+                var overlays = await Styles
+                    .SetOverlaysAsync(
+                        key,
+                        Hotel.EditableFolderOf(key),
+                        input.Overlays ?? new Dictionary<string, string?>(),
+                        player,
+                        ct
                     )
-                    : AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
+                    .ConfigureAwait(false);
+
+                await ReloadThemeAsync(key, ct).ConfigureAwait(false);
+
+                return Results.Ok(new HotelOverlaysResponse(overlays));
+            }
         );
+
+    /// <summary>
+    /// A new theme, made in the plugin folder and loaded (<see cref="IThemeAuthoring.CreateAsync"/>):
+    /// one that extends another, or a copy of one.
+    /// </summary>
+    private Task<IResult> CreateThemeAsync(
+        ThemeCreateRequest request,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ManageAsync(
+            http,
+            $"theme {request.Key} made{(request.CopyOf is { Length: > 0 } copy ? $" as a copy of {copy}" : $" extending {request.Extends ?? BASE_THEME}")}",
+            ct,
+            async _ =>
+                authoring is null
+                    ? AdminResults.Error(
+                        StatusCodes.Status404NotFound,
+                        "The server runs no plugins."
+                    )
+                    : Results.Ok(await authoring.CreateAsync(request, ct).ConfigureAwait(false))
+        );
+
+    /// <summary>
+    /// Whether a style change goes into the theme's own files (<paramref name="target"/> names the
+    /// theme itself) rather than the hotel's values. A target that is neither is refused.
+    /// </summary>
+    private static bool IntoTheme(string key, string? target) =>
+        string.IsNullOrEmpty(target) || target == IHotelDataPlugin.KEY ? false
+        : target == key ? key != IHotelDataPlugin.KEY
+        : throw new ArgumentException(
+            $"A style of {key} is changed for this hotel or in {key}'s own files, not in {target}.",
+            nameof(target)
+        );
+
+    private static string Into(string key, string? target) =>
+        string.IsNullOrEmpty(target) || target == IHotelDataPlugin.KEY
+            ? string.Empty
+            : $" into {target}";
+
+    /// <summary>The theme's style default written into its <c>theme.json</c>, and the theme loaded again.</summary>
+    private async Task<PluginStyle> SetDefaultAsync(
+        string key,
+        string name,
+        string? value,
+        CancellationToken ct
+    )
+    {
+        var style = await Styles
+            .SetDefaultAsync(key, Hotel.EditableFolderOf(key), name, value, ct)
+            .ConfigureAwait(false);
+
+        await Hotel.ReloadAsync(key, ct).ConfigureAwait(false);
+
+        return style;
+    }
+
+    /// <summary>A theme staff work on is loaded again after its files changed; the hotel's own values need none.</summary>
+    private Task ReloadThemeAsync(string key, CancellationToken ct) =>
+        key == IHotelDataPlugin.KEY ? Task.CompletedTask : Hotel.ReloadAsync(key, ct);
 
     /// <summary>Lets the request body be an image's size; null, or the refusal of a body that says it is bigger.</summary>
     private static IResult? ImageLimit(HttpContext http)
@@ -482,37 +597,57 @@ internal sealed class PluginNoCodeEndpoints(
             : null;
     }
 
-    private async Task<IResult> PatchesAsync(HttpContext http, CancellationToken ct) =>
-        hotelService is null
-            ? AdminResults.Error(StatusCodes.Status404NotFound, "The server runs no plugins.")
-            : Results.Ok(
+    private async Task<IResult> PatchesAsync(string key, HttpContext http, CancellationToken ct)
+    {
+        if (hotelService is null)
+            return AdminResults.Error(StatusCodes.Status404NotFound, "The server runs no plugins.");
+
+        try
+        {
+            return Results.Ok(
                 new HotelPatchesResponse(
-                    IHotelDataPlugin.KEY,
-                    await Hotel.PatchesAsync(ct).ConfigureAwait(false),
+                    key,
+                    await Hotel.PatchesAsync(key, ct).ConfigureAwait(false),
                     await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_MANAGE, ct)
                         .ConfigureAwait(false)
                 )
             );
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status404NotFound, ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status422UnprocessableEntity, ex.Message);
+        }
+    }
 
     private Task<IResult> SavePatchAsync(
+        string key,
         HotelPatch patch,
         HttpContext http,
         CancellationToken ct
     ) =>
         ManageAsync(
             http,
-            $"patch {patch.Template} {patch.Name}{(patch.Disabled ? " (disabled)" : "")}",
+            $"patch {key} {patch.Template} {patch.Name}{(patch.Disabled ? " (disabled)" : "")}",
             ct,
-            async _ => Results.Ok(await Hotel.SavePatchAsync(patch, ct).ConfigureAwait(false))
+            async _ => Results.Ok(await Hotel.SavePatchAsync(key, patch, ct).ConfigureAwait(false))
         );
 
-    private Task<IResult> RemovePatchAsync(string id, HttpContext http, CancellationToken ct) =>
+    private Task<IResult> RemovePatchAsync(
+        string key,
+        string id,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
         ManageAsync(
             http,
-            $"patch {id} removed",
+            $"patch {key} {id} removed",
             ct,
             async _ =>
-                await Hotel.RemovePatchAsync(id, ct).ConfigureAwait(false)
+                await Hotel.RemovePatchAsync(key, id, ct).ConfigureAwait(false)
                     ? Results.NoContent()
                     : AdminResults.Error(StatusCodes.Status404NotFound, "There is no such patch.")
         );
@@ -679,7 +814,7 @@ internal sealed record HotelOverlaysInput(Dictionary<string, string?>? Overlays)
 /// <summary>The hotel's <c>asset.overlays</c> entries after a skin set.</summary>
 internal sealed record HotelOverlaysResponse(ImmutableDictionary<string, string> Overlays);
 
-/// <summary>The patches staff made, and the key of the plugin that holds them.</summary>
+/// <summary>The patches staff made in a plugin (the hotel's own, or a theme they work on), and its key.</summary>
 internal sealed record HotelPatchesResponse(
     string Key,
     ImmutableArray<HotelPatch> Patches,

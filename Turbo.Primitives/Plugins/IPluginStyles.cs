@@ -96,15 +96,35 @@ public interface IPluginStyles
     );
 
     /// <summary>
-    /// Replaces many library bitmaps for the hotel at once (a skin set): each of
-    /// <paramref name="overlays"/> is an <c>asset.overlays</c> key (<c>&lt;library&gt;/&lt;asset&gt;</c>)
-    /// and the url of its image, or null to give the library's own back. A bitmap an image style of the
-    /// hotel's theme stands in for (the base theme's window frames and purse) is set through that style,
-    /// so its Theme tab shows it. Every entry is checked before anything is written: one that is wrong
-    /// throws <see cref="System.ArgumentException"/> naming each, and nothing changes. Answers the
-    /// hotel's <c>asset.overlays</c> entries after.
+    /// Gives the property the theme's own default in its <c>theme.json</c> in <paramref name="folder"/>
+    /// (staff working on the theme: their edit lands in its files, XenForo's development mode), as
+    /// staff type it; null takes the theme's own default away, so the one it inherits holds. An image
+    /// uploaded into the theme is named by its path in its wwwroot. Throws
+    /// <see cref="System.ArgumentException"/> for an unknown property or a value its type refuses. The
+    /// plugin is to be loaded again for clients to be given it.
+    /// </summary>
+    public Task<PluginStyle> SetDefaultAsync(
+        string pluginKey,
+        string folder,
+        string name,
+        string? value,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Replaces many library bitmaps at once (a skin set) for the hotel, or in the theme
+    /// <paramref name="pluginKey"/> staff work on: each of <paramref name="overlays"/> is an
+    /// <c>asset.overlays</c> key (<c>&lt;library&gt;/&lt;asset&gt;</c>) and the url of its image, or
+    /// null to give the library's own back. A bitmap an image style of the theme stands in for (the
+    /// base theme's window frames and purse) is set through that style, so its Theme tab shows it.
+    /// The hotel's go to its own entries of the variables; a theme's into its files (that style's
+    /// default in its <c>theme.json</c>, the rest its <c>gamedata/external_variables.json</c>, its own
+    /// images by their path), to be loaded again. Every entry is checked before anything is written:
+    /// one that is wrong throws <see cref="System.ArgumentException"/> naming each, and nothing
+    /// changes. Answers its <c>asset.overlays</c> entries after.
     /// </summary>
     public Task<ImmutableDictionary<string, string>> SetOverlaysAsync(
+        string pluginKey,
         string folder,
         IReadOnlyDictionary<string, string?> overlays,
         PlayerId actor,
@@ -112,11 +132,19 @@ public interface IPluginStyles
     );
 
     /// <summary>
-    /// Gives clients a font file as <paramref name="family"/> (the hotel's <c>text.fonts</c> entry), or
+    /// Gives clients a font file as <paramref name="family"/> (the hotel's <c>text.fonts</c> entry, or
+    /// the theme <paramref name="pluginKey"/>'s in its <c>gamedata/external_variables.json</c>), or
     /// takes it away (null <paramref name="url"/>). Throws <see cref="System.ArgumentException"/> for a
     /// family that is no name or a url that is no address.
     /// </summary>
-    public Task SetFontAsync(string family, string? url, PlayerId actor, CancellationToken ct);
+    public Task SetFontAsync(
+        string pluginKey,
+        string folder,
+        string family,
+        string? url,
+        PlayerId actor,
+        CancellationToken ct
+    );
 
     /// <summary>Takes the hotel's value away, so the theme's default holds again; null for an unknown property.</summary>
     public Task<PluginStyle?> ResetAsync(
