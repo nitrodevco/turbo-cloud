@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -45,25 +46,27 @@ public static class AssemblyMemoryLoader
     }
 
     /// <summary>
-    /// An assembly with no types, in a collectible context of its own over
-    /// <paramref name="baseDir"/>: what a plugin with no code is loaded as, so it is held, scanned
-    /// (finding nothing) and unloaded as any other.
+    /// An assembly with no types: what a plugin with no code is loaded as, so it is held and
+    /// scanned (finding nothing) as any other. It has no context to unload, so a reload does not
+    /// wait for one to be collected; the one assembly of a name is kept and given again.
     /// </summary>
-    public static LoadedAssembly Empty(string baseDir, string name)
-    {
-        var alc = new ByteLoadingAlc(baseDir, new Dictionary<string, (byte[] asm, byte[]? pdb)>());
+    public static LoadedAssembly Empty(string baseDir, string name) =>
+        new(
+            EMPTY.GetOrAdd(
+                name,
+                key =>
+                    AssemblyBuilder.DefineDynamicAssembly(
+                        new AssemblyName(key),
+                        AssemblyBuilderAccess.Run
+                    )
+            ),
+            null,
+            baseDir
+        );
 
-        // A dynamic assembly goes into the contextual reflection context, so it unloads with it.
-        using (alc.EnterContextualReflection())
-        {
-            var asm = AssemblyBuilder.DefineDynamicAssembly(
-                new AssemblyName(name),
-                AssemblyBuilderAccess.RunAndCollect
-            );
-
-            return new LoadedAssembly(asm, alc, baseDir);
-        }
-    }
+    private static readonly ConcurrentDictionary<string, Assembly> EMPTY = new(
+        StringComparer.Ordinal
+    );
 
     /// <summary>
     /// Starts unloading <paramref name="alc"/> and answers a weak reference to it, for

@@ -531,7 +531,7 @@ public sealed class PluginManager(
         catch
         {
             // It never went live, so nothing else would unload its context: it stayed loaded.
-            var failed = AssemblyMemoryLoader.BeginUnload(asm.Alc);
+            var failed = asm.Alc is null ? null : AssemblyMemoryLoader.BeginUnload(asm.Alc);
 
             asm = null!;
             WaitForFailedUnload(failed, m.Key);

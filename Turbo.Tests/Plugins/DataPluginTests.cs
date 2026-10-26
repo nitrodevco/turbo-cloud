@@ -54,6 +54,7 @@ public sealed class DataPluginTests : IDisposable
 
     private readonly SqliteDb _db = new();
     private readonly Fakes _fakes = new();
+    private readonly CapturingLogger<PluginManager> _log = new(keepExceptions: false);
     private readonly string _folder = Path.Combine(
         Path.GetTempPath(),
         "turbo-data-plugin-" + Guid.NewGuid().ToString("N")
@@ -235,6 +236,39 @@ public sealed class DataPluginTests : IDisposable
 
         (await patches.RemovePatchAsync(green.Id, Ct)).Should().BeTrue();
         (await patches.PatchesAsync(Ct)).Should().ContainSingle();
+    }
+
+    /// <summary>
+    /// Each staff patch save reloads the hotel's data plugin. A data plugin runs no code, so there
+    /// is no code of it to unload: every save waited on one for the whole unload timeout and
+    /// logged "ALC for plugin hotel did not unload within timeout" (5.1-5.5 s a save).
+    /// </summary>
+    [Fact]
+    public async Task A_staff_patch_save_reloads_the_hotel_s_data_plugin_without_waiting_on_code_to_unload()
+    {
+        var hotel = Hotel();
+
+        await hotel.HotelPlugin.SavePatchAsync(
+            Patch("Green help", """[ { "element": "help_button", "set": { "color": 1 } } ]"""),
+            Ct
+        );
+
+        var saving = System.Diagnostics.Stopwatch.StartNew();
+
+        await hotel.HotelPlugin.SavePatchAsync(
+            Patch("Hidden beta", """[ { "element": "beta_sign", "remove": true } ]"""),
+            Ct
+        );
+        saving.Stop();
+
+        hotel
+            .Manager.Snapshot()
+            .Should()
+            .ContainSingle(x => x.Key == IHotelDataPlugin.KEY)
+            .Which.State.Should()
+            .Be(PluginStateType.Loaded);
+        _log.Entries.Where(x => x.Message.Contains("did not unload")).Should().BeEmpty();
+        saving.ElapsedMilliseconds.Should().BeLessThan(2500, "the unload timeout is 5 s");
     }
 
     /// <summary>
@@ -925,7 +959,7 @@ public sealed class DataPluginTests : IDisposable
             host,
             new AssemblyProcessor([]),
             Options.Create(new PluginConfig { PluginFolderPath = _folder }),
-            NullLogger<PluginManager>.Instance
+            _log
         );
 
         hotelPlugin = new HotelDataPlugin(manager, host);
