@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
@@ -93,6 +94,29 @@ public interface IPluginStyles
         PlayerId actor,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Replaces many library bitmaps for the hotel at once (a skin set): each of
+    /// <paramref name="overlays"/> is an <c>asset.overlays</c> key (<c>&lt;library&gt;/&lt;asset&gt;</c>)
+    /// and the url of its image, or null to give the library's own back. A bitmap an image style of the
+    /// hotel's theme stands in for (the base theme's window frames and purse) is set through that style,
+    /// so its Theme tab shows it. Every entry is checked before anything is written: one that is wrong
+    /// throws <see cref="System.ArgumentException"/> naming each, and nothing changes. Answers the
+    /// hotel's <c>asset.overlays</c> entries after.
+    /// </summary>
+    public Task<ImmutableDictionary<string, string>> SetOverlaysAsync(
+        string folder,
+        IReadOnlyDictionary<string, string?> overlays,
+        PlayerId actor,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Gives clients a font file as <paramref name="family"/> (the hotel's <c>text.fonts</c> entry), or
+    /// takes it away (null <paramref name="url"/>). Throws <see cref="System.ArgumentException"/> for a
+    /// family that is no name or a url that is no address.
+    /// </summary>
+    public Task SetFontAsync(string family, string? url, PlayerId actor, CancellationToken ct);
 
     /// <summary>Takes the hotel's value away, so the theme's default holds again; null for an unknown property.</summary>
     public Task<PluginStyle?> ResetAsync(

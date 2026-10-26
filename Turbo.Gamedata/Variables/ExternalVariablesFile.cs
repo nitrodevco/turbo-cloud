@@ -91,12 +91,20 @@ internal static class ExternalVariablesFile
     public const string TEXT_STYLES = "text.styles.overrides";
 
     /// <summary>
+    /// Font files a theme or the hotel gives the client (nitro-next <c>docs/text.md</c>):
+    /// <c>{ "&lt;family&gt;": "&lt;url&gt;" }</c>, each loaded as that family before the first text is
+    /// drawn, so a text style's <c>fontFamily</c> names it. A plugin names a file of its
+    /// <c>wwwroot/</c> by its path there, as an overlay does.
+    /// </summary>
+    public const string TEXT_FONTS = "text.fonts";
+
+    /// <summary>
     /// The variables a plugin brings a part of rather than the whole: a JSON object whose entries
     /// several plugins add to (<c>asset.bundles.templates.overrides</c>, a url per template
     /// library; <see cref="TEMPLATE_PATCHES"/>, a url per plugin; <see cref="FRAME_OVERRIDES"/>, a
     /// style per window; <see cref="ASSET_OVERLAYS"/>, a url per bitmap; <see cref="TEMPLATE_STYLES"/>,
     /// a value per theme style; <see cref="LOADING_SCREEN"/>, a look per key of the loading screen;
-    /// <see cref="TEXT_STYLES"/>, a format per text style). Each loaded plugin's entries are written into the client's file
+    /// <see cref="TEXT_STYLES"/>, a format per text style; <see cref="TEXT_FONTS"/>, a font file per family). Each loaded plugin's entries are written into the client's file
     /// with the hotel's own (<see cref="Merge"/>); none is ever given to the hotel.
     /// </summary>
     public static readonly IReadOnlyList<string> MERGED =
@@ -108,6 +116,7 @@ internal static class ExternalVariablesFile
         TEMPLATE_STYLES,
         LOADING_SCREEN,
         TEXT_STYLES,
+        TEXT_FONTS,
     ];
 
     public static bool IsLinkable(string file) => LINKABLE.Contains(file, StringComparer.Ordinal);

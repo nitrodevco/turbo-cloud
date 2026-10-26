@@ -88,10 +88,21 @@ internal sealed class PluginGamedataSeeds(
             }.ToJsonString();
 
         if (parts.TryGetValue(ExternalVariablesFile.ASSET_OVERLAYS, out var overlays))
-            parts[ExternalVariablesFile.ASSET_OVERLAYS] = AddressOverlays(
+            parts[ExternalVariablesFile.ASSET_OVERLAYS] = AddressEntries(
                 pluginKey,
                 Path.Combine(folder, WWWROOT),
-                overlays
+                overlays,
+                "overlay of",
+                "the library's own is used"
+            );
+
+        if (parts.TryGetValue(ExternalVariablesFile.TEXT_FONTS, out var fonts))
+            parts[ExternalVariablesFile.TEXT_FONTS] = AddressEntries(
+                pluginKey,
+                Path.Combine(folder, WWWROOT),
+                fonts,
+                "font",
+                "the family is not loaded"
             );
 
         if (parts.TryGetValue(ExternalVariablesFile.LOADING_SCREEN, out var loadingScreen))
@@ -121,28 +132,37 @@ internal sealed class PluginGamedataSeeds(
     public IDisposable Loaded(string pluginKey) => loaded.Add(pluginKey, Invalidate);
 
     /// <summary>
-    /// A plugin's <see cref="ExternalVariablesFile.ASSET_OVERLAYS"/>: a bitmap it names by its path in
-    /// its <c>wwwroot/</c> (<c>"frame.png"</c>) is given to clients at its address by hash, as its patch
-    /// file is; a url (<c>/...</c>, <c>https://...</c>) is kept as it is. One whose file is not there is
-    /// logged and left out, so the library's own bitmap stays.
+    /// A plugin's <see cref="ExternalVariablesFile.ASSET_OVERLAYS"/> or <see cref="ExternalVariablesFile.TEXT_FONTS"/>:
+    /// a file it names by its path in its <c>wwwroot/</c> (<c>"frame.png"</c>, <c>"styles/pixel.woff2"</c>)
+    /// is given to clients at its address by hash, as its patch file is; a url (<c>/...</c>,
+    /// <c>https://...</c>) is kept as it is. One whose file is not there is logged and left out, so the
+    /// library's own bitmap stays (a font's family is not loaded).
     /// </summary>
-    private string AddressOverlays(string pluginKey, string wwwroot, string json)
+    private string AddressEntries(
+        string pluginKey,
+        string wwwroot,
+        string json,
+        string what,
+        string outcome
+    )
     {
         if (ParseObject(json) is not { } entries)
             return json;
 
         var addressed = new JsonObject();
 
-        foreach (var (asset, value) in entries)
+        foreach (var (entry, value) in entries)
         {
             if (Address(pluginKey, wwwroot, value) is { } node)
-                addressed[asset] = node;
+                addressed[entry] = node;
             else
                 logger.LogWarning(
-                    "The plugin {Key}'s overlay of {Asset} names {Path}, which is no file of its wwwroot: the library's own is used",
+                    "The plugin {Key}'s {What} {Entry} names {Path}, which is no file of its wwwroot: {Outcome}",
                     pluginKey,
-                    asset,
-                    value?.ToString()
+                    what,
+                    entry,
+                    value?.ToString(),
+                    outcome
                 );
         }
 

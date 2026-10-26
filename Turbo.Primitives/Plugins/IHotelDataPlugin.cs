@@ -32,6 +32,20 @@ public sealed record PluginImage(
 );
 
 /// <summary>
+/// A font file in a plugin's <c>wwwroot/styles/</c> (a theme's Theme tab, Fonts): <see cref="Family"/>
+/// is the name clients load it as (the file's name without its type), which a font style property
+/// or a text style's <c>fontFamily</c> names; <see cref="Url"/> the address of the file, as the
+/// <c>text.fonts</c> variable names it.
+/// </summary>
+public sealed record PluginFont(
+    string Path,
+    string? Url,
+    string Family,
+    long Bytes,
+    System.DateTimeOffset Modified
+);
+
+/// <summary>
 /// One entry of a plugin's <c>wwwroot/template-patches.json</c> (nitro-next
 /// <c>docs/template-patches.md</c>): the template it patches, its ops as the file has them and its
 /// order (null: the file's).
@@ -107,6 +121,26 @@ public interface IHotelDataPlugin
 
     /// <summary>Takes an image of the plugin's <c>wwwroot/styles/</c> away; false when there is none at <paramref name="path"/>.</summary>
     public Task<bool> RemoveImageAsync(string pluginKey, string path, CancellationToken ct);
+
+    /// <summary>The font files in the plugin's <c>wwwroot/styles/</c>, by path; null for no plugin with the key.</summary>
+    public Task<ImmutableArray<PluginFont>?> FontsAsync(string pluginKey, CancellationToken ct);
+
+    /// <summary>
+    /// Keeps a font file staff uploaded in the plugin's <c>wwwroot/styles/</c> as <paramref name="name"/>
+    /// (one there by that name is replaced). A font is data: a browser loads it as a face, never runs
+    /// it. Throws <see cref="System.ArgumentException"/> for a name that isn't a file name, or content
+    /// that is no WOFF2, WOFF, TrueType or OpenType font of the name's type;
+    /// <see cref="System.Collections.Generic.KeyNotFoundException"/> for no plugin with the key.
+    /// </summary>
+    public Task<PluginFont> SaveFontAsync(
+        string pluginKey,
+        string name,
+        Stream content,
+        CancellationToken ct
+    );
+
+    /// <summary>Takes a font file of the plugin's <c>wwwroot/styles/</c> away; false when there is none at <paramref name="path"/>.</summary>
+    public Task<bool> RemoveFontAsync(string pluginKey, string path, CancellationToken ct);
 
     /// <summary>
     /// A data plugin's package, made from the plugin <paramref name="pluginKey"/> as this hotel has

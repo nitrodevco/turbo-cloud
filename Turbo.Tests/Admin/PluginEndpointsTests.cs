@@ -411,7 +411,7 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
             .GetString()
             .Should()
             .Be(
-                "Sample has code (Sample.dll): installing it needs admin.plugins.install. A data plugin (no AssemblyFile; JSON, text and images only) needs only admin.plugins.manage."
+                "Sample has code (Sample.dll): installing it needs admin.plugins.install. A data plugin (no AssemblyFile; JSON, text, images and fonts only) needs only admin.plugins.manage."
             );
         Directory.EnumerateFileSystemEntries(_folder).Should().BeEmpty();
         Log().Should().Equal([("install sample 1.2.3", "refused")]);
@@ -424,6 +424,7 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
     /// </summary>
     [Theory]
     [InlineData("data", null)]
+    [InlineData("font", null)]
     [InlineData("page", "has code (wwwroot/page.html)")]
     [InlineData("script", "has code (wwwroot/mytheme.js)")]
     [InlineData(
@@ -454,6 +455,8 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
             ("LICENSE", "MIT"),
         };
 
+        if (kind == "font")
+            files.Add(("wwwroot/styles/pixel.woff2", "wOF2"));
         if (kind == "page")
             files.Add(("wwwroot/page.html", "<script>alert(1)</script>"));
         if (kind == "script")

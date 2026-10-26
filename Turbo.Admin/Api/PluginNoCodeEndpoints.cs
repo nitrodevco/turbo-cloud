@@ -72,6 +72,10 @@ internal sealed class PluginNoCodeEndpoints(
         group.MapGet("/{key}/images", ImagesAsync);
         group.MapPost("/{key}/images", UploadImageAsync);
         group.MapDelete("/{key}/images", RemoveImageAsync);
+        group.MapGet("/{key}/fonts", FontsAsync);
+        group.MapPost("/{key}/fonts", UploadFontAsync);
+        group.MapDelete("/{key}/fonts", RemoveFontAsync);
+        group.MapPut("/hotel-overlays", SetOverlaysAsync);
         group.MapPost("/{key}/package", PackageAsync);
     }
 
@@ -352,6 +356,121 @@ internal sealed class PluginNoCodeEndpoints(
                     : AdminResults.Error(StatusCodes.Status404NotFound, "There is no such image.")
         );
 
+    private async Task<IResult> FontsAsync(string key, HttpContext http, CancellationToken ct) =>
+        hotelService is null
+        || await Hotel.FontsAsync(key, ct).ConfigureAwait(false) is not { } fonts
+            ? AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
+            : Results.Ok(
+                new PluginFontsResponse(
+                    key,
+                    fonts,
+                    await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_MANAGE, ct)
+                        .ConfigureAwait(false)
+                )
+            );
+
+    /// <summary>
+    /// A font file for the plugin's <c>wwwroot/styles/</c>, under its own file name (or the form's
+    /// <c>name</c>), given to clients as the family its name says (the hotel's <c>text.fonts</c>), so a
+    /// font style property or a text style names it.
+    /// </summary>
+    private Task<IResult> UploadFontAsync(string key, HttpContext http, CancellationToken ct) =>
+        ManageAsync(
+            http,
+            $"font {key} upload",
+            ct,
+            async player =>
+            {
+                if (ImageLimit(http) is { } refused)
+                    return refused;
+
+                var form = await http.Request.ReadFormAsync(ct).ConfigureAwait(false);
+
+                if (form.Files.GetFile("file") is not { } file)
+                    return AdminResults.Error(StatusCodes.Status400BadRequest, "Choose the font.");
+
+                if (file.Length > IMAGE_MAX_BYTES)
+                    return AdminResults.Error(
+                        StatusCodes.Status413PayloadTooLarge,
+                        "A font is at most 2 MB."
+                    );
+
+                var name = form["name"].ToString() is { Length: > 0 } given ? given : file.FileName;
+                var stream = file.OpenReadStream();
+                PluginFont font;
+
+                await using (stream.ConfigureAwait(false))
+                    font = await Hotel.SaveFontAsync(key, name, stream, ct).ConfigureAwait(false);
+
+                await Styles
+                    .SetFontAsync(
+                        font.Family,
+                        font.Url ?? $"/gamedata/plugins/{key}/{font.Path}",
+                        player,
+                        ct
+                    )
+                    .ConfigureAwait(false);
+
+                return Results.Ok(font);
+            }
+        );
+
+    private Task<IResult> RemoveFontAsync(
+        string key,
+        string path,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ManageAsync(
+            http,
+            $"font {key} {path} removed",
+            ct,
+            async player =>
+            {
+                if (!await Hotel.RemoveFontAsync(key, path, ct).ConfigureAwait(false))
+                    return AdminResults.Error(
+                        StatusCodes.Status404NotFound,
+                        "There is no such font."
+                    );
+
+                await Styles
+                    .SetFontAsync(Path.GetFileNameWithoutExtension(path), null, player, ct)
+                    .ConfigureAwait(false);
+
+                return Results.NoContent();
+            }
+        );
+
+    /// <summary>
+    /// A skin set: many library bitmaps replaced (or given back) for the hotel in one change, each
+    /// checked before any is written (<see cref="IPluginStyles.SetOverlaysAsync"/>).
+    /// </summary>
+    private Task<IResult> SetOverlaysAsync(
+        HotelOverlaysInput input,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ManageAsync(
+            http,
+            $"overlays {input.Overlays?.Count ?? 0} bitmap(s)",
+            ct,
+            async player =>
+                Hotel.FolderOf(IHotelDataPlugin.KEY) is { } folder
+                    ? Results.Ok(
+                        new HotelOverlaysResponse(
+                            await Styles
+                                .SetOverlaysAsync(
+                                    folder,
+                                    input.Overlays ?? new Dictionary<string, string?>(),
+                                    player,
+                                    ct
+                                )
+                                .ConfigureAwait(false)
+                        )
+                    )
+                    : AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
+        );
+
     /// <summary>Lets the request body be an image's size; null, or the refusal of a body that says it is bigger.</summary>
     private static IResult? ImageLimit(HttpContext http)
     {
@@ -546,6 +665,19 @@ internal sealed record PluginImagesResponse(
     ImmutableArray<PluginImage> Images,
     bool CanManage
 );
+
+/// <summary>The font files in a plugin's <c>wwwroot/styles/</c>; <c>canManage</c>: may upload and remove them.</summary>
+internal sealed record PluginFontsResponse(
+    string Key,
+    ImmutableArray<PluginFont> Fonts,
+    bool CanManage
+);
+
+/// <summary>A skin set: an image url per <c>asset.overlays</c> key, null to give the library's own back.</summary>
+internal sealed record HotelOverlaysInput(Dictionary<string, string?>? Overlays);
+
+/// <summary>The hotel's <c>asset.overlays</c> entries after a skin set.</summary>
+internal sealed record HotelOverlaysResponse(ImmutableDictionary<string, string> Overlays);
 
 /// <summary>The patches staff made, and the key of the plugin that holds them.</summary>
 internal sealed record HotelPatchesResponse(

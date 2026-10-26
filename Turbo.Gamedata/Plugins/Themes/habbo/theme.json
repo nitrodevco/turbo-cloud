@@ -46,12 +46,12 @@
         "font.text": {
             "type": "font", "default": null, "group": "Fonts", "label": "Text",
             "variable": [ "text.styles.overrides", "u_regular", "fontFamily" ],
-            "hint": "The font of the windows' regular text: Ubuntu, UbuntuCondensed, Volter or Volter Bold."
+            "hint": "The font of the windows' regular text: Ubuntu, UbuntuCondensed, Volter, Volter Bold, or a font uploaded under Images > Fonts."
         },
         "font.title": {
             "type": "font", "default": null, "group": "Fonts", "label": "Window titles",
             "variable": [ "text.styles.overrides", "u_frame_title", "fontFamily" ],
-            "hint": "The font of the windows' titles: Ubuntu, UbuntuCondensed, Volter or Volter Bold."
+            "hint": "The font of the windows' titles: Ubuntu, UbuntuCondensed, Volter, Volter Bold, or a font uploaded under Images > Fonts."
         },
         "loading.background": {
             "type": "color", "default": null, "group": "Loading screen", "label": "Background",

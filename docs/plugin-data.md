@@ -18,6 +18,7 @@ plugins/mytheme/
   wwwroot/
     template-patches.json  its window patches, listed for clients without naming it
     frame.png              files its patches and styles name
+    styles/pixel.woff2     a font its text.fonts names ({ "Pixel": "styles/pixel.woff2" })
   gamedata/
     external_texts.txt     its phrases (key=value), editable by staff
     external_variables.json
@@ -118,6 +119,14 @@ links to it.
   (what a variable such as `asset.overlays` takes). Uploading and removing need
   `admin.plugins.manage` and go to the command log. Admin API: `GET`/`POST /plugins/{key}/images`
   (form field `file`, optional `name`), `DELETE /plugins/{key}/images?path=styles/x.png`.
+  **Fonts**, beside them: upload a WOFF2, WOFF, TrueType or OpenType file (at most 2 MB, checked by
+  its content) and clients load it as the family its file name says (`pixel.woff2` is `pixel`) before
+  their first text: the hotel's `text.fonts` entry `{ "pixel": "<its address>" }`. A **font** style
+  property (the base theme's Text and Window titles) then offers it beside the faces the client
+  ships. Admin API: `GET`/`POST /plugins/{key}/fonts` (form field `file`, optional `name`),
+  `DELETE /plugins/{key}/fonts?path=styles/pixel.woff2` (the family goes with it). A theme plugin
+  names its own fonts in its `gamedata/external_variables.json` `text.fonts`, each a path in its
+  `wwwroot/`, as its overlays are.
 - **Appearance > Template patches**: the patches by who made them - this hotel, then each plugin
   (its `wwwroot/template-patches.json`, read through `GET /plugins/{key}/template-patches`; turn the
   plugin off or on there) - each with how many players' clients report it applied / unmatched /
@@ -154,7 +163,17 @@ links to it.
   writes beside its page (nitro-next `docs/template-patches.md`, "The skin map"), through
   `GET /api/client/windows/index` and `/api/client/windows/skins` (`admin.plugins.view`; read beside
   `Turbo:Admin:ClientPreviewUrl`, else `ClientLoginUrl`, and kept 10 minutes, `?fresh=true` reads them
-  again: **Read again** on the page).
+  again: **Read again** on the page). **Upload a skin set** replaces many sprites at once: pick files,
+  a folder or a zip, and each file is matched to a sprite by its name - the sprite's own
+  (`theme-habbo-frame-3-frame-3-default.png`) or the skin and part (`frame-3-plain.png`,
+  `button-0-hovering.png`, `border-9.png` for a one-sprite skin; a name two sprites take is no match) -
+  in a review table (matched, unmatched, a later file for the same sprite, and a size that is not the
+  sprite's, which a nine-slice would cut wrongly) with the art drawn in the window's preview before
+  anything is saved. **Apply** uploads the matched files into the chosen plugin's images and writes
+  every overlay in one change: `PUT /plugins/hotel-overlays` `{ "overlays": { "<library>/<asset>":
+  "<url>" | null } }` (`admin.plugins.manage`, one command log line), every entry checked before any
+  is written; a sprite the base theme declares as an image style (the window frames, the purse) is
+  set through that style, so its Theme tab shows it.
 - **Plugins > a data plugin > Make a plugin**: a zip of it under a new key, name and version, ready
   to install on another hotel. A theme's package carries this hotel's style values as its defaults
   (and the images uploaded for them); the hotel's own plugin's carries its enabled patches, its
@@ -165,7 +184,7 @@ links to it.
   `"${earnings.title}"`, and `earnings.title` is the key to edit (or to give in a plugin's
   `gamedata/external_texts.txt`).
 - **Installing** one needs `admin.plugins.manage` only, not `admin.plugins.install`: it runs no
-  code. That holds while its files are data (JSON, text, Markdown, images); one bringing texts or
+  code. That holds while its files are data (JSON, text, Markdown, images, fonts); one bringing texts or
   variables needs `gamedata.manage` as well (`docs/admin-panel.md`, "Installing a package").
 
 ## The hotel's own data plugin
@@ -173,7 +192,7 @@ links to it.
 What staff make is kept as a plugin too: the folder `plugins/hotel/` (key `hotel`), made the
 first time something is saved. `patches.json` holds staff's patches with their names and whether
 they are on; `wwwroot/template-patches.json` is what clients load (the enabled ones);
-`wwwroot/styles/` holds uploaded images. It is listed on the Plugins page like any other, and
+`wwwroot/styles/` holds uploaded images and fonts. It is listed on the Plugins page like any other, and
 turning it off takes every staff patch away at once.
 
 ## Not yet
