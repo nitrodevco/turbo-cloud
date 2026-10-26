@@ -37,10 +37,25 @@ public sealed class RoomLoads(int width = 8, int height = 8, WiredConfig? wiredC
 
     public async Task<WiredRoom> LoadAsync(CancellationToken ct)
     {
+        var room = Activate();
+
+        await room.Harness.Module<RoomFurniModule>().EnsureFurniLoadedAsync(ct);
+
+        return room;
+    }
+
+    /// <summary>
+    /// The room's grain as a call from another room activates it, nobody on the way in: up, but
+    /// its furni not read yet (only <c>RoomGrain.EnsureRoomActiveAsync</c> reads them).
+    /// </summary>
+    public WiredRoom Activate()
+    {
         if (Room is not null)
             throw new InvalidOperationException("The room is loaded already.");
 
         var room = new WiredRoom(width, height, clock: Clock);
+
+        room.Harness.State.IsFurniLoaded = false;
 
         if (wiredConfig is not null)
             room.Harness.Room.UseWiredConfig(wiredConfig);
@@ -78,8 +93,6 @@ public sealed class RoomLoads(int width = 8, int height = 8, WiredConfig? wiredC
 
             return Task.CompletedTask;
         };
-
-        await room.Harness.Module<RoomFurniModule>().EnsureFurniLoadedAsync(ct);
 
         return Room = room;
     }

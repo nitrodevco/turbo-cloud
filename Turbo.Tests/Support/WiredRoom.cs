@@ -46,6 +46,8 @@ public sealed class WiredRoom
     {
         Harness = new LiveRoomHarness(width, height, roomConfig, clock: clock, model: model);
         Harness.State.IsRightsLoaded = true;
+        // The test stands the furni itself: there are none to read (RoomLoads reads them).
+        Harness.State.IsFurniLoaded = true;
 
         // A furni told that an avatar walked on it asks the avatar's logic for its context.
         Harness.Fakes.Handlers["get_Context"] = call =>

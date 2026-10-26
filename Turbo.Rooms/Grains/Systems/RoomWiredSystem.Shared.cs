@@ -38,6 +38,10 @@ public sealed partial class RoomWiredSystem
         CancellationToken ct
     )
     {
+        // Asked by another room, this one may not be loaded: its grain is up, its furni not read.
+        await MapModule.EnsureMapBuiltAsync(ct);
+        await FurniModule.EnsureFurniLoadedAsync(ct);
+
         var boxes = new List<FurnitureWiredVariableLogic>();
 
         foreach (
