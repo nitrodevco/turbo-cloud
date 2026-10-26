@@ -22,10 +22,14 @@ public class WiredVariableFurni(
     protected override int? AvailabilityParamIndex => 1;
     protected override WiredAvailabilityType AvailabilityType =>
         _wiredData.GetIntParam<WiredAvailabilityType>(1);
+
+    // Last update time with a value only, as the user variable's (WiredVariableUser.Flags).
     protected override WiredVariableFlags Flags =>
         (
             _wiredData.GetIntParam<bool>(0)
-                ? WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue
+                ? WiredVariableFlags.HasValue
+                    | WiredVariableFlags.CanWriteValue
+                    | WiredVariableFlags.CanReadLastUpdateTime
                 : WiredVariableFlags.None
         )
         | WiredVariableFlags.CanCreateAndDelete

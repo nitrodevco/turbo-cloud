@@ -20,10 +20,14 @@ public class WiredVariableContext(
 
     protected override WiredVariableTargetType TargetType => WiredVariableTargetType.Context;
     protected override WiredAvailabilityType AvailabilityType => WiredAvailabilityType.Internal;
+
+    // Last update time with a value only, as the user variable's (WiredVariableUser.Flags).
     protected override WiredVariableFlags Flags =>
         (
             _wiredData.GetIntParam<bool>(0)
-                ? WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue
+                ? WiredVariableFlags.HasValue
+                    | WiredVariableFlags.CanWriteValue
+                    | WiredVariableFlags.CanReadLastUpdateTime
                 : WiredVariableFlags.None
         )
         | WiredVariableFlags.CanCreateAndDelete

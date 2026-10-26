@@ -22,10 +22,17 @@ public class WiredVariableUser(
     protected override int? AvailabilityParamIndex => 0;
     protected override WiredAvailabilityType AvailabilityType =>
         _wiredData.GetIntParam<WiredAvailabilityType>(0);
+
+    // A variable with a value also tells when it was last written, one without only when it was
+    // made: Habbo lists every furni, user and context variable a box makes with
+    // canReadLastUpdateTime equal to hasValue (official client capture, 2026-10-13..10-25), and the
+    // Variable Age editor greys "Last update time" out without it (conditions/VariableAge.as:91-105).
     protected override WiredVariableFlags Flags =>
         (
             _wiredData.GetIntParam<bool>(1)
-                ? WiredVariableFlags.HasValue | WiredVariableFlags.CanWriteValue
+                ? WiredVariableFlags.HasValue
+                    | WiredVariableFlags.CanWriteValue
+                    | WiredVariableFlags.CanReadLastUpdateTime
                 : WiredVariableFlags.None
         )
         | WiredVariableFlags.CanCreateAndDelete
