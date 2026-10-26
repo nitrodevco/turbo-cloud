@@ -9,7 +9,7 @@ import { skillStore } from './skillStore';
 export const SkillsWindow = ({ close }: ClientModuleWindowProps) => {
     const api = useApi();
     const [ skill, setSkill ] = useState<Skill>(skillStore.current);
-    // The client's own state, read-only (API 1.1): drawn again only when the name changes.
+    // The client's own state, read-only: drawn again only when the name changes.
     const name = api.state.use(state => state.user.name);
 
     useEffect(() => {

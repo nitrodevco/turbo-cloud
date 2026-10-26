@@ -6,6 +6,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Turbo.Contracts.Plugins;
 using Turbo.Gamedata;
 using Turbo.Gamedata.ClientModules;
 using Turbo.Gamedata.Configuration;
@@ -234,6 +235,48 @@ public sealed class DataPluginTests : IDisposable
 
         (await patches.RemovePatchAsync(green.Id, Ct)).Should().BeTrue();
         (await patches.PatchesAsync(Ct)).Should().ContainSingle();
+    }
+
+    /// <summary>
+    /// The server writes the hotel's own plugin's manifest with the plugin API it has, so one written
+    /// under another API (every hotel's, 4 to 9, when the API went back to 1) is stamped with this
+    /// server's and loads with staff's patches; another data plugin built for another API is still
+    /// refused.
+    /// </summary>
+    [Fact]
+    public async Task The_hotel_s_own_plugin_written_under_another_plugin_api_loads_with_its_patches()
+    {
+        var own = Path.Combine(_folder, IHotelDataPlugin.KEY);
+
+        Directory.CreateDirectory(Path.Combine(own, "wwwroot"));
+        File.WriteAllText(
+            Path.Combine(own, "manifest.json"),
+            """{ "Name": "Hotel changes", "Key": "hotel", "Version": "1.0.0", "Author": "Staff", "ApiVersion": 9 }"""
+        );
+        File.WriteAllText(
+            Path.Combine(own, "wwwroot", PluginGamedataSeeds.TEMPLATE_PATCHES_FILE),
+            PATCHES
+        );
+        WriteTheme("oldtheme");
+        File.WriteAllText(
+            Path.Combine(_folder, "oldtheme", "manifest.json"),
+            """{ "Name": "Old theme", "Key": "oldtheme", "Version": "1.0.0", "Author": "a", "ApiVersion": 9 }"""
+        );
+
+        var hotel = Hotel();
+
+        await hotel.Manager.LoadAllAsync(ct: Ct);
+
+        var states = hotel.Manager.Snapshot().ToDictionary(x => x.Key, x => x.State);
+
+        states[IHotelDataPlugin.KEY].Should().Be(PluginStateType.Loaded);
+        states["oldtheme"].Should().Be(PluginStateType.Failed);
+        Part(hotel, ExternalVariablesFile.TEMPLATE_PATCHES)
+            .GetProperty(IHotelDataPlugin.KEY)
+            .GetString()
+            .Should()
+            .Contain("template-patches.json?v=");
+        PluginHelpers.ReadManifest(own).ApiVersion.Should().Be(PluginApi.VERSION);
     }
 
     /// <summary>

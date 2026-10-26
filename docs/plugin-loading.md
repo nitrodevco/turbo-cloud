@@ -36,9 +36,8 @@ public sealed class SkillsPlugin : TurboPlugin
   its commands, messages, handlers, routes and the rest are found as always.
 
 A plugin written against `ITurboPlugin` itself (`Key`, `Version`, `ConfigureServices`,
-`StartAsync`, `StopAsync`, `BindExportsAsync`, `DisposeAsync`) loads as before; the conventions
-above apply to it too, except where it does the same itself. `TurboPlugin` came with plugin API 2
-(`PluginApi`).
+`StartAsync`, `StopAsync`, `BindExportsAsync`, `DisposeAsync`) loads too; the conventions
+above apply to it as well, except where it does the same itself.
 
 ## What a plugin's classes can take
 

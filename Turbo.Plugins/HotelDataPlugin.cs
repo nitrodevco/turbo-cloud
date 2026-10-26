@@ -44,6 +44,45 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
 
     private string Folder => Path.Combine(manager.Config.PluginFolderPath, IHotelDataPlugin.KEY);
 
+    /// <summary>
+    /// The hotel's plugin's manifest as this server takes it. The server writes that file itself,
+    /// with the plugin API it has (<see cref="Ensure"/>), so one written under another API is
+    /// stamped with this server's before the API check; any other folder's manifest is
+    /// <paramref name="manifest"/> as it is.
+    /// </summary>
+    internal static PluginManifest Own(string folder, PluginManifest manifest)
+    {
+        if (
+            !string.Equals(Path.GetFileName(folder), IHotelDataPlugin.KEY, StringComparison.Ordinal)
+            || !string.Equals(manifest.Key, IHotelDataPlugin.KEY, StringComparison.Ordinal)
+            || !PluginHelpers.IsDataOnly(manifest)
+            || manifest.ApiVersion is not { } api
+            || api == PluginApi.VERSION
+        )
+            return manifest;
+
+        var path = Path.Combine(folder, MANIFEST);
+        var json = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        var name =
+            json.Select(x => x.Key)
+                .FirstOrDefault(x =>
+                    string.Equals(
+                        x,
+                        nameof(PluginManifest.ApiVersion),
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                )
+            ?? nameof(PluginManifest.ApiVersion);
+
+        json[name] = PluginApi.VERSION;
+        File.WriteAllText(
+            path,
+            json.ToJsonString(new JsonSerializerOptions { WriteIndented = true })
+        );
+
+        return PluginHelpers.ReadManifest(folder);
+    }
+
     public string? FolderOf(string pluginKey) => manager.FolderOf(pluginKey);
 
     public async Task<ImmutableArray<HotelPatch>> PatchesAsync(CancellationToken ct) =>

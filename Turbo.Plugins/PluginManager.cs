@@ -141,7 +141,8 @@ public sealed class PluginManager(
 
                 try
                 {
-                    var manifest = PluginHelpers.ReadManifest(dir);
+                    // The hotel's own data plugin is stamped with this server's plugin API.
+                    var manifest = HotelDataPlugin.Own(dir, PluginHelpers.ReadManifest(dir));
 
                     if (seen.Add(manifest.Key))
                         list.Add((manifest, dir));

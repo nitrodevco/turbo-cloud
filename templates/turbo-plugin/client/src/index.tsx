@@ -5,7 +5,7 @@
  * - a window of its own (`SkillsWindow`), opened from a toolbar icon and the `skills/open` link;
  * - the plugin's messages, read and sent by name (`skill.ts`);
  * - a template patch: a Skills button in the purse, a core window, as data;
- * - API 1.1: a Skills button in the own avatar menu, the `:skills` chat command, the skill asked for
+ * - a Skills button in the own avatar menu, the `:skills` chat command, the skill asked for
  *   again in each room entered (`api.events`), and the player's name read from `api.state` in the window.
  */
 import { assetUrl, defineModule } from '@nitrodevco/client-module-sdk';
@@ -46,7 +46,7 @@ export default defineModule({
         ]);
         api.templates.bind(PURSE, 'skills', { onPointerTap: () => api.windows.toggle('skills') });
 
-        // API 1.1. A room's training may have moved the skill: asked for again as each room is entered.
+        // A room's training may have moved the skill: asked for again as each room is entered.
         api.events.on('room.entered', () => api.messages.send(GET_SKILL, {}));
         // A button in the menu over the player's own avatar, after the client's rows.
         api.contextMenu.add({
