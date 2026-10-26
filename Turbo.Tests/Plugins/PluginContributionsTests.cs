@@ -176,7 +176,7 @@ public sealed class PluginContributionsTests : IDisposable
     /// <summary>
     /// S2 (B/framework/DX-PLAN-20261026.md 3.2, stuck point 1): a root caption patch on the catalogue,
     /// whose code sets its caption, was reported applied and did nothing. The client reports it
-    /// <c>patch.ineffective</c>; the server keeps it on the plugin and logs what to do instead.
+    /// <c>patch.ineffective</c>, saying what to do instead; the server keeps it on the plugin and logs it.
     /// </summary>
     [Fact]
     public void An_ineffective_patch_op_shows_on_the_plugin_and_is_logged()
@@ -192,7 +192,7 @@ public sealed class PluginContributionsTests : IDisposable
                     ClientExtensionReportKinds.PATCH_INEFFECTIVE,
                     "habbo-catalog-com/catalog_ubuntu_with_tabs",
                     ".caption",
-                    "theme's patch sets caption of '', which changes nothing."
+                    "theme's patch sets caption of '', which changes nothing: the window's code sets caption of that element, and that is what it draws. Bind it with override: true instead."
                 ),
             ]
         );
