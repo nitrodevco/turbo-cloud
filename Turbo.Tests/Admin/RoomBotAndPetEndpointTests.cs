@@ -7,11 +7,13 @@ using FluentAssertions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Database.Entities.Bots;
+using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Pets;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Admin.Snapshots;
 using Turbo.Primitives.Bots.Snapshots;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players.Enums;
@@ -27,7 +29,8 @@ namespace Turbo.Tests.Admin;
 /// A room's bots and pets on its page (<c>/api/rooms/{id}/bots</c>, <c>/pets</c>): any staff member
 /// who may look up rooms sees the ones standing in it, and no other room's; setting one or taking it
 /// out needs what the room's settings need - owning the room or <c>room.control.any</c> - and goes
-/// through that room.
+/// through that room. Its furniture (<c>/furniture</c>, 2026-10-26) likewise, taking an item out
+/// needing what picking up any furniture in a room needs, <c>room.furni.pickup_any</c>.
 /// </summary>
 public sealed class RoomBotAndPetEndpointTests : IAsyncDisposable
 {
@@ -36,6 +39,7 @@ public sealed class RoomBotAndPetEndpointTests : IAsyncDisposable
     private const int OWNER = 2;
     private const int BOT = 31;
     private const int PET = 41;
+    private const int CHAIR = 51;
 
     private readonly Fakes _fakes = new();
     private readonly SqliteDb _db = new();
@@ -82,6 +86,10 @@ public sealed class RoomBotAndPetEndpointTests : IAsyncDisposable
         _db.Insert(Bot(33, "Packed away", null));
         _db.Insert(Pet(PET, "Rex", ROOM));
         _db.Insert(Pet(42, "Elsewhere", OTHER_ROOM));
+        _db.Insert(Definition());
+        _db.Insert(Item(CHAIR, ROOM));
+        _db.Insert(Item(52, OTHER_ROOM));
+        _db.Insert(Item(53, null));
 
         _fakes.Handlers["GetSessionAsync"] = _ =>
             Task.FromResult<AdminSessionSnapshot?>(
@@ -100,6 +108,8 @@ public sealed class RoomBotAndPetEndpointTests : IAsyncDisposable
         _fakes.Handlers["StaffPickupBotAsync"] = call => Task.FromResult((int)call.Args[0]! == BOT);
         _fakes.Handlers["StaffUpdatePetAsync"] = call => Task.FromResult((int)call.Args[0]! == PET);
         _fakes.Handlers["StaffPickupPetAsync"] = call => Task.FromResult((int)call.Args[0]! == PET);
+        _fakes.Handlers["StaffPickupItemAsync"] = call =>
+            Task.FromResult((int)call.Args[0]! == CHAIR);
 
         (_server, _, _) = AdminApiServerTests.Build(
             $"http://127.0.0.1:{_port}",
@@ -238,6 +248,44 @@ public sealed class RoomBotAndPetEndpointTests : IAsyncDisposable
             .Be((long)ROOM);
     }
 
+    [Fact]
+    public async Task A_room_lists_its_furniture_and_taking_one_out_needs_pickup_any()
+    {
+        await _server.StartAsync(Ct);
+
+        var (status, body) = await SendAsync(HttpMethod.Get, $"rooms/{ROOM}/furniture");
+
+        status.Should().Be(HttpStatusCode.OK);
+
+        var items = JsonDocument.Parse(body).RootElement.EnumerateArray().ToList();
+
+        items.Should().ContainSingle();
+        items[0].GetProperty("id").GetInt32().Should().Be(CHAIR);
+        items[0].GetProperty("className").GetString().Should().Be("chair_norja");
+        items[0].GetProperty("logic").GetString().Should().Be("default_floor");
+        items[0].GetProperty("ownerName").GetString().Should().Be("owner");
+        items[0].GetProperty("extraData").GetString().Should().Be("1");
+
+        (await SendAsync(HttpMethod.Post, $"rooms/{ROOM}/furniture/{CHAIR}/pickup"))
+            .Status.Should()
+            .Be(HttpStatusCode.Forbidden);
+        _fakes.Log.Of("StaffPickupItemAsync").Should().BeEmpty();
+
+        _holds = _holds.Add(PermissionNodes.Room.FURNI_PICKUP_ANY);
+
+        (await SendAsync(HttpMethod.Post, $"rooms/{ROOM}/furniture/52/pickup"))
+            .Status.Should()
+            .Be(HttpStatusCode.Conflict, "the room refuses an item not standing in it");
+        (await SendAsync(HttpMethod.Post, $"rooms/{ROOM}/furniture/{CHAIR}/pickup"))
+            .Status.Should()
+            .Be(HttpStatusCode.OK);
+
+        var pickup = _fakes.Log.Of("StaffPickupItemAsync").Last();
+
+        pickup.Key.Should().Be((long)ROOM);
+        pickup.Args[1].Should().Be(1, "the staff member who took it out is its cause's actor");
+    }
+
     private async Task<(HttpStatusCode Status, string Body)> SendAsync(
         HttpMethod method,
         string path,
@@ -296,6 +344,40 @@ public sealed class RoomBotAndPetEndpointTests : IAsyncDisposable
             Motto = "",
             Figure = "hd-180-1",
             Gender = AvatarGenderType.Male,
+        };
+
+    private static FurnitureDefinitionEntity Definition() =>
+        new()
+        {
+            Id = 1,
+            SpriteId = 30,
+            Name = "chair_norja",
+            ProductType = ProductType.Floor,
+            FurniCategory = FurnitureCategory.Default,
+            Logic = "default_floor",
+            Width = 1,
+            Length = 1,
+            StackHeight = 1,
+            CanStack = false,
+            CanWalk = false,
+            CanSit = true,
+            CanLay = false,
+            CanRecycle = true,
+            CanTrade = true,
+            CanGroup = true,
+            CanSell = true,
+        };
+
+    private static FurnitureEntity Item(int id, int? roomId) =>
+        new()
+        {
+            Id = id,
+            PlayerEntityId = OWNER,
+            FurnitureDefinitionEntityId = 1,
+            RoomEntityId = roomId,
+            X = 1,
+            Y = 2,
+            ExtraData = "1",
         };
 
     private static PetEntity Pet(int id, string name, int? roomId) =>

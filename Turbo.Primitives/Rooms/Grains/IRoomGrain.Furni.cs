@@ -26,6 +26,14 @@ public partial interface IRoomGrain
         bool confirmed,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Staff taking an item out of the room from the admin panel: back to its owner's inventory,
+    /// as a moderator picking it up would send it. False when it does not stand in the room or
+    /// the room would not let it go (a borrowed or a temporary item goes as it always does).
+    /// </summary>
+    public Task<bool> StaffPickupItemAsync(int itemId, int staffPlayerId, CancellationToken ct);
+
     public Task<bool> UseItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,

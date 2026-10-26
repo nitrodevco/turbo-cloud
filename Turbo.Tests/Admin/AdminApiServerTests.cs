@@ -279,6 +279,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminRoomQueries>();
         services.AddSingleton<AdminRoomVisits>();
         services.AddSingleton<AdminRoomBots>();
+        services.AddSingleton<AdminRoomFurniture>();
         services.AddSingleton<AdminRoomPets>();
         services.AddSingleton<Turbo.Admin.Telemetry.AdminClientTelemetry>();
         services.AddSingleton<AdminRoomEditor>();

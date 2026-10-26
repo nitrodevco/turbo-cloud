@@ -68,6 +68,31 @@ public sealed partial class RoomGrain
         }
     }
 
+    public Task<bool> StaffPickupItemAsync(int itemId, int staffPlayerId, CancellationToken ct) =>
+        RunLoggedAsync(
+            ActionContext.CreateForSystem(RoomId),
+            "staff pick up item",
+            itemId,
+            async () =>
+            {
+                // A room nobody is in may not be loaded: its furniture stands on its map.
+                await MapModule.EnsureMapBuiltAsync(ct);
+                await FurniModule.EnsureFurniLoadedAsync(ct);
+
+                var ctx = ActionContext.CreateForSystem(RoomId);
+                var id = new RoomObjectId(itemId);
+
+                return _state.ItemsById.ContainsKey(id)
+                    && await ActionModule.RemoveItemByIdAsync(
+                        ctx,
+                        id,
+                        confirmed: true,
+                        MovementCause.New(MovementCauses.ROOM_PICKUP, staffPlayerId, RoomId.Value),
+                        ct
+                    );
+            }
+        );
+
     public async Task<bool> UseItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,

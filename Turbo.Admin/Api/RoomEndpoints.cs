@@ -37,6 +37,7 @@ internal sealed class RoomEndpoints(
     AdminRoomQueries rooms,
     AdminRoomVisits visits,
     AdminRoomBots bots,
+    AdminRoomFurniture furniture,
     AdminRoomPets pets,
     AdminRoomEditor editor,
     IRoomService roomService,
@@ -69,6 +70,8 @@ internal sealed class RoomEndpoints(
         group.MapGet("/{id:int}/bots", BotsAsync);
         group.MapPut("/{id:int}/bots/{botId:int}", SaveBotAsync);
         group.MapPost("/{id:int}/bots/{botId:int}/pickup", PickupBotAsync);
+        group.MapGet("/{id:int}/furniture", FurnitureAsync);
+        group.MapPost("/{id:int}/furniture/{itemId:int}/pickup", PickupFurnitureAsync);
         group.MapGet("/{id:int}/pets", PetsAsync);
         group.MapPut("/{id:int}/pets/{petId:int}", SavePetAsync);
         group.MapPost("/{id:int}/pets/{petId:int}/pickup", PickupPetAsync);
@@ -156,6 +159,31 @@ internal sealed class RoomEndpoints(
             return Refused("The bot doesn't stand in this room.");
 
         Log(http, "took bot {BotId} out of room {RoomId}", botId, id);
+
+        return Done("Taken back to its owner's inventory.");
+    }
+
+    private async Task<IResult> FurnitureAsync(int id, CancellationToken ct) =>
+        Results.Ok(await furniture.ListAsync(id, ct).ConfigureAwait(false));
+
+    private async Task<IResult> PickupFurnitureAsync(
+        HttpContext http,
+        int id,
+        int itemId,
+        CancellationToken ct
+    )
+    {
+        if (await RefuseAsync(http, id, x => x.PickUpFurni, ct).ConfigureAwait(false) is { } no)
+            return no;
+
+        if (
+            !await furniture
+                .PickupAsync(id, itemId, AdminIdentity.Of(http).PlayerId, ct)
+                .ConfigureAwait(false)
+        )
+            return Refused("The item doesn't stand in this room, or the room would not let it go.");
+
+        Log(http, "took item {ItemId} out of room {RoomId}", itemId, id);
 
         return Done("Taken back to its owner's inventory.");
     }

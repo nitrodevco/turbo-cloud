@@ -43,7 +43,8 @@ public static class AdminRoomAbilities
                 || resolved.Has(PermissionNodes.Command.ROOMUNMUTE),
             Unload: resolved.Has(PermissionNodes.Command.UNLOADROOM),
             Alert: resolved.Has(PermissionNodes.Command.ROOMALERT),
-            TransferOwner: resolved.Has(PermissionNodes.Admin.ROOMS_TRANSFER)
+            TransferOwner: resolved.Has(PermissionNodes.Admin.ROOMS_TRANSFER),
+            PickUpFurni: owns || resolved.Has(PermissionNodes.Room.FURNI_PICKUP_ANY)
         );
     }
 }
