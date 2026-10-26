@@ -277,7 +277,9 @@ The job's log says what changed; the history entry's error names the first file 
 A file pending as **changed** can be compared with the copy the target holds, before it is sent:
 **Compare** on its row (or **Compare all**, the 100 largest changed files) reads the target's copy
 through the target itself (folder, FTP, FTPS or SFTP, so it works without a public URL) and says what
-differs from the hotel's copy:
+differs from the hotel's copy. It needs `gamedata.manage`, as testing a target does: it connects with the
+target's stored password. A bundle is unpacked to compare it only up to 32 MB a file and 128 MB in all (the
+target's copy comes from outside the hotel); past that it is `unreadable`, saying which.
 
 - a bundle's window templates (`templates.json`) added, removed or changed, and for a changed one its
   elements added, removed or changed by name and the text keys its elements name (`${catalog.title}`);
@@ -388,7 +390,7 @@ runs at a time; starting another while one runs is 409.
 | `POST /assets/targets/{id}/test` | `{ ok, message }`: connected and listed the folder, or why not. |
 | `POST /assets/targets/{id}/publish` | Body `{ dryRun, deleteRemoved }`; answers the `AssetJob`. |
 | `POST /assets/targets/{id}/forget-host-key` | 204: the next SFTP connection trusts the key it is shown. |
-| `GET /assets/targets/{id}/compare?path=` | `{ items: [ AssetComparison ], total }`: the file at `path` (404 when the hotel has none), or without it every file pending as changed, the 100 largest (`total` counts them all). |
+| `GET /assets/targets/{id}/compare?path=` | Needs `gamedata.manage` (it reads the target with its stored password, as a test does). `{ items: [ AssetComparison ], total }`: the file at `path` (404 when the hotel has none), or without it every file pending as changed, the 100 largest (`total` counts them all). |
 | `GET /assets/targets/{id}/compare/image?path=&entry=&side=` | A PNG or GIF a comparison names: the file at `path`, or its `entry` in that bundle, as the target holds it (`side=target`) or the hotel does; 404 for anything else. |
 | `GET /assets/targets/{id}/history` | `{ items: [ { id, startedAt, finishedAt, playerId, playerName, dryRun, uploaded, skipped, deleted, bytes, error, purged, purgeError } ] }`, newest first. |
 | `GET /assets/broken` | `{ sources: [ { id, title, read, note, count } ], items: [ { source, key, title, kind, name, detail, count, actions: ("habbo"\|"upload"\|"publish")[], link, ignored: { note, playerId, playerName, ignoredAt } \| null } ] }`. A source's `count` leaves out the ignored. |

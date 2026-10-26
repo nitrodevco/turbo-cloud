@@ -19,7 +19,8 @@ namespace Turbo.Admin.Api;
 /// <summary>
 /// Where the hotel's asset bundles are published (<c>/api/assets/targets</c>): a folder on this
 /// server, or an FTP, FTPS or SFTP server, each optionally purging its Cloudflare zone after a publish. Staff with <c>admin.gamedata.view</c> see the targets,
-/// their history, what each has pending and what changed in it (read through the target); adding, changing, testing and publishing need <c>gamedata.manage</c> as well.
+/// their history and what each has pending; adding, changing, testing, comparing with what a target holds (read
+/// through it with its stored credentials) and publishing need <c>gamedata.manage</c> as well.
 /// </summary>
 internal sealed class AssetPublishEndpoints(
     IGrainFactory grainFactory,
@@ -33,6 +34,8 @@ internal sealed class AssetPublishEndpoints(
     private const string NO_FILE =
         "There is no such publish target, or the hotel has no file there.";
     private const string NO_IMAGE = "There is no such image on that side.";
+    private const string NO_COMPARE =
+        "Comparing reads the target with its stored password: it needs gamedata.manage.";
 
     public void Map(RouteGroupBuilder secured)
     {
@@ -53,15 +56,20 @@ internal sealed class AssetPublishEndpoints(
             "/{id:int}/pending",
             (int id, string? q, int? page, CancellationToken ct) => PendingAsync(id, q, page, ct)
         );
-        group.MapGet(
-            "/{id:int}/compare",
-            (int id, string? path, CancellationToken ct) => CompareAsync(id, path, ct)
-        );
-        group.MapGet(
-            "/{id:int}/compare/image",
-            (int id, string path, string? entry, string? side, CancellationToken ct) =>
-                ComparedImageAsync(id, path, entry, side, ct)
-        );
+        // Comparing reads the target with its stored credentials, as testing it does.
+        group
+            .MapGet(
+                "/{id:int}/compare",
+                (int id, string? path, CancellationToken ct) => CompareAsync(id, path, ct)
+            )
+            .RequirePermission(PermissionNodes.Gamedata.MANAGE, NO_COMPARE);
+        group
+            .MapGet(
+                "/{id:int}/compare/image",
+                (int id, string path, string? entry, string? side, CancellationToken ct) =>
+                    ComparedImageAsync(id, path, entry, side, ct)
+            )
+            .RequirePermission(PermissionNodes.Gamedata.MANAGE, NO_COMPARE);
     }
 
     private async Task<IResult> ListAsync(CancellationToken ct)

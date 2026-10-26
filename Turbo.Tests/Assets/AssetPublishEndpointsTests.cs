@@ -323,6 +323,18 @@ public sealed class AssetPublishEndpointsTests : IAsyncDisposable
         (await SendAsync(HttpMethod.Delete, $"/api/assets/targets/{target.Id}"))
             .StatusCode.Should()
             .Be(HttpStatusCode.Forbidden);
+        // A comparison reads the target with its stored password, as a test does.
+        (await SendAsync(HttpMethod.Get, $"/api/assets/targets/{target.Id}/compare"))
+            .StatusCode.Should()
+            .Be(HttpStatusCode.Forbidden);
+        (
+            await SendAsync(
+                HttpMethod.Get,
+                $"/api/assets/targets/{target.Id}/compare/image?path=bundled/furniture/chair.nitro"
+            )
+        )
+            .StatusCode.Should()
+            .Be(HttpStatusCode.Forbidden);
         _hotel.Jobs.Current.Should().BeNull();
 
         _holds = node => node == PermissionNodes.Admin.PANEL;

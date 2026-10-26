@@ -2,6 +2,8 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -29,6 +31,17 @@ internal static partial class BundleComparer
 
     /// <summary>The text keys a language's difference lists; it counts them all.</summary>
     public const int MAX_TEXT_EDITS = 200;
+
+    /// <summary>
+    /// The most one file in a bundle may unpack to, to be compared: the target's copy is read from
+    /// outside the hotel, and a zip says what it unpacks to without having to be true.
+    /// </summary>
+    public const long MAX_ENTRY_BYTES = 32L * 1024 * 1024;
+
+    /// <summary>The most all the files in a bundle may unpack to, to be compared.</summary>
+    public const long MAX_BUNDLE_BYTES = 128L * 1024 * 1024;
+
+    private const int READ_CHUNK = 81920;
 
     private const string TEXTS_PREFIX = "DefaultLocalizations_";
     private const string TEXTS_SUFFIX = ".json";
@@ -58,7 +71,14 @@ internal static partial class BundleComparer
     /// Compares the target's copy (<paramref name="before"/>) with the hotel's; <paramref name="name"/>
     /// is the file's name, which says, when it is not a <paramref name="bundle"/>, whether it is an image.
     /// </summary>
-    public static Found Compare(string name, byte[] before, byte[] after, bool bundle)
+    public static Found Compare(
+        string name,
+        byte[] before,
+        byte[] after,
+        bool bundle,
+        long maxEntryBytes = MAX_ENTRY_BYTES,
+        long maxBundleBytes = MAX_BUNDLE_BYTES
+    )
     {
         if (!bundle)
             return before.AsSpan().SequenceEqual(after)
@@ -74,7 +94,7 @@ internal static partial class BundleComparer
 
         try
         {
-            old = NitroBundle.Read(before).Files;
+            old = Read(before, maxEntryBytes, maxBundleBytes);
         }
         catch (AssetFormatException ex)
         {
@@ -86,7 +106,7 @@ internal static partial class BundleComparer
 
         try
         {
-            now = NitroBundle.Read(after).Files;
+            now = Read(after, maxEntryBytes, maxBundleBytes);
         }
         catch (AssetFormatException ex)
         {
@@ -162,6 +182,67 @@ internal static partial class BundleComparer
             entries.Count
         );
     }
+
+    /// <summary>
+    /// A bundle's files, each unpacked only up to <paramref name="maxEntryBytes"/> and all of them up
+    /// to <paramref name="maxBundleBytes"/>, however much the zip says they hold: past either it is
+    /// refused (<see cref="AssetFormatException"/>, saying which), before more is unpacked.
+    /// </summary>
+    public static IReadOnlyDictionary<string, byte[]> Read(
+        byte[] data,
+        long maxEntryBytes = MAX_ENTRY_BYTES,
+        long maxBundleBytes = MAX_BUNDLE_BYTES
+    )
+    {
+        if (!NitroBundle.IsNitro(data))
+            throw new AssetFormatException("Not a .nitro bundle: the file is not a zip.");
+
+        var files = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+        var buffer = new byte[READ_CHUNK];
+        long total = 0;
+
+        try
+        {
+            using var zip = new ZipArchive(new MemoryStream(data), ZipArchiveMode.Read);
+
+            foreach (var entry in zip.Entries.Where(x => !x.FullName.EndsWith('/')))
+            {
+                if (entry.Length > maxEntryBytes)
+                    throw TooLarge(entry.FullName, maxEntryBytes);
+
+                using var stream = entry.Open();
+                using var output = new MemoryStream();
+                int read;
+
+                while ((read = stream.Read(buffer)) > 0)
+                {
+                    if (output.Length + read > maxEntryBytes)
+                        throw TooLarge(entry.FullName, maxEntryBytes);
+
+                    if ((total += read) > maxBundleBytes)
+                        throw new AssetFormatException(
+                            $"Its files unpack to more than the {Megabytes(maxBundleBytes)} compared."
+                        );
+
+                    output.Write(buffer, 0, read);
+                }
+
+                files[entry.FullName] = output.ToArray();
+            }
+        }
+        catch (InvalidDataException ex)
+        {
+            throw new AssetFormatException("The .nitro bundle is not a readable zip.", ex);
+        }
+
+        return files;
+    }
+
+    private static AssetFormatException TooLarge(string entry, long max) =>
+        new($"{entry} unpacks to more than the {Megabytes(max)} compared.");
+
+    private static string Megabytes(long bytes) =>
+        bytes >= 1024 * 1024 ? $"{bytes / (1024 * 1024)} MB" : $"{bytes} bytes";
 
     /// <summary>Whether a file is one a comparison can show: a PNG or a GIF.</summary>
     public static bool IsImage(string name) =>

@@ -194,6 +194,43 @@ public sealed class AssetPublishCompareTests : IDisposable
             .Be(AssetCompareResult.StampOnly);
     }
 
+    [Theory]
+    [InlineData(1000, 10_000, "big.png unpacks to more than the 1000 bytes compared.")]
+    [InlineData(10_000, 3000, "Its files unpack to more than the 3000 bytes compared.")]
+    public void A_target_copy_that_unpacks_past_the_limit_is_unreadable_and_says_which(
+        long maxEntryBytes,
+        long maxBundleBytes,
+        string problem
+    )
+    {
+        // The target's copy comes from outside the hotel: a few bytes of zip may unpack to gigabytes.
+        var hotel = NitroBundle
+            .Create(new Dictionary<string, byte[]> { ["a.png"] = Png(1, 1) })
+            .Write();
+        var target = NitroBundle
+            .Create(
+                new Dictionary<string, byte[]>
+                {
+                    ["a.png"] = new byte[1000],
+                    ["b.png"] = new byte[1000],
+                    ["big.png"] = new byte[2000],
+                }
+            )
+            .Write();
+
+        var found = Turbo.Gamedata.Assets.Publishing.BundleComparer.Compare(
+            "x",
+            target,
+            hotel,
+            bundle: true,
+            maxEntryBytes,
+            maxBundleBytes
+        );
+
+        found.Result.Should().Be(AssetCompareResult.Unreadable);
+        found.Problem.Should().Be($"The target's copy is not a bundle it can read: {problem}");
+    }
+
     [Fact]
     public async Task A_copy_that_cannot_be_read_says_why()
     {

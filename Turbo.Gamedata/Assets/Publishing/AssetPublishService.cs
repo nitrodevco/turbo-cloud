@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Assets;
-using Turbo.Assets.Nitro;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Assets;
 using Turbo.Database.Extensions;
@@ -409,7 +408,7 @@ internal sealed class AssetPublishService(
 
         try
         {
-            return NitroBundle.Read(data).Files.GetValueOrDefault(entry);
+            return BundleComparer.Read(data).GetValueOrDefault(entry);
         }
         catch (AssetFormatException)
         {
