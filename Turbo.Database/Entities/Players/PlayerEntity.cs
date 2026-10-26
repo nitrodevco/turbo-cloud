@@ -112,6 +112,15 @@ public class PlayerEntity : TurboEntity
     [Column("last_login")]
     public DateTime? LastLoginAt { get; set; }
 
+    /// <summary>
+    /// The player's time online in all, in milliseconds: each session's, added as it goes (every
+    /// <c>Turbo:Players:AchievementOnlineIntervalSeconds</c> and at its end). Counted from the
+    /// version that added it.
+    /// </summary>
+    [Column("online_ms")]
+    [DefaultValue(0L)]
+    public long OnlineMilliseconds { get; set; }
+
     [InverseProperty("PlayerEntity")]
     public List<PlayerBadgeEntity>? PlayerBadges { get; set; }
 

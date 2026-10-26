@@ -43,6 +43,15 @@ public sealed class FakePlayer
 
     public int Respects { get; set; }
 
+    /// <summary>The respects the player gave other players.</summary>
+    public int RespectsGiven { get; set; }
+
+    /// <summary>The player's time online before the session running now.</summary>
+    public TimeSpan OnlineTime { get; set; }
+
+    /// <summary>When the session running now began; null when there is none (<see cref="Online"/> alone starts none).</summary>
+    public DateTime? SessionStartedAt { get; set; }
+
     public long AchievementScore { get; set; }
 
     public HotelClub Club { get; set; }
@@ -237,6 +246,25 @@ public sealed class FakePlayers : IHotelPlayers
 
     public Task<HotelClub> ClubAsync(PlayerId player, CancellationToken ct) =>
         Task.FromResult(_players.FirstOrDefault(x => x.Id == player)?.Club ?? default);
+
+    public Task<HotelOnlineTime?> OnlineTimeAsync(PlayerId player, CancellationToken ct)
+    {
+        if (_players.FirstOrDefault(x => x.Id == player) is not { } p)
+            return Task.FromResult<HotelOnlineTime?>(null);
+
+        var now = _hotel.Clock.GetUtcNow().UtcDateTime;
+        var session =
+            p.SessionStartedAt is { } started && now > started ? now - started : TimeSpan.Zero;
+
+        return Task.FromResult<HotelOnlineTime?>(new(p.OnlineTime + session, session));
+    }
+
+    public Task<HotelRespects?> RespectsAsync(PlayerId player, CancellationToken ct) =>
+        Task.FromResult<HotelRespects?>(
+            _players.FirstOrDefault(x => x.Id == player) is { } p
+                ? new HotelRespects(p.Respects, p.RespectsGiven)
+                : null
+        );
 
     public Task<bool> HasPermissionAsync(PlayerId player, string node, CancellationToken ct) =>
         Task.FromResult(
