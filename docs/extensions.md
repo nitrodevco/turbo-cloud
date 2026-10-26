@@ -316,7 +316,9 @@ links a Discord account it has proven to an existing player through `IHotel.Play
 - **Trust**: plugins run in-process with full trust (server assembly, client JS in the page). The
   manifest's declarations are for compatibility and review, not a sandbox. Data plugins (patches,
   styles, art; no `AssemblyFile`) are the safe kind: they run no code on either side
-  (`docs/plugin-data.md`).
+  (`docs/plugin-data.md`), so the trust policy is a permission, not a setting: a data plugin
+  installs with `admin.plugins.manage`, and anything that puts code in place needs
+  `admin.plugins.install` as well (`docs/admin-panel.md`, "Installing a package").
 
 ## 6. Roadmap
 
