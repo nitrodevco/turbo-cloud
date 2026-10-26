@@ -203,21 +203,28 @@ public sealed class ClientAssets(
     /// The client's preview host: <c>ClientPreviewUrl</c>, else the page of <c>ClientLoginUrl</c>,
     /// its query replaced by <c>?preview</c>; empty when neither is an http(s) address.
     /// </summary>
-    private static string PreviewUrl(AdminConfig options)
+    private static string PreviewUrl(AdminConfig options) =>
+        ClientPage(options) is { } url
+            ? new UriBuilder(url) { Query = "preview", Fragment = "" }
+                .Uri
+                .AbsoluteUri
+            : "";
+
+    /// <summary>
+    /// The client's page: <c>ClientPreviewUrl</c>, else <c>ClientLoginUrl</c>; null when neither is
+    /// an http(s) address.
+    /// </summary>
+    internal static Uri? ClientPage(AdminConfig options)
     {
         var page = string.IsNullOrWhiteSpace(options.ClientPreviewUrl)
             ? options.ClientLoginUrl
             : options.ClientPreviewUrl;
 
-        if (
-            !Uri.TryCreate(page, UriKind.Absolute, out var url)
-            || (url.Scheme != Uri.UriSchemeHttp && url.Scheme != Uri.UriSchemeHttps)
-        )
-            return "";
-
-        return new UriBuilder(url) { Query = "preview", Fragment = "" }
-            .Uri
-            .AbsoluteUri;
+        return
+            Uri.TryCreate(page, UriKind.Absolute, out var url)
+            && (url.Scheme == Uri.UriSchemeHttp || url.Scheme == Uri.UriSchemeHttps)
+            ? url
+            : null;
     }
 
     /// <summary>Every <c>${key}</c> the config has a value for, replaced, as the client does.</summary>

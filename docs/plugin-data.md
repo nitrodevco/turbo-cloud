@@ -68,6 +68,20 @@ is updated.
   `${ctx.<key>}`, `${item.<key>}` (with `"items": true`), `${text.<key>}` and `${style:<name>}` filled as
   the client draws it; the check refuses an unknown field or placeholder, and a relative `asset` is one
   of the hotel's own served files (nitro-next `docs/template-patches.md`, "A binding as data").
+  **Test**, under the ops, shows the window's element tree with them applied before saving: what each
+  op changes, and each one naming an element the window lacks (clients would report it unmatched).
+- **Plugins > Windows & skins**: every window of the client - each template window and each window
+  Nitro draws itself - found by its id, an element's name or key, a text key or a text it shows (the
+  hotel's texts). A window lists its element tree as a patch names it (key, tag, style, name,
+  caption, the text keys it shows, the skins it draws) and the patches on it with what clients report
+  of them; picking an element's key starts a new patch on it, a text key opens it under Gamedata >
+  Texts. **Skins** lists every skin of the theme with its sprites (drawn from the theme sheet), their
+  size and nine-slice, the `asset.overlays` key that replaces each, and the windows drawing it. The
+  panel reads both from the client: `template-index.json` and `skins.json`, which the client's build
+  writes beside its page (nitro-next `docs/template-patches.md`, "The skin map"), through
+  `GET /api/client/windows/index` and `/api/client/windows/skins` (`admin.plugins.view`; read beside
+  `Turbo:Admin:ClientPreviewUrl`, else `ClientLoginUrl`, and kept 10 minutes, `?fresh=true` reads them
+  again: **Read again** on the page).
 - **Plugins > a data plugin > Make a plugin**: a zip of it under a new key, name and version, ready
   to install on another hotel. A theme's package carries this hotel's style values as its defaults
   (and the images uploaded for them); the hotel's own plugin's carries its enabled patches.
