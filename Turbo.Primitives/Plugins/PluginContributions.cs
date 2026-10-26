@@ -77,11 +77,14 @@ public sealed record PluginContribution(string Kind, string Name, string? Detail
 
 /// <summary>
 /// A problem clients report with a plugin's client half (<see cref="ClientExtensionReportKinds"/>):
-/// how many players' clients said so, and when one last did.
+/// how many players' clients said so, and when one last did. <see cref="Reason"/> is the client's: for
+/// a patch the element it is about (<c>credits_old</c>, <c>tab_button:bind</c>, <c>''.caption</c>) or
+/// the ops applied, so the panel puts it beside the patch naming that element.
 /// </summary>
 public sealed record PluginClientIssue(
     string Kind,
     string Subject,
+    string Reason,
     string Message,
     int Clients,
     DateTime LastReportedUtc

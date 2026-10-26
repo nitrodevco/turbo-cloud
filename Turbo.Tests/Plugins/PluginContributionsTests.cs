@@ -147,15 +147,22 @@ public sealed class PluginContributionsTests : IDisposable
         var inspected = manager.ContributionsOf("inspect")!;
 
         inspected
-            .ClientIssues.Select(x => (x.Kind, x.Subject, x.Clients))
+            .ClientIssues.Select(x => (x.Kind, x.Subject, x.Reason, x.Clients))
             .Should()
             .BeEquivalentTo([
                 (
                     ClientExtensionReportKinds.MODULE_REFUSED,
                     "http://localhost:18441/gamedata/plugins/inspect/inspect.js",
+                    ClientExtensionReportKinds.HOST_NOT_ALLOWED,
                     2
                 ),
-                (ClientExtensionReportKinds.PATCH_UNMATCHED, "habbo-toolbar-com/purse_xml", 2),
+                // The element it is about, so the panel puts it beside the patch naming credits_old.
+                (
+                    ClientExtensionReportKinds.PATCH_UNMATCHED,
+                    "habbo-toolbar-com/purse_xml",
+                    "credits_old",
+                    2
+                ),
             ]);
 
         // Logged once for the two clients, naming the external variable to change.

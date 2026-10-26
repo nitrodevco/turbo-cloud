@@ -105,6 +105,7 @@ internal sealed partial class ClientExtensionReports(
                         .Select(x => new PluginClientIssue(
                             x.Key.Kind,
                             x.Key.Subject,
+                            x.Key.Reason,
                             x.Value.Message,
                             x.Value.Players.Count,
                             x.Value.LastUtc
