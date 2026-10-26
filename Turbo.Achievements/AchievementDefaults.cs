@@ -58,9 +58,12 @@ public static class AchievementDefaults
     }.ToImmutableDictionary(StringComparer.Ordinal);
 
     /// <summary>
-    /// The games records the room games record facts for, by published name: "For locking
-    /// %limit% tiles in Battle Banzai" (<c>badge_desc_ACH_BattleBallTilesLocked</c>) counts the
-    /// tiles a player's steps locked.
+    /// The games records the room games record facts for, by published name, all when a game
+    /// ends: "For locking %limit% tiles in Battle Banzai" (<c>badge_desc_ACH_BattleBallTilesLocked</c>)
+    /// counts the tiles a player's steps locked; "participation points" and "victory points"
+    /// (<c>badge_desc_ACH_BattleBallPlayer</c>, <c>_BattleBallWinner</c>) and the game
+    /// experience of players and room owners are points (official client capture 2026-10-26,
+    /// session 012541: their progress grew at each game's end).
     /// </summary>
     private static readonly ImmutableDictionary<string, string> RoomGameSources = new Dictionary<
         string,
@@ -68,6 +71,10 @@ public static class AchievementDefaults
     >(StringComparer.Ordinal)
     {
         ["BattleBallTilesLocked"] = AchievementSources.BATTLEBALL_TILE_LOCKED,
+        ["BattleBallPlayer"] = AchievementSources.ROOM_GAME_POINTS,
+        ["BattleBallWinner"] = AchievementSources.ROOM_GAME_POINTS,
+        ["GamePlayerExperience"] = AchievementSources.ROOM_GAME_POINTS,
+        ["GameAuthorExperience"] = AchievementSources.ROOM_GAME_POINTS,
     }.ToImmutableDictionary(StringComparer.Ordinal);
 
     /// <summary>

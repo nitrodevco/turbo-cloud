@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
@@ -18,6 +19,12 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Counters;
 /// client shows a Banzai counter with <c>~clock.is_game_aware</c>, <c>~clock.state</c> Running
 /// while it counts and Paused once the game is over, and <c>~clock.pulse_count</c> as the time
 /// left in pulses.
+/// Its reset ("2", the counter's reset sprite) picks the game's time: each one the next of
+/// 30, 60, 120, 180, 300 and 600 seconds and round again (Sulake's furni data
+/// <c>CountDownClockFurniture</c> "30,60,120,180,300,600"); once a game ran down, the first reset
+/// shows the chosen time again without moving on, and a start from 0 starts it (official client
+/// capture 2026-10-26, session 012541 t 250.3-263.1, 315-318, 1806.3-1821.0: 13/13 moves on,
+/// 1/1 back to the chosen time; start from 0, t 1444.7).
 /// </summary>
 [RoomObjectLogic(LOGIC_NAME)]
 public class FurnitureGameTimerLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
@@ -32,7 +39,13 @@ public class FurnitureGameTimerLogic(IStuffDataFactory stuffDataFactory, IRoomFl
     private const int TICK_MS = 1000;
     private const int USE_RESET = 2;
 
+    /// <summary>The times a reset goes through, in seconds.</summary>
+    public static readonly int[] DURATIONS = [30, 60, 120, 180, 300, 600];
+
     private int _remainingSeconds;
+
+    /// <summary>The time a reset last chose; none (0) until one did or a game started.</summary>
+    private int _chosenSeconds;
     private bool _isRunning;
     private bool _started;
 
@@ -123,12 +136,34 @@ public class FurnitureGameTimerLogic(IStuffDataFactory stuffDataFactory, IRoomFl
 
         _started = false;
 
-        await SetStateAsync(RoomConfig.GameDefaultDurationSeconds);
+        var chosen = ChosenSeconds();
+
+        // Inference: a time other than the chosen one (a game stopped early, wired) goes back to
+        // it as the 0 a game ran down to did.
+        _chosenSeconds = GetState() == chosen ? NextDuration(chosen) : chosen;
+
+        await SetStateAsync(_chosenSeconds);
     }
+
+    /// <summary>The time a reset chose; before any, what the counter shows, or the default.</summary>
+    private int ChosenSeconds() =>
+        _chosenSeconds > 0 ? _chosenSeconds
+        : GetState() > 0 ? GetState()
+        : RoomConfig.GameDefaultDurationSeconds;
+
+    private static int NextDuration(int seconds) =>
+        DURATIONS.FirstOrDefault(x => x > seconds) is var next && next > 0 ? next : DURATIONS[0];
 
     private async Task StartAsync(CancellationToken ct)
     {
-        var duration = GetState() > 0 ? GetState() : RoomConfig.GameDefaultDurationSeconds;
+        var duration = GetState() > 0 ? GetState() : ChosenSeconds();
+
+        if (_chosenSeconds == 0)
+            _chosenSeconds = duration;
+
+        // From 0 the counter shows the time first (t 1444.7: "300", then the start).
+        if (GetState() == 0)
+            await SetStateAsync(duration);
 
         _remainingSeconds = duration;
         _isRunning = true;

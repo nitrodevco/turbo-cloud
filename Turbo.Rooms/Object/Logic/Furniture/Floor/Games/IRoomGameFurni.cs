@@ -17,6 +17,19 @@ public enum RoomGameChange
 
     /// <summary>A team's score changed.</summary>
     Score,
+
+    /// <summary>
+    /// A game furni changed by itself (a Banzai tile a player stepped on) and waits to be sent
+    /// with the others.
+    /// </summary>
+    Furni,
+
+    /// <summary>
+    /// One more beat of the ended game's finish, every 500 ms (<see
+    /// cref="Grains.Systems.RoomGameSystem.EndBeat"/>): the winners wave, then the field shows
+    /// who won.
+    /// </summary>
+    EndBeat,
 }
 
 /// <summary>

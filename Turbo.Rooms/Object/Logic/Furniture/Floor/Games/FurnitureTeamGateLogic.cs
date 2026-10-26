@@ -23,8 +23,12 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Games;
 /// two gates agreed, from 0 to 5, and a player joining green moved both green gates together.
 /// It shows no more than 5 (Sulake's <c>es_gate</c> has states 0 to 5, the <c>bb_gate</c> asset
 /// animations 0 to 5).
-/// Inference, not yet seen on Habbo: stepping on your own team's gate takes you out of the team,
-/// a team full at 5 takes nobody else through its gate, and the gates do nothing while a game runs.
+/// A player in a team who steps on any gate only leaves the team: off the other colour's gate they
+/// were in none, and the next gate step joined that gate's colour (official client capture
+/// 2026-10-26, session 012541 t 1369.6-1409.0: 2/2 leave only, 2/2 join; their own gate 1/1 leave,
+/// t 1339.6). While a game runs nobody can step on a gate at all: a player sent onto either gate
+/// did not move (t 1147-1196, 4/4).
+/// Inference, not yet seen on Habbo: a team full at 5 takes nobody else through its gate.
 /// </summary>
 [RoomObjectLogic(LOGIC_NAME)]
 public class FurnitureTeamGateLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
@@ -67,26 +71,27 @@ public class FurnitureTeamGateLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
             return;
 
         var avatarId = ctx.ObjectId;
-        var current = GameSystem.GetTeam(avatarId);
 
-        if (current == Team && GameSystem.GetTeamType(avatarId) == TeamType)
+        if (GameSystem.GetTeam(avatarId) != GameTeamType.None)
         {
             await GameSystem.LeaveTeamAsync(avatarId, ct);
 
             return;
         }
 
-        if (current != Team && GameSystem.GetTeamMembers(Team).Count() >= MAX_TEAM_SIZE)
+        if (GameSystem.GetTeamMembers(Team).Count() >= MAX_TEAM_SIZE)
             return;
-
-        if (current != GameTeamType.None)
-            await GameSystem.LeaveTeamAsync(avatarId, ct);
 
         await GameSystem.JoinTeamAsync(avatarId, Team, TeamType, ct);
     }
 
+    public override bool CanWalk() => !GameSystem.IsGameRunning && base.CanWalk();
+
     public Task<bool> OnGameChangedAsync(RoomGameChange change, CancellationToken ct)
     {
+        if (change is RoomGameChange.Started or RoomGameChange.Ended)
+            _ctx.RefreshTile();
+
         var count = ShownCount();
 
         if (GetState() == count)

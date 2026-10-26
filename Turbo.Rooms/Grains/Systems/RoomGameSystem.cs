@@ -37,7 +37,7 @@ namespace Turbo.Rooms.Grains.Systems;
 /// game furni (<see cref="IRoomGameFurni"/>: the team gates, scoreboards and Banzai tiles, and
 /// Freeze's and Football's on the same teams) is told each change and shows it.
 /// </summary>
-public sealed class RoomGameSystem(RoomGrain roomGrain)
+public sealed partial class RoomGameSystem(RoomGrain roomGrain)
     : RoomGrainComponent(roomGrain),
         IRoomEventListener
 {
@@ -324,6 +324,7 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
         Array.Clear(_teamScores);
         Array.Clear(_teamScoredAt);
         _scoreGrants.Clear();
+        ResetFinish();
 
         IsGameRunning = true;
         _startedAt = UtcNow;
@@ -368,7 +369,13 @@ public sealed class RoomGameSystem(RoomGrain roomGrain)
             },
             ct
         );
+
+        BeginFinish();
     }
+
+    /// <summary>Sends the game furni that changed by themselves (<see cref="RoomGameChange.Furni"/>).</summary>
+    public Task SendGameFurniAsync(CancellationToken ct) =>
+        UpdateGameFurniAsync(RoomGameChange.Furni, ct);
 
     /// <summary>
     /// Hands the room's highscore boards the teams that played: each team's score and the names

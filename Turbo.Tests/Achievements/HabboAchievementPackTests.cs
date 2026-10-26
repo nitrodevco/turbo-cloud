@@ -66,8 +66,8 @@ public sealed class HabboAchievementPackTests
     {
         AchievementDefaults.Definitions.Should().HaveCount(18);
         AchievementDefaults.Crackables.Should().HaveCount(9);
-        AchievementDefaults.RoomGames.Should().HaveCount(1);
-        AchievementDefaults.Unhooked.Should().HaveCount(140);
+        AchievementDefaults.RoomGames.Should().HaveCount(5);
+        AchievementDefaults.Unhooked.Should().HaveCount(136);
         Pack.Definitions.Should().HaveCount(168);
         Pack.Version.Should().Be(7);
     }

@@ -38,10 +38,17 @@ public static class AchievementSources
     public const string CRACKABLE_CRACKED = "crackables.cracked";
 
     /// <summary>
-    /// A Battle Banzai tile a player locked for their team, its value the achievement it counts
-    /// towards (<c>battleballtileslocked</c>). One fact per tile.
+    /// The Battle Banzai tiles a player locked for their team in a game, counted when it ended,
+    /// its value the achievement they count towards (<c>battleballtileslocked</c>).
     /// </summary>
     public const string BATTLEBALL_TILE_LOCKED = "games.battleball-tile-locked";
+
+    /// <summary>
+    /// Points a room game hands a player when it ends, its value the achievement they count
+    /// towards (<c>battleballplayer</c>, <c>battleballwinner</c>, <c>gameplayerexperience</c>,
+    /// and <c>gameauthorexperience</c> for the room's owner).
+    /// </summary>
+    public const string ROOM_GAME_POINTS = "games.room-game-points";
 
     /// <summary>
     /// A placeholder for achievements nothing records facts for yet, such as the Habbo ones the
