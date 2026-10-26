@@ -226,7 +226,9 @@ internal sealed class ClientModuleRegistry(
 
     /// <summary>
     /// The full path of <paramref name="path"/> under <paramref name="root"/>; null when it leaves
-    /// the folder, names a hidden file or folder (<c>.git</c>, <c>.env</c>), or is not a file.
+    /// the folder, names a hidden file or folder (<c>.git</c>, <c>.env</c>), or is not a file. The
+    /// root is compared in its full form, as the file is: a plugin folder named relatively or with
+    /// the other separator (<c>../plugins</c>, <c>E:/plugins</c>) holds its files too.
     /// </summary>
     internal static string? Resolve(string root, string path)
     {
@@ -234,6 +236,8 @@ internal sealed class ClientModuleRegistry(
 
         if (normalized.Length == 0 || normalized.Split('/').Any(x => x.Length == 0 || x[0] == '.'))
             return null;
+
+        root = Path.GetFullPath(root);
 
         var full = Path.GetFullPath(Path.Combine(root, normalized));
 
