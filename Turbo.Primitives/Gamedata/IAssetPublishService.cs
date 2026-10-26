@@ -35,13 +35,25 @@ public interface IAssetPublishService
     /// <summary>Removes the target with what it recorded and its history; false when there is no such target.</summary>
     Task<bool> DeleteTargetAsync(int targetId, CancellationToken ct);
 
+    /// <summary>
+    /// A page (from 0) of what the target lacks or holds an older copy of, by what it recorded,
+    /// whose path holds <paramref name="query"/>, with why each is sent; null when there is no
+    /// such target. Files gone from the target are found only by a publish (a dry run names them).
+    /// </summary>
+    Task<AssetPublishPending?> GetPendingAsync(
+        int targetId,
+        string? query,
+        int page,
+        CancellationToken ct
+    );
+
     /// <summary>Connects (within the configured time) and lists its folder; null when there is no such target.</summary>
     Task<AssetPublishTestResult?> TestAsync(int targetId, CancellationToken ct);
 
     /// <summary>
     /// Starts publishing to the target as an asset job and returns it; null when there is no such
-    /// target. A dry run only counts; <paramref name="deleteRemoved"/> also deletes from the target
-    /// what it was sent that the hotel no longer has.
+    /// target. A dry run only counts and names what it would send; <paramref name="deleteRemoved"/>
+    /// also deletes from the target what it was sent that the hotel no longer has.
     /// </summary>
     Task<AssetJobSnapshot?> PublishAsync(
         int targetId,

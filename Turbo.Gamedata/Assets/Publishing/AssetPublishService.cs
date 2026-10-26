@@ -37,6 +37,9 @@ internal sealed class AssetPublishService(
     ILogger<AssetPublishService> logger
 ) : IAssetPublishService
 {
+    /// <summary>Files a page of a target's pending list holds.</summary>
+    public const int PENDING_PAGE_SIZE = 100;
+
     /// <summary>The target a publish is running for, or zero: it can't be deleted under it.</summary>
     private int _publishing;
 
@@ -157,6 +160,52 @@ internal sealed class AssetPublishService(
         logger.LogInformation("Publish target {TargetId} ({Name}) removed", target.Id, target.Name);
 
         return true;
+    }
+
+    public async Task<AssetPublishPending?> GetPendingAsync(
+        int targetId,
+        string? query,
+        int page,
+        CancellationToken ct
+    )
+    {
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        if (
+            !await dbCtx
+                .AssetPublishTargets.AnyAsync(x => x.Id == targetId, ct)
+                .ConfigureAwait(false)
+        )
+            return null;
+
+        var files = await store.ListFilesAsync(ct).ConfigureAwait(false);
+        var recorded = await dbCtx
+            .AssetPublishedFiles.AsNoTracking()
+            .Where(x => x.TargetEntityId == targetId)
+            .ToDictionaryAsync(x => x.Path, x => x.Hash, StringComparer.Ordinal, ct)
+            .ConfigureAwait(false);
+        var pending = AssetPublishRun.Pending(files, recorded).ToList();
+        var search = query?.Trim() ?? "";
+        var matched = pending
+            .Where(x => x.File.Path.Contains(search, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.File.Size)
+            .ThenBy(x => x.File.Path, StringComparer.Ordinal)
+            .ToList();
+
+        return new AssetPublishPending
+        {
+            Items =
+            [
+                .. matched.Skip(Math.Max(0, page) * PENDING_PAGE_SIZE).Take(PENDING_PAGE_SIZE),
+            ],
+            Matched = matched.Count,
+            PageSize = PENDING_PAGE_SIZE,
+            Count = pending.Count,
+            Bytes = pending.Sum(x => x.File.Size),
+            New = pending.Count(x => x.Change == AssetPublishChange.New),
+            Changed = pending.Count(x => x.Change == AssetPublishChange.Changed),
+        };
     }
 
     public async Task<AssetPublishTestResult?> TestAsync(int targetId, CancellationToken ct)

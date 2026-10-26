@@ -18,8 +18,8 @@ namespace Turbo.Admin.Api;
 
 /// <summary>
 /// Where the hotel's asset bundles are published (<c>/api/assets/targets</c>): a folder on this
-/// server, or an FTP, FTPS or SFTP server, each optionally purging its Cloudflare zone after a publish. Staff with <c>admin.gamedata.view</c> see the targets and
-/// their history; adding, changing, testing and publishing need <c>gamedata.manage</c> as well.
+/// server, or an FTP, FTPS or SFTP server, each optionally purging its Cloudflare zone after a publish. Staff with <c>admin.gamedata.view</c> see the targets,
+/// their history and what each has pending; adding, changing, testing and publishing need <c>gamedata.manage</c> as well.
 /// </summary>
 internal sealed class AssetPublishEndpoints(
     IGrainFactory grainFactory,
@@ -46,6 +46,10 @@ internal sealed class AssetPublishEndpoints(
         group.MapPost("/{id:int}/publish", PublishAsync);
         group.MapPost("/{id:int}/forget-host-key", ForgetHostKeyAsync);
         group.MapGet("/{id:int}/history", HistoryAsync);
+        group.MapGet(
+            "/{id:int}/pending",
+            (int id, string? q, int? page, CancellationToken ct) => PendingAsync(id, q, page, ct)
+        );
     }
 
     private async Task<IResult> ListAsync(CancellationToken ct)
@@ -175,6 +179,11 @@ internal sealed class AssetPublishEndpoints(
             ])
         );
     }
+
+    private async Task<IResult> PendingAsync(int id, string? q, int? page, CancellationToken ct) =>
+        await publishing.GetPendingAsync(id, q, page ?? 0, ct).ConfigureAwait(false) is { } pending
+            ? Results.Ok(AssetPublishPendingResponse.From(pending))
+            : AdminResults.Error(StatusCodes.Status404NotFound, NO_TARGET);
 
     /// <summary>The edit the input asks for; null when its protocol isn't one.</summary>
     private static AssetPublishTargetEdit? EditOf(AssetPublishTargetInput input) =>

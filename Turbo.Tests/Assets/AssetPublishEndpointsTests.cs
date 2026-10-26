@@ -225,6 +225,31 @@ public sealed class AssetPublishEndpointsTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task The_pending_list_answers_each_file_by_kind_path_size_and_change()
+    {
+        await _server.StartAsync(Ct);
+        await _hotel.PutBundleAsync("chair", [1, 2, 3], Ct);
+        var target = await _hotel.AddFolderTargetAsync(Ct);
+
+        var pending = await JsonAsync(
+            await SendAsync(HttpMethod.Get, $"/api/assets/targets/{target.Id}/pending?q=chair")
+        );
+        var item = pending.GetProperty("items").EnumerateArray().Single();
+        item.GetProperty("kind").GetString().Should().Be("furniture");
+        item.GetProperty("name").GetString().Should().Be("chair");
+        item.GetProperty("path").GetString().Should().Be("bundled/furniture/chair.nitro");
+        item.GetProperty("size").GetInt64().Should().Be(3);
+        item.GetProperty("change").GetString().Should().Be("new");
+        pending.GetProperty("matched").GetInt32().Should().Be(1);
+        pending.GetProperty("count").GetInt32().Should().Be(1);
+        pending.GetProperty("bytes").GetInt64().Should().Be(3);
+
+        (await SendAsync(HttpMethod.Get, $"/api/assets/targets/{target.Id + 1}/pending"))
+            .StatusCode.Should()
+            .Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task Staff_who_may_only_see_the_gamedata_list_targets_but_change_none()
     {
         _holds = node => node != PermissionNodes.Gamedata.MANAGE;

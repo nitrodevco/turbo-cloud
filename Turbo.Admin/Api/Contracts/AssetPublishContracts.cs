@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
 
@@ -50,6 +51,55 @@ public sealed record AssetPublishTargetResponse(
         );
 }
 
+/// <summary>
+/// A bundle a publish would send (<c>AssetPendingFile</c>): <c>change</c> is <c>new</c> (never sent
+/// to the target) or <c>changed</c> (the hotel's copy changed since it was sent).
+/// </summary>
+public sealed record AssetPublishPendingItem(
+    string Kind,
+    string Name,
+    string Path,
+    long Size,
+    string Change
+)
+{
+    public static AssetPublishPendingItem From(AssetPublishPendingFile pending) =>
+        new(
+            AssetContractNames.Of(pending.File.Kind),
+            pending.File.Name,
+            pending.File.Path,
+            pending.File.Size,
+            AssetPublishChanges.NameOf(pending.Change)
+        );
+}
+
+/// <summary>
+/// A page of what a target lacks or holds an older copy of, largest first (<c>AssetPending</c>):
+/// <c>matched</c> files hold the search; <c>count</c>, <c>bytes</c>, <c>new</c> and <c>changed</c>
+/// are of every file pending.
+/// </summary>
+public sealed record AssetPublishPendingResponse(
+    AssetPublishPendingItem[] Items,
+    int Matched,
+    int PageSize,
+    int Count,
+    long Bytes,
+    int New,
+    int Changed
+)
+{
+    public static AssetPublishPendingResponse From(AssetPublishPending pending) =>
+        new(
+            [.. pending.Items.Select(AssetPublishPendingItem.From)],
+            pending.Matched,
+            pending.PageSize,
+            pending.Count,
+            pending.Bytes,
+            pending.New,
+            pending.Changed
+        );
+}
+
 /// <summary>The publish targets.</summary>
 public sealed record AssetPublishTargetsResponse(AssetPublishTargetResponse[] Items);
 
@@ -75,7 +125,7 @@ public sealed record AssetPublishTargetInput(
 /// <summary>Whether a target could be reached and its folder listed, and what happened.</summary>
 public sealed record AssetPublishTestResponse(bool Ok, string Message);
 
-/// <summary>A publish to start: a dry run only counts; <c>deleteRemoved</c> also deletes what the hotel no longer has.</summary>
+/// <summary>A publish to start: a dry run only counts and names what it would send; <c>deleteRemoved</c> also deletes what the hotel no longer has.</summary>
 public sealed record AssetPublishRequest(bool DryRun, bool DeleteRemoved);
 
 /// <summary>A publish in a target's history, with the name of who started it when it is known.</summary>
@@ -156,6 +206,19 @@ public sealed record AssetPublishJobResponse(
             job.StartedAt,
             job.FinishedAt
         );
+}
+
+/// <summary>Why a bundle is sent, by the names the panel uses: <c>new</c>, <c>changed</c>, <c>gone</c>.</summary>
+public static class AssetPublishChanges
+{
+    public static string NameOf(AssetPublishChange change) =>
+        change switch
+        {
+            AssetPublishChange.New => "new",
+            AssetPublishChange.Changed => "changed",
+            AssetPublishChange.Gone => "gone",
+            _ => throw new ArgumentOutOfRangeException(nameof(change), change, null),
+        };
 }
 
 /// <summary>Protocols by the names the panel uses: <c>folder</c>, <c>ftp</c>, <c>ftps</c>, <c>sftp</c>.</summary>
