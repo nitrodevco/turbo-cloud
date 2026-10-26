@@ -288,7 +288,7 @@ public sealed class NavigatorPublicTabTests
     }
 
     [Fact]
-    public async Task a_category_searched_by_its_code_is_its_block_and_official_is_every_public_room_once()
+    public async Task a_category_searched_by_its_code_is_its_block()
     {
         var games = Assert.Single(
             await Service().SearchAsync(PLAYER, "official_273425", string.Empty, Ct)
@@ -297,12 +297,186 @@ public sealed class NavigatorPublicTabTests
         games.Text.Should().Be("Games");
         games.ForceClosed.Should().BeTrue();
         games.Results.Should().HaveCount(10);
+    }
 
-        var all = Assert.Single(await Service().SearchAsync(PLAYER, "official", string.Empty, Ct));
-        var distinct = Recorded.SelectMany(x => x.Rooms.Select(r => r.Id)).Distinct().ToList();
+    /// <summary>
+    /// The saved search "Public Rooms" (<c>official</c>), official client capture
+    /// <c>2026-10-26T15-13-22-click-wait-shot.jsonl</c> t=900, a minute after the Public tab of
+    /// <c>2026-10-26T15-12-01-click-wait-click-wait-shot.jsonl</c> t=6335 (the categories below,
+    /// users from the 15:13 answer): one untitled list block with action 2, the tab's 34 distinct
+    /// rooms minus its doorbell room and two invisible ones, busiest first and then by name.
+    /// </summary>
+    [Fact]
+    public async Task official_is_one_list_block_of_the_open_public_rooms_busiest_first_then_by_name()
+    {
+        const RoomDoorModeType open = RoomDoorModeType.Open;
+        (
+            int Id,
+            bool ForceClosed,
+            (int Id, string Name, RoomDoorModeType Door, int Users)[]
+        )[] tab =
+        [
+            (
+                273731,
+                false,
+                [
+                    (80497945, "Haunted Library Bundle 1/2", open, 2),
+                    (80465265, "[SPS] Lobby", open, 12),
+                    (78291407, "[Habbox] Rooms Hallway!", open, 0),
+                    (80447067, "World Deaf Day 2026", open, 0),
+                    (79036967, "[Ducket] The Hub", open, 1),
+                    (80434059, "[BaW] Aspen Acres", open, 0),
+                    (80356969, "[FUUSIO.co] Fansite Lounge", RoomDoorModeType.Locked, 0),
+                    (80434055, ".com BaW Hub", RoomDoorModeType.Invisible, 0),
+                    // Habbo listed [Habbox] Rooms Hallway! here again; a category has a room once.
+                    (80430745, "Toast Valley", open, 0),
+                    (80411891, "[TDM] Habham lobby", open, 1),
+                    (80395090, "[SIC] Summer in Colors – Hall", open, 0),
+                    (80295928, "BAW Collab 2026 - Super Habbo World [Entrance]", open, 0),
+                ]
+            ),
+            (
+                273738,
+                false,
+                [
+                    (69118542, "Welcome Lounge", open, 0),
+                    (79384010, "The Collectors Guild", open, 0),
+                    (69118541, "Club NX", open, 0),
+                    (70616899, "Theatre", open, 0),
+                    (70616906, "Picnic", open, 2),
+                    (69118545, "Coffee House", open, 34),
+                    (70170123, "Hall of Habbo", open, 0),
+                    (69118543, "HC Lounge", open, 0),
+                    (80434055, ".com BaW Hub", RoomDoorModeType.Invisible, 0),
+                ]
+            ),
+            (
+                273741,
+                true,
+                [
+                    (80430745, "Toast Valley", open, 0),
+                    (80411891, "[TDM] Habham lobby", open, 1),
+                    (80395090, "[SIC] Summer in Colors – Hall", open, 0),
+                    (80346590, "[CDH] Connect the Dots!", open, 0),
+                    (80295928, "BAW Collab 2026 - Super Habbo World [Entrance]", open, 0),
+                    (80198387, "Wired 15th Anniversary - Entrance", open, 0),
+                    (78686087, "Habbo Wired Tutorial", open, 0),
+                    (77638342, "Snowstorm Lobby", open, 0),
+                    (75211764, "Habbo Inside © - Flappy Bird [REBUILD]", open, 0),
+                ]
+            ),
+            (273751, true, [(80463193, "Witches' Sabbath Bundle", RoomDoorModeType.Invisible, 0)]),
+            (
+                273753,
+                true,
+                [
+                    (79075182, "-- Island Port", open, 0),
+                    (80356969, "[FUUSIO.co] Fansite Lounge", RoomDoorModeType.Locked, 0),
+                    (79036967, "[Ducket] The Hub", open, 1),
+                    (78291407, "[Habbox] Rooms Hallway!", open, 0),
+                    (77832609, "[HxHD] Habbox Help Desk", open, 0),
+                ]
+            ),
+            (
+                273757,
+                true,
+                [
+                    (76880729, "Ambassador Hub", open, 0),
+                    (78190651, "SID 2022 - Start Room", open, 0),
+                    (77703937, "Frank's Lobby I", open, 0),
+                    (76952863, "The Ditch the Label 2020 Hub", open, 0),
+                    (78236752, "Ambassador InfoBus Park", open, 0),
+                    (75389840, "Tour of Habbo", open, 0),
+                ]
+            ),
+        ];
 
-        all.Text.Should().BeEmpty();
-        all.Results.Select(x => x.RoomId.Value).Should().Equal(distinct);
+        _rooms.Clear();
+        _live.Clear();
+
+        foreach (var (_, _, rooms) in tab)
+        foreach (var (id, name, door, users) in rooms)
+        {
+            _rooms[id] = Room(id, name, door);
+
+            if (users > 0)
+                _live[id] = RoomActiveSnapshot.From(_rooms[id], users);
+        }
+
+        _categories =
+        [
+            StaffPicksCategory(visible: false),
+            .. tab.Select(
+                (x, i) =>
+                    Category(
+                        x.Id,
+                        $"block {i}",
+                        i + 1,
+                        x.ForceClosed,
+                        [.. x.Item3.Select(r => r.Id)]
+                    )
+            ),
+        ];
+
+        var block = Assert.Single(
+            await Service().SearchAsync(PLAYER, "official", string.Empty, Ct)
+        );
+
+        block.SearchCode.Should().Be("official");
+        block.Text.Should().BeEmpty();
+        block.ActionAllowed.Should().Be(NavigatorActionAllowedType.Back);
+        block.ForceClosed.Should().BeFalse();
+        block.ViewMode.Should().Be(NavigatorViewModeType.Rows);
+        block
+            .Results.Select(x => x.RoomId.Value)
+            .Should()
+            .Equal(
+                69118545, // Coffee House, 34 users
+                80465265, // [SPS] Lobby, 12
+                80497945, // Haunted Library Bundle 1/2, 2
+                70616906, // Picnic, 2
+                79036967, // [Ducket] The Hub, 1
+                80411891, // [TDM] Habham lobby, 1
+                79075182, // -- Island Port
+                80434059, // [BaW] Aspen Acres
+                80346590, // [CDH] Connect the Dots!
+                78291407, // [Habbox] Rooms Hallway!
+                77832609, // [HxHD] Habbox Help Desk
+                80395090, // [SIC] Summer in Colors – Hall
+                76880729, // Ambassador Hub
+                78236752, // Ambassador InfoBus Park
+                80295928, // BAW Collab 2026 - Super Habbo World [Entrance]
+                69118541, // Club NX
+                77703937, // Frank's Lobby I
+                75211764, // Habbo Inside © - Flappy Bird [REBUILD]
+                78686087, // Habbo Wired Tutorial
+                70170123, // Hall of Habbo
+                69118543, // HC Lounge
+                78190651, // SID 2022 - Start Room
+                77638342, // Snowstorm Lobby
+                79384010, // The Collectors Guild
+                76952863, // The Ditch the Label 2020 Hub
+                70616899, // Theatre
+                80430745, // Toast Valley
+                75389840, // Tour of Habbo
+                69118542, // Welcome Lounge
+                80198387, // Wired 15th Anniversary - Entrance
+                80447067 // World Deaf Day 2026
+            );
+    }
+
+    /// <summary>
+    /// A collapsed Public tab block is not kept (official client capture
+    /// <c>2026-10-26T15-18-40-NewNavigatorInit-wait.jsonl</c>: after two collapses of
+    /// <c>official_273731</c> Habbo's collapsed list had no <c>official_</c> code); others are.
+    /// </summary>
+    [Fact]
+    public async Task collapsing_a_public_tab_block_is_not_stored()
+    {
+        await Service().AddCollapsedSearchCodeAsync(PLAYER, "official_273731", Ct);
+        await Service().AddCollapsedSearchCodeAsync(PLAYER, "hot", Ct);
+
+        _fakes.Log.Of("AddCollapsedSearchCodeAsync").Select(x => x.Args[0]).Should().Equal("hot");
     }
 
     [Fact]

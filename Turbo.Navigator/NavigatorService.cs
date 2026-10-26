@@ -619,12 +619,20 @@ public sealed class NavigatorService(
     ) =>
         _grainFactory.GetPlayerNavigatorGrain(playerId).AddSavedSearchAsync(searchCode, filter, ct);
 
+    /// <summary>
+    /// A Public tab block (<c>official_&lt;id&gt;</c>) stays collapsed only in the client: Habbo's
+    /// next collapsed list left it out after two collapses (official client capture 2026-10-26).
+    /// </summary>
     public Task AddCollapsedSearchCodeAsync(
         PlayerId playerId,
         string searchCode,
         CancellationToken ct
     ) =>
-        _grainFactory.GetPlayerNavigatorGrain(playerId).AddCollapsedSearchCodeAsync(searchCode, ct);
+        NavigatorSearchCodes.GetOfficialCategoryId(searchCode) is not null
+            ? Task.CompletedTask
+            : _grainFactory
+                .GetPlayerNavigatorGrain(playerId)
+                .AddCollapsedSearchCodeAsync(searchCode, ct);
 
     public Task SetViewModeAsync(
         PlayerId playerId,
@@ -975,9 +983,9 @@ public sealed class NavigatorService(
 
     /// <summary>
     /// One Public tab block searched by its code (a <c>navigator/tab/&lt;code&gt;</c> link): the
-    /// block as the tab has it; <c>official</c> is every room of the tab in one block, untitled
-    /// so the client calls it "Public Rooms". Inference: Habbo's answer to either was not
-    /// recorded. Null when the code is no visible category.
+    /// block as the tab has it (inference: Habbo's answer was not recorded). <c>official</c>, the
+    /// saved search "Public Rooms", is one untitled list block with a back action (official
+    /// client capture 2026-10-26). Null when the code is no visible category.
     /// </summary>
     private async Task<NavigatorSearchResultBlockSnapshot?> CreatePublicSectionBlockAsync(
         SearchQuery query,
@@ -986,14 +994,21 @@ public sealed class NavigatorService(
     )
     {
         if (code == NavigatorSearchCodes.OFFICIAL)
-            return CreateBlock(
-                query,
-                code,
-                string.Empty,
-                await GetAllPublicRoomsAsync(query, ct).ConfigureAwait(false),
-                NavigatorActionAllowedType.Collapsed,
-                _config.SearchResultLimit
-            );
+            return new()
+            {
+                SearchCode = code,
+                Text = string.Empty,
+                ActionAllowed = NavigatorActionAllowedType.Back,
+                Localization = string.Empty,
+                ForceClosed = false,
+                ViewMode = NavigatorViewModeType.Rows,
+                Results =
+                [
+                    .. (await GetOpenPublicRoomsAsync(query, ct).ConfigureAwait(false))
+                        .Take(_config.SearchResultLimit)
+                        .Select(x => ToSearchResult(x, query)),
+                ],
+            };
 
         if (
             code != NavigatorSearchCodes.STAFF_PICKS
@@ -1081,6 +1096,24 @@ public sealed class NavigatorService(
         return [.. rooms.SelectMany(x => x).DistinctBy(x => x.RoomId)];
     }
 
+    /// <summary>
+    /// The public rooms a player can walk into, busiest first, then by name (official client
+    /// capture 2026-10-26: 31 of the tab's 34 rooms, the doorbell and invisible ones left out).
+    /// Inference from those 31 rows: names compare lower-cased by code point, so "-- Island Port"
+    /// and "[BaW] ..." come before "Ambassador Hub" and "The Ditch" before "Theatre".
+    /// </summary>
+    private async Task<List<RoomInfoSnapshot>> GetOpenPublicRoomsAsync(
+        SearchQuery query,
+        CancellationToken ct
+    ) =>
+        [
+            .. (await GetAllPublicRoomsAsync(query, ct).ConfigureAwait(false))
+                .Where(IsOpen)
+                .OrderByDescending(x => PopulationOf(x, query))
+                .ThenBy(x => x.Name.ToLowerInvariant(), StringComparer.Ordinal)
+                .ThenBy(x => x.RoomId.Value),
+        ];
+
     private async Task<ImmutableArray<NavigatorSearchResultBlockSnapshot>> CreateSectionBlockAsync(
         SearchQuery query,
         string code,
@@ -1165,10 +1198,14 @@ public sealed class NavigatorService(
         switch (code)
         {
             case NavigatorSearchCodes.OFFICIAL_ROOT:
-            case NavigatorSearchCodes.OFFICIAL:
                 return
                 [
                     .. (await GetAllPublicRoomsAsync(query, ct).ConfigureAwait(false)).Take(limit),
+                ];
+            case NavigatorSearchCodes.OFFICIAL:
+                return
+                [
+                    .. (await GetOpenPublicRoomsAsync(query, ct).ConfigureAwait(false)).Take(limit),
                 ];
             case NavigatorSearchCodes.HOT:
                 return GetHotRooms(query, limit);
