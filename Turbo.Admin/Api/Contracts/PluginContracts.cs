@@ -8,8 +8,9 @@ namespace Turbo.Admin.Api.Contracts;
 
 /// <summary>
 /// The server's plugins, and what the staff member may do with them: <see cref="CanManage"/>
-/// reload and turn them off or on; <see cref="CanInstall"/> install a package, which also needs
-/// the server to allow it (<see cref="UploadEnabled"/>); <see cref="CanUninstall"/> uninstall one. <see cref="Sources"/> are the GitHub
+/// reload and turn them off or on, and install a data plugin; <see cref="CanInstall"/> install
+/// any package, code too, and link one from GitHub. Installing also needs the server to allow it
+/// (<see cref="UploadEnabled"/>); <see cref="CanUninstall"/> uninstall one. <see cref="Sources"/> are the GitHub
 /// repositories plugins are linked to, checked every <see cref="CheckMinutes"/> (0: on request),
 /// from the owners in <see cref="AllowedSources"/> (empty: any); <see cref="Job"/> is the check or
 /// update running, or the last one.

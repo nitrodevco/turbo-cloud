@@ -15,7 +15,7 @@ namespace Turbo.Plugins.Sources;
 /// <see cref="IPluginSources"/>: links kept in <c>plugins.json</c> (<see cref="PluginStateFile"/>),
 /// GitHub asked through <see cref="GitHubReleases"/>, and every check or update a
 /// <see cref="PluginJobs"/> job. An update installs through
-/// <see cref="PluginAdministration.InstallAsync(System.IO.Stream, string?, CancellationToken)"/>,
+/// <see cref="PluginAdministration.InstallAsync(System.IO.Stream, string?, System.Func{PluginPackage, string?}, CancellationToken)"/>,
 /// the same checks as an uploaded package, so a release is kept to roll back to and put back when
 /// its successor does not load.
 /// </summary>
@@ -403,9 +403,10 @@ internal sealed class PluginSources(
         progress.Log(asset.Sha256 is null ? "Downloaded." : "Downloaded; its SHA-256 matches.");
         progress.Step("Installing");
 
-        // From here on the plugin folder changes: not stopped halfway.
+        // From here on the plugin folder changes: not stopped halfway. Any package: linking
+        // and updating need admin.plugins.install, which allows code.
         var result = await plugins
-            .InstallAsync(package, source.Key, CancellationToken.None)
+            .InstallAsync(package, source.Key, _ => null, CancellationToken.None)
             .ConfigureAwait(false);
 
         if (!result.Ok)

@@ -19,10 +19,13 @@ namespace Turbo.Admin.Api;
 
 /// <summary>
 /// The server's plugins, for staff with <c>admin.plugins.view</c>. Reloading one, scanning the
-/// folders again and turning one off or on need <c>admin.plugins.manage</c>; installing a package
-/// needs <c>admin.plugins.install</c>, named on purpose, and <c>Turbo:Plugin:UploadEnabled</c>.
-/// So do linking a GitHub repository, updating from it and rolling back to a kept version: each
-/// puts server code in place. Checking a link for a new release needs <c>admin.plugins.manage</c>.
+/// folders again and turning one off or on need <c>admin.plugins.manage</c>. Installing a package
+/// needs <c>Turbo:Plugin:UploadEnabled</c> and <c>admin.plugins.manage</c>; a package with code
+/// (<see cref="PluginPackage.HasCode"/>) needs <c>admin.plugins.install</c> as well, named on
+/// purpose, and a data plugin bringing texts or variables <c>gamedata.manage</c> (or
+/// <c>admin.plugins.install</c>). Rolling back to a kept version is installing it again. Linking a
+/// GitHub repository and updating from it need <c>admin.plugins.install</c>: a release may be
+/// code. Checking a link for a new release needs <c>admin.plugins.manage</c>.
 /// Uninstalling one, its dry run and the SQL export of its tables need <c>admin.plugins.uninstall</c>
 /// as well, and the plugin's key typed again. What each plugin contributes (the inspector) needs
 /// only <c>admin.plugins.view</c>. Every action, refused ones too, goes to the command
@@ -280,26 +283,10 @@ internal sealed class PluginEndpoints(
         var player = AdminIdentity.Of(http).PlayerId;
 
         if (
-            !await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_MANAGE, ct).ConfigureAwait(false)
-            || !await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_INSTALL, ct)
-                .ConfigureAwait(false)
+            await RefuseInstallAsync(http, "install", ct, code: false).ConfigureAwait(false) is
+            { } refusedUpload
         )
-        {
-            await audit
-                .WriteAsync(AdminActionLog.PLUGIN, player, "install", CommandOutcome.Refused, ct)
-                .ConfigureAwait(false);
-
-            return AdminResults.Error(StatusCodes.Status403Forbidden, NO_INSTALL);
-        }
-
-        if (!plugins.UploadEnabled)
-        {
-            await audit
-                .WriteAsync(AdminActionLog.PLUGIN, player, "install", CommandOutcome.Refused, ct)
-                .ConfigureAwait(false);
-
-            return AdminResults.Error(StatusCodes.Status403Forbidden, UPLOAD_OFF);
-        }
+            return refusedUpload;
 
         if (!http.Request.HasFormContentType)
             return AdminResults.Error(
@@ -336,6 +323,8 @@ internal sealed class PluginEndpoints(
         if (file.Length > plugins.MaxUploadBytes)
             return AdminResults.Error(StatusCodes.Status400BadRequest, tooLarge);
 
+        var refuse = await RefusalAsync(http, ct).ConfigureAwait(false);
+        PluginPackage? refused = null;
         PluginActionResult result;
         var stream = file.OpenReadStream();
 
@@ -343,20 +332,63 @@ internal sealed class PluginEndpoints(
             // Not the request's token: a package half-copied into the plugin folder because the
             // browser went away would leave a broken plugin behind.
             result = await plugins
-                .InstallAsync(stream, CancellationToken.None)
+                .InstallAsync(
+                    stream,
+                    package =>
+                    {
+                        var why = refuse(package);
+
+                        refused = why is null ? null : package;
+
+                        return why;
+                    },
+                    CancellationToken.None
+                )
                 .ConfigureAwait(false);
 
         await audit
             .WriteAsync(
                 AdminActionLog.PLUGIN,
                 player,
-                $"install {result.Plugin?.Key ?? file.FileName} {result.Plugin?.Version}".TrimEnd(),
-                result.Ok ? CommandOutcome.Completed : CommandOutcome.Failed,
+                refused is not null
+                    ? $"install {refused.Key} {refused.Version}"
+                    : $"install {result.Plugin?.Key ?? file.FileName} {result.Plugin?.Version}".TrimEnd(),
+                refused is not null ? CommandOutcome.Refused
+                    : result.Ok ? CommandOutcome.Completed
+                    : CommandOutcome.Failed,
                 CancellationToken.None
             )
             .ConfigureAwait(false);
 
-        return Answer(result);
+        return refused is not null
+            ? AdminResults.Error(StatusCodes.Status403Forbidden, result.Message)
+            : Answer(result);
+    }
+
+    /// <summary>
+    /// What the staff member may not install, as the reason to refuse a package or null: any
+    /// package with <c>admin.plugins.install</c>; without it only a data plugin that replaces no
+    /// plugin with code, and one bringing texts or variables only with <c>gamedata.manage</c>.
+    /// </summary>
+    private async Task<Func<PluginPackage, string?>> RefusalAsync(
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        if (await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_INSTALL, ct).ConfigureAwait(false))
+            return _ => null;
+
+        var gamedata = await HoldsAsync(http, PermissionNodes.Gamedata.MANAGE, ct)
+            .ConfigureAwait(false);
+
+        return package =>
+            package.CodeFile is { } file
+                ? $"{package.Name} has code ({file}): installing it needs {PermissionNodes.Admin.PLUGINS_INSTALL}. A data plugin (no AssemblyFile; JSON, text and images only) needs only {PermissionNodes.Admin.PLUGINS_MANAGE}."
+            : package.ReplacesCode
+                ? $"{package.Name} would replace the installed plugin {package.Key}, which has code: that needs {PermissionNodes.Admin.PLUGINS_INSTALL}."
+            : package.Gamedata && !gamedata
+                ? $"{package.Name} brings texts or variables (its gamedata folder): installing it needs {PermissionNodes.Gamedata.MANAGE} too."
+            : null;
     }
 
     private async Task<IResult> AddSourceAsync(
@@ -481,7 +513,10 @@ internal sealed class PluginEndpoints(
         var version = request.Version?.Trim() ?? "";
         var arguments = $"rollback {key} {version}".TrimEnd();
 
-        if (await RefuseInstallAsync(http, arguments, ct).ConfigureAwait(false) is { } refused)
+        if (
+            await RefuseInstallAsync(http, arguments, ct, code: false).ConfigureAwait(false) is
+            { } refused
+        )
             return refused;
 
         if (version.Length == 0)
@@ -490,9 +525,24 @@ internal sealed class PluginEndpoints(
                 "Choose the version to roll back to."
             );
 
+        var refuse = await RefusalAsync(http, ct).ConfigureAwait(false);
+        var refusedPackage = false;
+
         // Not the request's token: a plugin folder half-replaced would be a broken plugin.
         var result = await plugins
-            .RollbackAsync(key, version, CancellationToken.None)
+            .RollbackAsync(
+                key,
+                version,
+                package =>
+                {
+                    var why = refuse(package);
+
+                    refusedPackage = why is not null;
+
+                    return why;
+                },
+                CancellationToken.None
+            )
             .ConfigureAwait(false);
 
         await audit
@@ -500,34 +550,40 @@ internal sealed class PluginEndpoints(
                 AdminActionLog.PLUGIN,
                 AdminIdentity.Of(http).PlayerId,
                 arguments,
-                result is { Ok: true } ? CommandOutcome.Completed : CommandOutcome.Failed,
+                refusedPackage ? CommandOutcome.Refused
+                    : result is { Ok: true } ? CommandOutcome.Completed
+                    : CommandOutcome.Failed,
                 CancellationToken.None
             )
             .ConfigureAwait(false);
 
         return result is null
-            ? AdminResults.Error(
-                StatusCodes.Status404NotFound,
-                "That plugin has no such version kept."
-            )
+                ? AdminResults.Error(
+                    StatusCodes.Status404NotFound,
+                    "That plugin has no such version kept."
+                )
+            : refusedPackage ? AdminResults.Error(StatusCodes.Status403Forbidden, result.Message)
             : Answer(result);
     }
 
     /// <summary>
     /// A refusal, written to the command log, unless the staff member may put server code in
     /// place: <c>admin.plugins.manage</c> and <c>admin.plugins.install</c>, on a server that allows
-    /// installing from the panel.
+    /// installing from the panel. Not <paramref name="code"/>: only <c>admin.plugins.manage</c>,
+    /// and the package is checked as it is unpacked (<see cref="RefusalAsync"/>).
     /// </summary>
     private async Task<IResult?> RefuseInstallAsync(
         HttpContext http,
         string arguments,
-        CancellationToken ct
+        CancellationToken ct,
+        bool code = true
     )
     {
         if (
             !await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_MANAGE, ct).ConfigureAwait(false)
-            || !await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_INSTALL, ct)
-                .ConfigureAwait(false)
+            || code
+                && !await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_INSTALL, ct)
+                    .ConfigureAwait(false)
         )
         {
             await audit
