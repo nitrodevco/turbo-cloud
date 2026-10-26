@@ -651,10 +651,10 @@ internal sealed class CatalogEndpoints(
                             CatalogPageRef.Saved(tree.RootId),
                             new CatalogPageDraft(
                                 "Front Page",
-                                null,
+                                AdminCatalogQueries.FRONT_PAGE_NAME,
                                 AdminCatalogQueries.FRONT_PAGE_ICON,
                                 AdminCatalogQueries.FRONT_PAGE_LAYOUT,
-                                [],
+                                AdminCatalogQueries.FRONT_PAGE_IMAGES,
                                 [string.Empty, AdminCatalogQueries.FRONT_PAGE_VOUCHER_TEXT],
                                 CatalogPageDisplay.Regular
                             ),

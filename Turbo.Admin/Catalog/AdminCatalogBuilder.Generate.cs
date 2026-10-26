@@ -65,7 +65,7 @@ public sealed partial class AdminCatalogBuilder
     /// <summary>The client's icon_&lt;n&gt; for each kind of page, picked by sight from its icon set.</summary>
     private static class Icons
     {
-        public const int FRONT = 64;
+        public const int FRONT = AdminCatalogQueries.FRONT_PAGE_ICON;
         public const int FURNI = 2;
         public const int SPACES = 41;
         public const int POSTERS = 63;
@@ -752,6 +752,7 @@ public sealed partial class AdminCatalogBuilder
                     AdminCatalogQueries.FRONT_PAGE_LAYOUT
                 )
                 {
+                    Images = [.. AdminCatalogQueries.FRONT_PAGE_IMAGES],
                     Texts = [string.Empty, AdminCatalogQueries.FRONT_PAGE_VOUCHER_TEXT],
                 }
             );

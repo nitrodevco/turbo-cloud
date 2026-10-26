@@ -190,6 +190,9 @@ public sealed class CatalogFeaturedItemsTests : IDisposable
 
         var page = await CatalogPagePackets.RequestAsync(provider.Current, front.Id, _time);
 
+        // An item that never ends is sent -1, as official sends its third front page item
+        // (official client capture 2026-10-26, catlab Q1: "NEW: Enchanted Broomstick Effect!").
+
         page.Layout.Should().Be("frontpage4");
         page.FrontPageItems.Should()
             .Equal(
@@ -199,7 +202,7 @@ public sealed class CatalogFeaturedItemsTests : IDisposable
                     "catalogue/feature_cata_vert_furni.png",
                     0,
                     "furniture",
-                    0
+                    -1
                 ),
                 new CatalogPagePackets.FrontPageItem(
                     2,
@@ -215,7 +218,7 @@ public sealed class CatalogFeaturedItemsTests : IDisposable
                     "catalogue/feature_cata_vert_furni.png",
                     2,
                     "some_code",
-                    0
+                    -1
                 )
             );
         (await CatalogPagePackets.RequestAsync(provider.Current, featured.Id, _time))

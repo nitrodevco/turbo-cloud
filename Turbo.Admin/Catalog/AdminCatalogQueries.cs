@@ -47,11 +47,28 @@ public sealed class AdminCatalogQueries(
     /// <summary>The layout of the page the catalogue opens on, with the featured items and the voucher box.</summary>
     public const string FRONT_PAGE_LAYOUT = "frontpage4";
 
-    /// <summary>The client's icon of a star, for the front page's tab.</summary>
-    public const int FRONT_PAGE_ICON = 64;
+    /*
+     * A new front page starts as official's (official client capture 2026-10-26, catlab Q1: page
+     * "front_page", icon 213, images [headline, teaser], texts[1] over the voucher box). Its
+     * texts[0] and teaser image are sent but the featured layout draws neither; staff change all
+     * of it in the page editor.
+     */
+
+    /// <summary>The name links and featured items open the front page by.</summary>
+    public const string FRONT_PAGE_NAME = "front_page";
+
+    /// <summary>The client's icon_213, the front page's tab and header icon.</summary>
+    public const int FRONT_PAGE_ICON = 213;
+
+    /// <summary>The header banner (<c>image.library.catalogue.url</c> + it + <c>.gif</c>) and the teaser.</summary>
+    public static readonly IReadOnlyList<string> FRONT_PAGE_IMAGES =
+    [
+        "catalog_frontpage_headline_shop_GENERAL",
+        "frontpage_teaser",
+    ];
 
     /// <summary>The line over a new front page's voucher box.</summary>
-    public const string FRONT_PAGE_VOUCHER_TEXT = "Got a voucher code? Redeem it here.";
+    public const string FRONT_PAGE_VOUCHER_TEXT = "Redeem a voucher code here:";
 
     public async Task<CatalogTreeResponse> GetTreeAsync(bool canManage, CancellationToken ct)
     {
