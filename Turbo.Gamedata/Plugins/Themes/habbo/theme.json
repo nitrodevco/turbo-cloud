@@ -1,0 +1,84 @@
+// The base theme (docs/plugin-data.md, "The base theme"): Habbo's own look as the style properties
+// hotels change most. Each default is null, the client's own, so nothing reaches a client until staff
+// set it: with no change the client draws exactly as without this file. A theme names it in
+// "extends", and the hotel's own plugin extends it, so its Theme tab lists these with no theme.json.
+// The overlay ids, sizes and the windows each skin draws are the client's skin map (skins.json).
+{
+    "styles": {
+        "window.frame": {
+            "type": "image", "default": null, "group": "Windows", "label": "Frame art",
+            "overlay": "habbo-window-manager-com/theme-habbo-frame-3-frame-3-default",
+            "hint": "Frame 3, 64x64, nine-sliced: the catalogue, inventory, navigator and most windows. Tinted by each window's colour."
+        },
+        "window.framePlain": {
+            "type": "image", "default": null, "group": "Windows", "label": "Frame art, untinted pieces",
+            "overlay": "habbo-window-manager-com/theme-habbo-frame-3-frame-3-default-plain",
+            "hint": "64x64, drawn over the tinted art: transparent wherever the window's colour should show."
+        },
+        "window.header": {
+            "type": "image", "default": null, "group": "Windows", "label": "Title bar art",
+            "overlay": "habbo-window-manager-com/theme-habbo-header-3-header-3-default",
+            "hint": "Header 3, 6x20, stretched across the title bar of the same windows."
+        },
+        "catalog.color": {
+            "type": "color", "default": null, "group": "Catalogue", "label": "Frame colour",
+            "variable": [ "frame.overrides", "catalog", "color" ]
+        },
+        "catalog.position": {
+            "type": "position", "default": null, "group": "Catalogue", "label": "Opens at",
+            "variable": [ "frame.overrides", "catalog", "position" ],
+            "hint": "x,y from the desktop's top left; where a player has moved it since still wins."
+        },
+        "navigator.color": {
+            "type": "color", "default": null, "group": "Navigator", "label": "Frame colour",
+            "variable": [ "frame.overrides", "navigator", "color" ]
+        },
+        "navigator.position": {
+            "type": "position", "default": null, "group": "Navigator", "label": "Opens at",
+            "variable": [ "frame.overrides", "navigator", "position" ],
+            "hint": "x,y from the desktop's top left, over the server's saved place until the player moves it."
+        },
+        "purse.frame": {
+            "type": "image", "default": null, "group": "Purse", "label": "Frame art",
+            "overlay": "habbo-window-manager-com/theme-habbo-border-9-border-9-default",
+            "hint": "Border 9, 15x16, nine-sliced: drawn by the purse only."
+        },
+        "font.text": {
+            "type": "font", "default": null, "group": "Fonts", "label": "Text",
+            "variable": [ "text.styles.overrides", "u_regular", "fontFamily" ],
+            "hint": "The font of the windows' regular text: Ubuntu, UbuntuCondensed, Volter or Volter Bold."
+        },
+        "font.title": {
+            "type": "font", "default": null, "group": "Fonts", "label": "Window titles",
+            "variable": [ "text.styles.overrides", "u_frame_title", "fontFamily" ],
+            "hint": "The font of the windows' titles: Ubuntu, UbuntuCondensed, Volter or Volter Bold."
+        },
+        "loading.background": {
+            "type": "color", "default": null, "group": "Loading screen", "label": "Background",
+            "variable": [ "loading.screen", "background" ]
+        },
+        "loading.backgroundImage": {
+            "type": "image", "default": null, "group": "Loading screen", "label": "Background picture",
+            "variable": [ "loading.screen", "backgroundImage" ],
+            "hint": "Covers the screen, centred (a hotel view shot)."
+        },
+        "loading.logo": {
+            "type": "image", "default": null, "group": "Loading screen", "label": "Logo",
+            "variable": [ "loading.screen", "logo" ],
+            "hint": "Centred over the text and the bar."
+        },
+        "loading.text": {
+            "type": "text", "default": null, "group": "Loading screen", "label": "Text",
+            "variable": [ "loading.screen", "text" ],
+            "hint": "The line over the bar in place of Habbo's revolving ones: a text key, or the text itself."
+        },
+        "loading.textColor": {
+            "type": "color", "default": null, "group": "Loading screen", "label": "Text colour",
+            "variable": [ "loading.screen", "textColor" ]
+        },
+        "loading.bar": {
+            "type": "color", "default": null, "group": "Loading screen", "label": "Bar colour",
+            "variable": [ "loading.screen", "bar", "fill" ]
+        }
+    }
+}

@@ -8,6 +8,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Gamedata;
@@ -41,7 +42,8 @@ internal sealed class PluginGamedataSeeds(
     IGamedataFileService files,
     LoadedPluginGamedata loaded,
     ClientModuleRegistry modules,
-    ILogger<PluginGamedataSeeds> logger
+    ILogger<PluginGamedataSeeds> logger,
+    IServiceProvider? host = null
 ) : IPluginGamedataSeeds, IPluginDataOwner
 {
     /// <summary>The folder in a plugin's own that holds what it brings of the client's gamedata.</summary>
@@ -231,9 +233,12 @@ internal sealed class PluginGamedataSeeds(
 
     /// <summary>
     /// A theme's style properties (<see cref="ThemeStyles"/>): their defaults are its entries of
-    /// <see cref="ExternalVariablesFile.TEMPLATE_STYLES"/>, and an image standing in for a library
-    /// bitmap its entry of <see cref="ExternalVariablesFile.ASSET_OVERLAYS"/> (one it names there
-    /// itself first). A <c>theme.json</c> that can't be read is logged and gives nothing.
+    /// <see cref="ExternalVariablesFile.TEMPLATE_STYLES"/>, and its entries of the variables each
+    /// also goes to (<see cref="ThemeStyles.TargetsOf"/>: an image standing in for a library bitmap
+    /// <see cref="ExternalVariablesFile.ASSET_OVERLAYS"/>, a frame colour <c>frame.overrides</c>),
+    /// where it names nothing there itself. A property with no default (the base theme's, until a
+    /// theme that extends it gives one) gives nothing. A <c>theme.json</c> that can't be read is
+    /// logged and gives nothing.
     /// </summary>
     private void AddStyles(string pluginKey, string folder, Dictionary<string, string> parts)
     {
@@ -241,7 +246,11 @@ internal sealed class PluginGamedataSeeds(
 
         try
         {
-            properties = ThemeStyles.Read(folder);
+            properties = ThemeStyles.Read(
+                pluginKey,
+                folder,
+                key => host?.GetService<IHotelDataPlugin>()?.FolderOf(key)
+            );
         }
         catch (ArgumentException ex)
         {
@@ -260,24 +269,37 @@ internal sealed class PluginGamedataSeeds(
 
         var wwwroot = Path.Combine(folder, WWWROOT);
         var styles = new JsonObject();
-        var overlays = ThemeStyles.Entries(
-            parts.GetValueOrDefault(ExternalVariablesFile.ASSET_OVERLAYS)
-        );
+        var targets = new Dictionary<string, Dictionary<string, JsonNode?>>(StringComparer.Ordinal);
 
         foreach (var property in properties)
         {
+            if (property.Default is not { } value)
+                continue;
+
             try
             {
-                var value = ThemeStyles.ClientValue(
+                var client = ThemeStyles.ClientValue(
                     property,
-                    property.Default,
+                    value,
                     path => modules.AddressOf(pluginKey, wwwroot, path)
                 );
 
-                styles[ThemeStyles.EntryOf(pluginKey, property.Name)] = value;
+                styles[ThemeStyles.EntryOf(pluginKey, property.Name)] = client;
 
-                if (property is { Type: ThemeStyleType.Image, Overlay: { } asset })
-                    overlays.TryAdd(asset, value.DeepClone());
+                foreach (var target in ThemeStyles.TargetsOf(property))
+                {
+                    if (!targets.TryGetValue(target[0], out var entries))
+                        targets[target[0]] = entries = ThemeStyles.Entries(
+                            parts.GetValueOrDefault(target[0])
+                        );
+
+                    ThemeStyles.SetPath(
+                        entries,
+                        target,
+                        ThemeStyles.TargetValue(property, client),
+                        keep: true
+                    );
+                }
             }
             catch (ArgumentException ex)
             {
@@ -290,16 +312,17 @@ internal sealed class PluginGamedataSeeds(
             }
         }
 
-        parts[ExternalVariablesFile.TEMPLATE_STYLES] = styles.ToJsonString();
+        if (styles.Count > 0)
+            parts[ExternalVariablesFile.TEMPLATE_STYLES] = styles.ToJsonString();
 
-        if (overlays.Count > 0)
+        foreach (var (variable, entries) in targets.Where(x => x.Value.Count > 0))
         {
             var value = new JsonObject();
 
-            foreach (var (asset, node) in overlays)
-                value[asset] = node;
+            foreach (var (entry, node) in entries)
+                value[entry] = node;
 
-            parts[ExternalVariablesFile.ASSET_OVERLAYS] = value.ToJsonString();
+            parts[variable] = value.ToJsonString();
         }
     }
 

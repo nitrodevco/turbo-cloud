@@ -84,11 +84,19 @@ internal static class ExternalVariablesFile
     public const string LOADING_SCREEN = "loading.screen";
 
     /// <summary>
+    /// What a theme or the hotel puts in place of the client's text styles (nitro-next
+    /// <c>docs/template-patches.md</c>): <c>{ "&lt;style&gt;": "&lt;another style&gt;" }</c>, or the
+    /// format fields it changes, <c>{ "u_regular": { "fontFamily": "Volter" } }</c>.
+    /// </summary>
+    public const string TEXT_STYLES = "text.styles.overrides";
+
+    /// <summary>
     /// The variables a plugin brings a part of rather than the whole: a JSON object whose entries
     /// several plugins add to (<c>asset.bundles.templates.overrides</c>, a url per template
     /// library; <see cref="TEMPLATE_PATCHES"/>, a url per plugin; <see cref="FRAME_OVERRIDES"/>, a
     /// style per window; <see cref="ASSET_OVERLAYS"/>, a url per bitmap; <see cref="TEMPLATE_STYLES"/>,
-    /// a value per theme style; <see cref="LOADING_SCREEN"/>, a look per key of the loading screen). Each loaded plugin's entries are written into the client's file
+    /// a value per theme style; <see cref="LOADING_SCREEN"/>, a look per key of the loading screen;
+    /// <see cref="TEXT_STYLES"/>, a format per text style). Each loaded plugin's entries are written into the client's file
     /// with the hotel's own (<see cref="Merge"/>); none is ever given to the hotel.
     /// </summary>
     public static readonly IReadOnlyList<string> MERGED =
@@ -99,6 +107,7 @@ internal static class ExternalVariablesFile
         ASSET_OVERLAYS,
         TEMPLATE_STYLES,
         LOADING_SCREEN,
+        TEXT_STYLES,
     ];
 
     public static bool IsLinkable(string file) => LINKABLE.Contains(file, StringComparer.Ordinal);
@@ -108,7 +117,9 @@ internal static class ExternalVariablesFile
     /// <summary>
     /// A merged variable's value (<see cref="MERGED"/>): every entry of the plugins'
     /// <paramref name="parts"/>, the first plugin's where two name the same, and the hotel's own
-    /// entries over them, so a hotel's edit wins (an empty url takes the plugin's library away).
+    /// entries over them, so a hotel's edit wins (an empty url takes the plugin's library away). An
+    /// entry that is an object on both sides takes the hotel's fields over the plugin's, at every
+    /// depth: staff's frame colour for the catalogue keeps the theme's first position for it.
     /// A value may be the object or the object as JSON text, as the client reads it; one that is
     /// neither adds nothing.
     /// </summary>
@@ -123,9 +134,23 @@ internal static class ExternalVariablesFile
 
         if (hotel is not null)
             foreach (var (name, value) in Entries(hotel))
-                merged[name] = value?.DeepClone();
+                merged[name] = Over(merged[name], value);
 
         return merged.ToJsonString(TEXT);
+    }
+
+    /// <summary><paramref name="over"/> over <paramref name="under"/>: two objects field by field, anything else <paramref name="over"/>.</summary>
+    private static JsonNode? Over(JsonNode? under, JsonNode? over)
+    {
+        if (under is not JsonObject below || over is not JsonObject above)
+            return over?.DeepClone();
+
+        var result = (JsonObject)below.DeepClone();
+
+        foreach (var (name, value) in above)
+            result[name] = Over(result[name], value);
+
+        return result;
     }
 
     /// <summary>

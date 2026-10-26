@@ -31,6 +31,8 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
     private const string WWWROOT = PluginClientModules.WWWROOT;
     private const string TEMPLATE_PATCHES = "template-patches.json";
     private const string THEME = "theme.json";
+    private const string BASE_THEME = "habbo";
+    private const string STYLES = "styles";
 
     private static readonly string[] IMAGES = [".png", ".gif", ".jpg", ".jpeg", ".webp"];
 
@@ -83,7 +85,9 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         return PluginHelpers.ReadManifest(folder);
     }
 
-    public string? FolderOf(string pluginKey) => manager.FolderOf(pluginKey);
+    // The hotel's own plugin has its folder before it is made: its Theme tab and images are there from the start.
+    public string? FolderOf(string pluginKey) =>
+        manager.FoundFolderOf(pluginKey) ?? (pluginKey == IHotelDataPlugin.KEY ? Folder : null);
 
     public async Task<ImmutableArray<HotelPatch>> PatchesAsync(CancellationToken ct) =>
         [.. await ReadAsync(ct).ConfigureAwait(false)];
@@ -171,6 +175,139 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         return host.GetService<IClientModuleDirectory>()?.AddressOf(IHotelDataPlugin.KEY, relative)
             ?? $"/gamedata/plugins/{IHotelDataPlugin.KEY}/{relative}";
     }
+
+    public Task<ImmutableArray<PluginImage>?> ImagesAsync(string pluginKey, CancellationToken ct)
+    {
+        if (FolderOf(pluginKey) is not { } folder)
+            return Task.FromResult<ImmutableArray<PluginImage>?>(null);
+
+        var styles = Path.Combine(folder, WWWROOT, STYLES);
+
+        if (!Directory.Exists(styles))
+            return Task.FromResult<ImmutableArray<PluginImage>?>([]);
+
+        var images = Directory
+            .EnumerateFiles(styles, "*", SearchOption.AllDirectories)
+            .Select(x => new FileInfo(x))
+            .Where(x => IMAGES.Contains(x.Extension.ToLowerInvariant()))
+            .Select(x => Image(pluginKey, folder, x))
+            .Where(x => !x.Path.Split('/').Any(part => part.StartsWith('.')))
+            .OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase)
+            .ToImmutableArray();
+
+        return Task.FromResult<ImmutableArray<PluginImage>?>(images);
+    }
+
+    public async Task<PluginImage> SaveImageAsync(
+        string pluginKey,
+        string name,
+        Stream content,
+        CancellationToken ct
+    )
+    {
+        var file = Path.GetFileName(name.Replace('\\', '/').Trim());
+        var extension = Path.GetExtension(file).ToLowerInvariant();
+
+        if (!ImageNamePattern().IsMatch(file))
+            throw new ArgumentException(
+                $"\"{name}\" is a file name of letters, digits, '-', '_' and '.'.",
+                nameof(name)
+            );
+
+        if (!IMAGES.Contains(extension))
+            throw new ArgumentException($"An image is {string.Join(", ", IMAGES)}.", nameof(name));
+
+        using var memory = new MemoryStream();
+        await content.CopyToAsync(memory, ct).ConfigureAwait(false);
+
+        if (!IsImage(memory.GetBuffer().AsSpan(0, (int)memory.Length), extension))
+            throw new ArgumentException(
+                $"{file} is not a {extension.TrimStart('.').ToUpperInvariant()} image.",
+                nameof(content)
+            );
+
+        await _changes.WaitAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            var hotel = pluginKey == IHotelDataPlugin.KEY;
+            var created = hotel && Ensure();
+            var folder =
+                FolderOf(pluginKey)
+                ?? throw new KeyNotFoundException("There is no plugin with that key.");
+            var path = Path.Combine(folder, WWWROOT, STYLES, file);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllBytesAsync(path, memory.ToArray(), ct).ConfigureAwait(false);
+
+            // Made just now, it is not served yet.
+            if (created || (hotel && manager.FolderOf(IHotelDataPlugin.KEY) is null))
+                await manager.ReloadAsync(IHotelDataPlugin.KEY, ct).ConfigureAwait(false);
+
+            return Image(pluginKey, folder, new FileInfo(path));
+        }
+        finally
+        {
+            _changes.Release();
+        }
+    }
+
+    public async Task<bool> RemoveImageAsync(string pluginKey, string path, CancellationToken ct)
+    {
+        if (FolderOf(pluginKey) is not { } folder)
+            return false;
+
+        var root = Path.GetFullPath(Path.Combine(folder, WWWROOT, STYLES));
+        var full = Path.GetFullPath(Path.Combine(folder, WWWROOT, path.Replace('\\', '/')));
+
+        if (
+            !full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            || !IMAGES.Contains(Path.GetExtension(full).ToLowerInvariant())
+            || !File.Exists(full)
+        )
+            return false;
+
+        await _changes.WaitAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            File.Delete(full);
+        }
+        finally
+        {
+            _changes.Release();
+        }
+
+        return true;
+    }
+
+    private PluginImage Image(string pluginKey, string folder, FileInfo file)
+    {
+        var path = Path.GetRelativePath(Path.Combine(folder, WWWROOT), file.FullName)
+            .Replace('\\', '/');
+
+        return new PluginImage(
+            path,
+            host.GetService<IClientModuleDirectory>()?.AddressOf(pluginKey, path),
+            file.Length,
+            new DateTimeOffset(file.LastWriteTimeUtc, TimeSpan.Zero)
+        );
+    }
+
+    /// <summary>Whether <paramref name="bytes"/> start as an image of <paramref name="extension"/>'s type does.</summary>
+    private static bool IsImage(ReadOnlySpan<byte> bytes, string extension) =>
+        extension switch
+        {
+            ".png" => bytes.StartsWith(
+                (ReadOnlySpan<byte>)[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+            ),
+            ".gif" => bytes.StartsWith("GIF87a"u8) || bytes.StartsWith("GIF89a"u8),
+            ".jpg" or ".jpeg" => bytes.StartsWith((ReadOnlySpan<byte>)[0xFF, 0xD8, 0xFF]),
+            ".webp" => bytes.Length >= 12
+                && bytes.StartsWith("RIFF"u8)
+                && bytes[8..12].SequenceEqual("WEBP"u8),
+            _ => false,
+        };
 
     public async Task<byte[]?> ExportAsync(
         string pluginKey,
@@ -261,8 +398,9 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
 
     /// <summary>
     /// The theme's <c>theme.json</c> with each style the hotel changed defaulting to the hotel's
-    /// value; an image staff uploaded to the hotel's plugin goes into the new plugin's
-    /// <c>wwwroot/styles/</c>, named by its path there.
+    /// value (one it inherits redeclared with only its default; the hotel's own plugin, with no
+    /// file, gets one that extends the base theme); an image staff uploaded to the hotel's plugin
+    /// goes into the new plugin's <c>wwwroot/styles/</c>, named by its path there.
     /// </summary>
     private async Task BakeStylesAsync(
         string pluginKey,
@@ -272,16 +410,29 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         CancellationToken ct
     )
     {
-        if (!files.TryGetValue(THEME, out var theme))
+        var list = await styles.ListAsync(pluginKey, folder, ct).ConfigureAwait(false);
+
+        if (!files.TryGetValue(THEME, out var theme) && !list.Any(x => x.Changed))
             return;
 
-        var list = await styles.ListAsync(pluginKey, folder, ct).ConfigureAwait(false);
-        var root = JsonNode.Parse(theme)!;
+        var root = theme is null
+            ? new JsonObject { ["extends"] = BASE_THEME, ["styles"] = new JsonObject() }
+            : JsonNode.Parse(
+                theme,
+                documentOptions: new JsonDocumentOptions
+                {
+                    AllowTrailingCommas = true,
+                    CommentHandling = JsonCommentHandling.Skip,
+                }
+            )!;
         var hotelPrefix = $"/gamedata/plugins/{IHotelDataPlugin.KEY}/";
+
+        root["styles"] ??= new JsonObject();
 
         foreach (var style in list.Where(x => x.Changed))
         {
-            var value = style.Value;
+            if (style.Value is not { } value)
+                continue;
 
             if (style.Property.Type == ThemeStyleType.Image)
             {
@@ -296,7 +447,10 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
                 }
             }
 
-            root["styles"]![style.Property.Name]!["default"] = value;
+            if (root["styles"]![style.Property.Name] is not JsonObject declared)
+                root["styles"]![style.Property.Name] = declared = [];
+
+            declared["default"] = value;
         }
 
         files[THEME] = JsonSerializer.SerializeToUtf8Bytes(root, JSON);
@@ -423,4 +577,7 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
 
     [GeneratedRegex(@"^[A-Za-z0-9_\-/.]{1,200}$")]
     private static partial Regex FilePattern();
+
+    [GeneratedRegex(@"^[A-Za-z0-9_\-][A-Za-z0-9_\-.]{0,99}$")]
+    private static partial Regex ImageNamePattern();
 }

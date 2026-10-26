@@ -13,27 +13,37 @@ public enum ThemeStyleType
     Image,
     Font,
     Text,
+
+    /// <summary>Where a window first opens: staff type <c>x,y</c>, clients get <c>{ "x": 84, "y": 153 }</c>.</summary>
+    Position,
 }
 
 /// <summary>
-/// One style property a theme declares in its <c>theme.json</c>: its name (what its patches read as
-/// <c>${style:name}</c>), type and default as staff type it, how the panel groups and labels it,
-/// and for an image the library bitmap it stands in for (<c>asset.overlays</c>), if any.
+/// One style property a theme declares in its <c>theme.json</c>, or inherits from the theme it
+/// extends: its name (what its patches read as <c>${style:name}</c>), type and default as staff
+/// type it (null: the client's own, so nothing is sent until staff set it), how the panel groups
+/// and labels it, and where else its value goes: for an image the library bitmap it stands in for
+/// (<see cref="Overlay"/>, an <c>asset.overlays</c> entry), and <see cref="Variable"/>, a merged
+/// variable and the path in it (<c>["frame.overrides", "catalog", "color"]</c>).
 /// </summary>
 public sealed record ThemeStyleProperty(
     string Name,
     ThemeStyleType Type,
-    string Default,
+    string? Default,
     string? Group,
     string? Label,
     string? Hint,
     string? Overlay,
     double? Min,
-    double? Max
+    double? Max,
+    ImmutableArray<string> Variable = default
 );
 
-/// <summary>A style property and the hotel's value of it: <see cref="Value"/> is the default while <see cref="Changed"/> is false.</summary>
-public sealed record PluginStyle(ThemeStyleProperty Property, string Value, bool Changed);
+/// <summary>
+/// A style property and the hotel's value of it: <see cref="Value"/> is the default while
+/// <see cref="Changed"/> is false (null: the client's own).
+/// </summary>
+public sealed record PluginStyle(ThemeStyleProperty Property, string? Value, bool Changed);
 
 /// <summary>
 /// The hotel's values of a theme's style properties: staff's changes over the defaults its
@@ -45,8 +55,10 @@ public sealed record PluginStyle(ThemeStyleProperty Property, string Value, bool
 public interface IPluginStyles
 {
     /// <summary>
-    /// The plugin's style properties with the hotel's values, in <c>theme.json</c>'s order; none
-    /// without the file. Throws <see cref="System.ArgumentException"/> for a file that can't be read.
+    /// The plugin's style properties with the hotel's values: those of the theme its
+    /// <c>theme.json</c> extends first (the hotel's own plugin, with no file, extends the base theme
+    /// <c>habbo</c>), then its own, in the files' order; none without the file. Throws
+    /// <see cref="System.ArgumentException"/> for a file that can't be read.
     /// </summary>
     public Task<ImmutableArray<PluginStyle>> ListAsync(
         string pluginKey,

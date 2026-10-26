@@ -19,6 +19,18 @@ public sealed record HotelPatch(
     bool Disabled
 );
 
+/// <summary>
+/// An image in a plugin's <c>wwwroot/styles/</c> (a theme's Theme tab, Images): <see cref="Path"/> is
+/// where it is in the plugin's <c>wwwroot/</c>, as a patch's relative <c>asset</c> or an image style
+/// names it; <see cref="Url"/> the address clients load it at, as a variable's value names it.
+/// </summary>
+public sealed record PluginImage(
+    string Path,
+    string? Url,
+    long Bytes,
+    System.DateTimeOffset Modified
+);
+
 /// <summary>A plugin made from the hotel's changes, as the panel names it.</summary>
 public sealed record PluginExportRequest(string Key, string Name, string Version, string? Author);
 
@@ -55,6 +67,29 @@ public interface IHotelDataPlugin
     /// <see cref="System.ArgumentException"/> for a path outside it or a type that isn't an image.
     /// </summary>
     public Task<string> SaveFileAsync(string path, Stream content, CancellationToken ct);
+
+    /// <summary>
+    /// The images in the plugin's <c>wwwroot/styles/</c>, by path; null for no plugin with the key.
+    /// The hotel's own plugin has none until staff upload one.
+    /// </summary>
+    public Task<ImmutableArray<PluginImage>?> ImagesAsync(string pluginKey, CancellationToken ct);
+
+    /// <summary>
+    /// Keeps an image staff uploaded in the plugin's <c>wwwroot/styles/</c> as <paramref name="name"/>
+    /// (one there by that name is replaced), so its patches and styles name it. Throws
+    /// <see cref="System.ArgumentException"/> for a name that isn't a file name, or content that is no
+    /// PNG, GIF, JPEG or WebP of the name's type; <see cref="System.Collections.Generic.KeyNotFoundException"/>
+    /// for no plugin with the key.
+    /// </summary>
+    public Task<PluginImage> SaveImageAsync(
+        string pluginKey,
+        string name,
+        Stream content,
+        CancellationToken ct
+    );
+
+    /// <summary>Takes an image of the plugin's <c>wwwroot/styles/</c> away; false when there is none at <paramref name="path"/>.</summary>
+    public Task<bool> RemoveImageAsync(string pluginKey, string path, CancellationToken ct);
 
     /// <summary>
     /// A data plugin's package, made from the plugin <paramref name="pluginKey"/> as this hotel has

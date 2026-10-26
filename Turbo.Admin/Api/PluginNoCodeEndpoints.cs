@@ -62,6 +62,9 @@ internal sealed class PluginNoCodeEndpoints(
         group.MapPut("/{key}/styles/{name}", SetStyleAsync);
         group.MapDelete("/{key}/styles/{name}", ResetStyleAsync);
         group.MapPost("/{key}/styles/{name}/image", UploadStyleImageAsync);
+        group.MapGet("/{key}/images", ImagesAsync);
+        group.MapPost("/{key}/images", UploadImageAsync);
+        group.MapDelete("/{key}/images", RemoveImageAsync);
         group.MapPost("/{key}/package", PackageAsync);
     }
 
@@ -157,11 +160,8 @@ internal sealed class PluginNoCodeEndpoints(
                 if (Hotel.FolderOf(key) is not { } folder)
                     return AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN);
 
-                if (
-                    http.Features.Get<IHttpMaxRequestBodySizeFeature>() is
-                    { IsReadOnly: false } limit
-                )
-                    limit.MaxRequestBodySize = IMAGE_MAX_BYTES + 64 * 1024;
+                if (ImageLimit(http) is { } refused)
+                    return refused;
 
                 var form = await http.Request.ReadFormAsync(ct).ConfigureAwait(false);
 
@@ -184,13 +184,16 @@ internal sealed class PluginNoCodeEndpoints(
 
                 memory.Position = 0;
 
-                var url = await Hotel
-                    .SaveFileAsync(
-                        $"styles/{key}/{safe}-{hash}{Path.GetExtension(file.FileName).ToLowerInvariant()}",
+                // Kept in the hotel's own plugin, so it stays when the theme is updated.
+                var image = await Hotel
+                    .SaveImageAsync(
+                        IHotelDataPlugin.KEY,
+                        $"{key}-{safe}-{hash}{Path.GetExtension(file.FileName).ToLowerInvariant()}",
                         memory,
                         ct
                     )
                     .ConfigureAwait(false);
+                var url = image.Url ?? $"/gamedata/plugins/{IHotelDataPlugin.KEY}/{image.Path}";
 
                 return Results.Ok(
                     PluginStyleView.From(
@@ -201,6 +204,81 @@ internal sealed class PluginNoCodeEndpoints(
                 );
             }
         );
+
+    private async Task<IResult> ImagesAsync(string key, HttpContext http, CancellationToken ct) =>
+        hotelService is null
+        || await Hotel.ImagesAsync(key, ct).ConfigureAwait(false) is not { } images
+            ? AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
+            : Results.Ok(
+                new PluginImagesResponse(
+                    key,
+                    images,
+                    await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_MANAGE, ct)
+                        .ConfigureAwait(false)
+                )
+            );
+
+    /// <summary>
+    /// An image for the plugin's <c>wwwroot/styles/</c>, under its own file name (or the form's
+    /// <c>name</c>), so its patches name it by its path and its styles and variables by its address.
+    /// </summary>
+    private Task<IResult> UploadImageAsync(string key, HttpContext http, CancellationToken ct) =>
+        ManageAsync(
+            http,
+            $"image {key} upload",
+            ct,
+            async _ =>
+            {
+                if (ImageLimit(http) is { } refused)
+                    return refused;
+
+                var form = await http.Request.ReadFormAsync(ct).ConfigureAwait(false);
+
+                if (form.Files.GetFile("file") is not { } file)
+                    return AdminResults.Error(StatusCodes.Status400BadRequest, "Choose the image.");
+
+                if (file.Length > IMAGE_MAX_BYTES)
+                    return AdminResults.Error(
+                        StatusCodes.Status413PayloadTooLarge,
+                        "An image is at most 2 MB."
+                    );
+
+                var name = form["name"].ToString() is { Length: > 0 } given ? given : file.FileName;
+                var stream = file.OpenReadStream();
+
+                await using (stream.ConfigureAwait(false))
+                    return Results.Ok(
+                        await Hotel.SaveImageAsync(key, name, stream, ct).ConfigureAwait(false)
+                    );
+            }
+        );
+
+    private Task<IResult> RemoveImageAsync(
+        string key,
+        string path,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ManageAsync(
+            http,
+            $"image {key} {path} removed",
+            ct,
+            async _ =>
+                await Hotel.RemoveImageAsync(key, path, ct).ConfigureAwait(false)
+                    ? Results.NoContent()
+                    : AdminResults.Error(StatusCodes.Status404NotFound, "There is no such image.")
+        );
+
+    /// <summary>Lets the request body be an image's size; null, or the refusal of a body that says it is bigger.</summary>
+    private static IResult? ImageLimit(HttpContext http)
+    {
+        if (http.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } limit)
+            limit.MaxRequestBodySize = IMAGE_MAX_BYTES + 64 * 1024;
+
+        return http.Request.ContentLength > IMAGE_MAX_BYTES + 64 * 1024
+            ? AdminResults.Error(StatusCodes.Status413PayloadTooLarge, "An image is at most 2 MB.")
+            : null;
+    }
 
     private async Task<IResult> PatchesAsync(HttpContext http, CancellationToken ct) =>
         hotelService is null
@@ -315,10 +393,11 @@ internal sealed record PluginStyleView(
     string? Label,
     string? Hint,
     string? Overlay,
+    ImmutableArray<string> Variable,
     double? Min,
     double? Max,
-    string Default,
-    string Value,
+    string? Default,
+    string? Value,
     bool Changed
 )
 {
@@ -330,6 +409,7 @@ internal sealed record PluginStyleView(
             style.Property.Label,
             style.Property.Hint,
             style.Property.Overlay,
+            style.Property.Variable.IsDefault ? [] : style.Property.Variable,
             style.Property.Min,
             style.Property.Max,
             style.Property.Default,
@@ -342,6 +422,13 @@ internal sealed record PluginStyleView(
 internal sealed record PluginStylesResponse(
     string Key,
     ImmutableArray<PluginStyleView> Styles,
+    bool CanManage
+);
+
+/// <summary>The images in a plugin's <c>wwwroot/styles/</c>; <c>canManage</c>: may upload and remove them.</summary>
+internal sealed record PluginImagesResponse(
+    string Key,
+    ImmutableArray<PluginImage> Images,
     bool CanManage
 );
 
