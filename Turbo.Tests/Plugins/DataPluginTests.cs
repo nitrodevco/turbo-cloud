@@ -187,7 +187,7 @@ public sealed class DataPluginTests : IDisposable
             );
         await bad.Should()
             .ThrowAsync<ArgumentException>()
-            .WithMessage("*one of set, remove, insert, move or bind*");
+            .WithMessage("*one of set, remove, insert, move, wrap or bind*");
 
         var green = await patches.SavePatchAsync(
             Patch(
@@ -328,6 +328,44 @@ public sealed class DataPluginTests : IDisposable
             .GetString()
             .Should()
             .Be("icons/tab${item.index}.png", "the client fills it per tab");
+    }
+
+    // The client wraps since r58 (nitro-next templatePatch.ts, `wrap`): the panel refused it as no op.
+    // The patch is the documentation's own example (nitro-next docs/template-patches.md, Operations).
+    [Fact]
+    public async Task A_staff_wrap_op_is_saved_and_the_window_itself_is_not_wrapped()
+    {
+        var patches = Hotel().HotelPlugin;
+
+        var refused = () =>
+            patches.SavePatchAsync(
+                Patch(
+                    "Panes",
+                    """
+                    [ { "element": "", "wrap": { "tag": "frame" } },
+                      { "element": "navigationContainer", "wrap": { "caption": "Shop" } } ]
+                    """
+                ),
+                Ct
+            );
+        (await refused.Should().ThrowAsync<ArgumentException>())
+            .Which.Message.Should()
+            .Contain("Op 1 wraps the window itself")
+            .And.Contain(
+                "Op 2 adds an element \"like\" one the template has, or gives its \"tag\""
+            );
+
+        var saved = await patches.SavePatchAsync(
+            Patch(
+                "Panes",
+                """
+                [ { "element": "navigationContainer", "wrap": { "tag": "frame", "name": "nav", "style": "0", "caption": "Shop", "margins": [ 6, 28, 6, 6 ] } } ]
+                """
+            ),
+            Ct
+        );
+
+        saved.Ops[0].GetProperty("wrap").GetProperty("name").GetString().Should().Be("nav");
     }
 
     [Fact]

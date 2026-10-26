@@ -61,7 +61,7 @@ is updated.
 - **Plugins > Template patches**: every plugin's patches per window, with what players' clients
   report of them (applied, unmatched, ineffective, conflicting), and the hotel's own patches: make one, edit its
   ops as JSON (checked as it is saved: an op names its `element` and does one of `set`, `remove`,
-  `insert`, `move`, `bind`), turn it off without losing it, or remove it. The client's alt-click inspector
+  `insert`, `move`, `wrap`, `bind`), turn it off without losing it, or remove it. The client's alt-click inspector
   ("copy patch") gives JSON that pastes straight in. A window's frame - its colour, style and where
   it first opens - is one patch on its root: `{ "element": "", "set": { "color": 4288688176,
   "position": { "x": 84, "y": 153 } } }`; a window the client draws without a template is named by

@@ -9,10 +9,11 @@ namespace Turbo.Plugins;
 /// <summary>
 /// What a window patch is (nitro-next <c>docs/template-patches.md</c>, Operations): a template id
 /// and ops, each naming an element and doing one of <c>set</c>, <c>remove</c>, <c>insert</c>,
-/// <c>move</c> or <c>bind</c> (a binding as data, "A binding as data"). The client skips and reports
-/// what it can't apply; this refuses, before a patch is saved, what no client could. A window the
-/// client draws without a template is named by its frame id (<c>wired-setup</c>): its patch restyles
-/// that frame through the root's <c>set</c>.
+/// <c>move</c>, <c>wrap</c> (a new element in its place, it inside) or <c>bind</c> (a binding as
+/// data, "A binding as data"). The client skips and reports what it can't apply; this refuses,
+/// before a patch is saved, what no client could. A window the client draws without a template is
+/// named by its frame id (<c>wired-setup</c>): its patch restyles that frame through the root's
+/// <c>set</c>.
 /// </summary>
 internal static partial class TemplatePatchSchema
 {
@@ -49,7 +50,18 @@ internal static partial class TemplatePatchSchema
 
     private static readonly string[] PLACES = ["before", "after", "first", "last"];
 
-    private static readonly string[] ACTIONS = ["set", "remove", "insert", "move", "bind"];
+    private static readonly string[] ACTIONS = ["set", "remove", "insert", "move", "wrap", "bind"];
+
+    /// <summary>What an added element (<c>insert</c>'s <c>add</c>, <c>wrap</c>) gives beyond layout properties.</summary>
+    private static readonly string[] ADDED =
+    [
+        "like",
+        "name",
+        "tag",
+        "children",
+        "bindAs",
+        "margins",
+    ];
 
     /// <summary>
     /// The binding fields a <c>bind</c> op may give and the JSON kind each takes (nitro-next
@@ -125,7 +137,7 @@ internal static partial class TemplatePatchSchema
         if (actions.Count != 1)
         {
             problems.Add(
-                $"Op {n} does one of set, remove, insert, move or bind{(actions.Count > 1 ? $", not {string.Join(" and ", actions)}" : "")}."
+                $"Op {n} does one of set, remove, insert, move, wrap or bind{(actions.Count > 1 ? $", not {string.Join(" and ", actions)}" : "")}."
             );
 
             return;
@@ -145,18 +157,27 @@ internal static partial class TemplatePatchSchema
                 break;
             case "insert":
                 Place(op, "insert", n, problems);
+                Added(
+                    op,
+                    "add",
+                    $"Op {n} inserts the element its \"add\" object describes.",
+                    n,
+                    problems
+                );
+                break;
+            case "wrap":
+                if (op.TryGetProperty("element", out var wrapped) && wrapped.GetString() == "")
+                    problems.Add(
+                        $"Op {n} wraps the window itself (''), which stays the window: wrap a part of it."
+                    );
 
-                if (op.TryGetProperty("add", out var add) && add.ValueKind == JsonValueKind.Object)
-                {
-                    if (!add.TryGetProperty("like", out _) && !add.TryGetProperty("tag", out _))
-                        problems.Add(
-                            $"Op {n} adds an element \"like\" one the template has, or gives its \"tag\"."
-                        );
-
-                    Properties(add, $"Op {n}'s add", problems, "like", "name", "tag", "children");
-                }
-                else
-                    problems.Add($"Op {n} inserts the element its \"add\" object describes.");
+                Added(
+                    op,
+                    "wrap",
+                    $"Op {n}'s wrap is an object describing the element put in its place.",
+                    n,
+                    problems
+                );
                 break;
             case "move":
                 Place(op, "move", n, problems);
@@ -171,6 +192,30 @@ internal static partial class TemplatePatchSchema
                 Bind(op, n, problems);
                 break;
         }
+    }
+
+    /// <summary>An element an op adds: one "like" the template's, or with its "tag".</summary>
+    private static void Added(
+        JsonElement op,
+        string action,
+        string missing,
+        int n,
+        List<string> problems
+    )
+    {
+        if (!op.TryGetProperty(action, out var added) || added.ValueKind != JsonValueKind.Object)
+        {
+            problems.Add(missing);
+
+            return;
+        }
+
+        if (!added.TryGetProperty("like", out _) && !added.TryGetProperty("tag", out _))
+            problems.Add(
+                $"Op {n} adds an element \"like\" one the template has, or gives its \"tag\"."
+            );
+
+        Properties(added, $"Op {n}'s {action}", problems, ADDED);
     }
 
     private static void Bind(JsonElement op, int n, List<string> problems)
@@ -306,17 +351,23 @@ internal static partial class TemplatePatchSchema
 
             var ok = property.Name switch
             {
+                // A layout's style is text ("9", the client's TemplateElement.style); a number is read the same.
+                "style" or "dynamicStyle" => value.ValueKind
+                    is JsonValueKind.String
+                        or JsonValueKind.Number,
                 _ when NUMBERS.Contains(property.Name) => value.ValueKind == JsonValueKind.Number,
                 "hidden" => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
                 "vars" or "params" => value.ValueKind == JsonValueKind.Object,
                 "position" => IsPoint(value),
-                "caption" or "like" or "name" or "tag" => value.ValueKind == JsonValueKind.String,
+                "caption" or "like" or "name" or "tag" or "bindAs" => value.ValueKind
+                    == JsonValueKind.String,
+                "children" or "margins" => value.ValueKind == JsonValueKind.Array,
                 _ => true,
             };
 
             if (!ok)
                 problems.Add(
-                    $"{what}'s {property.Name} is {(NUMBERS.Contains(property.Name) ? "a number (a colour 0xAARRGGBB, as 4285229153)" : property.Name == "hidden" ? "true or false" : property.Name is "vars" or "params" ? "an object" : property.Name == "position" ? "where the window first opens, { \"x\": 84, \"y\": 153 }" : "text")}."
+                    $"{what}'s {property.Name} is {(NUMBERS.Contains(property.Name) ? "a number (a colour 0xAARRGGBB, as 4285229153)" : property.Name == "hidden" ? "true or false" : property.Name is "vars" or "params" ? "an object" : property.Name is "children" or "margins" ? "a list" : property.Name == "position" ? "where the window first opens, { \"x\": 84, \"y\": 153 }" : "text")}."
                 );
         }
     }
