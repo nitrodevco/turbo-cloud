@@ -612,7 +612,8 @@ public sealed class DataPluginTests : IDisposable
             Path.Combine(_folder, "child", "wwwroot", "purse-border.png"),
             [137, 80, 78, 71]
         );
-        WriteFile("grandchild", ThemeStyles.FILE, """{ "extends": "child" }""");
+        // Named to load before the theme it extends: folders are listed in no set order (on Linux not by name).
+        WriteFile("achild", ThemeStyles.FILE, """{ "extends": "child" }""");
 
         var hotel = Hotel();
 
@@ -625,18 +626,18 @@ public sealed class DataPluginTests : IDisposable
         color.Property.Group.Should().Be("Catalogue");
         color.Value.Should().Be("#7a3fa0");
         child.Last().Property.Name.Should().Be("shop.name");
-        (await hotel.Styles.ListAsync("grandchild", Path.Combine(_folder, "grandchild"), Ct))
+        (await hotel.Styles.ListAsync("achild", Path.Combine(_folder, "achild"), Ct))
             .Select(x => x.Property.Name)
             .Should()
             .Equal(child.Select(x => x.Property.Name));
 
-        // The grandchild inherits the child's default with the rest.
+        // The theme extending the child inherits the child's default with the rest, though it loaded first.
         hotel
             .Loaded.OwnedPartsOf(ExternalVariablesFile.FRAME_OVERRIDES)
             .Should()
             .Equal(
-                ("child", """{"catalog":{"color":"#7a3fa0"}}"""),
-                ("grandchild", """{"catalog":{"color":"#7a3fa0"}}""")
+                ("achild", """{"catalog":{"color":"#7a3fa0"}}"""),
+                ("child", """{"catalog":{"color":"#7a3fa0"}}""")
             );
         JsonDocument
             .Parse(hotel.Loaded.OwnedPartsOf(ExternalVariablesFile.ASSET_OVERLAYS)[0].Part)
@@ -646,7 +647,7 @@ public sealed class DataPluginTests : IDisposable
             .Which.Name.Should()
             .Be("habbo-window-manager-com/theme-habbo-border-9-border-9-default");
 
-        WriteFile("child", ThemeStyles.FILE, """{ "extends": "grandchild" }""");
+        WriteFile("child", ThemeStyles.FILE, """{ "extends": "achild" }""");
         var circle = () => hotel.Styles.ListAsync("child", Path.Combine(_folder, "child"), Ct);
         await circle.Should().ThrowAsync<ArgumentException>().WithMessage("*circle*");
     }

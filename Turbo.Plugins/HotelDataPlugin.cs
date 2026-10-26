@@ -87,7 +87,7 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
 
     // The hotel's own plugin has its folder before it is made: its Theme tab and images are there from the start.
     public string? FolderOf(string pluginKey) =>
-        manager.FolderOf(pluginKey) ?? (pluginKey == IHotelDataPlugin.KEY ? Folder : null);
+        manager.FoundFolderOf(pluginKey) ?? (pluginKey == IHotelDataPlugin.KEY ? Folder : null);
 
     public async Task<ImmutableArray<HotelPatch>> PatchesAsync(CancellationToken ct) =>
         [.. await ReadAsync(ct).ConfigureAwait(false)];

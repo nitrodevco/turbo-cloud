@@ -74,6 +74,9 @@ public sealed class PluginManager(
     );
     private ImmutableArray<(string Folder, string Error)> _unreadable = [];
 
+    /// <summary>Each plugin's folder as the last scan found them, before any of them loads.</summary>
+    private IReadOnlyDictionary<string, string> _discovered = new Dictionary<string, string>();
+
     // What each plugin's last load registered, kept after a failed one: the inspector's list.
     // Names only, never the plugin's types, so it holds no unloaded context.
     private readonly ConcurrentDictionary<string, PluginContributionLog> _contributions = new(
@@ -394,6 +397,8 @@ public sealed class PluginManager(
             d => d.folder,
             StringComparer.OrdinalIgnoreCase
         );
+
+        _discovered = byKey;
 
         return
         [
@@ -1333,6 +1338,14 @@ public sealed class PluginManager(
     /// <summary>The live plugin's folder, or where a known plugin with the key lies.</summary>
     internal string? FolderOf(string key) =>
         _status.TryGetValue(key, out var status) ? status.Folder : null;
+
+    /// <summary>
+    /// <see cref="FolderOf"/>, or the folder the scan under way found the plugin in: what a theme
+    /// that extends another reads, whichever of the two loads first (folders are listed in no set
+    /// order; on Linux not by name).
+    /// </summary>
+    internal string? FoundFolderOf(string key) =>
+        FolderOf(key) ?? _discovered.GetValueOrDefault(key);
 
     internal bool IsDev(string folder) =>
         !Path.GetFullPath(folder)
