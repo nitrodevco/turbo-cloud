@@ -184,11 +184,10 @@ event's own id, for a handler that must act once (a reward, a call to another se
 `OccurredAtUtc` when it happened. A handler that throws is logged and the others still run.
 `IEventHandler<T>`, `IEventBehavior<T>` (one that runs before the handlers, ordered by `[Order]`) and
 `EventContext` are contracts in `Turbo.Primitives.dll`, which every plugin references already, under
-the namespaces they always had (`Turbo.Events.Registry`, `Turbo.Pipeline.Attributes`). They were in
-`Turbo.Events.dll` and `Turbo.Pipeline.dll`, which forward them to `Turbo.Primitives` for one
-release, so a plugin built against those still loads; drop the two references when you next build.
-A plugin publishes its own events (a plugin notice, `docs/plugin-notices.md`) through
-`IEventPublisher` (`Turbo.Primitives.Events`), taken from the host services.
+the namespaces they always had (`Turbo.Events.Registry`, `Turbo.Pipeline.Attributes`); a plugin
+needs no reference to `Turbo.Events.dll` or `Turbo.Pipeline.dll` for them. A plugin publishes its
+own events (a plugin notice, `docs/plugin-notices.md`) through `IEventPublisher`
+(`Turbo.Primitives.Events`), taken from the host services.
 
 ### Addresses
 

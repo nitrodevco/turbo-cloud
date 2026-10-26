@@ -203,7 +203,7 @@ warning in the log as a module registers: its clients could not load it.
 The client decides how a module runs; nitro-next documents its side (its loader, the host allowlist
 `client.modules.hosts` for modules on another site, the shared libraries a module takes from
 `api.libs` (React, the theme's components) instead of bundling its own, and the `api` object). In
-short, for api version 1.1 (`api.version` 1, `api.minor` 1):
+short (`api.version` 1):
 
 - The client refuses an address on another site unless that site is in `client.modules.hosts`.
   A refusal is a console warning naming the origin to add, and a report to the server (§2), whose

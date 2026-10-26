@@ -300,16 +300,15 @@ links a Discord account it has proven to an existing player through `IHotel.Play
 ## 5. Stability
 
 - **API versions**: `PluginApi.VERSION` (server) and the client API version are the contract
-  numbers. Adding is minor; removing or changing meaning bumps them, with the previous version kept
-  for one release and deprecations logged against the plugin using them.
+  numbers. No plugin outside this project has been published, so both stay 1 while the API
+  changes, with no compatibility kept for earlier builds of it; they count up from the first
+  published plugin.
 - **Moving a contract**: a type extensions need that lives in an implementation project moves to
-  `Turbo.Contracts` or `Turbo.Primitives` under its full name, and its old assembly forwards it
-  (`[TypeForwardedTo]`) for one release, so a plugin built against the old one still loads
-  (`IEventHandler<T>` and what a handler needs, from `Turbo.Events` and `Turbo.Pipeline`:
-  `PluginEventContractTests`). `IMessageHandler<T>`, `IMessageBehavior<T>` and `MessageContext`
-  are in `Turbo.Primitives` too (they were in `Turbo.Messages`). A service an extension needs from
-  an implementation project gets a contract it implements, registered beside it (`IEventPublisher`
-  for `EventSystem`).
+  `Turbo.Contracts` or `Turbo.Primitives` under its full name, so plugin code using it is unchanged
+  and a plugin is rebuilt against the new place (`IEventHandler<T>` and what a handler needs, from
+  `Turbo.Events` and `Turbo.Pipeline`; `IMessageHandler<T>`, `IMessageBehavior<T>` and
+  `MessageContext`, from `Turbo.Messages`). A service an extension needs from an implementation
+  project gets a contract it implements, registered beside it (`IEventPublisher` for `EventSystem`).
 - **Compatibility checks**: example plugins are compiled and loaded by the test suite
   (`HelloExamplePluginTests`); every new primitive gets an example there. Template patch reports name
   targets a new client release removed, so a release can be checked against installed plugins
@@ -351,7 +350,7 @@ noted.
 6. **Typed client SDK**: `ClientModuleApi` published as types with `defineModule`, a narrow read-only
    store API in place of raw stores, namespaced links and layouts. The types, `defineModule`,
    `useApi` and a bundler preset are nitro-next's `packages/client-module-sdk`, kept equal to the
-   client's API by its type check. API 1.1 adds the read-only state (`api.state`: own user, club,
+   client's API by its type check. It has the read-only state (`api.state`: own user, club,
    purse, room, permission checks) in place of `libs.stores` (deprecated), room events
    (`api.events`), buttons in the avatar menus and the furni infostand (`api.contextMenu`) and
    client chat commands (`api.chatCommands`); namespaced links and layouts are next.

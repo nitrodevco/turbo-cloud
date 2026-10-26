@@ -23,8 +23,6 @@ plugins/mytheme/
     external_variables.json
 ```
 
-A manifest with no `AssemblyFile` needs plugin API 6 (`PluginApi.VERSION`); older servers refuse it.
-
 ## Style properties (`theme.json`)
 
 Named, typed values a theme's patches read, so staff change a colour once instead of in every op:
