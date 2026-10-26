@@ -25,6 +25,12 @@ internal sealed partial class ClientExtensionReports(
     public const int MAX_REPORTS_PER_OWNER = 50;
     public const int MAX_PLAYERS_PER_REPORT = 1000;
     public const int MAX_TEXT = 300;
+
+    /// <summary>
+    /// A message names the template, plugin, element and value and then says what to change, and a
+    /// bind the client skips says so for each field; cut at <see cref="MAX_TEXT"/> it lost the fix.
+    /// </summary>
+    public const int MAX_MESSAGE = 1000;
     public static readonly TimeSpan LOG_EVERY = TimeSpan.FromMinutes(15);
 
     /// <summary>The external variable the client checks a module's origin against.</summary>
@@ -74,7 +80,7 @@ internal sealed partial class ClientExtensionReports(
                 if (entry.Players.Count < MAX_PLAYERS_PER_REPORT)
                     entry.Players.Add(playerId);
 
-                entry.Message = Cut(report.Message);
+                entry.Message = Cut(report.Message, MAX_MESSAGE);
                 entry.LastUtc = now;
                 log = entry.LoggedUtc is not { } logged || now - logged >= LOG_EVERY;
 
@@ -161,9 +167,9 @@ internal sealed partial class ClientExtensionReports(
         }
     }
 
-    private static string Cut(string? text) =>
+    private static string Cut(string? text, int max = MAX_TEXT) =>
         text is null ? string.Empty
-        : text.Length > MAX_TEXT ? text[..MAX_TEXT]
+        : text.Length > max ? text[..max]
         : text;
 
     [GeneratedRegex("^[A-Za-z0-9._-]{1,64}$")]

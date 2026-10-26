@@ -214,6 +214,45 @@ public sealed class PluginContributionsTests : IDisposable
             .Contain("override: true");
     }
 
+    /// <summary>
+    /// The client's report of a bind it skips for a placeholder inside another (S3's tab icons) is
+    /// 311 characters; cut at 300 it lost the fix it ends with. A message is still bounded.
+    /// </summary>
+    [Fact]
+    public void A_skipped_bind_s_report_keeps_the_fix_it_ends_with()
+    {
+        const string SKIPPED =
+            "habbo-catalog-com/catalog_ubuntu_with_tabs: theme's bind of 'tab_icon' is skipped, so it changes nothing: bind's asset puts a placeholder inside another (${text.tabicon.${item.index}}): placeholders are filled once and do not nest, so it names no key. Bind each row's own value (${item.<key>}) or one whole key.";
+        var log = new CapturingLogger<ClientExtensionReports>();
+        var reports = new ClientExtensionReports(log, TimeProvider.System);
+
+        reports.Report(
+            1,
+            [
+                new ClientExtensionReport(
+                    "theme",
+                    ClientExtensionReportKinds.PATCH_INEFFECTIVE,
+                    "habbo-catalog-com/catalog_ubuntu_with_tabs",
+                    "tab_icon:bind",
+                    SKIPPED
+                ),
+                new ClientExtensionReport(
+                    "theme",
+                    ClientExtensionReportKinds.PATCH_INEFFECTIVE,
+                    "habbo-catalog-com/catalog_ubuntu_with_tabs",
+                    "tab_text:bind",
+                    new string('x', 5000)
+                ),
+            ]
+        );
+
+        var issues = reports.IssuesOf("theme").ToDictionary(x => x.Message.Length > 900);
+
+        issues[false].Message.Should().Be(SKIPPED);
+        issues[true].Message.Length.Should().Be(1000);
+        log.AtLeast(LogLevel.Warning).Should().Contain(x => x.Message.EndsWith("one whole key."));
+    }
+
     [Fact]
     public void Reports_of_unknown_kinds_or_malformed_owners_are_dropped()
     {
