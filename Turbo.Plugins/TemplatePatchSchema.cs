@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -7,10 +8,11 @@ namespace Turbo.Plugins;
 
 /// <summary>
 /// What a window patch is (nitro-next <c>docs/template-patches.md</c>, Operations): a template id
-/// and ops, each naming an element and doing one of <c>set</c>, <c>remove</c>, <c>insert</c> or
-/// <c>move</c>. The client skips and reports what it can't apply; this refuses, before a patch is
-/// saved, what no client could. A window the client draws without a template is named by its frame
-/// id (<c>wired-setup</c>): its patch restyles that frame through the root's <c>set</c>.
+/// and ops, each naming an element and doing one of <c>set</c>, <c>remove</c>, <c>insert</c>,
+/// <c>move</c> or <c>bind</c> (a binding as data, "A binding as data"). The client skips and reports
+/// what it can't apply; this refuses, before a patch is saved, what no client could. A window the
+/// client draws without a template is named by its frame id (<c>wired-setup</c>): its patch restyles
+/// that frame through the root's <c>set</c>.
 /// </summary>
 internal static partial class TemplatePatchSchema
 {
@@ -47,7 +49,34 @@ internal static partial class TemplatePatchSchema
 
     private static readonly string[] PLACES = ["before", "after", "first", "last"];
 
-    private static readonly string[] ACTIONS = ["set", "remove", "insert", "move"];
+    private static readonly string[] ACTIONS = ["set", "remove", "insert", "move", "bind"];
+
+    /// <summary>
+    /// The binding fields a <c>bind</c> op may give and the JSON kind each takes (nitro-next
+    /// <c>templatePatchBind.ts</c>, <c>TEMPLATE_BIND_FIELDS</c>); text with a placeholder stands for any.
+    /// </summary>
+    private static readonly Dictionary<string, JsonValueKind> BIND_FIELDS = new()
+    {
+        ["caption"] = JsonValueKind.String,
+        ["htmlText"] = JsonValueKind.String,
+        ["tooltip"] = JsonValueKind.String,
+        ["asset"] = JsonValueKind.String,
+        ["helpPage"] = JsonValueKind.String,
+        ["visible"] = JsonValueKind.True,
+        ["background"] = JsonValueKind.True,
+        ["greyscale"] = JsonValueKind.True,
+        ["disabled"] = JsonValueKind.True,
+        ["selected"] = JsonValueKind.True,
+        ["italic"] = JsonValueKind.True,
+        ["underline"] = JsonValueKind.True,
+        ["crop"] = JsonValueKind.True,
+        ["color"] = JsonValueKind.Number,
+        ["backgroundColor"] = JsonValueKind.Number,
+        ["etchingColor"] = JsonValueKind.Number,
+        ["alpha"] = JsonValueKind.Number,
+        ["blend"] = JsonValueKind.Number,
+        ["rotation"] = JsonValueKind.Number,
+    };
 
     /// <summary>What is wrong with the template id and ops, a sentence each; none for a patch a client applies.</summary>
     public static List<string> Problems(string template, JsonElement ops)
@@ -96,7 +125,7 @@ internal static partial class TemplatePatchSchema
         if (actions.Count != 1)
         {
             problems.Add(
-                $"Op {n} does one of set, remove, insert or move{(actions.Count > 1 ? $", not {string.Join(" and ", actions)}" : "")}."
+                $"Op {n} does one of set, remove, insert, move or bind{(actions.Count > 1 ? $", not {string.Join(" and ", actions)}" : "")}."
             );
 
             return;
@@ -138,8 +167,109 @@ internal static partial class TemplatePatchSchema
                 )
                     problems.Add($"Op {n} moves its element \"to\" the one it goes beside.");
                 break;
+            case "bind":
+                Bind(op, n, problems);
+                break;
         }
     }
+
+    private static void Bind(JsonElement op, int n, List<string> problems)
+    {
+        var items = Flag(op, "items", n, problems);
+        var over = Flag(op, "override", n, problems);
+
+        if (
+            op.TryGetProperty("element", out var element)
+            && element.ValueKind == JsonValueKind.String
+            && element.GetString() == ""
+            && !over
+        )
+            problems.Add(
+                $"Op {n} binds the window itself (''), which is the code's: give it \"override\": true."
+            );
+
+        if (
+            op.GetProperty("bind") is not { ValueKind: JsonValueKind.Object } bind
+            || !bind.EnumerateObject().Any()
+        )
+        {
+            problems.Add(
+                $"Op {n}'s bind is an object of binding fields ({string.Join(", ", BIND_FIELDS.Keys)})."
+            );
+
+            return;
+        }
+
+        foreach (var field in bind.EnumerateObject())
+        {
+            if (!BIND_FIELDS.TryGetValue(field.Name, out var kind))
+            {
+                problems.Add(
+                    $"Op {n}'s bind has {field.Name}, which is no binding field ({string.Join(", ", BIND_FIELDS.Keys)})."
+                );
+
+                continue;
+            }
+
+            var value = field.Value;
+
+            if (value.ValueKind == JsonValueKind.String)
+            {
+                var text = value.GetString()!;
+                var placeholders = PlaceholderPattern().Matches(text);
+
+                foreach (Match placeholder in placeholders)
+                {
+                    var name = placeholder.Groups[1].Value;
+
+                    if (!RootedPattern().IsMatch(name) && !IsStyle($"${{{name}}}"))
+                        problems.Add(
+                            $"Op {n}'s bind {field.Name} names ${{{name}}}: a placeholder is ${{ctx.<key>}}, ${{item.<key>}}, ${{text.<key>}} or ${{style:<name>}}."
+                        );
+                    else if (name.StartsWith("item.", StringComparison.Ordinal) && !items)
+                        problems.Add(
+                            $"Op {n}'s bind {field.Name} names ${{{name}}}, which a row has: give the op \"items\": true."
+                        );
+                }
+
+                // Text stands for a value of another kind only with a placeholder in it, or as one ("true", "4285229153").
+                if (kind == JsonValueKind.String || placeholders.Count > 0 || Parses(text, kind))
+                    continue;
+            }
+            else if (
+                value.ValueKind == kind
+                || (kind == JsonValueKind.True && value.ValueKind == JsonValueKind.False)
+            )
+                continue;
+
+            problems.Add(
+                $"Op {n}'s bind {field.Name} is {(kind == JsonValueKind.Number ? "a number (a colour 0xAARRGGBB, as 4285229153)" : kind == JsonValueKind.True ? "true or false" : "text")}."
+            );
+        }
+    }
+
+    private static bool Flag(JsonElement op, string name, int n, List<string> problems)
+    {
+        if (!op.TryGetProperty(name, out var flag))
+            return false;
+
+        if (flag.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            return flag.ValueKind == JsonValueKind.True;
+
+        problems.Add($"Op {n}'s {name} is true or false.");
+
+        return false;
+    }
+
+    private static bool Parses(string text, JsonValueKind kind) =>
+        kind == JsonValueKind.True
+            ? text is "true" or "false"
+            : double.TryParse(
+                text,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out _
+            );
 
     private static void Place(JsonElement op, string action, int n, List<string> problems)
     {
@@ -210,4 +340,10 @@ internal static partial class TemplatePatchSchema
 
     [GeneratedRegex(@"^\$\{style:[A-Za-z0-9._:-]+\}$")]
     private static partial Regex StylePattern();
+
+    [GeneratedRegex(@"\$\{([^}]*)\}")]
+    private static partial Regex PlaceholderPattern();
+
+    [GeneratedRegex(@"^(ctx|item|text)\..+$")]
+    private static partial Regex RootedPattern();
 }
