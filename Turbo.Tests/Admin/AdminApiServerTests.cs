@@ -302,6 +302,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminCatalogPageMerge>();
         services.AddSingleton<AdminCatalogAddFurni>();
         services.AddSingleton<AdminCatalogImages>();
+        services.AddSingleton<Turbo.Admin.Media.MediaLibrary>();
         services.AddSingleton<Turbo.Admin.Content.AdminRewardTracks>();
         services.AddSingleton<Turbo.Admin.Content.AdminBadgeQueries>();
         services.AddSingleton<Turbo.Admin.Content.AdminNavigatorEditor>();
