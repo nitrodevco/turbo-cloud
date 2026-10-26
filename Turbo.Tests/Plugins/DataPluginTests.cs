@@ -433,6 +433,34 @@ public sealed class DataPluginTests : IDisposable
         (await patches.PatchesAsync(Ct)).Should().BeEmpty();
     }
 
+    // The formula reader is recursive: a formula nested thousands deep, saved from the panel, would
+    // overflow its stack (a StackOverflowException ends the process). Length, depth and arguments are
+    // capped, as the client caps them (templatePatchArrange.ts), and one past a cap is refused unread.
+    [Theory]
+    [InlineData("length", "at most 500 characters, not 501")]
+    [InlineData("depth", "nests at most 32 deep")]
+    [InlineData("args", "max takes at most 16 values")]
+    public async Task A_staff_arrange_formula_past_a_cap_is_refused(string cap, string reason)
+    {
+        var patches = Hotel().HotelPlugin;
+        var formula = cap switch
+        {
+            "length" => string.Concat(Enumerable.Repeat("1+", 250)) + "1",
+            "depth" => new string('(', 40) + "1" + new string(')', 40),
+            _ => $"max({string.Join(", ", Enumerable.Repeat("1", 17))})",
+        };
+        var ops = JsonSerializer.Serialize(
+            new[] { new { element = "layoutContainer", arrange = new { y = formula } } }
+        );
+
+        var refused = () => patches.SavePatchAsync(Patch("Header", ops), Ct);
+
+        (await refused.Should().ThrowAsync<ArgumentException>())
+            .Which.Message.Should()
+            .Contain(reason);
+        (await patches.PatchesAsync(Ct)).Should().BeEmpty();
+    }
+
     // A theme's post-layout hook as data (nitro-next templatePatchArrange.ts, templateArrangeProblems):
     // the catalogue header a theme laid out in code, saved from the panel; a formula no client runs is
     // refused with the client's own reason. The patch is the documentation's example (docs/template-patches.md).

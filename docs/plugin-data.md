@@ -170,7 +170,9 @@ links to it.
   `api.templates.arrange` does: each of `x`, `y`, `width`, `height` a number or a formula over
   `${<element>.<measure>}`, `${window.<measure>}` and `${ctx.<key>}` (`${catalog.header.image.y} + 83`,
   `${ctx.hasHeaderImage} ? 290 : 0`); the check refuses an unknown field, function or measure and a broken
-  formula with the client's own sentence (nitro-next `docs/template-patches.md`, "An arrangement as data").
+  formula with the client's own sentence, and one longer than 500 characters, nested deeper than 32
+  (brackets, calls, choices, signs) or calling with more than 16 values (nitro-next `docs/template-patches.md`,
+  "An arrangement as data").
   **Test**, under the ops, shows the window's element tree with them applied before saving: what each
   op changes, and each one naming an element the window lacks (clients would report it unmatched).
 - **Appearance > Outdated patches**: every patch whose window or element is gone from the client's

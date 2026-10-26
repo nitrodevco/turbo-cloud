@@ -26,6 +26,17 @@ internal static partial class TemplateArrangeFormula
         "textHeight",
     ];
 
+    /// <summary>
+    /// How long a formula may be, how deep it may nest (brackets, calls, choices and signs, each a level
+    /// of the client's recursive parser and this one's) and how many values a call may take: a formula
+    /// past them is refused, never read - one nested thousands deep would overflow the parser's stack.
+    /// </summary>
+    public const int MAX_LENGTH = 500;
+
+    public const int MAX_DEPTH = 32;
+
+    public const int MAX_ARGS = 16;
+
     /// <summary>The functions a formula may call, and how many values each takes (at least, at most).</summary>
     private static readonly Dictionary<string, (int Min, int Max)> FUNCTIONS = new()
     {
@@ -74,6 +85,9 @@ internal static partial class TemplateArrangeFormula
     /// <summary>What is wrong with <paramref name="formula"/>, as one sentence; null for one a client runs.</summary>
     public static string? Problem(string formula)
     {
+        if (formula.Length > MAX_LENGTH)
+            return $"a formula is at most {MAX_LENGTH} characters, not {formula.Length}: split it over ops (a later op reads what an earlier one set)";
+
         try
         {
             new Parser(Tokenize(formula)).Whole();
@@ -194,6 +208,18 @@ internal static partial class TemplateArrangeFormula
     private sealed class Parser(List<Token> tokens)
     {
         private int _at;
+        private int _depth;
+
+        /// <summary>One level deeper, refused past <see cref="MAX_DEPTH"/>; <see cref="Leave"/> after.</summary>
+        private void Enter()
+        {
+            if (++_depth > MAX_DEPTH)
+                throw new FormatException(
+                    $"a formula nests at most {MAX_DEPTH} deep (brackets, calls, choices and signs inside one another)"
+                );
+        }
+
+        private void Leave() => _depth--;
 
         public void Whole()
         {
@@ -218,15 +244,18 @@ internal static partial class TemplateArrangeFormula
 
         private void Expression()
         {
+            Enter();
             Binary(4);
 
-            if (!Peek("?"))
-                return;
+            if (Peek("?"))
+            {
+                _at++;
+                Expression();
+                Expect(":");
+                Expression();
+            }
 
-            _at++;
-            Expression();
-            Expect(":");
-            Expression();
+            Leave();
         }
 
         private static readonly string[][] LEVELS =
@@ -261,7 +290,9 @@ internal static partial class TemplateArrangeFormula
             if (Peek("-") || Peek("!"))
             {
                 _at++;
+                Enter();
                 Unary();
+                Leave();
 
                 return;
             }
@@ -301,8 +332,12 @@ internal static partial class TemplateArrangeFormula
                     {
                         do
                         {
+                            if (++count > MAX_ARGS)
+                                throw new FormatException(
+                                    $"{token.Text} takes at most {MAX_ARGS} values"
+                                );
+
                             Expression();
-                            count++;
                         } while (Peek(",") && ++_at > 0);
                     }
 
