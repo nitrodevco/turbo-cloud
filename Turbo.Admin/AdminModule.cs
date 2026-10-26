@@ -41,6 +41,7 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<AdminRoomQueries>();
         services.AddSingleton<AdminRoomVisits>();
         services.AddSingleton<AdminRoomBots>();
+        services.AddSingleton<AdminRoomFurniture>();
         services.AddSingleton<AdminRoomPets>();
         services.AddSingleton<AdminClientTelemetry>();
         services.AddSingleton<AdminRoomEditor>();

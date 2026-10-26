@@ -50,4 +50,15 @@ public sealed record FurnitureListItem
     /// <summary>Where its bundle came from; null without a bundle file.</summary>
     [Id(11)]
     public AssetBundleSource? BundleSource { get; init; }
+
+    /// <summary>The logic the server runs for it (the definition's <c>logic</c>).</summary>
+    [Id(12)]
+    public required string Logic { get; init; }
+
+    /// <summary>
+    /// The logic the server has for it, by its classname or by the logic its asset file names;
+    /// null when the server has none but the default.
+    /// </summary>
+    [Id(13)]
+    public string? MatchingLogic { get; init; }
 }

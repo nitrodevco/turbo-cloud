@@ -23,6 +23,7 @@ public static class FurnitureTagNames
         (FurnitureTag.BundleFailed, "bundle-failed"),
         (FurnitureTag.BundleOutdated, "bundle-outdated"),
         (FurnitureTag.NotSold, "not-sold"),
+        (FurnitureTag.LogicMismatch, "logic-mismatch"),
     ];
 
     public static string Of(FurnitureTag tag) =>
@@ -68,7 +69,9 @@ public sealed record FurnitureListItemResponse(
     string[] Tags,
     string? BundleRevision,
     long? BundleSize,
-    string? BundleSource
+    string? BundleSource,
+    string Logic,
+    string? MatchingLogic
 )
 {
     public static FurnitureListItemResponse From(FurnitureListItem item) =>
@@ -84,7 +87,9 @@ public sealed record FurnitureListItemResponse(
             [.. item.Tags.Select(FurnitureTagNames.Of)],
             item.BundleRevision,
             item.BundleSize,
-            item.BundleSource is { } source ? AssetContractNames.Of(source) : null
+            item.BundleSource is { } source ? AssetContractNames.Of(source) : null,
+            item.Logic,
+            item.MatchingLogic
         );
 }
 
@@ -122,7 +127,8 @@ public sealed record FurnitureDefinitionResponse(
     int States,
     string AssetName,
     string[] Tags,
-    string ServerFields
+    string ServerFields,
+    string? MatchingLogic
 )
 {
     public static FurnitureDefinitionResponse From(FurnitureDefinitionDetail detail) =>
@@ -137,6 +143,7 @@ public sealed record FurnitureDefinitionResponse(
             detail.States,
             detail.AssetName,
             [.. detail.Tags.Select(FurnitureTagNames.Of)],
-            detail.ServerFields
+            detail.ServerFields,
+            detail.MatchingLogic
         );
 }

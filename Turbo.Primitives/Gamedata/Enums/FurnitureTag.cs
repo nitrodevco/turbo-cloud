@@ -29,4 +29,10 @@ public enum FurnitureTag
     /// Builders Club one, alone or in a bundle of items.
     /// </summary>
     NotSold = 6,
+
+    /// <summary>
+    /// The server has a logic for it, by its classname or by the logic its asset file names,
+    /// but it runs the plain default (or a logic the server does not have).
+    /// </summary>
+    LogicMismatch = 7,
 }

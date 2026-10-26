@@ -12,6 +12,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Guilds.Enums;
+using Turbo.Primitives.Guilds.Forums.Enums;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.Admin.Content;
@@ -147,9 +148,38 @@ public sealed partial class AdminGroupQueries(
             group.RoomEntityId,
             group.RoomName,
             group.CreatedAt,
-            members
+            members,
+            await ForumOfAsync(dbCtx, id, ct).ConfigureAwait(false)
         );
     }
+
+    /// <summary>The group's forum; null when it has none.</summary>
+    public async Task<GroupForumItem?> GetForumAsync(int id, CancellationToken ct)
+    {
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        return await ForumOfAsync(dbCtx, id, ct).ConfigureAwait(false);
+    }
+
+    private static Task<GroupForumItem?> ForumOfAsync(
+        TurboDbContext dbCtx,
+        int id,
+        CancellationToken ct
+    ) =>
+        dbCtx
+            .GuildForums.AsNoTracking()
+            .Where(x => x.GuildEntityId == id)
+            .Select(x => new GroupForumItem(
+                x.ReadPermission,
+                x.PostMessagePermission,
+                x.PostThreadPermission,
+                x.ModeratePermission,
+                x.ThreadCount,
+                x.MessageCount,
+                x.LastMessageAt
+            ))
+            .FirstOrDefaultAsync(ct);
 
     public async Task<GroupEditorResponse> GetEditorAsync(CancellationToken ct)
     {

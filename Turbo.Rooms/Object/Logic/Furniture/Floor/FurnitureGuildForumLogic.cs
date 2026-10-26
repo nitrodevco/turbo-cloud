@@ -7,10 +7,10 @@ using Turbo.Primitives.Rooms.Object.Logic;
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 /// <summary>
-/// The group forum terminal. It is a customised guild furni in every way that matters — same
-/// five stuff data slots, same badge, same colours, same context menu — and differs only in
-/// which entries the client draws in that menu, which it decides from the furni's own class
-/// name rather than from anything the server sends.
+/// The group forum terminal. It is a customised guild furni on the server - same five stuff data
+/// slots, same badge, same colours - and differs only in the client: a click opens no group
+/// context menu, and using it opens the group's forum through the internal link
+/// <c>groupforum/&lt;group id&gt;</c> it makes from the group id (FurnitureGroupForumTerminalLogic.as).
 /// </summary>
 [RoomObjectLogic(GuildFurnitureLogicNames.FORUM)]
 public class FurnitureGuildForumLogic(

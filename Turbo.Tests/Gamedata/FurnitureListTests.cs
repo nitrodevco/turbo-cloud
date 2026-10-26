@@ -86,7 +86,13 @@ public sealed class FurnitureListTests : IDisposable
             offers,
             habboItems,
             furnitureFiles,
-            new FurnitureStatusIndex(_db, habboItems, furnitureFiles, offers),
+            new FurnitureStatusIndex(
+                _db,
+                habboItems,
+                furnitureFiles,
+                offers,
+                _fakes.Create<IRoomObjectLogicProvider>()
+            ),
             new GamedataWriteLock(),
             _fakes.Create<IRoomObjectLogicProvider>(),
             _fakes.Create<IAssetBundleStore>(),
@@ -223,6 +229,108 @@ public sealed class FurnitureListTests : IDisposable
         own.Searched.Should().Be(4);
         own.TagCounts[FurnitureTag.NotSold].Should().Be(4);
     }
+
+    // Live 2026-10-26: guild_forum and the gld_* furniture kept default_floor (made before
+    // definitions took the logic registered under their classname), so the forum terminal was
+    // sold as plain furniture and opened no forum. The list flags each, and one call fixes them.
+    [Fact]
+    public async Task a_definition_running_the_default_where_the_server_has_its_logic_is_flagged_and_fixed()
+    {
+        _fakes.Handlers["get_" + nameof(IRoomObjectLogicProvider.LogicTypes)] = _ =>
+            (IReadOnlyList<string>)["gate", "guild_customized", "guild_forum"];
+        _db.Insert(Own(1, "guild_forum", "default_floor"));
+        _db.Insert(Own(2, "gld_carpet", "default_floor"));
+        _db.Insert(Own(3, "gld_gate", "gate"));
+        _db.Insert(Own(4, "chair", "default_floor"));
+        _db.Insert(Own(5, "guild_forum*2", "no_such_logic"));
+        // Only an asset file tells the gld_* furniture's logic: its client logic.
+        _db.Insert(AssetFile(1, "gld_carpet", 10, "furniture_guild_customized"));
+        _db.Insert(AssetFile(2, "gld_gate", 10, "furniture_guild_customized"));
+
+        var listed = (await _furniture.ListAsync(null, null, null, 0, Ct)).Items.ToDictionary(x =>
+            x.ClassName
+        );
+
+        listed
+            .Where(x => x.Value.Tags.Contains(FurnitureTag.LogicMismatch))
+            .Select(x => (x.Key, x.Value.Logic, x.Value.MatchingLogic))
+            .Should()
+            .BeEquivalentTo([
+                ("guild_forum", "default_floor", "guild_forum"),
+                ("gld_carpet", "default_floor", "guild_customized"),
+                ("guild_forum*2", "no_such_logic", "guild_forum"),
+            ]);
+        // A logic of the server's staff chose over the matching one is theirs to keep.
+        listed["gld_gate"].MatchingLogic.Should().Be("guild_customized");
+        listed["chair"].MatchingLogic.Should().BeNull();
+
+        var fixedAll = await _furniture.SetLogicAsync(null, null, STAFF, Ct);
+
+        fixedAll!.ChangeCount.Should().Be(3);
+        (await TagsAsync())
+            .Values.Should()
+            .NotContain(tags => tags.Contains(FurnitureTag.LogicMismatch));
+        (await LogicsAsync())
+            .Should()
+            .Contain(
+                new Dictionary<string, string>
+                {
+                    ["guild_forum"] = "guild_forum",
+                    ["gld_carpet"] = "guild_customized",
+                    ["guild_forum*2"] = "guild_forum",
+                    ["gld_gate"] = "gate",
+                    ["chair"] = "default_floor",
+                }
+            );
+
+        // Chosen definitions take a chosen logic; a logic the server lacks, or one for every
+        // definition, is refused.
+        (await _furniture.SetLogicAsync([4], "gate", STAFF, Ct))!
+            .ChangeCount.Should()
+            .Be(1);
+        (await LogicsAsync())["chair"].Should().Be("gate");
+        await _furniture
+            .Invoking(x => x.SetLogicAsync([4], "no_such_logic", STAFF, Ct))
+            .Should()
+            .ThrowAsync<ArgumentException>();
+        await _furniture
+            .Invoking(x => x.SetLogicAsync(null, "gate", STAFF, Ct))
+            .Should()
+            .ThrowAsync<ArgumentException>();
+    }
+
+    private async Task<Dictionary<string, string>> LogicsAsync()
+    {
+        await using var db = await _db.CreateDbContextAsync(Ct);
+
+        return await db.FurnitureDefinitions.ToDictionaryAsync(x => x.Name, x => x.Logic, Ct);
+    }
+
+    private static FurnitureDefinitionEntity Own(int id, string className, string logic)
+    {
+        var definition = OwnSofa();
+
+        definition.Id = id;
+        definition.SpriteId = id;
+        definition.Name = className;
+        definition.Logic = logic;
+
+        return definition;
+    }
+
+    private static HabboFurnitureAssetEntity AssetFile(
+        int id,
+        string asset,
+        int revision,
+        string logic
+    ) =>
+        new()
+        {
+            Id = id,
+            AssetName = asset,
+            Revision = revision,
+            LogicType = logic,
+        };
 
     private async Task<Dictionary<string, FurnitureTag[]>> TagsAsync() =>
         (await _furniture.ListAsync(null, null, null, 0, Ct)).Items.ToDictionary(

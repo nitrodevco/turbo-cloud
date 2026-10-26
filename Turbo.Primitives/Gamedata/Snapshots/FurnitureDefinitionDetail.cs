@@ -57,4 +57,8 @@ public sealed record FurnitureDefinitionDetail
     /// </summary>
     [Id(10)]
     public required string ServerFields { get; init; }
+
+    /// <summary>As <see cref="FurnitureListItem.MatchingLogic"/>.</summary>
+    [Id(11)]
+    public string? MatchingLogic { get; init; }
 }

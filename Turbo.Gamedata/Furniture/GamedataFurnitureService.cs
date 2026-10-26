@@ -794,6 +794,94 @@ internal sealed class GamedataFurnitureService(
         return changeSet.ToSnapshot(changes.Count);
     }
 
+    public Task<GamedataChangeSetSnapshot?> SetLogicAsync(
+        IReadOnlyCollection<int>? ids,
+        string? logic,
+        PlayerId player,
+        CancellationToken ct
+    ) => writes.RunAsync(() => SetLogicLockedAsync(ids, logic, player, ct), ct);
+
+    private async Task<GamedataChangeSetSnapshot?> SetLogicLockedAsync(
+        IReadOnlyCollection<int>? ids,
+        string? logic,
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        if (ids is null && logic is not null)
+            throw new ArgumentException("Choose the furniture to give that logic.", nameof(ids));
+
+        if (logic is not null && !logics.LogicTypes.Contains(logic, StringComparer.Ordinal))
+            throw new ArgumentException($"{logic} is not a logic the server has.", nameof(logic));
+
+        var chosen = ids?.ToHashSet();
+        var wanted = (await statuses.GetAsync(ct).ConfigureAwait(false))
+            .Where(x =>
+                chosen is null ? x.Tags.Contains(FurnitureTag.LogicMismatch) : chosen.Contains(x.Id)
+            )
+            .Select(x => (x.Id, Logic: logic ?? x.MatchingLogic))
+            .Where(x => x.Logic is not null && x.Logic.Length > 0)
+            .ToDictionary(x => x.Id, x => x.Logic!);
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var definitions = (
+            await dbCtx
+                .FurnitureDefinitions.Where(x => wanted.Keys.Contains(x.Id))
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+        )
+            .Where(x => x.Logic != wanted[x.Id])
+            .OrderBy(x => x.Id)
+            .ToList();
+
+        if (definitions.Count == 0)
+            return null;
+
+        var field = FurnitureFields.ByKey[FurnitureRecords.LOGIC_KEY];
+        string[] keys = [FurnitureRecords.LOGIC_KEY];
+        List<GamedataChangeEntity> changes = [];
+        var changeSet = GamedataChangeSets.Create(
+            GamedataChangeKind.Edit,
+            logic is null
+                ? $"Matching logic for {definitions.Count} furniture"
+                : $"Logic {logic} for {definitions.Count} furniture",
+            player,
+            changes
+        );
+
+        foreach (var definition in definitions)
+        {
+            var before = FurnitureRecords.Fields(definition, keys);
+
+            field.Write(definition, field.Normalize(JsonValue.Create(wanted[definition.Id])));
+            changes.Add(
+                GamedataChangeSets.Change(
+                    GamedataRecordType.FurnitureDefinition,
+                    definition.Name,
+                    before.ToJsonString(),
+                    FurnitureRecords.Fields(definition, keys).ToJsonString(),
+                    definition.Id
+                )
+            );
+        }
+
+        dbCtx.GamedataChangeSets.Add(changeSet);
+
+        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        logger.LogInformation(
+            "Player {PlayerId} set the logic of {Count} furniture definitions: {Changes}",
+            player.Value,
+            definitions.Count,
+            string.Join(", ", definitions.Select(x => $"{x.Name}={x.Logic}"))
+        );
+
+        await AfterWriteAsync(ct).ConfigureAwait(false);
+
+        return changeSet.ToSnapshot(changes.Count);
+    }
+
     /// <summary>The fields by their furnidata keys, each once; a key no definition holds is refused.</summary>
     private static List<FurnitureField> Resolve(IReadOnlyCollection<string> keys)
     {
@@ -926,6 +1014,7 @@ internal sealed class GamedataFurnitureService(
                 .Fields(definition, FurnitureFields.All.Where(x => x.ServerOnly).Select(x => x.Key))
                 .ToJsonString(),
             Tags = listed?.Tags ?? [],
+            MatchingLogic = listed?.MatchingLogic,
         };
     }
 

@@ -12,9 +12,24 @@ The page's **Furniture** tab lists every floor and wall definition with its tags
 (`FurnitureStatusIndex`): `hotel-own` (Habbo's newest release has no such item), `habbo-update`
 (that release changes fields the hotel left alone), `edited` (it holds values of the hotel's own),
 `no-bundle`, `bundle-failed`, `bundle-outdated` (Habbo names a newer revision of its asset), and
-`not-sold` (no visible offer on a reachable page sells it, alone or in a pack, in either catalog).
-The list is filtered by words, kind and tag, with each tag counted; the tags are worked out once and
-kept until a definition, a bundle, an asset file, Habbo's release or a published catalog changes.
+`not-sold` (no visible offer on a reachable page sells it, alone or in a pack, in either catalog),
+and `logic-mismatch` (below). The list is filtered by words, kind and tag, with each tag counted,
+and shows each definition's server logic; the tags are worked out once and kept until a
+definition, a bundle, an asset file, Habbo's release, a published catalog or the registered logics
+change.
+
+Each definition has a **matching logic**: the one a new definition of it would get, the logic the
+server registers under its classname (colour variants: their base item's), else the server logic
+its asset file's client logic names (`furniture_guild_customized` -> `guild_customized`, from the
+newest read file in `habbo_furniture_assets`). A definition running the default logic, or a logic
+the server has not registered, where it has a matching one is tagged `logic-mismatch`: definitions
+made before matching by classname existed (a group forum terminal sold as plain furniture opens no
+forum), or whose logic a plugin later registered. A registered logic staff chose over the matching
+one is left alone. The panel's Overview counts them, and `POST /api/gamedata/furniture/logic`
+fixes them: `{}` gives every tagged definition its matching logic, `{ "ids": [...] }` those
+definitions theirs, and `{ "ids": [...], "logic": "..." }` those definitions one registered logic
+(the panel's picked rows). Each call is one change set in the history, rolled back as a whole;
+rooms load the new logic as they load again.
 
 A definition opened from the list edits every column it has: the furnidata fields, and the
 server's own (`logic`, `usagepolicy`, `cangroup`, `cansell`, `extradata`, and its identity,
