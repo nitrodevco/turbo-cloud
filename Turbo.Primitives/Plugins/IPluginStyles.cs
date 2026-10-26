@@ -24,7 +24,8 @@ public enum ThemeStyleType
 /// type it (null: the client's own, so nothing is sent until staff set it), how the panel groups
 /// and labels it, and where else its value goes: for an image the library bitmap it stands in for
 /// (<see cref="Overlay"/>, an <c>asset.overlays</c> entry), and <see cref="Variable"/>, a merged
-/// variable and the path in it (<c>["frame.overrides", "catalog", "color"]</c>).
+/// variable and the path in it (<c>["frame.overrides", "catalog", "color"]</c>). <see cref="From"/>
+/// is the theme whose default it has: the base theme <c>habbo</c>'s, or one that names it again.
 /// </summary>
 public sealed record ThemeStyleProperty(
     string Name,
@@ -36,8 +37,15 @@ public sealed record ThemeStyleProperty(
     string? Overlay,
     double? Min,
     double? Max,
-    ImmutableArray<string> Variable = default
+    ImmutableArray<string> Variable = default,
+    string? From = null
 );
+
+/// <summary>
+/// A plugin that is a theme: it has a <c>theme.json</c> (or is the hotel's own plugin, which extends
+/// the base theme with none), and the theme it <c>"extends"</c>; null for one that extends none.
+/// </summary>
+public sealed record PluginTheme(string Key, string? Extends);
 
 /// <summary>
 /// A style property and the hotel's value of it: <see cref="Value"/> is the default while
@@ -65,6 +73,12 @@ public interface IPluginStyles
         string folder,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// The plugin as a theme, read from its <c>theme.json</c> in <paramref name="folder"/>; null for a
+    /// plugin that is none. Throws <see cref="System.ArgumentException"/> for a file that isn't JSON.
+    /// </summary>
+    public PluginTheme? ThemeOf(string pluginKey, string? folder);
 
     /// <summary>
     /// Gives the property the hotel's own value, as staff type it (a colour <c>#rrggbb</c>, an image

@@ -88,27 +88,42 @@ catalogue colour and art with defaults alone:
 } }
 ```
 
-The hotel's own plugin extends `habbo`, so **Plugins > Hotel theme** lists these with no theme file:
+The hotel's own plugin extends `habbo`, so **Appearance > Style properties** lists these with no theme file:
 staff restyle the hotel's frames, colours, fonts and loading screen from the panel. A theme that
 extends another plugin needs it installed; one that extends in a circle is refused.
 
 ## In the panel
 
-- **Plugins > a plugin > Theme**: each style property as a picker (colour, number, image upload,
-  font), grouped as `theme.json` groups them, with **Reset** back to the theme's default and a
-  "changed" mark. Saving writes the hotel's entry; **Preview** reloads the embedded client, which
+Everything a theme author changes is under one sidebar section, **Appearance**; the Plugins page
+links to it.
+
+- **Appearance > Themes**: every plugin that is a theme (the hotel's own always) as a tree under the
+  base theme `habbo`, each under the theme it `extends`, with how many style properties it has (and
+  declares itself), how many staff changed, whether it is on (turn it off or on here), and links to
+  its style properties, images and patches. Admin API: `GET /plugins/themes`.
+- **Appearance > Style properties**: a theme picker (the same tree) and an area picker (the
+  `theme.json` groups; the base theme's say what each restyles) over each style property as a
+  picker (colour, number, image upload, font), with **Reset** and a "changed" mark. Reset says
+  whose default it goes back to: **Habbo's own** for one the base theme declares, or the theme's
+  that named a default again (each property's `origin` in `GET /plugins/{key}/styles`, beside the
+  theme's `extends`). Saving writes the hotel's entry; **Preview** reloads the embedded client, which
   reads the new values as it starts. An uploaded image is kept in the hotel's own data plugin
-  (below), so updating the theme keeps it; **Pick an uploaded image** uses one from the Images below.
-  A style with no default says "Habbo's own".
-- **Plugins > a plugin > Theme > Images**: the images in its `wwwroot/styles/` (the hotel's:
+  (below), so updating the theme keeps it; **Pick an uploaded image** uses one from its Images.
+  A style with no default says "Habbo's own". Every appearance save says who has it: the players
+  online get it at their next load, anyone logging in has it now.
+- **Appearance > Images** (a theme picker, the hotel's by default): the images in its `wwwroot/styles/` (the hotel's:
   `plugins/hotel/wwwroot/styles/`). Upload a PNG, GIF, JPEG or WebP (at most 2 MB, checked by its
   content; one of the same name is replaced) and copy its **Path** (`styles/tab0.png`: what a patch's
   `asset` and an image style take, resolved against the plugin's served files) or its **Address**
   (what a variable such as `asset.overlays` takes). Uploading and removing need
   `admin.plugins.manage` and go to the command log. Admin API: `GET`/`POST /plugins/{key}/images`
   (form field `file`, optional `name`), `DELETE /plugins/{key}/images?path=styles/x.png`.
-- **Plugins > Template patches**: every plugin's patches per window, with what players' clients
-  report of them (applied, unmatched, ineffective, conflicting), and the hotel's own patches: make one, edit its
+- **Appearance > Template patches**: the patches by who made them - this hotel, then each plugin
+  (its `wwwroot/template-patches.json`, read through `GET /plugins/{key}/template-patches`; turn the
+  plugin off or on there) - each with how many players' clients report it applied / unmatched /
+  ineffective (a clash beside them; a report is put beside the patch whose op names the element it
+  is about), and an **outdated** line when its window or an element it names is gone from the
+  client the hotel runs. The hotel's own patches: make one, edit its
   ops as JSON (checked as it is saved: an op names its `element` and does one of `set`, `remove`,
   `insert`, `move`, `wrap`, `bind`), turn it off without losing it, or remove it. The client's alt-click inspector
   ("copy patch") gives JSON that pastes straight in. A window's frame - its colour, style and where
@@ -122,7 +137,13 @@ extends another plugin needs it installed; one that extends in a circle is refus
   of the hotel's own served files (nitro-next `docs/template-patches.md`, "A binding as data").
   **Test**, under the ops, shows the window's element tree with them applied before saving: what each
   op changes, and each one naming an element the window lacks (clients would report it unmatched).
-- **Plugins > Windows & skins**: every window of the client - each template window and each window
+- **Appearance > Outdated patches**: every patch whose window or element is gone from the client's
+  `template-index.json` (a client update renamed or removed it), with why, before any player's client
+  reports it unmatched. Elements a patch adds itself (`insert`, `wrap`) count as there.
+- **Appearance > Texts**: the texts windows show, by window (pick one; every text key it shows with
+  the text players see, edited in place) or by what they say (type "Earnings" to find
+  `earnings.title`, with the windows showing it).
+- **Appearance > Windows & skins**: every window of the client - each template window and each window
   Nitro draws itself - found by its id, an element's name or key, a text key or a text it shows (the
   hotel's texts). A window lists its element tree as a patch names it (key, tag, style, name,
   caption, the text keys it shows, the skins it draws) and the patches on it with what clients report

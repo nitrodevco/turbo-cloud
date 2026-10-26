@@ -198,6 +198,71 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         return Task.FromResult<ImmutableArray<PluginImage>?>(images);
     }
 
+    public async Task<ImmutableArray<PluginTemplatePatch>?> TemplatePatchesAsync(
+        string pluginKey,
+        CancellationToken ct
+    )
+    {
+        if (FolderOf(pluginKey) is not { } folder)
+            return null;
+
+        var path = Path.Combine(folder, WWWROOT, TEMPLATE_PATCHES);
+
+        if (!File.Exists(path))
+            return [];
+
+        JsonDocument doc;
+
+        try
+        {
+            doc = JsonDocument.Parse(
+                await File.ReadAllBytesAsync(path, ct).ConfigureAwait(false),
+                new JsonDocumentOptions
+                {
+                    CommentHandling = JsonCommentHandling.Skip,
+                    AllowTrailingCommas = true,
+                }
+            );
+        }
+        catch (JsonException ex)
+        {
+            throw new ArgumentException(
+                $"{TEMPLATE_PATCHES} isn't JSON. {ex.Message}",
+                nameof(pluginKey),
+                ex
+            );
+        }
+
+        using (doc)
+        {
+            if (
+                doc.RootElement.ValueKind != JsonValueKind.Object
+                || !doc.RootElement.TryGetProperty("patches", out var patches)
+                || patches.ValueKind != JsonValueKind.Array
+            )
+                return [];
+
+            // What isn't a patch is the client's to refuse and report; it is left out here.
+            return patches
+                .EnumerateArray()
+                .Where(x =>
+                    x.ValueKind == JsonValueKind.Object
+                    && x.TryGetProperty("template", out var template)
+                    && template.ValueKind == JsonValueKind.String
+                )
+                .Select(x => new PluginTemplatePatch(
+                    x.GetProperty("template").GetString()!,
+                    x.TryGetProperty("ops", out var ops)
+                        ? ops.Clone()
+                        : JsonSerializer.SerializeToElement(Array.Empty<object>()),
+                    x.TryGetProperty("order", out var order) && order.TryGetInt32(out var value)
+                        ? value
+                        : null
+                ))
+                .ToImmutableArray();
+        }
+    }
+
     public async Task<PluginImage> SaveImageAsync(
         string pluginKey,
         string name,

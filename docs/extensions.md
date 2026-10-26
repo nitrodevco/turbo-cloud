@@ -253,7 +253,7 @@ for a window keeps a theme's first position for it - collisions logged):
 
 So a theme replaces the one frame or icon it changes rather than shipping a copy of the window
 manager library. A theme's style properties (`theme.json`, `docs/plugin-data.md`) write these entries for it, and
-the base theme `habbo` names Habbo's own so staff change them on the hotel's Theme tab.
+the base theme `habbo` names Habbo's own so staff change them under the panel's Appearance > Style properties.
 
 ### 4.7 Messages
 
