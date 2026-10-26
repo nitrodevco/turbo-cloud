@@ -18,6 +18,7 @@ using Turbo.Plugins;
 using Turbo.Plugins.Configuration;
 using Turbo.Primitives.ClientModules;
 using Turbo.Primitives.Gamedata;
+using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Settings;
@@ -1061,6 +1062,82 @@ public sealed class DataPluginTests : IDisposable
             .BeNull();
     }
 
+    // A theme's chat bubbles needed C# that added them as it started (a seed class in its assembly);
+    // a data plugin's chatstyles/ folder is now taken in as it loads, through the panel's own service,
+    // and a style the hotel has (by client id or asset id) is left as staff made it.
+    [Fact]
+    public async Task A_data_plugin_s_chat_bubbles_are_added_as_it_loads_and_the_hotel_s_own_are_kept()
+    {
+        WriteTheme("mytheme");
+
+        var styles = Path.Combine(_folder, "mytheme", "chatstyles");
+
+        Directory.CreateDirectory(Path.Combine(styles, "mytheme_plane"));
+        File.WriteAllBytes(
+            Path.Combine(styles, "mytheme_plane", "chat_bubble_base.png"),
+            [1, 2, 3]
+        );
+        File.WriteAllText(
+            Path.Combine(styles, "chatstyles.json"),
+            """
+            // Two bubbles: the second's client id is one the hotel has.
+            [
+              { "clientStyleId": 39, "assetId": "mytheme_plane", "staffOnly": true, "regPoints": { "faceXY": { "x": 5, "y": 5 } } },
+              { "clientStyleId": 7, "assetId": "mytheme_other", "regPoints": {} },
+            ]
+            """
+        );
+
+        var saved = new List<ChatStyleEdit>();
+
+        _fakes.Handlers["ListAsync"] = _ =>
+            Task.FromResult(
+                new ChatStyleList
+                {
+                    Styles =
+                    [
+                        new ChatStyleDefinitionSnapshot
+                        {
+                            Id = 1,
+                            ClientStyleId = 7,
+                            AssetId = "sharp",
+                            ClubOnly = false,
+                            AmbassadorOnly = false,
+                            StaffOnly = false,
+                            Purchasable = false,
+                            System = false,
+                            StaffOverrideable = false,
+                            AllowHtml = false,
+                            Notification = false,
+                            Bitmaps = [],
+                            SortOrder = 0,
+                            Owners = 0,
+                            Preferring = 0,
+                            Drawable = true,
+                        },
+                    ],
+                    NextId = 8,
+                    LibraryBitmaps = 0,
+                }
+            );
+        _fakes.Handlers["SaveAsync"] = call =>
+        {
+            saved.Add((ChatStyleEdit)call.Args[1]!);
+
+            return Task.FromResult(2);
+        };
+
+        await Hotel(_fakes.Create<IChatStyleService>()).Manager.LoadAllAsync(ct: Ct);
+
+        var added = saved.Should().ContainSingle().Which;
+
+        (added.ClientStyleId, added.AssetId, added.StaffOnly, added.ClubOnly)
+            .Should()
+            .Be((39, "mytheme_plane", true, false));
+        added.RegPoints.Should().Be("""{"faceXY":{"x":5,"y":5}}""");
+        added.Files.Should().ContainKey("chat_bubble_base").WhoseValue.Should().Equal(1, 2, 3);
+    }
+
     private static HotelPatch Patch(string name, string ops) =>
         new(
             string.Empty,
@@ -1107,7 +1184,7 @@ public sealed class DataPluginTests : IDisposable
     );
 
     /// <summary>A hotel's plugin manager over the test's plugins folder, with the gamedata services data plugins reach.</summary>
-    private HotelUnderTest Hotel()
+    private HotelUnderTest Hotel(IChatStyleService? chatStyles = null)
     {
         var loaded = new LoadedPluginGamedata();
         var config = Options.Create(new GamedataConfig());
@@ -1143,6 +1220,7 @@ public sealed class DataPluginTests : IDisposable
             .AddSingleton<IClientModuleDirectory>(registry)
             .AddSingleton<IPluginStyles>(sp => new PluginStyleService(variables, sp))
             .AddSingleton<IHotelDataPlugin>(_ => hotelPlugin!)
+            .AddSingleton(chatStyles ?? _fakes.Create<IChatStyleService>())
             .AddSingleton<Turbo.Primitives.Networking.Extensions.IExtensionPacketRegistry>(
                 new Turbo.Networking.Extensions.ExtensionPacketRegistry()
             )

@@ -22,6 +22,28 @@ plugins/mytheme/
   gamedata/
     external_texts.txt     its phrases (key=value), editable by staff
     external_variables.json
+  chatstyles/
+    chatstyles.json        its chat bubbles (below)
+    mytheme_plane/         one folder per bubble, by its asset id: chat_bubble_base.png, ...
+```
+
+### Chat bubbles
+
+A theme's chat bubbles need no code: `chatstyles/chatstyles.json` lists them, each with its
+`clientStyleId`, its `assetId` (the folder beside the list holding its bitmaps, by the client's file
+names: `chat_bubble_base.png`, `chat_bubble_pointer.png`, `selector_preview.png`, `chat_bubble_color.png`,
+`icon.png`, `chat_bubble_emblem.png`, `chat_bubble_emblem_multiline.png`), its `regPoints` (the client's
+object: `scale9`, `pointerY`, `faceXY`, `textFieldMargins`, ...) and who may speak with it (`clubOnly`,
+`staffOnly`, `ambassadorOnly`, `purchasable`, `staffOverrideable`, `allowHtml`, `notification`; off
+unless given). As the plugin loads, each bubble whose client id and asset id the hotel has neither is
+added as the panel adds one (Appearance > Chat bubbles) and built into the hotel's chat bundle; one the
+hotel has - its own, or the plugin's from an earlier load that staff changed since - is left as it is. A
+list the server can't read, or a bitmap that isn't an image, is logged and the plugin loads.
+
+```json
+// Comments and trailing commas are allowed.
+[ { "clientStyleId": 39, "assetId": "mytheme_plane", "clubOnly": true,
+    "regPoints": { "scale9": { "x": 7, "y": 7, "width": 37, "height": 9 }, "pointerY": 21 } } ]
 ```
 
 ## Style properties (`theme.json`)

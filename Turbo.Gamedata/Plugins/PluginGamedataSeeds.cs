@@ -127,6 +127,42 @@ internal sealed class PluginGamedataSeeds(
             )
             .ConfigureAwait(false);
         await FollowAsync(pluginKey, Texts, textSeed, ct).ConfigureAwait(false);
+        await SeedChatStylesAsync(pluginKey, folder, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The chat bubbles in its <see cref="PluginChatStyles.FOLDER"/>, each one the hotel has none of
+    /// added; one that can't be kept (a bitmap that isn't an image) is logged, the plugin loads.
+    /// </summary>
+    private async Task SeedChatStylesAsync(string pluginKey, string folder, CancellationToken ct)
+    {
+        if (host?.GetService<IChatStyleService>() is not { } chatStyles)
+            return;
+
+        try
+        {
+            var added = await PluginChatStyles
+                .SeedAsync(chatStyles, PluginChatStyles.Read(folder), ct)
+                .ConfigureAwait(false);
+
+            if (added.Count > 0)
+                logger.LogInformation(
+                    "Plugin {Key} added the chat styles {Styles} from its {Folder} folder",
+                    pluginKey,
+                    string.Join(", ", added),
+                    PluginChatStyles.FOLDER
+                );
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException or JsonException)
+        {
+            logger.LogError(
+                ex,
+                "Plugin {Key}'s chat styles ({Folder}/{File}) were not added",
+                pluginKey,
+                PluginChatStyles.FOLDER,
+                PluginChatStyles.CATALOGUE
+            );
+        }
     }
 
     public IDisposable Loaded(string pluginKey) => loaded.Add(pluginKey, Invalidate);
