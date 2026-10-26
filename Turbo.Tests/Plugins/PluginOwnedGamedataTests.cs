@@ -556,6 +556,31 @@ public sealed class PluginOwnedGamedataTests : IDisposable
         await _manager.UnloadAllAsync(Ct);
     }
 
+    // A theme's loading.screen was sent whole and alone (a hotel restyling one part lost the rest), though
+    // nitro-next docs/client-modules.md says Turbo merges it as it does the other theme variables.
+    [Fact]
+    public async Task Each_plugin_adds_its_own_loading_screen_parts_and_the_hotels_entries_win()
+    {
+        WriteTheme(
+            """{ "loading.screen": { "background": "#202020", "logo": "/c_images/loading/theme.png" } }""",
+            string.Empty
+        );
+        WritePlugin("view", """{ "loading.screen": { "logo": "/other.png", "percent": false } }""");
+
+        await _manager.LoadAllAsync(ct: Ct);
+        await _variables.SaveAsync("loading.screen", """{"background":"#000000"}""", STAFF, Ct);
+
+        (await SentVariablesAsync())["loading.screen"]!
+            .ToJsonString()
+            .Should()
+            .Be(
+                """{"background":"#000000","logo":"/c_images/loading/theme.png","percent":false}""",
+                "each plugin's parts, the first one's where two name one, the hotel's over them"
+            );
+
+        await _manager.UnloadAllAsync(Ct);
+    }
+
     [Fact]
     public async Task A_plugins_bitmap_overlay_names_a_file_of_its_wwwroot_and_clients_get_its_address()
     {
@@ -590,6 +615,52 @@ public sealed class PluginOwnedGamedataTests : IDisposable
                 "served from its wwwroot by hash"
             );
         sent["habbo-room-ui-com/roomtools_gear"].Should().Be("/shared/gear.png", "a url is kept");
+
+        await _manager.UnloadAllAsync(Ct);
+    }
+
+    // A theme's loading screen named its pictures by the absolute /gamedata/plugins/<key>/... address (a
+    // path of its wwwroot reached no file), unlike its overlays.
+    [Fact]
+    public async Task A_plugins_loading_screen_names_its_pictures_by_their_wwwroot_path()
+    {
+        WriteTheme(
+            """{ "loading.screen": { "logo": "loading/logo.png", "backgroundImage": "/shared/view.png", "layers": [ { "image": "loading/left.png", "position": "left bottom" }, { "image": "missing.png" } ] } }""",
+            string.Empty
+        );
+
+        var loading = Path.Combine(_folder, "theme", "wwwroot", "loading");
+
+        Directory.CreateDirectory(loading);
+        File.WriteAllBytes(Path.Combine(loading, "logo.png"), [1, 2, 3]);
+        File.WriteAllBytes(Path.Combine(loading, "left.png"), [4, 5, 6]);
+
+        await _manager.LoadAllAsync(ct: Ct);
+
+        var look = (await SentVariablesAsync())["loading.screen"]!.AsObject();
+        var layers = look["layers"]!.AsArray();
+
+        look["logo"]!
+            .GetValue<string>()
+            .Should()
+            .MatchRegex(
+                @"^/gamedata/plugins/theme/loading/logo\.png\?v=[0-9a-f]{16}$",
+                "served from its wwwroot by hash"
+            );
+        look["backgroundImage"]!
+            .GetValue<string>()
+            .Should()
+            .Be("/shared/view.png", "a url is kept");
+        layers[0]!["image"]!
+            .GetValue<string>()
+            .Should()
+            .MatchRegex(@"^/gamedata/plugins/theme/loading/left\.png\?v=[0-9a-f]{16}$");
+        layers[0]!["position"]!.GetValue<string>().Should().Be("left bottom");
+        layers[1]!
+            .AsObject()
+            .ContainsKey("image")
+            .Should()
+            .BeFalse("a picture whose file is not there is left out");
 
         await _manager.UnloadAllAsync(Ct);
     }
