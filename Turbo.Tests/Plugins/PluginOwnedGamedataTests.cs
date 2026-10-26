@@ -55,6 +55,7 @@ public sealed class PluginOwnedGamedataTests : IDisposable
     private readonly GamedataVariableService _variables;
     private readonly GamedataTextService _texts;
     private readonly PluginManager _manager;
+    private readonly ServiceProvider _host;
     private readonly PluginAdministration _plugins;
     private readonly CapturingLogger<GamedataFileService> _filesLog = new();
 
@@ -114,11 +115,12 @@ public sealed class PluginOwnedGamedataTests : IDisposable
             NullLogger<PluginGamedataSeeds>.Instance
         );
 
+        _host = new ServiceCollection()
+            .AddSingleton<IPluginGamedataSeeds>(seeds)
+            .AddSingleton<IClientModuleDirectory>(modules)
+            .BuildServiceProvider();
         _manager = new PluginManager(
-            new ServiceCollection()
-                .AddSingleton<IPluginGamedataSeeds>(seeds)
-                .AddSingleton<IClientModuleDirectory>(modules)
-                .BuildServiceProvider(),
+            _host,
             new AssemblyProcessor([]),
             Options.Create(new PluginConfig { PluginFolderPath = _folder, UploadEnabled = true }),
             NullLogger<PluginManager>.Instance
@@ -135,6 +137,7 @@ public sealed class PluginOwnedGamedataTests : IDisposable
 
     public void Dispose()
     {
+        _host.Dispose();
         _settings.Dispose();
         _catalog.Dispose();
 
@@ -473,6 +476,38 @@ public sealed class PluginOwnedGamedataTests : IDisposable
             .BeEquivalentTo(new Dictionary<string, string> { ["view"] = "" });
 
         await _manager.UnloadAllAsync(Ct);
+    }
+
+    // r59 (fwbind): a hotel naming its plugin folder by a path that is not its full form
+    // (Turbo:Plugin:PluginFolderPath "../plugins", or "E:/x/plugins" on Windows) had its files served
+    // but no patch file listed: the wwwroot was compared with the file's full path as written.
+    [Fact]
+    public async Task A_patch_file_is_listed_when_the_plugin_folder_is_named_by_a_path_not_in_full_form()
+    {
+        WriteTheme("{}", string.Empty);
+        WritePatches("theme");
+
+        var manager = new PluginManager(
+            _host,
+            new AssemblyProcessor([]),
+            Options.Create(
+                new PluginConfig
+                {
+                    PluginFolderPath = Path.Combine(_folder, "..", Path.GetFileName(_folder)),
+                }
+            ),
+            NullLogger<PluginManager>.Instance
+        );
+
+        await manager.LoadAllAsync(ct: Ct);
+
+        (await SentPatchesAsync())
+            .Should()
+            .ContainKey("theme")
+            .WhoseValue.Should()
+            .MatchRegex(@"^/gamedata/plugins/theme/template-patches\.json\?v=[0-9a-f]{16}$");
+
+        await manager.UnloadAllAsync(Ct);
     }
 
     [Fact]

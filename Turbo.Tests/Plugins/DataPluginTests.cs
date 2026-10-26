@@ -187,7 +187,7 @@ public sealed class DataPluginTests : IDisposable
             );
         await bad.Should()
             .ThrowAsync<ArgumentException>()
-            .WithMessage("*one of set, remove, insert or move*");
+            .WithMessage("*one of set, remove, insert, move, wrap or bind*");
 
         var green = await patches.SavePatchAsync(
             Patch(
@@ -275,6 +275,97 @@ public sealed class DataPluginTests : IDisposable
             .Select(x => x.Template)
             .Should()
             .Equal("habbo-catalog-com/catalog_ubuntu_with_tabs", "wired-setup");
+    }
+
+    // The panel's New patch saves what the client binds (nitro-next templatePatchBind.ts,
+    // templateBindProblems): S2 could draw the catalogue's tab icons only from a module, so a hotel
+    // could not at all. The check refuses what no client fills, before it is saved.
+    [Fact]
+    public async Task A_staff_bind_op_is_saved_and_one_naming_what_no_client_fills_is_refused()
+    {
+        var patches = Hotel().HotelPlugin;
+
+        var refused = () =>
+            patches.SavePatchAsync(
+                Patch(
+                    "Tab icons",
+                    """
+                    [ { "element": "tab_button/icon", "bind": { "asset": "icons/${page.icon}.png", "tooltip": "${item.pageName}", "colour": 1 } } ]
+                    """
+                ),
+                Ct
+            );
+        (await refused.Should().ThrowAsync<ArgumentException>())
+            .Which.Message.Should()
+            .Contain("${page.icon}: a placeholder is")
+            .And.Contain("${item.pageName}, which a row has")
+            .And.Contain("colour, which is no binding field");
+
+        await patches.SavePatchAsync(
+            Patch(
+                "Tab icons",
+                """
+                [
+                  { "element": "tab_button", "insert": "last", "add": { "tag": "bitmap", "name": "icon", "width": 20, "height": 20 } },
+                  { "element": "tab_button/icon", "bind": { "asset": "icons/tab${item.index}.png", "tooltip": "${text.catalog.title}: ${item.pageName}", "selected": "${ctx.selected}" }, "items": true }
+                ]
+                """
+            ),
+            Ct
+        );
+
+        var served = JsonDocument.Parse(
+            File.ReadAllText(
+                Path.Combine(_folder, IHotelDataPlugin.KEY, "wwwroot", "template-patches.json")
+            )
+        );
+
+        served
+            .RootElement.GetProperty("patches")[0]
+            .GetProperty("ops")[1]
+            .GetProperty("bind")
+            .GetProperty("asset")
+            .GetString()
+            .Should()
+            .Be("icons/tab${item.index}.png", "the client fills it per tab");
+    }
+
+    // The client wraps since r58 (nitro-next templatePatch.ts, `wrap`): the panel refused it as no op.
+    // The patch is the documentation's own example (nitro-next docs/template-patches.md, Operations).
+    [Fact]
+    public async Task A_staff_wrap_op_is_saved_and_the_window_itself_is_not_wrapped()
+    {
+        var patches = Hotel().HotelPlugin;
+
+        var refused = () =>
+            patches.SavePatchAsync(
+                Patch(
+                    "Panes",
+                    """
+                    [ { "element": "", "wrap": { "tag": "frame" } },
+                      { "element": "navigationContainer", "wrap": { "caption": "Shop" } } ]
+                    """
+                ),
+                Ct
+            );
+        (await refused.Should().ThrowAsync<ArgumentException>())
+            .Which.Message.Should()
+            .Contain("Op 1 wraps the window itself")
+            .And.Contain(
+                "Op 2 adds an element \"like\" one the template has, or gives its \"tag\""
+            );
+
+        var saved = await patches.SavePatchAsync(
+            Patch(
+                "Panes",
+                """
+                [ { "element": "navigationContainer", "wrap": { "tag": "frame", "name": "nav", "style": "0", "caption": "Shop", "margins": [ 6, 28, 6, 6 ] } } ]
+                """
+            ),
+            Ct
+        );
+
+        saved.Ops[0].GetProperty("wrap").GetProperty("name").GetString().Should().Be("nav");
     }
 
     [Fact]

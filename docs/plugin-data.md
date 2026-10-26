@@ -61,11 +61,15 @@ is updated.
 - **Plugins > Template patches**: every plugin's patches per window, with what players' clients
   report of them (applied, unmatched, ineffective, conflicting), and the hotel's own patches: make one, edit its
   ops as JSON (checked as it is saved: an op names its `element` and does one of `set`, `remove`,
-  `insert`, `move`), turn it off without losing it, or remove it. The client's alt-click inspector
+  `insert`, `move`, `wrap`, `bind`), turn it off without losing it, or remove it. The client's alt-click inspector
   ("copy patch") gives JSON that pastes straight in. A window's frame - its colour, style and where
   it first opens - is one patch on its root: `{ "element": "", "set": { "color": 4288688176,
   "position": { "x": 84, "y": 153 } } }`; a window the client draws without a template is named by
-  its frame id instead of a template (`wired-setup`, listed in the client's `skins.json`).
+  its frame id instead of a template (`wired-setup`, listed in the client's `skins.json`). A `bind` op
+  gives an element a value per window or per row of a list - the catalogue's tabs an icon each - with
+  `${ctx.<key>}`, `${item.<key>}` (with `"items": true`), `${text.<key>}` and `${style:<name>}` filled as
+  the client draws it; the check refuses an unknown field or placeholder, and a relative `asset` is one
+  of the hotel's own served files (nitro-next `docs/template-patches.md`, "A binding as data").
 - **Plugins > a data plugin > Make a plugin**: a zip of it under a new key, name and version, ready
   to install on another hotel. A theme's package carries this hotel's style values as its defaults
   (and the images uploaded for them); the hotel's own plugin's carries its enabled patches.

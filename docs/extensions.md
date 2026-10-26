@@ -215,8 +215,10 @@ Nitro draws windows from Habbo's own window layouts (`TemplateElement` trees in 
 `habbo-friend-list-com/friend_list_xml`, element `search`, exactly as the client's code does.
 
 A patch is data: `set` layout properties (colour, style, caption, visibility, rect, vars, layout
-params), `remove` an element, `insert` a new one before/after/inside another, or `move` one there
-keeping its name (so the window's code still reaches it). Patches from every plugin apply where the
+params), `remove` an element, `insert` a new one before/after/inside another, `move` one there
+keeping its name (so the window's code still reaches it), or `bind` one - a value per window or per
+row of a list from the window's context, the row, a text or a style, so a theme with no code draws
+the catalogue's tabs as icons. Patches from every plugin apply where the
 client reads a template, in a deterministic order, with a report of conflicts (two owners setting one
 property), of targets a client release no longer has, and of extension code that threw. A theme
 recolours a window and an add-on adds a button to the same window, and neither ships a copy of the
