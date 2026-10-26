@@ -39,6 +39,12 @@ public sealed class AdminActionLog(
     /// <summary>A room given to another player: <c>room owner &lt;room id&gt; &lt;player id&gt;</c>.</summary>
     public const string ROOM = "room";
 
+    /// <summary>
+    /// A change to the navigator's Public tab: <c>public category add|save|delete|order ...</c> or
+    /// <c>public room add|move|order|remove &lt;category id&gt; ...</c>.
+    /// </summary>
+    public const string NAVIGATOR = "navigator";
+
     public const string SOURCE = "panel";
 
     public async Task WriteAsync(

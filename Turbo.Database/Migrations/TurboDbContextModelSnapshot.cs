@@ -4897,6 +4897,109 @@ namespace Turbo.Database.Migrations
                     b.ToTable("navigator_flatcats");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Navigator.NavigatorPublicCategoryEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<bool>("ForceClosed")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("force_closed");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("OrderNum")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("order_num");
+
+                    b.Property<string>("PluginKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("plugin_key");
+
+                    b.Property<int>("ViewMode")
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasColumnName("view_mode");
+
+                    b.Property<bool>("Visible")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("visible");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PluginKey")
+                        .IsUnique();
+
+                    b.ToTable("navigator_public_categories");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Navigator.NavigatorPublicRoomEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AddedBy")
+                        .HasColumnType("int")
+                        .HasColumnName("added_by");
+
+                    b.Property<int>("CategoryEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("OrderNum")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("order_num");
+
+                    b.Property<int>("RoomEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoomEntityId");
+
+                    b.HasIndex("CategoryEntityId", "RoomEntityId")
+                        .IsUnique();
+
+                    b.ToTable("navigator_public_rooms");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Navigator.NavigatorTopLevelContextEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -8301,6 +8404,10 @@ namespace Turbo.Database.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("staff_pick");
 
+                    b.Property<DateTime?>("StaffPickedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("staff_picked_at");
+
                     b.Property<string>("Tags")
                         .HasMaxLength(128)
                         .HasColumnType("varchar(128)")
@@ -10258,6 +10365,25 @@ namespace Turbo.Database.Migrations
                     b.Navigation("Report");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Navigator.NavigatorPublicRoomEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Navigator.NavigatorPublicCategoryEntity", "CategoryEntity")
+                        .WithMany("Rooms")
+                        .HasForeignKey("CategoryEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Turbo.Database.Entities.Room.RoomEntity", "RoomEntity")
+                        .WithMany()
+                        .HasForeignKey("RoomEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CategoryEntity");
+
+                    b.Navigation("RoomEntity");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Navigator.StarterRoomEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Room.RoomEntity", "RoomEntity")
@@ -11153,6 +11279,11 @@ namespace Turbo.Database.Migrations
             modelBuilder.Entity("Turbo.Database.Entities.Moderation.CfhReportEntity", b =>
                 {
                     b.Navigation("ChatLines");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Navigator.NavigatorPublicCategoryEntity", b =>
+                {
+                    b.Navigation("Rooms");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Permissions.PermissionGroupEntity", b =>

@@ -126,6 +126,7 @@ internal sealed class AdminApiServer(
         ActivatorUtilities.CreateInstance<BrokenAssetEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<ReceptionEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<ContentEndpoints>(services).Map(secured);
+        ActivatorUtilities.CreateInstance<NavigatorPublicEndpoints>(services).Map(secured);
 
         var contentAccess = ActivatorUtilities.CreateInstance<ContentAccess>(services);
 

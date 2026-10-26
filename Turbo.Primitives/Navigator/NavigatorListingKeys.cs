@@ -15,6 +15,9 @@ public static class NavigatorListingKeys
     public const string STAFF_PICKS = "staffpicks";
     public const string TAGS = "tags";
 
+    /// <summary>The Public tab's categories and the rooms in them.</summary>
+    public const string PUBLIC = "public";
+
     /// <summary>Every event listing (all events and each event category).</summary>
     public const string EVENTS = "events";
 

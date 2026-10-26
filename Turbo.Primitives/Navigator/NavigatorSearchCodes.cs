@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace Turbo.Primitives.Navigator;
 
@@ -15,6 +16,18 @@ public static class NavigatorSearchCodes
     public const string ROOMADS_VIEW = "roomads_view";
 
     public const string OFFICIAL_ROOT = "official-root";
+
+    /// <summary>
+    /// Every room of the Public tab in one block: the new account's saved search "Public Rooms"
+    /// (official client capture 2026-10-13, <c>navigator.searchcode.title.official</c>).
+    /// </summary>
+    public const string OFFICIAL = "official";
+
+    /// <summary>A category block of the Public tab is <c>official_&lt;id&gt;</c> (official client capture 2026-10-18).</summary>
+    public const string OFFICIAL_PREFIX = "official_";
+
+    /// <summary>The staff-picked rooms, titled by Habbo's <c>navigator.searchcode.title.staffpicks</c>.</summary>
+    public const string STAFF_PICKS = "staffpicks";
     public const string HOT = "hot";
     public const string POPULAR = "popular";
     public const string RECOMMENDED = "recommended";
@@ -61,6 +74,21 @@ public static class NavigatorSearchCodes
     ];
 
     public static string Category(string categoryName) => CATEGORY_PREFIX + categoryName;
+
+    public static string Official(int publicCategoryId) =>
+        OFFICIAL_PREFIX + publicCategoryId.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>The public category id in an <c>official_&lt;id&gt;</c> code, or null.</summary>
+    public static int? GetOfficialCategoryId(string searchCode) =>
+        searchCode.StartsWith(OFFICIAL_PREFIX, StringComparison.Ordinal)
+        && int.TryParse(
+            searchCode.AsSpan(OFFICIAL_PREFIX.Length),
+            NumberStyles.None,
+            CultureInfo.InvariantCulture,
+            out var id
+        )
+            ? id
+            : null;
 
     public static string EventCategory(string categoryName) => EVENT_CATEGORY_PREFIX + categoryName;
 

@@ -12,6 +12,7 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Advertisement;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
 using Turbo.Primitives.Moderation;
+using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums.Messenger;
@@ -98,9 +99,17 @@ public sealed partial class RoomGrain
         {
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
+            // When it was picked orders the staff picks block, newest first.
+            DateTime? pickedAt = staffPick ? UtcNow.UtcDateTime : null;
+
             await dbCtx
                 .Rooms.Where(x => x.Id == _state.RoomId.Value)
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.StaffPick, staffPick), ct);
+                .ExecuteUpdateAsync(
+                    s =>
+                        s.SetProperty(x => x.StaffPick, staffPick)
+                            .SetProperty(x => x.StaffPickedAt, pickedAt),
+                    ct
+                );
         }
         catch (Exception ex)
         {
@@ -117,6 +126,9 @@ public sealed partial class RoomGrain
         _state.RoomSnapshot = _state.RoomSnapshot with { StaffPick = staffPick };
 
         await PublishRoomInfoUpdatedAsync(ct);
+        await _grainFactory
+            .GetRoomDirectoryGrain()
+            .PublishListingChangesAsync([NavigatorListingKeys.STAFF_PICKS], ct);
     }
 
     public async Task<bool> SetTagsAsync(

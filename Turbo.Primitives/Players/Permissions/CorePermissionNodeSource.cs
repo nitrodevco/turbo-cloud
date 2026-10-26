@@ -122,6 +122,10 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             SecurityLevelType.Community
         ),
         new(
+            PermissionNodes.Navigator.PUBLIC_MANAGE,
+            "Edit the navigator's Public tab in the admin panel: its categories and the rooms in them."
+        ),
+        new(
             PermissionNodes.Campaign.CALENDAR_FORCE_OPEN,
             "Open any door of the campaign calendar with its staff force open, missed and future ones too."
         ),

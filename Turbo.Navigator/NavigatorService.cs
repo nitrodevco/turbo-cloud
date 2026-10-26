@@ -124,12 +124,7 @@ public sealed class NavigatorService(
 
         return code switch
         {
-            NavigatorSearchCodes.OFFICIAL_VIEW => await CreatePreviewBlocksAsync(
-                    query,
-                    [(NavigatorSearchCodes.OFFICIAL_ROOT, string.Empty)],
-                    keepEmpty: true,
-                    ct
-                )
+            NavigatorSearchCodes.OFFICIAL_VIEW => await CreatePublicBlocksAsync(query, ct)
                 .ConfigureAwait(false),
             NavigatorSearchCodes.HOTEL_VIEW => await CreateHotelViewBlocksAsync(query, ct)
                 .ConfigureAwait(false),
@@ -165,7 +160,10 @@ public sealed class NavigatorService(
                     ct
                 )
                 .ConfigureAwait(false),
-            _ => await CreateSectionBlockAsync(query, code, ct).ConfigureAwait(false),
+            _ => await CreatePublicSectionBlockAsync(query, code, ct).ConfigureAwait(false)
+                is { } publicBlock
+                ? [publicBlock]
+                : await CreateSectionBlockAsync(query, code, ct).ConfigureAwait(false),
         };
     }
 
@@ -950,6 +948,139 @@ public sealed class NavigatorService(
                 .Take(limit),
         ];
 
+    /// <summary>
+    /// Habbo's Public tab (official client capture 2026-10-13 .. 10-18, seven samples): one block
+    /// per visible category in the order staff set, code <c>official_&lt;id&gt;</c>, the name as
+    /// its text, no "show more" (action 0), the category's forced close and view mode (thumbnails on
+    /// all six), its rooms in the curated order with doorbell and invisible ones. A category with
+    /// no rooms is left out (inference: the hotel view drops its empty blocks; Habbo never had one).
+    /// </summary>
+    private async Task<ImmutableArray<NavigatorSearchResultBlockSnapshot>> CreatePublicBlocksAsync(
+        SearchQuery query,
+        CancellationToken ct
+    )
+    {
+        var categories = await GetVisiblePublicCategoriesAsync(ct).ConfigureAwait(false);
+        var rooms = await Task.WhenAll(categories.Select(x => GetPublicRoomsAsync(query, x, ct)))
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. categories
+                .Select((category, i) => (Category: category, Rooms: rooms[i]))
+                .Where(x => x.Rooms.Count > 0)
+                .Select(x => CreatePublicBlock(query, x.Category, x.Rooms)),
+        ];
+    }
+
+    /// <summary>
+    /// One Public tab block searched by its code (a <c>navigator/tab/&lt;code&gt;</c> link): the
+    /// block as the tab has it; <c>official</c> is every room of the tab in one block, untitled
+    /// so the client calls it "Public Rooms". Inference: Habbo's answer to either was not
+    /// recorded. Null when the code is no visible category.
+    /// </summary>
+    private async Task<NavigatorSearchResultBlockSnapshot?> CreatePublicSectionBlockAsync(
+        SearchQuery query,
+        string code,
+        CancellationToken ct
+    )
+    {
+        if (code == NavigatorSearchCodes.OFFICIAL)
+            return CreateBlock(
+                query,
+                code,
+                string.Empty,
+                await GetAllPublicRoomsAsync(query, ct).ConfigureAwait(false),
+                NavigatorActionAllowedType.Collapsed,
+                _config.SearchResultLimit
+            );
+
+        if (
+            code != NavigatorSearchCodes.STAFF_PICKS
+            && NavigatorSearchCodes.GetOfficialCategoryId(code) is null
+        )
+            return null;
+
+        var category = (
+            await GetVisiblePublicCategoriesAsync(ct).ConfigureAwait(false)
+        ).FirstOrDefault(x => x.SearchCode == code);
+
+        return category is null
+            ? null
+            : CreatePublicBlock(
+                query,
+                category,
+                await GetPublicRoomsAsync(query, category, ct).ConfigureAwait(false)
+            );
+    }
+
+    private NavigatorSearchResultBlockSnapshot CreatePublicBlock(
+        SearchQuery query,
+        NavigatorPublicCategorySnapshot category,
+        List<RoomInfoSnapshot> rooms
+    ) =>
+        new()
+        {
+            SearchCode = category.SearchCode,
+            Text = category.Name,
+            ActionAllowed = NavigatorActionAllowedType.Collapsed,
+            Localization = string.Empty,
+            ForceClosed = category.ForceClosed,
+            ViewMode = category.ViewMode,
+            Results =
+            [
+                .. rooms.Take(_config.SearchResultLimit).Select(x => ToSearchResult(x, query)),
+            ],
+        };
+
+    private async Task<
+        ImmutableArray<NavigatorPublicCategorySnapshot>
+    > GetVisiblePublicCategoriesAsync(CancellationToken ct) =>
+        [
+            .. (await _navigatorProvider.GetPublicCategoriesAsync(ct).ConfigureAwait(false)).Where(
+                x => x.Visible
+            ),
+        ];
+
+    /// <summary>
+    /// A Public tab category's rooms: the staff-picked ones newest pick first, or the ones staff
+    /// put in it in their order. A room Builders Club hides stays its owner's alone.
+    /// </summary>
+    private async Task<List<RoomInfoSnapshot>> GetPublicRoomsAsync(
+        SearchQuery query,
+        NavigatorPublicCategorySnapshot category,
+        CancellationToken ct
+    )
+    {
+        var limit = _config.SearchResultLimit;
+        IEnumerable<RoomInfoSnapshot> rooms;
+
+        if (category.Kind == NavigatorPublicCategoryKind.StaffPicks)
+            rooms = MergeLive(
+                await _navigatorProvider.GetStaffPickedRoomsAsync(limit, ct).ConfigureAwait(false),
+                query,
+                x => x.StaffPick
+            );
+        else
+            rooms = await ResolveRoomsAsync(query, [.. category.RoomIds.Take(limit)], ct)
+                .ConfigureAwait(false);
+
+        return [.. rooms.Where(x => !x.HiddenByBc).Take(limit)];
+    }
+
+    /// <summary>Every room of the Public tab in its order, each once: the hotel's public rooms.</summary>
+    private async Task<List<RoomInfoSnapshot>> GetAllPublicRoomsAsync(
+        SearchQuery query,
+        CancellationToken ct
+    )
+    {
+        var categories = await GetVisiblePublicCategoriesAsync(ct).ConfigureAwait(false);
+        var rooms = await Task.WhenAll(categories.Select(x => GetPublicRoomsAsync(query, x, ct)))
+            .ConfigureAwait(false);
+
+        return [.. rooms.SelectMany(x => x).DistinctBy(x => x.RoomId)];
+    }
+
     private async Task<ImmutableArray<NavigatorSearchResultBlockSnapshot>> CreateSectionBlockAsync(
         SearchQuery query,
         string code,
@@ -1034,19 +1165,11 @@ public sealed class NavigatorService(
         switch (code)
         {
             case NavigatorSearchCodes.OFFICIAL_ROOT:
-            {
-                var cached = await _navigatorProvider
-                    .GetStaffPickedRoomsAsync(_config.SearchResultLimit, ct)
-                    .ConfigureAwait(false);
-
+            case NavigatorSearchCodes.OFFICIAL:
                 return
                 [
-                    .. MergeLive(cached, query, x => x.StaffPick && IsPublic(x))
-                        .OrderByDescending(x => x.Score)
-                        .ThenBy(x => x.RoomId.Value)
-                        .Take(limit),
+                    .. (await GetAllPublicRoomsAsync(query, ct).ConfigureAwait(false)).Take(limit),
                 ];
-            }
             case NavigatorSearchCodes.HOT:
                 return GetHotRooms(query, limit);
             case NavigatorSearchCodes.POPULAR:
@@ -1336,6 +1459,21 @@ public sealed class NavigatorService(
         CancellationToken ct
     )
     {
+        return
+        [
+            .. (await ResolveRoomsAsync(query, roomIds, ct).ConfigureAwait(false))
+                .Where(x => IsVisibleTo(x, query.PlayerId))
+                .Take(limit),
+        ];
+    }
+
+    /// <summary>Rooms by id in the given order: active rooms from the live copy, the rest from the room cache.</summary>
+    private async Task<List<RoomInfoSnapshot>> ResolveRoomsAsync(
+        SearchQuery query,
+        IReadOnlyCollection<RoomId> roomIds,
+        CancellationToken ct
+    )
+    {
         if (roomIds.Count == 0)
             return [];
 
@@ -1356,9 +1494,7 @@ public sealed class NavigatorService(
                         ? live
                         : cachedById.GetValueOrDefault(id)
                 )
-                .OfType<RoomInfoSnapshot>()
-                .Where(x => IsVisibleTo(x, query.PlayerId))
-                .Take(limit),
+                .OfType<RoomInfoSnapshot>(),
         ];
     }
 

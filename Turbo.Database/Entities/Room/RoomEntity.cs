@@ -164,6 +164,10 @@ public class RoomEntity : TurboEntity
     [DefaultValue(false)]
     public bool StaffPick { get; set; }
 
+    /// <summary>When it was last staff picked: the staff picks block lists the newest pick first.</summary>
+    [Column("staff_picked_at")]
+    public DateTime? StaffPickedAt { get; set; }
+
     [Column("hidden_by_bc")]
     [DefaultValue(false)]
     public bool HiddenByBc { get; set; }
