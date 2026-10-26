@@ -300,6 +300,11 @@ links a Discord account it has proven to an existing player through `IHotel.Play
 - **API versions**: `PluginApi.VERSION` (server) and the client API version are the contract
   numbers. Adding is minor; removing or changing meaning bumps them, with the previous version kept
   for one release and deprecations logged against the plugin using them.
+- **Moving a contract**: a type extensions need that lives in an implementation project moves to
+  `Turbo.Contracts` or `Turbo.Primitives` under its full name, and its old assembly forwards it
+  (`[TypeForwardedTo]`) for one release, so a plugin built against the old one still loads
+  (`IEventHandler<T>` and what a handler needs, from `Turbo.Events` and `Turbo.Pipeline`:
+  `PluginEventContractTests`).
 - **Compatibility checks**: example plugins are compiled and loaded by the test suite
   (`HelloExamplePluginTests`); every new primitive gets an example there. Template patch reports name
   targets a new client release removed, so a release can be checked against installed plugins

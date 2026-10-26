@@ -293,6 +293,78 @@ public sealed class PluginTemplateTests : IDisposable
     }
 
     /// <summary>
+    /// An event handler, and a behaviour with its order, builds against the server assemblies the
+    /// template's project references and the shared frameworks alone: the contracts it needs are
+    /// in <c>Turbo.Primitives</c>. They were in <c>Turbo.Events</c> and <c>Turbo.Pipeline</c>,
+    /// which every plugin with a handler referenced (docs/extensions.md, "Public means contract").
+    /// </summary>
+    [Fact]
+    public void An_event_handler_builds_against_only_the_server_assemblies_the_template_references()
+    {
+        var server = XDocument
+            .Load(Path.Combine(Template, "server", "Skills.csproj"))
+            .Descendants("Reference")
+            .Select(r =>
+                Path.Combine(
+                    AppContext.BaseDirectory,
+                    r.Attribute("Include")!
+                        .Value.Replace("$(TurboBin)/", "", StringComparison.Ordinal)
+                )
+            );
+        var frameworks = new[]
+        {
+            typeof(object).Assembly.Location,
+            typeof(Microsoft.AspNetCore.Http.HttpContext).Assembly.Location,
+        }.Select(Path.GetDirectoryName);
+        var shared = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
+            .Split(Path.PathSeparator)
+            .Where(path => frameworks.Contains(Path.GetDirectoryName(path)));
+        var compilation = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create(
+            "Skills",
+            [
+                Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(
+                    """
+                    using System;
+                    using System.Threading;
+                    using System.Threading.Tasks;
+                    using Turbo.Events.Registry;
+                    using Turbo.Pipeline.Attributes;
+                    using Turbo.Primitives.Rooms.Events;
+
+                    public sealed class EnteredHandler : IEventHandler<RoomEnteredEvent>
+                    {
+                        public ValueTask HandleAsync(RoomEnteredEvent evt, EventContext ctx, CancellationToken ct) =>
+                            ValueTask.CompletedTask;
+                    }
+
+                    [Order(-1)]
+                    public sealed class EnteredBehavior : IEventBehavior<RoomEnteredEvent>
+                    {
+                        public ValueTask InvokeAsync(RoomEnteredEvent evt, EventContext ctx, Func<ValueTask> next, CancellationToken ct) =>
+                            next();
+                    }
+                    """,
+                    cancellationToken: Ct
+                ),
+            ],
+            server
+                .Concat(shared)
+                .Select(path => Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(path)),
+            new Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions(
+                Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary
+            )
+        );
+
+        shared.Should().NotBeEmpty();
+        compilation
+            .GetDiagnostics(Ct)
+            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+            .Select(d => d.ToString())
+            .Should()
+            .BeEmpty();
+    }
+
+    /// <summary>
     /// The template is what a new author copies: it reaches the hotel through the hotel API
     /// (docs/hotel-api.md) and its tests through FakeHotel, never a grain or a session, which are
     /// the server's internals.
