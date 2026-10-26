@@ -59,10 +59,13 @@ is updated.
   reads the new values as it starts. An uploaded image is kept in the hotel's own data plugin
   (below), so updating the theme keeps it.
 - **Plugins > Template patches**: every plugin's patches per window, with what players' clients
-  report of them (applied, unmatched, conflicting), and the hotel's own patches: make one, edit its
+  report of them (applied, unmatched, ineffective, conflicting), and the hotel's own patches: make one, edit its
   ops as JSON (checked as it is saved: an op names its `element` and does one of `set`, `remove`,
   `insert`, `move`), turn it off without losing it, or remove it. The client's alt-click inspector
-  ("copy patch") gives JSON that pastes straight in.
+  ("copy patch") gives JSON that pastes straight in. A window's frame - its colour, style and where
+  it first opens - is one patch on its root: `{ "element": "", "set": { "color": 4288688176,
+  "position": { "x": 84, "y": 153 } } }`; a window the client draws without a template is named by
+  its frame id instead of a template (`wired-setup`, listed in the client's `skins.json`).
 - **Plugins > a data plugin > Make a plugin**: a zip of it under a new key, name and version, ready
   to install on another hotel. A theme's package carries this hotel's style values as its defaults
   (and the images uploaded for them); the hotel's own plugin's carries its enabled patches.

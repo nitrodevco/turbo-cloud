@@ -9,7 +9,8 @@ namespace Turbo.Plugins;
 /// What a window patch is (nitro-next <c>docs/template-patches.md</c>, Operations): a template id
 /// and ops, each naming an element and doing one of <c>set</c>, <c>remove</c>, <c>insert</c> or
 /// <c>move</c>. The client skips and reports what it can't apply; this refuses, before a patch is
-/// saved, what no client could.
+/// saved, what no client could. A window the client draws without a template is named by its frame
+/// id (<c>wired-setup</c>): its patch restyles that frame through the root's <c>set</c>.
 /// </summary>
 internal static partial class TemplatePatchSchema
 {
@@ -29,6 +30,7 @@ internal static partial class TemplatePatchSchema
         "blend",
         "vars",
         "params",
+        "position",
     ];
 
     private static readonly HashSet<string> NUMBERS =
@@ -52,9 +54,9 @@ internal static partial class TemplatePatchSchema
     {
         var problems = new List<string>();
 
-        if (!TemplatePattern().IsMatch(template))
+        if (!TemplatePattern().IsMatch(template) && !FramePattern().IsMatch(template))
             problems.Add(
-                $"The template \"{template}\" is named <library>/<asset>, as habbo-toolbar-com/purse_xml."
+                $"The template \"{template}\" is named <library>/<asset>, as habbo-toolbar-com/purse_xml, or a window drawn without a template by its frame id, as wired-setup."
             );
 
         if (ops.ValueKind != JsonValueKind.Array || ops.GetArrayLength() == 0)
@@ -177,21 +179,34 @@ internal static partial class TemplatePatchSchema
                 _ when NUMBERS.Contains(property.Name) => value.ValueKind == JsonValueKind.Number,
                 "hidden" => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
                 "vars" or "params" => value.ValueKind == JsonValueKind.Object,
+                "position" => IsPoint(value),
                 "caption" or "like" or "name" or "tag" => value.ValueKind == JsonValueKind.String,
                 _ => true,
             };
 
             if (!ok)
                 problems.Add(
-                    $"{what}'s {property.Name} is {(NUMBERS.Contains(property.Name) ? "a number (a colour 0xAARRGGBB, as 4285229153)" : property.Name == "hidden" ? "true or false" : property.Name is "vars" or "params" ? "an object" : "text")}."
+                    $"{what}'s {property.Name} is {(NUMBERS.Contains(property.Name) ? "a number (a colour 0xAARRGGBB, as 4285229153)" : property.Name == "hidden" ? "true or false" : property.Name is "vars" or "params" ? "an object" : property.Name == "position" ? "where the window first opens, { \"x\": 84, \"y\": 153 }" : "text")}."
                 );
         }
     }
+
+    /// <summary><c>{ "x": 84, "y": 153 }</c>: a window's first position, two numbers.</summary>
+    private static bool IsPoint(JsonElement value) =>
+        value.ValueKind == JsonValueKind.Object
+        && value.TryGetProperty("x", out var x)
+        && x.ValueKind == JsonValueKind.Number
+        && value.TryGetProperty("y", out var y)
+        && y.ValueKind == JsonValueKind.Number;
 
     private static bool IsStyle(string value) => StylePattern().IsMatch(value);
 
     [GeneratedRegex(@"^[a-z0-9][a-z0-9._-]*/[A-Za-z0-9_.-]+$")]
     private static partial Regex TemplatePattern();
+
+    /// <summary>A frame id, as nitro-next's <c>skins.json</c> lists a window drawn without a template (<c>wired-setup</c>).</summary>
+    [GeneratedRegex(@"^[a-z0-9][a-z0-9_-]*$")]
+    private static partial Regex FramePattern();
 
     [GeneratedRegex(@"^\$\{style:[A-Za-z0-9._:-]+\}$")]
     private static partial Regex StylePattern();
