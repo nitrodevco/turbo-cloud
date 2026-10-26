@@ -218,7 +218,8 @@ A patch is data: `set` layout properties (colour, style, caption, visibility, re
 params), `remove` an element, `insert` a new one before/after/inside another, `move` one there
 keeping its name (so the window's code still reaches it), or `bind` one - a value per window or per
 row of a list from the window's context, the row, a text or a style, so a theme with no code draws
-the catalogue's tabs as icons. Patches from every plugin apply where the
+the catalogue's tabs as icons, or `arrange` one - its rect once the window is laid out, from formulas
+over what the layout measured and the window's context. Patches from every plugin apply where the
 client reads a template, in a deterministic order, with a report of conflicts (two owners setting one
 property), of targets a client release no longer has, and of extension code that threw. A theme
 recolours a window and an add-on adds a button to the same window, and neither ships a copy of the

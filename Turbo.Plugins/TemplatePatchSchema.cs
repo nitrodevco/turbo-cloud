@@ -9,8 +9,8 @@ namespace Turbo.Plugins;
 /// <summary>
 /// What a window patch is (nitro-next <c>docs/template-patches.md</c>, Operations): a template id
 /// and ops, each naming an element and doing one of <c>set</c>, <c>remove</c>, <c>insert</c>,
-/// <c>move</c>, <c>wrap</c> (a new element in its place, it inside) or <c>bind</c> (a binding as
-/// data, "A binding as data"). The client skips and reports what it can't apply; this refuses,
+/// <c>move</c>, <c>wrap</c> (a new element in its place, it inside), <c>bind</c> (a binding as
+/// data, "A binding as data") or <c>arrange</c> (a post-layout hook as data, "An arrangement as data"). The client skips and reports what it can't apply; this refuses,
 /// before a patch is saved, what no client could. A window the client draws without a template is
 /// named by its frame id (<c>wired-setup</c>): its patch restyles that frame through the root's
 /// <c>set</c>.
@@ -50,7 +50,19 @@ internal static partial class TemplatePatchSchema
 
     private static readonly string[] PLACES = ["before", "after", "first", "last"];
 
-    private static readonly string[] ACTIONS = ["set", "remove", "insert", "move", "wrap", "bind"];
+    private static readonly string[] ACTIONS =
+    [
+        "set",
+        "remove",
+        "insert",
+        "move",
+        "wrap",
+        "bind",
+        "arrange",
+    ];
+
+    /// <summary>The fields an <c>arrange</c> op sets (nitro-next <c>templatePatchArrange.ts</c>, <c>TEMPLATE_ARRANGE_FIELDS</c>).</summary>
+    private static readonly string[] ARRANGE_FIELDS = ["x", "y", "width", "height"];
 
     /// <summary>What an added element (<c>insert</c>'s <c>add</c>, <c>wrap</c>) gives beyond layout properties.</summary>
     private static readonly string[] ADDED =
@@ -137,7 +149,7 @@ internal static partial class TemplatePatchSchema
         if (actions.Count != 1)
         {
             problems.Add(
-                $"Op {n} does one of set, remove, insert, move, wrap or bind{(actions.Count > 1 ? $", not {string.Join(" and ", actions)}" : "")}."
+                $"Op {n} does one of set, remove, insert, move, wrap, bind or arrange{(actions.Count > 1 ? $", not {string.Join(" and ", actions)}" : "")}."
             );
 
             return;
@@ -190,6 +202,9 @@ internal static partial class TemplatePatchSchema
                 break;
             case "bind":
                 Bind(op, n, problems);
+                break;
+            case "arrange":
+                Arrange(op, n, problems);
                 break;
         }
     }
@@ -296,6 +311,51 @@ internal static partial class TemplatePatchSchema
             problems.Add(
                 $"Op {n}'s bind {field.Name} is {(kind == JsonValueKind.Number ? "a number (a colour 0xAARRGGBB, as 4285229153)" : kind == JsonValueKind.True ? "true or false" : "text")}."
             );
+        }
+    }
+
+    private static void Arrange(JsonElement op, int n, List<string> problems)
+    {
+        if (
+            op.GetProperty("arrange") is not { ValueKind: JsonValueKind.Object } arrange
+            || !arrange.EnumerateObject().Any()
+        )
+        {
+            problems.Add(
+                $"Op {n}'s arrange is an object of {string.Join(", ", ARRANGE_FIELDS)}, each a number or a formula."
+            );
+
+            return;
+        }
+
+        foreach (var field in arrange.EnumerateObject())
+        {
+            if (!ARRANGE_FIELDS.Contains(field.Name))
+            {
+                problems.Add(
+                    $"Op {n}'s arrange has {field.Name}, which it does not set ({string.Join(", ", ARRANGE_FIELDS)})."
+                );
+
+                continue;
+            }
+
+            if (field.Value.ValueKind == JsonValueKind.Number)
+                continue;
+
+            if (
+                field.Value.ValueKind != JsonValueKind.String
+                || string.IsNullOrWhiteSpace(field.Value.GetString())
+            )
+            {
+                problems.Add($"Op {n}'s arrange {field.Name} is a number or a formula.");
+
+                continue;
+            }
+
+            var formula = field.Value.GetString()!;
+
+            if (TemplateArrangeFormula.Problem(formula) is { } problem)
+                problems.Add($"Op {n}'s arrange {field.Name} ({formula}): {problem}.");
         }
     }
 
