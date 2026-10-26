@@ -55,6 +55,28 @@ internal sealed class FolderPublishConnection(string remotePath) : IPublishConne
         }
     }
 
+    public async Task DownloadAsync(string path, Stream destination, CancellationToken ct)
+    {
+        var target = FullPathOf(path);
+
+        if (!File.Exists(target))
+            throw new FileNotFoundException($"The target holds no {path}.", path);
+
+        var file = new FileStream(
+            target,
+            new FileStreamOptions
+            {
+                Mode = FileMode.Open,
+                Access = FileAccess.Read,
+                Share = FileShare.Read,
+                Options = FileOptions.Asynchronous,
+            }
+        );
+
+        await using (file.ConfigureAwait(false))
+            await file.CopyToAsync(destination, ct).ConfigureAwait(false);
+    }
+
     public Task DeleteAsync(string path, CancellationToken ct)
     {
         var target = FullPathOf(path);

@@ -272,6 +272,26 @@ Then the pets:
 
 The job's log says what changed; the history entry's error names the first file that failed, and why.
 
+### Comparing with the target's copy
+
+A file pending as **changed** can be compared with the copy the target holds, before it is sent:
+**Compare** on its row (or **Compare all**, the 100 largest changed files) reads the target's copy
+through the target itself (folder, FTP, FTPS or SFTP, so it works without a public URL) and says what
+differs from the hotel's copy:
+
+- a bundle's window templates (`templates.json`) added, removed or changed, and for a changed one its
+  elements added, removed or changed by name and the text keys its elements name (`${catalog.title}`);
+- its texts (`DefaultLocalizations_<language>.json`), per language: keys added, removed and changed,
+  with the text before and after;
+- every other file in it (images, asset data) added, removed or changed, with its bytes and, for a PNG
+  or a GIF, its pixel size on each side; the panel shows both sides of an image.
+
+The client build stamp a JSON file is packed with (`"version":"99_classic-js-69df354f4175"`) is set
+aside: a bundle whose only difference is that stamp is **stamp only**, nothing changes for players.
+Each comparison also shows the hotel's bundle row (its source, revision and when it last changed),
+the stamp of each copy, and whether the target's copy is the one recorded as sent. A copy read is kept
+in memory (64 MB in all, by target, path and recorded hash) until a publish sends the file again.
+
 ### Purging Cloudflare
 
 A target with a Cloudflare zone and token asks Cloudflare, after each publish that sent something, to
@@ -368,6 +388,8 @@ runs at a time; starting another while one runs is 409.
 | `POST /assets/targets/{id}/test` | `{ ok, message }`: connected and listed the folder, or why not. |
 | `POST /assets/targets/{id}/publish` | Body `{ dryRun, deleteRemoved }`; answers the `AssetJob`. |
 | `POST /assets/targets/{id}/forget-host-key` | 204: the next SFTP connection trusts the key it is shown. |
+| `GET /assets/targets/{id}/compare?path=` | `{ items: [ AssetComparison ], total }`: the file at `path` (404 when the hotel has none), or without it every file pending as changed, the 100 largest (`total` counts them all). |
+| `GET /assets/targets/{id}/compare/image?path=&entry=&side=` | A PNG or GIF a comparison names: the file at `path`, or its `entry` in that bundle, as the target holds it (`side=target`) or the hotel does; 404 for anything else. |
 | `GET /assets/targets/{id}/history` | `{ items: [ { id, startedAt, finishedAt, playerId, playerName, dryRun, uploaded, skipped, deleted, bytes, error, purged, purgeError } ] }`, newest first. |
 | `GET /assets/broken` | `{ sources: [ { id, title, read, note, count } ], items: [ { source, key, title, kind, name, detail, count, actions: ("habbo"\|"upload"\|"publish")[], link, ignored: { note, playerId, playerName, ignoredAt } \| null } ] }`. A source's `count` leaves out the ignored. |
 | `POST /assets/broken/ignore` | Body `{ source, key, note }`; 204. |
@@ -381,5 +403,13 @@ breed's type for a pet; an effect and a clothing library are always used.
 `AssetTarget`: `{ id, name, protocol, host, port, user, hasPassword, remotePath, publicUrl,
 allowSelfSigned, hostKey, pending, lastPublish }`. `pending` is how many bundles it lacks or holds an
 older copy of; `lastPublish` is the newest history entry, or null.
+
+`AssetComparison`: `{ kind, name, path, size, result: "changed"|"stamp-only"|"same"|"not-on-target"|"unreadable",
+problem, targetSize, targetAsRecorded, source, revision, updatedAt, stampBefore, stampAfter, windows: [ { id,
+change, elementsAdded, elementsRemoved, elementsChanged, textKeysAdded, textKeysRemoved } ], texts: [ { language,
+added, removed, changed, edits: [ { key, change, before, after } ] } ], entries: [ { name, change, bytesBefore,
+bytesAfter, widthBefore, heightBefore, widthAfter, heightAfter } ], entriesChanged }`. `change` is `added`,
+`removed` or `changed`; `edits` holds a language's first 200 keys and `entries` the first 300 files
+(`entriesChanged` counts them all).
 
 `AssetTargetInput`: `{ name, protocol, host, port, user, password, remotePath, publicUrl, allowSelfSigned }`.

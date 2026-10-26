@@ -250,6 +250,64 @@ public sealed class AssetPublishEndpointsTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_comparison_answers_by_name_and_serves_each_side_of_an_image()
+    {
+        await _server.StartAsync(Ct);
+        await _hotel.PutBundleAsync("chair", Bundle([1, 2, 3]), Ct);
+        var target = await _hotel.AddFolderTargetAsync(Ct);
+        await _hotel.PublishAsync(target.Id, Ct);
+        await _hotel.PutBundleAsync("chair", Bundle([4, 5, 6, 7]), Ct);
+
+        var compared = await JsonAsync(
+            await SendAsync(HttpMethod.Get, $"/api/assets/targets/{target.Id}/compare")
+        );
+        compared.GetProperty("total").GetInt32().Should().Be(1);
+        var item = compared.GetProperty("items").EnumerateArray().Single();
+        item.GetProperty("path").GetString().Should().Be("bundled/furniture/chair.nitro");
+        item.GetProperty("result").GetString().Should().Be("changed");
+        item.GetProperty("source").GetString().Should().Be("habbo");
+        item.GetProperty("targetAsRecorded").GetBoolean().Should().BeTrue();
+        var entry = item.GetProperty("entries").EnumerateArray().Single();
+        entry.GetProperty("name").GetString().Should().Be("chair.png");
+        entry.GetProperty("change").GetString().Should().Be("changed");
+        (entry.GetProperty("bytesBefore").GetInt64(), entry.GetProperty("bytesAfter").GetInt64())
+            .Should()
+            .Be((3, 4));
+
+        var image =
+            $"/api/assets/targets/{target.Id}/compare/image?path=bundled/furniture/chair.nitro&entry=chair.png";
+        var before = await SendAsync(HttpMethod.Get, image + "&side=target");
+        before.Content.Headers.ContentType!.MediaType.Should().Be("image/png");
+        (await before.Content.ReadAsByteArrayAsync(Ct)).Should().Equal(1, 2, 3);
+        (await (await SendAsync(HttpMethod.Get, image)).Content.ReadAsByteArrayAsync(Ct))
+            .Should()
+            .Equal(4, 5, 6, 7);
+        (await SendAsync(HttpMethod.Get, image.Replace("chair.png", "chair.json") + "&side=target"))
+            .StatusCode.Should()
+            .Be(HttpStatusCode.NotFound);
+        (
+            await SendAsync(
+                HttpMethod.Get,
+                $"/api/assets/targets/{target.Id}/compare?path=bundled/furniture/none.nitro"
+            )
+        )
+            .StatusCode.Should()
+            .Be(HttpStatusCode.NotFound);
+    }
+
+    /// <summary>A furniture bundle of its asset data and a sheet holding <paramref name="sheet"/>.</summary>
+    private static byte[] Bundle(byte[] sheet) =>
+        Turbo
+            .Assets.Nitro.NitroBundle.Create(
+                new Dictionary<string, byte[]>
+                {
+                    ["chair.json"] = """{"name":"chair"}"""u8.ToArray(),
+                    ["chair.png"] = sheet,
+                }
+            )
+            .Write();
+
+    [Fact]
     public async Task Staff_who_may_only_see_the_gamedata_list_targets_but_change_none()
     {
         _holds = node => node != PermissionNodes.Gamedata.MANAGE;

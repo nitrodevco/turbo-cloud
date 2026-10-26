@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Turbo.Assets;
+using Turbo.Assets.Nitro;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Assets;
 using Turbo.Database.Extensions;
@@ -40,8 +42,13 @@ internal sealed class AssetPublishService(
     /// <summary>Files a page of a target's pending list holds.</summary>
     public const int PENDING_PAGE_SIZE = 100;
 
+    /// <summary>Changed files a "compare all" compares, largest first; it counts them all.</summary>
+    public const int COMPARE_ALL_MAX = 100;
+
     /// <summary>The target a publish is running for, or zero: it can't be deleted under it.</summary>
     private int _publishing;
+
+    private readonly TargetCopies _copies = new();
 
     public async Task<IReadOnlyList<AssetPublishTargetSnapshot>> ListTargetsAsync(
         CancellationToken ct
@@ -206,6 +213,294 @@ internal sealed class AssetPublishService(
             New = pending.Count(x => x.Change == AssetPublishChange.New),
             Changed = pending.Count(x => x.Change == AssetPublishChange.Changed),
         };
+    }
+
+    public async Task<AssetPublishComparisons?> CompareAsync(
+        int targetId,
+        string? path,
+        CancellationToken ct
+    )
+    {
+        var target = await FindAsync(targetId, ct).ConfigureAwait(false);
+
+        if (target is null)
+            return null;
+
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var files = await store.ListFilesAsync(ct).ConfigureAwait(false);
+        var recorded = await dbCtx
+            .AssetPublishedFiles.AsNoTracking()
+            .Where(x => x.TargetEntityId == targetId)
+            .ToDictionaryAsync(x => x.Path, x => x.Hash, StringComparer.Ordinal, ct)
+            .ConfigureAwait(false);
+        List<AssetBundleFile> compare;
+        int total;
+
+        if (path?.Trim() is { Length: > 0 } one)
+        {
+            if (files.FirstOrDefault(x => x.Path == one) is not { } file)
+                return null;
+
+            compare = [file];
+            total = 1;
+        }
+        else
+        {
+            var changed = AssetPublishRun
+                .Pending(files, recorded)
+                .Where(x => x.Change == AssetPublishChange.Changed)
+                .Select(x => x.File)
+                .OrderByDescending(x => x.Size)
+                .ThenBy(x => x.Path, StringComparer.Ordinal)
+                .ToList();
+
+            total = changed.Count;
+            compare = [.. changed.Take(COMPARE_ALL_MAX)];
+        }
+
+        var names = compare.Select(x => x.Name).Distinct().ToList();
+        var rows = (
+            await dbCtx
+                .AssetBundles.AsNoTracking()
+                .Where(x => names.Contains(x.Name))
+                .Select(x => new
+                {
+                    x.Kind,
+                    x.Name,
+                    x.Source,
+                    x.Revision,
+                    x.UpdatedAt,
+                })
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+        ).ToDictionary(x => (x.Kind, x.Name));
+        var reader = ReaderOf(target);
+        var items = new List<AssetPublishComparison>();
+
+        await using (reader.ConfigureAwait(false))
+        {
+            foreach (var file in compare)
+            {
+                var hash = recorded.GetValueOrDefault(file.Path) ?? "";
+                var (copy, problem) = await reader
+                    .ReadAsync(file.Path, hash, ct)
+                    .ConfigureAwait(false);
+                var row = rows.GetValueOrDefault((file.Kind, file.Name));
+                var compared = new AssetPublishComparison
+                {
+                    File = file,
+                    Result = AssetCompareResult.Unreadable,
+                    Problem = problem,
+                    TargetBytes = copy?.LongLength,
+                    TargetAsRecorded = copy is not null && GamedataBytes.Hash(copy) == hash,
+                    Source = row?.Source,
+                    Revision = row?.Revision,
+                    UpdatedAt = row?.UpdatedAt,
+                };
+
+                items.Add(
+                    copy is null
+                        ? compared with
+                        {
+                            Result = problem is null
+                                ? AssetCompareResult.NotOnTarget
+                                : AssetCompareResult.Unreadable,
+                        }
+                        : await CompareCopyAsync(compared, copy, ct).ConfigureAwait(false)
+                );
+            }
+        }
+
+        return new AssetPublishComparisons([.. items], total);
+    }
+
+    /// <summary>The target's copy against the hotel's, read from the store.</summary>
+    private async Task<AssetPublishComparison> CompareCopyAsync(
+        AssetPublishComparison compared,
+        byte[] copy,
+        CancellationToken ct
+    )
+    {
+        var file = compared.File;
+        byte[] hotel;
+
+        try
+        {
+            hotel = await File.ReadAllBytesAsync(store.FullPathOf(file.Kind, file.Name), ct)
+                .ConfigureAwait(false);
+        }
+        catch (IOException ex)
+        {
+            return compared with { Problem = $"The hotel's copy could not be read: {ex.Message}" };
+        }
+
+        var found = BundleComparer.Compare(file.Name, copy, hotel, file.Kind.IsBundle());
+
+        return compared with
+        {
+            Result = found.Result,
+            Problem = found.Problem,
+            StampBefore = found.StampBefore,
+            StampAfter = found.StampAfter,
+            Windows = found.Windows.IsDefault ? [] : found.Windows,
+            Texts = found.Texts.IsDefault ? [] : found.Texts,
+            Entries = found.Entries.IsDefault ? [] : found.Entries,
+            EntriesChanged = found.EntriesChanged,
+        };
+    }
+
+    public async Task<byte[]?> ReadComparedImageAsync(
+        int targetId,
+        string path,
+        string? entry,
+        bool fromTarget,
+        CancellationToken ct
+    )
+    {
+        if (!BundleComparer.IsImage(entry ?? path))
+            return null;
+
+        var target = await FindAsync(targetId, ct).ConfigureAwait(false);
+
+        if (target is null)
+            return null;
+
+        var files = await store.ListFilesAsync(ct).ConfigureAwait(false);
+
+        if (files.FirstOrDefault(x => x.Path == path) is not { } file)
+            return null;
+
+        byte[]? data;
+
+        if (fromTarget)
+        {
+            var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+            var hash =
+                await dbCtx
+                    .AssetPublishedFiles.Where(x => x.TargetEntityId == targetId && x.Path == path)
+                    .Select(x => x.Hash)
+                    .FirstOrDefaultAsync(ct)
+                    .ConfigureAwait(false)
+                ?? "";
+            var reader = ReaderOf(target);
+
+            await using (reader.ConfigureAwait(false))
+                (data, _) = await reader.ReadAsync(path, hash, ct).ConfigureAwait(false);
+        }
+        else
+        {
+            try
+            {
+                data = await File.ReadAllBytesAsync(store.FullPathOf(file.Kind, file.Name), ct)
+                    .ConfigureAwait(false);
+            }
+            catch (IOException)
+            {
+                data = null;
+            }
+        }
+
+        if (data is null || entry is null)
+            return data;
+
+        try
+        {
+            return NitroBundle.Read(data).Files.GetValueOrDefault(entry);
+        }
+        catch (AssetFormatException)
+        {
+            return null;
+        }
+    }
+
+    private TargetReader ReaderOf(AssetPublishTargetEntity target) =>
+        new(_copies, connections, dbCtxFactory, logger, target, PasswordOf(target));
+
+    /// <summary>
+    /// Reads copies from a target for comparing, kept in <see cref="_copies"/>: it connects on the
+    /// first copy not kept, once, and a target that can't be reached is said for every copy after.
+    /// </summary>
+    private sealed class TargetReader(
+        TargetCopies copies,
+        PublishConnections connections,
+        IDbContextFactory<TurboDbContext> dbCtxFactory,
+        ILogger logger,
+        AssetPublishTargetEntity target,
+        string password
+    ) : IAsyncDisposable
+    {
+        private IPublishConnection? _connection;
+        private string? _unreachable;
+
+        /// <summary>The copy, or null with why (no why: the target holds no such file).</summary>
+        public async Task<(byte[]? Copy, string? Problem)> ReadAsync(
+            string path,
+            string hash,
+            CancellationToken ct
+        )
+        {
+            if (copies.TryGet(target.Id, path, hash, out var kept))
+                return (kept, null);
+
+            if (_connection is null && _unreachable is null)
+            {
+                try
+                {
+                    _connection = await connections
+                        .ConnectAsync(target, password, ct)
+                        .ConfigureAwait(false);
+                    await AssetPublishRun
+                        .TrustHostKeyAsync(dbCtxFactory, logger, target, _connection.HostKey, ct)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                    when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+                {
+                    logger.LogWarning(
+                        ex,
+                        "Reading from publish target {TargetId} ({Where}) to compare failed",
+                        target.Id,
+                        PublishConnections.Where(target)
+                    );
+                    _unreachable = $"The target could not be reached: {ex.Message}";
+                }
+            }
+
+            if (_connection is null)
+                return (null, _unreachable);
+
+            try
+            {
+                using var buffer = new TargetCopies.Buffer();
+
+                await _connection.DownloadAsync(path, buffer, ct).ConfigureAwait(false);
+
+                var copy = buffer.ToArray();
+
+                copies.Put(target.Id, path, hash, copy);
+
+                return (copy, null);
+            }
+            catch (FileNotFoundException)
+            {
+                return (null, null);
+            }
+            catch (Exception ex)
+                when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+            {
+                return (null, $"The target's copy could not be read: {ex.Message}");
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_connection is not null)
+                await _connection.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     public async Task<AssetPublishTestResult?> TestAsync(int targetId, CancellationToken ct)

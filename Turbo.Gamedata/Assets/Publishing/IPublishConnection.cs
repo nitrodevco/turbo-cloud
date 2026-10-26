@@ -23,6 +23,12 @@ internal interface IPublishConnection : IAsyncDisposable
     /// <summary>Uploads to <c>&lt;path&gt;.part</c> and renames that over <paramref name="path"/>.</summary>
     Task UploadAsync(Stream content, string path, CancellationToken ct);
 
+    /// <summary>
+    /// Copies the file into <paramref name="destination"/>; throws <see cref="FileNotFoundException"/>
+    /// when there is none.
+    /// </summary>
+    Task DownloadAsync(string path, Stream destination, CancellationToken ct);
+
     /// <summary>Deletes the file, when there is one.</summary>
     Task DeleteAsync(string path, CancellationToken ct);
 

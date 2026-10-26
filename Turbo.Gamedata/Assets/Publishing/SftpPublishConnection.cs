@@ -99,6 +99,16 @@ internal sealed class SftpPublishConnection : IPublishConnection
         }
     }
 
+    public async Task DownloadAsync(string path, Stream destination, CancellationToken ct)
+    {
+        var target = RemotePaths.Join(_root, path);
+
+        if (!await _client.ExistsAsync(target, ct).ConfigureAwait(false))
+            throw new FileNotFoundException($"The target holds no {path}.", path);
+
+        await _client.DownloadFileAsync(target, destination, ct).ConfigureAwait(false);
+    }
+
     public async Task DeleteAsync(string path, CancellationToken ct)
     {
         var target = RemotePaths.Join(_root, path);

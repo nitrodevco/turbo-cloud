@@ -19,7 +19,7 @@ namespace Turbo.Admin.Api;
 /// <summary>
 /// Where the hotel's asset bundles are published (<c>/api/assets/targets</c>): a folder on this
 /// server, or an FTP, FTPS or SFTP server, each optionally purging its Cloudflare zone after a publish. Staff with <c>admin.gamedata.view</c> see the targets,
-/// their history and what each has pending; adding, changing, testing and publishing need <c>gamedata.manage</c> as well.
+/// their history, what each has pending and what changed in it (read through the target); adding, changing, testing and publishing need <c>gamedata.manage</c> as well.
 /// </summary>
 internal sealed class AssetPublishEndpoints(
     IGrainFactory grainFactory,
@@ -30,6 +30,9 @@ internal sealed class AssetPublishEndpoints(
     private const string NO_MANAGE = "You can't change the asset bundles.";
     private const string NO_TARGET = "There is no such publish target.";
     private const string UNKNOWN_PROTOCOL = "The protocol is folder, ftp, ftps or sftp.";
+    private const string NO_FILE =
+        "There is no such publish target, or the hotel has no file there.";
+    private const string NO_IMAGE = "There is no such image on that side.";
 
     public void Map(RouteGroupBuilder secured)
     {
@@ -49,6 +52,15 @@ internal sealed class AssetPublishEndpoints(
         group.MapGet(
             "/{id:int}/pending",
             (int id, string? q, int? page, CancellationToken ct) => PendingAsync(id, q, page, ct)
+        );
+        group.MapGet(
+            "/{id:int}/compare",
+            (int id, string? path, CancellationToken ct) => CompareAsync(id, path, ct)
+        );
+        group.MapGet(
+            "/{id:int}/compare/image",
+            (int id, string path, string? entry, string? side, CancellationToken ct) =>
+                ComparedImageAsync(id, path, entry, side, ct)
         );
     }
 
@@ -184,6 +196,35 @@ internal sealed class AssetPublishEndpoints(
         await publishing.GetPendingAsync(id, q, page ?? 0, ct).ConfigureAwait(false) is { } pending
             ? Results.Ok(AssetPublishPendingResponse.From(pending))
             : AdminResults.Error(StatusCodes.Status404NotFound, NO_TARGET);
+
+    private async Task<IResult> CompareAsync(int id, string? path, CancellationToken ct) =>
+        await publishing.CompareAsync(id, path, ct).ConfigureAwait(false) is { } compared
+            ? Results.Ok(AssetCompareResponse.From(compared))
+            : AdminResults.Error(StatusCodes.Status404NotFound, path is null ? NO_TARGET : NO_FILE);
+
+    /// <summary>An image a comparison names, as the target holds it (<c>side=target</c>) or as the hotel does.</summary>
+    private async Task<IResult> ComparedImageAsync(
+        int id,
+        string path,
+        string? entry,
+        string? side,
+        CancellationToken ct
+    )
+    {
+        var image = await publishing
+            .ReadComparedImageAsync(id, path, entry, side == "target", ct)
+            .ConfigureAwait(false);
+        var name = entry ?? path;
+
+        return image is null
+            ? AdminResults.Error(StatusCodes.Status404NotFound, NO_IMAGE)
+            : Results.File(
+                image,
+                name.EndsWith(".gif", StringComparison.OrdinalIgnoreCase)
+                    ? "image/gif"
+                    : "image/png"
+            );
+    }
 
     /// <summary>The edit the input asks for; null when its protocol isn't one.</summary>
     private static AssetPublishTargetEdit? EditOf(AssetPublishTargetInput input) =>
