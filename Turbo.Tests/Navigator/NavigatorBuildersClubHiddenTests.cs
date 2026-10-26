@@ -132,7 +132,8 @@ public sealed class NavigatorBuildersClubHiddenTests
             Options.Create(new NavigatorConfig()),
             Options.Create(new PlayerNavigatorConfig()),
             _fakes.Create<IPermissionRegistryProvider>(),
-            _fakes.Create<IWordFilter>()
+            _fakes.Create<IWordFilter>(),
+            Turbo.Players.Policies.GamePolicies.None
         );
 
     private static RoomInfoSnapshot Room(int roomId, RoomDoorModeType doorMode, bool hiddenByBc) =>

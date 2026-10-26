@@ -42,6 +42,9 @@ public interface IHotelWorld : IAsyncDisposable
     /// <summary>The hotel in maintenance: closed to players without the bypass node.</summary>
     void CloseForMaintenance(string reason);
 
+    /// <summary>Staff rename a Public tab category and hide it, as on the panel's Public rooms page.</summary>
+    Task StaffRenamePublicCategoryAsync(int id, string name, CancellationToken ct);
+
     /// <summary>Called once everything is added and before the hotel is used.</summary>
     Task StartAsync(CancellationToken ct);
 }
@@ -182,6 +185,84 @@ public abstract class HotelContract
             .Should()
             .Equal((1, low, 300L), (2, mid, 20L));
         (await players.TopByAsync(PlayerStat.Balance("beans"), 5, 0, Ct)).Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// A plugin seeds its Public tab category as it starts, every time: made once from its
+    /// defaults, then left as staff changed it (NAV-STUDY S6: a staff rename survives the plugin's
+    /// next start), and changed by the plugin only through its own key.
+    /// </summary>
+    [Fact]
+    public async Task A_plugins_public_category_is_made_once_and_keeps_what_staff_changed()
+    {
+        await using var world = NewWorld();
+        var owner = world.AddPlayer("Owner");
+        var lobby = world.AddRoom("Lobby", owner);
+        var arcade = world.AddRoom("Arcade", owner);
+        var den = world.AddRoom("Den", owner);
+        await world.StartAsync(Ct);
+        var tab = world.Hotel.Navigator.Public;
+
+        var made = await tab.EnsureCategoryAsync(
+            "demo:games",
+            new HotelPublicCategoryDefaults("Games", ForceClosed: true, Rooms: [lobby, arcade]),
+            Ct
+        );
+
+        made.Should()
+            .BeEquivalentTo(
+                new
+                {
+                    Key = "demo:games",
+                    Name = "Games",
+                    Visible = true,
+                    ForceClosed = true,
+                    Thumbnails = true,
+                    StaffPicks = false,
+                    Rooms = new[] { lobby, arcade },
+                }
+            );
+
+        await world.StaffRenamePublicCategoryAsync(made.Id, "Arcades", Ct);
+        (await tab.AddRoomAsync("demo:games", den, first: true, Ct)).Should().BeTrue();
+        (await tab.AddRoomAsync("demo:games", den, first: true, Ct)).Should().BeFalse();
+
+        var again = await tab.EnsureCategoryAsync(
+            "demo:games",
+            new HotelPublicCategoryDefaults("Games", Rooms: [lobby]),
+            Ct
+        );
+
+        (again.Id, again.Name, again.Visible).Should().Be((made.Id, "Arcades", false));
+        again.Rooms.Should().Equal(den, lobby, arcade);
+
+        await tab.OrderRoomsAsync("demo:games", [lobby, arcade, den], Ct);
+        (await tab.RemoveRoomAsync("demo:games", arcade, Ct)).Should().BeTrue();
+        (await tab.RemoveRoomAsync("demo:games", arcade, Ct)).Should().BeFalse();
+        (await tab.CategoriesAsync(Ct))
+            .Where(x => x.Key is not null)
+            .Select(x => (x.Key, string.Join(',', x.Rooms.Select(r => r.Value))))
+            .Should()
+            .Equal(("demo:games", $"{lobby.Value},{den.Value}"));
+
+        await FluentActions
+            .Awaiting(() => tab.AddRoomAsync("demo:other", lobby, first: true, Ct))
+            .Should()
+            .ThrowAsync<ArgumentException>("the plugin made no category under that key");
+        await FluentActions
+            .Awaiting(() =>
+                tab.EnsureCategoryAsync("games", new HotelPublicCategoryDefaults("Games"), Ct)
+            )
+            .Should()
+            .ThrowAsync<ArgumentException>("a key is <plugin-key>:<name>");
+        await FluentActions
+            .Awaiting(() => tab.AddRoomAsync("demo:games", new RoomId(999), first: false, Ct))
+            .Should()
+            .ThrowAsync<ArgumentException>("there is no room 999");
+        await FluentActions
+            .Awaiting(() => tab.OrderRoomsAsync("demo:games", [lobby], Ct))
+            .Should()
+            .ThrowAsync<ArgumentException>("an order names every room once");
     }
 
     [Fact]

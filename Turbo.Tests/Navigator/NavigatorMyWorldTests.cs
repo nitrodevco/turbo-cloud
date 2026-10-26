@@ -7,6 +7,7 @@ using Orleans;
 using Turbo.Navigator;
 using Turbo.Navigator.Configuration;
 using Turbo.Players.Configuration;
+using Turbo.Players.Policies;
 using Turbo.Primitives.Guilds.Snapshots;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Navigator;
@@ -321,7 +322,8 @@ public sealed class NavigatorMyWorldTests
             Options.Create(config ?? new NavigatorConfig()),
             Options.Create(new PlayerNavigatorConfig()),
             _fakes.Create<IPermissionRegistryProvider>(),
-            _fakes.Create<IWordFilter>()
+            _fakes.Create<IWordFilter>(),
+            GamePolicies.None
         );
     }
 

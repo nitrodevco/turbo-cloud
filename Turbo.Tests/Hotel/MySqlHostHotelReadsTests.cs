@@ -203,6 +203,9 @@ public sealed class MySqlHostHotelReadsTests(MySqlHostHotelReadsTests.Database d
                 .AddSingleton<ICurrencyTypeProvider>(currencies)
                 .AddSingleton<IFurnitureDefinitionProvider>(definitions)
                 .AddSingleton(new TestEventBus().System)
+                .AddSingleton(fakes.Create<Turbo.Primitives.Navigator.IPublicRoomEditor>())
+                .AddSingleton<Turbo.Admin.Commands.AdminActionLog>()
+                .AddLogging()
                 .AddTurboHotel()
                 .BuildServiceProvider()
                 .GetRequiredService<IHotel>();

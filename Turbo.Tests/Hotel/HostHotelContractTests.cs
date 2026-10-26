@@ -1,8 +1,10 @@
 using System.Collections.Immutable;
+using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Admin.Commands;
 using Turbo.Contracts.Hotel;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Players;
@@ -10,6 +12,7 @@ using Turbo.Furniture;
 using Turbo.Furniture.Configuration;
 using Turbo.Inventory.Grains.Badges;
 using Turbo.Main.Hotel;
+using Turbo.Navigator;
 using Turbo.Players.Grains;
 using Turbo.Players.Providers;
 using Turbo.Primitives.Availability;
@@ -37,6 +40,7 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Tests.Support;
+using Xunit;
 
 namespace Turbo.Tests.Hotel;
 
@@ -50,6 +54,36 @@ namespace Turbo.Tests.Hotel;
 public sealed class HostHotelContractTests : HotelContract
 {
     protected override IHotelWorld NewWorld() => new HostWorld();
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    /// <summary>A plugin's change to the Public tab is in the command log as the plugin's, beside the panel's.</summary>
+    [Fact]
+    public async Task A_plugins_public_tab_change_is_logged_as_the_plugins()
+    {
+        await using var world = new HostWorld();
+        var owner = world.AddPlayer("Owner");
+        var lobby = world.AddRoom("Lobby", owner);
+        await world.StartAsync(Ct);
+        var tab = world.Hotel.Navigator.Public;
+
+        var made = await tab.EnsureCategoryAsync("demo:games", new("Games"), Ct);
+        await tab.EnsureCategoryAsync("demo:games", new("Games"), Ct);
+        await tab.AddRoomAsync("demo:games", lobby, first: true, Ct);
+
+        world
+            .CommandLog()
+            .Should()
+            .Equal(
+                ("navigator", 0, $"public category add {made.Id} Games demo:games", "plugin"),
+                (
+                    "navigator",
+                    0,
+                    $"public room add {made.Id} {lobby.Value} first demo:games",
+                    "plugin"
+                )
+            );
+    }
 
     private sealed class HostWorld : IHotelWorld
     {
@@ -241,6 +275,48 @@ public sealed class HostHotelContractTests : HotelContract
                 reason
             );
 
+        public async Task StaffRenamePublicCategoryAsync(
+            int id,
+            string name,
+            CancellationToken ct
+        ) =>
+            await Editor()
+                .SaveCategoryAsync(
+                    id,
+                    new PublicCategoryChange(name, Visible: false),
+                    NavigatorPublicCategoryKind.Manual,
+                    null,
+                    ct
+                );
+
+        /// <summary>The command log's rows, as the panel's Command log page lists them.</summary>
+        public List<(string Command, int Player, string Arguments, string? Source)> CommandLog()
+        {
+            using var db = _world.Db.CreateDbContext();
+
+            return
+            [
+                .. db
+                    .CommandLogs.OrderBy(x => x.Id)
+                    .Select(x => new
+                    {
+                        x.Command,
+                        x.PlayerEntityId,
+                        x.Arguments,
+                        x.Source,
+                    })
+                    .AsEnumerable()
+                    .Select(x => (x.Command, x.PlayerEntityId, x.Arguments, x.Source)),
+            ];
+        }
+
+        private PublicRoomEditor Editor() =>
+            new(
+                _world.Db,
+                _world.Fakes.Create<IGrainFactory>(),
+                NullLogger<IPublicRoomEditor>.Instance
+            );
+
         public int AddFurniture(string name)
         {
             var id = 100 + _players.Count + _inRoom.Count;
@@ -301,6 +377,9 @@ public sealed class HostHotelContractTests : HotelContract
                 .AddSingleton<ICurrencyTypeProvider>(currencies)
                 .AddSingleton<IFurnitureDefinitionProvider>(definitions)
                 .AddSingleton(new TestEventBus().System)
+                .AddSingleton<IPublicRoomEditor>(Editor())
+                .AddSingleton<AdminActionLog>()
+                .AddLogging()
                 .AddTurboHotel()
                 .BuildServiceProvider()
                 .GetRequiredService<IHotel>();

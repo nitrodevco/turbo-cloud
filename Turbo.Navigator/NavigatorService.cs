@@ -22,6 +22,7 @@ using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Navigator;
 using Turbo.Primitives.Players.Snapshots.Permissions;
+using Turbo.Primitives.Policies;
 using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -42,7 +43,8 @@ public sealed class NavigatorService(
     IOptions<NavigatorConfig> config,
     IOptions<PlayerNavigatorConfig> playerNavigatorConfig,
     IPermissionRegistryProvider permissionRegistryProvider,
-    IWordFilter wordFilter
+    IWordFilter wordFilter,
+    IGamePolicies gamePolicies
 ) : INavigatorService
 {
     private readonly ILogger<INavigatorService> _logger = logger;
@@ -53,6 +55,7 @@ public sealed class NavigatorService(
     private readonly IPermissionRegistryProvider _permissionRegistryProvider =
         permissionRegistryProvider;
     private readonly IWordFilter _wordFilter = wordFilter;
+    private readonly IGamePolicies _gamePolicies = gamePolicies;
 
     public int FavouriteRoomLimit => _playerNavigatorConfig.MaxFavouriteRooms;
     public int MaxSearchCodeLength => _config.MaxSearchCodeLength;
@@ -1059,7 +1062,8 @@ public sealed class NavigatorService(
 
     /// <summary>
     /// A Public tab category's rooms: the staff-picked ones newest pick first, or the ones staff
-    /// put in it in their order. A room Builders Club hides stays its owner's alone.
+    /// put in it in their order, then as a plugin's <see cref="IPublicRoomOrder"/> puts them (none:
+    /// that order, as Habbo's). A room Builders Club hides stays its owner's alone.
     /// </summary>
     private async Task<List<RoomInfoSnapshot>> GetPublicRoomsAsync(
         SearchQuery query,
@@ -1080,7 +1084,22 @@ public sealed class NavigatorService(
             rooms = await ResolveRoomsAsync(query, [.. category.RoomIds.Take(limit)], ct)
                 .ConfigureAwait(false);
 
-        return [.. rooms.Where(x => !x.HiddenByBc).Take(limit)];
+        var shown = rooms.Where(x => !x.HiddenByBc).Select(x => WithPopulation(x, query)).ToList();
+
+        return
+        [
+            .. _gamePolicies
+                .OrderPublicRooms(
+                    new PublicRoomCategory(
+                        category.Id,
+                        category.Name,
+                        category.Kind,
+                        category.PluginKey
+                    ),
+                    shown
+                )
+                .Take(limit),
+        ];
     }
 
     /// <summary>Every room of the Public tab in its order, each once: the hotel's public rooms.</summary>
@@ -1671,6 +1690,12 @@ public sealed class NavigatorService(
 
     private static int PopulationOf(RoomInfoSnapshot room, SearchQuery query) =>
         query.LiveRooms.TryGetValue(room.RoomId, out var live) ? live.Population : 0;
+
+    private static RoomInfoSnapshot WithPopulation(RoomInfoSnapshot room, SearchQuery query) =>
+        room with
+        {
+            Population = PopulationOf(room, query),
+        };
 
     private static bool IsPublic(RoomInfoSnapshot room) =>
         room.ListedDoorMode != RoomDoorModeType.Invisible;

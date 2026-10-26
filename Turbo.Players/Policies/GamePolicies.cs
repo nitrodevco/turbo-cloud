@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -6,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Primitives.Policies;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Players.Policies;
 
@@ -21,6 +23,7 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
     public const string REGISTRATION = "registration";
     public const string AVATAR_EFFECT = "avatar-effect";
     public const string PURCHASE_FULFILMENT = "purchase-fulfilment";
+    public const string PUBLIC_ROOM_ORDER = "public-room-order";
 
     /// <summary>No policies: the hotel decides as it always does.</summary>
     public static GamePolicies None => new(NullLogger<GamePolicies>.Instance);
@@ -278,6 +281,38 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
         return null;
     }
 
+    public IReadOnlyList<RoomInfoSnapshot> OrderPublicRooms(
+        PublicRoomCategory category,
+        IReadOnlyList<RoomInfoSnapshot> rooms
+    )
+    {
+        var order = rooms;
+
+        foreach (var entry in Of(PUBLIC_ROOM_ORDER))
+        {
+            try
+            {
+                order = Permutation(
+                    order,
+                    ((IPublicRoomOrder)entry.Policy).OrderRooms(category, order)
+                );
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "The {Kind} policy {Policy} of {Owner} failed for public category {CategoryId}; it is passed over",
+                    entry.Kind,
+                    entry.Policy.GetType().Name,
+                    entry.Owner,
+                    category.Id
+                );
+            }
+        }
+
+        return order;
+    }
+
     /// <summary>
     /// Adds <paramref name="owner"/>'s policies (any of the kinds); disposing the result
     /// takes them away. A kind another owner already has a policy of is logged as a conflict.
@@ -351,6 +386,7 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
                 (policy is IRegistrationPolicy, REGISTRATION),
                 (policy is IAvatarEffectPolicy, AVATAR_EFFECT),
                 (policy is IPurchaseFulfilment, PURCHASE_FULFILMENT),
+                (policy is IPublicRoomOrder, PUBLIC_ROOM_ORDER),
             }
                 .Where(x => x.Is)
                 .Select(x => x.Kind),
@@ -364,8 +400,30 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
             REGISTRATION => ((IRegistrationPolicy)policy).Order,
             AVATAR_EFFECT => ((IAvatarEffectPolicy)policy).Order,
             PURCHASE_FULFILMENT => ((IPurchaseFulfilment)policy).Order,
+            PUBLIC_ROOM_ORDER => ((IPublicRoomOrder)policy).Order,
             _ => ((IPlacementPolicy)policy).Order,
         };
+
+    /// <summary>
+    /// The rooms of <paramref name="before"/> in the order a policy named them, each once: rooms
+    /// it adds are dropped, and rooms it leaves out follow in their order before.
+    /// </summary>
+    private static IReadOnlyList<RoomInfoSnapshot> Permutation(
+        IReadOnlyList<RoomInfoSnapshot> before,
+        IReadOnlyList<RoomInfoSnapshot>? named
+    )
+    {
+        var left = before.ToDictionary(x => x.RoomId);
+        var order = new List<RoomInfoSnapshot>(before.Count);
+
+        foreach (var room in named ?? [])
+            if (room is not null && left.Remove(room.RoomId, out var own))
+                order.Add(own);
+
+        order.AddRange(before.Where(x => left.ContainsKey(x.RoomId)));
+
+        return order;
+    }
 
     private void LogFailure(Exception ex, Entry entry, int playerId) =>
         logger.LogError(
