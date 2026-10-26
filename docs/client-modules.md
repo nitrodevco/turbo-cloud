@@ -160,8 +160,10 @@ never asks is never sent one, the later changes included.
 plugins' client halves, for the extension inspector (`docs/extensions.md` roadmap step 5). `owner`
 is a plugin key; `kind` is `module.refused` (reason `host`, `hash`, `load`, `url` or `exports`),
 `module.failed` (`activate` threw), `patch.unmatched` (subject the template, reason the element key),
-`patch.ineffective` (an op that matched but changes nothing the window draws, its code setting that
-field: reason `<element key>.<field>`), `patch.conflict` or `patch.applied` (reason the ops applied).
+`patch.ineffective` (an op that matched but changes nothing the window draws: its code setting that
+field, reason `<element key>.<field>`; a `bind` the client cannot bind, `<element>:bind`; an asset it
+binds that did not load, `<element>:<url>`), `patch.conflict` or `patch.applied` (reason the ops applied; an
+owner none of whose ops applied sends none).
 It is never answered. The server keeps
 each distinct line per plugin in memory, counted by player and bounded (100 plugins, 50 lines each,
 texts cut to 300 characters), lists it under the plugin's `GET /api/plugins/{key}/contributions`,

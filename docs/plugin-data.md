@@ -66,7 +66,8 @@ is updated.
   its frame id instead of a template (`wired-setup`, listed in the client's `skins.json`). A `bind` op
   gives an element a value per window or per row of a list - the catalogue's tabs an icon each - with
   `${ctx.<key>}`, `${item.<key>}` (with `"items": true`), `${text.<key>}` and `${style:<name>}` filled as
-  the client draws it; the check refuses an unknown field or placeholder, and a relative `asset` is one
+  the client draws it, once (they do not nest: `${text.icon.${item.index}}` names no text); the check
+  refuses an unknown field or placeholder and one inside another, and a relative `asset` is one
   of the hotel's own served files (nitro-next `docs/template-patches.md`, "A binding as data").
   **Test**, under the ops, shows the window's element tree with them applied before saving: what each
   op changes, and each one naming an element the window lacks (clients would report it unmatched).

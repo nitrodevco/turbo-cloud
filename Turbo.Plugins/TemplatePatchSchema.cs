@@ -267,7 +267,13 @@ internal static partial class TemplatePatchSchema
                 {
                     var name = placeholder.Groups[1].Value;
 
-                    if (!RootedPattern().IsMatch(name) && !IsStyle($"${{{name}}}"))
+                    // ${text.icon.${item.index}}: a placeholder is filled once, from the key as written, so
+                    // the inner one is never filled and the outer names a key no text has.
+                    if (name.Contains("${", StringComparison.Ordinal))
+                        problems.Add(
+                            $"Op {n}'s bind {field.Name} puts a placeholder inside another ({text}): placeholders are filled once and do not nest, so it names no key. Bind each row's own value (${{item.<key>}}) or one whole key."
+                        );
+                    else if (!RootedPattern().IsMatch(name) && !IsStyle($"${{{name}}}"))
                         problems.Add(
                             $"Op {n}'s bind {field.Name} names ${{{name}}}: a placeholder is ${{ctx.<key>}}, ${{item.<key>}}, ${{text.<key>}} or ${{style:<name>}}."
                         );

@@ -373,6 +373,31 @@ public sealed class DataPluginTests : IDisposable
             .Be("icons/tab${item.index}.png", "the client fills it per tab");
     }
 
+    // Stranger test S3 (3.2 #5): ${text.tabicon.${item.index}} passed the check, as its root `text` is
+    // one, was reported applied, and the client drew nothing: placeholders are filled once and the
+    // client looked up the text "tabicon.${item.index" (nitro-next templatePatchBind.ts).
+    [Fact]
+    public async Task A_staff_bind_op_with_a_placeholder_inside_another_is_refused()
+    {
+        var patches = Hotel().HotelPlugin;
+
+        var refused = () =>
+            patches.SavePatchAsync(
+                Patch(
+                    "Tab icons",
+                    """
+                    [ { "element": "tab_button/icon", "bind": { "asset": "${text.tabicon.${item.index}}" }, "items": true, "override": true } ]
+                    """
+                ),
+                Ct
+            );
+
+        (await refused.Should().ThrowAsync<ArgumentException>())
+            .Which.Message.Should()
+            .Contain("puts a placeholder inside another (${text.tabicon.${item.index}})");
+        (await patches.PatchesAsync(Ct)).Should().BeEmpty();
+    }
+
     // The client wraps since r58 (nitro-next templatePatch.ts, `wrap`): the panel refused it as no op.
     // The patch is the documentation's own example (nitro-next docs/template-patches.md, Operations).
     [Fact]

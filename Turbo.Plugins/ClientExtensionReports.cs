@@ -141,7 +141,9 @@ internal sealed partial class ClientExtensionReports(
                 break;
             case ClientExtensionReportKinds.PATCH_INEFFECTIVE:
                 logger.LogWarning(
-                    "Plugin {Owner}'s template patch of {Template} sets {Field}, which the window's code sets too, so it changes nothing: bind the element with override: true instead, or use the window's own frame ('' color, style, position). Client said: {Message}",
+                    // A field the window's code sets too (`<element>.<field>`), a bind the client cannot bind
+                    // (`<element>:bind`) or an asset that did not load (`<element>:<url>`): the client says which.
+                    "Plugin {Owner}'s template patch of {Template} changes nothing at {Field}. Client said: {Message}",
                     owner,
                     key.Subject,
                     key.Reason,
