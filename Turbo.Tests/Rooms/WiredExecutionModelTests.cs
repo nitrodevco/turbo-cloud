@@ -55,15 +55,8 @@ public sealed class WiredExecutionModelTests
     [Fact]
     public async Task A_signal_ping_pong_runs_100_visits_per_stack_inside_the_one_click()
     {
-        // Wall-clock limits off: a slow test machine must not cut or flag the chain.
-        Configure(
-            new WiredConfig
-            {
-                MaxRoomLogEntries = 10_000,
-                RecursionTimeoutMs = 0,
-                HeavyBusyMsPerWindow = 0,
-            }
-        );
+        // No recursion timeout: the visit cap is what stops this chain.
+        Configure(new WiredConfig { MaxRoomLogEntries = 10_000, RecursionTimeoutMs = 0 });
         await BuildPingPongAsync();
         await StartAsync();
 
@@ -92,14 +85,7 @@ public sealed class WiredExecutionModelTests
     [Fact]
     public async Task A_timer_feeding_the_ping_pong_runs_the_chain_once_per_half_second_window()
     {
-        Configure(
-            new WiredConfig
-            {
-                MaxRoomLogEntries = 100_000,
-                RecursionTimeoutMs = 0,
-                HeavyBusyMsPerWindow = 0,
-            }
-        );
+        Configure(new WiredConfig { MaxRoomLogEntries = 100_000, RecursionTimeoutMs = 0 });
         await BuildStackAsync(0, 0, shortPeriodUnits: 1, actions: [Signal(ANTENNA_A)]);
         await BuildStackAsync(
             0,
@@ -372,12 +358,14 @@ public sealed class WiredExecutionModelTests
     [Fact]
     public async Task A_room_whose_wired_takes_too_much_server_time_is_marked_heavy_and_keeps_running()
     {
-        Configure(new WiredConfig { HeavyBusyMsPerWindow = 1e-9, HeavyWindowMs = 3_000 });
+        Configure(new WiredConfig { HeavyBusyMsPerWindow = 100, HeavyWindowMs = 3_000 });
+        UseWallClockAdvancing(60);
 
         await BuildStackAsync(0, 0, clickTrigger: true, actions: [Log("busy")]);
         await StartAsync();
 
-        // Two executions in one three-second window, which is judged when it ends.
+        // Two executions of 60 ms on the room's clock in one three-second window, which is
+        // judged when it ends: neither alone is past the budget, the two together are.
         await ClickAsync();
         await TickAsync(1);
         await ClickAsync();
@@ -397,6 +385,7 @@ public sealed class WiredExecutionModelTests
     public async Task Loading_the_rooms_boxes_is_not_wired_time_and_does_not_mark_it_heavy()
     {
         Configure(new WiredConfig { HeavyBusyMsPerWindow = 1e-9, HeavyWindowMs = 1_000 });
+        UseWallClockAdvancing(10);
 
         await BuildPingPongAsync();
         await StartAsync();
@@ -584,6 +573,27 @@ public sealed class WiredExecutionModelTests
         Logged("click").Should().Be(2, "the halt ends after ten minutes");
     }
 
+    // Heavy marking times executions on the room's clock, as the time limits do, so a loaded
+    // machine stalling an execution does not mark the room heavy (Action18X4 failed so in a full
+    // suite run beside another on 2026-10-26: its execution was timed by the machine's clock).
+    [Fact]
+    public async Task A_machine_stalling_an_execution_does_not_mark_the_room_heavy()
+    {
+        Configure(new WiredConfig { HeavyBusyMsPerWindow = 20 });
+        var x = await BuildStackAsync(0, 2, receiveAntenna: ANTENNA_B, actions: [Log("x")]);
+        await BuildStackAsync(0, 0, clickTrigger: true, actions: [Log("k")]);
+        await AddCallAsync(0, 0, x);
+        await StartAsync();
+
+        UseWallClockStalling(50);
+        await ClickAsync();
+        await TickAsync(1);
+
+        Logged("x").Should().Be(1);
+        Wired.IsHeavy.Should().BeFalse("the machine stalled, the room's clock stood still");
+        Wired.GetErrorLogs(_now)[3].ThrowCount.Should().Be(0);
+    }
+
     // action.30.X2: a ring of two stacks (one receives A, counts and sends to B; the other
     // receives B and sends to A) started by one click counts exactly 100, then stops in the same
     // execution with no error logged and no later runs (official client capture 2026-10-24,
@@ -591,9 +601,7 @@ public sealed class WiredExecutionModelTests
     [Fact]
     public async Task Action30X2_ATwoStackSignalRingCounts100ThenStopsWithoutAnError()
     {
-        // Heavy marking reads real CPU time (Stopwatch), which a loaded test machine can push past
-        // the threshold for 100 visits; it is not what this ring is about.
-        Configure(new WiredConfig { MaxRoomLogEntries = 10_000, HeavyBusyMsPerWindow = 0 });
+        Configure(new WiredConfig { MaxRoomLogEntries = 10_000 });
         UseWallClockAdvancing(0);
         await BuildStackAsync(0, 0, clickTrigger: true, actions: [Signal(ANTENNA_A)]);
         await BuildStackAsync(
@@ -888,6 +896,19 @@ public sealed class WiredExecutionModelTests
                 () =>
                 {
                     _wallMs += stepMs;
+
+                    return _wallMs;
+                }
+            )
+        );
+
+    /// <summary>A machine stalling <paramref name="stallMs"/> at every clock read while the room's clock stands still.</summary>
+    private void UseWallClockStalling(int stallMs) =>
+        Wired.UseWallClock(
+            (Func<long>)(
+                () =>
+                {
+                    Thread.Sleep(stallMs);
 
                     return _wallMs;
                 }

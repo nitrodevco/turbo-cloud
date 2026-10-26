@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,8 +18,9 @@ public sealed partial class RoomWiredSystem
     private double _usage;
     private long _usageStepAtMs;
 
-    // Server time the room's wired executions took in the current heavy window.
-    private long _busyTicksInWindow;
+    // Server time, in milliseconds on the room's clock, the room's wired executions took in the
+    // current heavy window.
+    private long _busyMsInWindow;
     private long _heavyWindowStartMs;
 
     // Until when a KILLED room runs no wired.
@@ -149,15 +149,14 @@ public sealed partial class RoomWiredSystem
             return;
 
         var threshold = WiredConfig.HeavyBusyMsPerWindow;
-        var busyMs = _busyTicksInWindow * 1000.0 / Stopwatch.Frequency;
         var wasHeavy = IsHeavy;
 
-        IsHeavy = threshold > 0 && busyMs > threshold;
+        IsHeavy = threshold > 0 && _busyMsInWindow > threshold;
 
         if (IsHeavy && !wasHeavy)
             RecordError(WiredErrorKind.MarkedAsHeavy, now);
 
-        _busyTicksInWindow = 0;
+        _busyMsInWindow = 0;
         _heavyWindowStartMs = now;
     }
 
@@ -165,11 +164,11 @@ public sealed partial class RoomWiredSystem
     /// After an execution: one that ran past <c>WiredConfig.KillExecutionMs</c> halts the room's
     /// wired for <c>WiredConfig.KilledDurationMs</c>, dropping what waited to run, and counts KILLED.
     /// </summary>
-    private void KillIfOverrun(WiredExecution execution)
+    private void KillIfOverrun(WiredExecution execution, long tookMs)
     {
         var limit = WiredConfig.KillExecutionMs;
 
-        if (limit <= 0 || _wallClockMs() - execution.StartedAtWallMs <= limit)
+        if (limit <= 0 || tookMs <= limit)
             return;
 
         _killedUntilMs = execution.Now + WiredConfig.KilledDurationMs;
