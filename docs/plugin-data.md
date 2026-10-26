@@ -118,12 +118,14 @@ extends another plugin needs it installed; one that extends in a circle is refus
 ## In the panel
 
 Everything a theme author changes is under one sidebar section, **Appearance**; the Plugins page
-links to it.
+links to it. Every editor there saves into the theme staff are **working on** (below): this hotel's
+own by default.
 
 - **Appearance > Themes**: every plugin that is a theme (the hotel's own always) as a tree under the
   base theme `habbo`, each under the theme it `extends`, with how many style properties it has (and
   declares itself), how many staff changed, whether it is on (turn it off or on here), and links to
-  its style properties, images and patches. Admin API: `GET /plugins/themes`.
+  its style properties, images and patches. Admin API: `GET /plugins/themes`. **New theme** makes one
+  (below), **Duplicate** copies one, **Work on it** makes it the theme the editors save into.
 - **Appearance > Style properties**: a theme picker (the same tree) and an area picker (the
   `theme.json` groups; the base theme's say what each restyles) over each style property as a
   picker (colour, number, image upload, font), with **Reset** and a "changed" mark. Reset says
@@ -199,7 +201,7 @@ links to it.
   in a review table (matched, unmatched, a later file for the same sprite, and a size that is not the
   sprite's, which a nine-slice would cut wrongly) with the art drawn in the window's preview before
   anything is saved. **Apply** uploads the matched files into the chosen plugin's images and writes
-  every overlay in one change: `PUT /plugins/hotel-overlays` `{ "overlays": { "<library>/<asset>":
+  every overlay in one change: `PUT /plugins/{key}/overlays` `{ "overlays": { "<library>/<asset>":
   "<url>" | null } }` (`admin.plugins.manage`, one command log line), every entry checked before any
   is written; a sprite the base theme declares as an image style (the window frames, the purse) is
   set through that style, so its Theme tab shows it.
@@ -216,6 +218,40 @@ links to it.
   code. That holds while its files are data (JSON, text, Markdown, images, fonts); one bringing texts or
   variables needs `gamedata.manage` as well (`docs/admin-panel.md`, "Installing a package").
 
+## Themes made in the panel, and where edits land
+
+**Appearance > Themes > New theme** makes a theme as a data plugin of its own: a name, a key, and the
+theme it starts from - Habbo's own (`habbo`), this hotel's, or any installed theme - which it
+`extends`. The server writes `plugins/<key>/` as a package would install it - `manifest.json` with no
+`AssemblyFile`, `theme.json` `{ "extends": "<parent>", "styles": {} }`, an empty
+`wwwroot/template-patches.json` and `wwwroot/styles/` - and loads it. **Duplicate** makes a copy of a
+theme as this hotel has it (what **Make a plugin** packages: its files, the hotel's values of its
+styles as its defaults, the images uploaded for them) under a new key, with its patches' names. Both
+need `admin.plugins.manage` and go to the command log. Admin API: `POST /plugins/themes`
+`{ "key", "name", "extends": "habbo" | <theme> | null, "copyOf": <theme> | null }`.
+
+The panel's **Working on** picker (a bar at the top of Style properties, Template patches, Images and
+Windows & skins, with the folder it writes) is where staff edits land, XenForo's development mode: one
+choice for every editor, kept in the browser, `hotel` by default. Working on a theme, its edits are
+written into its own files and the theme is loaded again:
+
+- a style property: its default in the theme's `theme.json` (an inherited one is named again with
+  only its `default`; **Reset** takes it away, back to the parent's), an image by its path in the
+  theme's `wwwroot/` - `PUT`/`DELETE /plugins/{key}/styles/{name}?target={key}`, an image upload
+  `POST /plugins/{key}/styles/{name}/image?target={key}`. Without `target` (or `target=hotel`) the
+  change is this hotel's value, as above;
+- a window patch: the theme's `patches.json` (names, on/off) and the `wwwroot/template-patches.json`
+  clients load - `GET`/`POST /plugins/{key}/patches`, `DELETE /plugins/{key}/patches/{id}` (the
+  hotel's own are `key` `hotel`). A theme whose patches were written by hand lists those of its file,
+  each named by its window, until the first save;
+- images and fonts: its `wwwroot/styles/`; a font's family and a skin set's bitmaps
+  (`PUT /plugins/{key}/overlays`) its `gamedata/external_variables.json` `text.fonts` and
+  `asset.overlays`, each by its own path (a bitmap an image style stands in for: that style's default).
+
+Only a data plugin's files are written; a plugin with code is its author's to change, and refused.
+The theme's **Make a plugin** is then its package, with every change in it, for another hotel to
+install.
+
 ## The hotel's own data plugin
 
 What staff make is kept as a plugin too: the folder `plugins/hotel/` (key `hotel`), made the
@@ -229,4 +265,7 @@ turning it off takes every staff patch away at once.
 - Clients read styles and patch files as they start: a change reaches a player at their next load
   (the preview reloads its client for that reason).
 - A data plugin's files are not watched: change one by hand and **Reload** it on the Plugins page.
+- Working on a theme, **Appearance > Texts** and **Chat bubbles** still save the hotel's own (a
+  plugin's texts reach clients only for keys the hotel has none of), and Windows & skins shows the
+  hotel's skin replacements.
 - One language per hotel: texts are the hotel's external texts, so "per language" is per hotel.
