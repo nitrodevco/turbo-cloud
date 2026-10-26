@@ -8,6 +8,12 @@
     <PackageReference Include="SSH.NET" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource
+      Include="Plugins/Themes/habbo/theme.json"
+      LogicalName="Turbo.Gamedata.Themes.habbo.theme.json"
+    />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="Turbo.Tests" />
   </ItemGroup>
   <ItemGroup>

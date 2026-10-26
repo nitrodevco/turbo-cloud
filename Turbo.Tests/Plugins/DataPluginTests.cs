@@ -510,6 +510,253 @@ public sealed class DataPluginTests : IDisposable
         await refused.Should().ThrowAsync<ArgumentException>();
     }
 
+    /// <summary>
+    /// The base theme (docs/plugin-data.md): the hotel's own plugin, with no theme.json, lists
+    /// Habbo's style properties; with no change nothing reaches clients, and a change is the hotel's
+    /// entry of the variable the property names, field by field under a theme's own entry there.
+    /// </summary>
+    [Fact]
+    public async Task The_hotel_s_plugin_extends_the_base_theme_and_a_change_is_the_hotel_s_entry_of_its_variable()
+    {
+        var hotel = Hotel();
+        var folder = hotel.HotelPlugin.FolderOf(IHotelDataPlugin.KEY)!;
+
+        var listed = await hotel.Styles.ListAsync(IHotelDataPlugin.KEY, folder, Ct);
+
+        listed
+            .Select(x => x.Property.Name)
+            .Should()
+            .Contain(["catalog.color", "catalog.position", "window.frame", "loading.logo"]);
+        listed.Should().OnlyContain(x => !x.Changed && x.Value == null);
+
+        // Loaded with no change, it gives clients nothing: they draw exactly as without it.
+        await hotel.HotelPlugin.SavePatchAsync(
+            Patch("Hidden beta", """[ { "element": "beta_sign", "remove": true } ]"""),
+            Ct
+        );
+        foreach (
+            var variable in ExternalVariablesFile.MERGED.Except([
+                ExternalVariablesFile.TEMPLATE_PATCHES,
+            ])
+        )
+            hotel.Loaded.OwnedPartsOf(variable).Should().BeEmpty(variable);
+
+        await hotel.Styles.SetAsync(
+            IHotelDataPlugin.KEY,
+            folder,
+            "catalog.color",
+            "#b0452c",
+            STAFF,
+            Ct
+        );
+        await hotel.Styles.SetAsync(
+            IHotelDataPlugin.KEY,
+            folder,
+            "catalog.position",
+            "84, 153",
+            STAFF,
+            Ct
+        );
+
+        (await HotelValueAsync(hotel, ExternalVariablesFile.FRAME_OVERRIDES))
+            .Should()
+            .Be("""{"catalog":{"color":"#b0452c","position":{"x":84,"y":153}}}""");
+
+        // A theme's own entry for the window keeps what staff did not change.
+        ExternalVariablesFile
+            .Merge(
+                ["""{"catalog":{"variant":"3","position":{"x":1,"y":2}}}"""],
+                await HotelValueAsync(hotel, ExternalVariablesFile.FRAME_OVERRIDES)
+            )
+            .Should()
+            .Be("""{"catalog":{"variant":"3","position":{"x":84,"y":153},"color":"#b0452c"}}""");
+
+        var notPosition = () =>
+            hotel.Styles.SetAsync(
+                IHotelDataPlugin.KEY,
+                folder,
+                "catalog.position",
+                "84",
+                STAFF,
+                Ct
+            );
+        await notPosition.Should().ThrowAsync<ArgumentException>().WithMessage("*x,y*");
+
+        await hotel.Styles.ResetAsync(IHotelDataPlugin.KEY, folder, "catalog.color", STAFF, Ct);
+        await hotel.Styles.ResetAsync(IHotelDataPlugin.KEY, folder, "catalog.position", STAFF, Ct);
+
+        (await HotelValueAsync(hotel, ExternalVariablesFile.FRAME_OVERRIDES)).Should().BeNull();
+        (await HotelValueAsync(hotel, ExternalVariablesFile.TEMPLATE_STYLES)).Should().BeNull();
+    }
+
+    /// <summary>
+    /// <c>"extends"</c>: a theme gets every property of the one it names, a redeclaration with only a
+    /// default keeps the parent's type and target, and the base theme's own (no default) give clients
+    /// nothing; a theme extending another plugin inherits through it; a circle is refused.
+    /// </summary>
+    [Fact]
+    public async Task A_theme_that_extends_the_base_theme_gives_only_the_defaults_it_redeclares()
+    {
+        WriteFile(
+            "child",
+            ThemeStyles.FILE,
+            """
+            { "extends": "habbo", "styles": {
+                "catalog.color": { "default": "#7a3fa0" },
+                "purse.frame": { "default": "purse-border.png" },
+                "shop.name": { "type": "text", "default": "Bazaar" }
+            } }
+            """
+        );
+        File.WriteAllBytes(
+            Path.Combine(_folder, "child", "wwwroot", "purse-border.png"),
+            [137, 80, 78, 71]
+        );
+        WriteFile("grandchild", ThemeStyles.FILE, """{ "extends": "child" }""");
+
+        var hotel = Hotel();
+
+        await hotel.Manager.LoadAllAsync(ct: Ct);
+
+        var child = await hotel.Styles.ListAsync("child", Path.Combine(_folder, "child"), Ct);
+        var color = child.Single(x => x.Property.Name == "catalog.color");
+
+        color.Property.Type.Should().Be(ThemeStyleType.Color);
+        color.Property.Group.Should().Be("Catalogue");
+        color.Value.Should().Be("#7a3fa0");
+        child.Last().Property.Name.Should().Be("shop.name");
+        (await hotel.Styles.ListAsync("grandchild", Path.Combine(_folder, "grandchild"), Ct))
+            .Select(x => x.Property.Name)
+            .Should()
+            .Equal(child.Select(x => x.Property.Name));
+
+        // The grandchild inherits the child's default with the rest.
+        hotel
+            .Loaded.OwnedPartsOf(ExternalVariablesFile.FRAME_OVERRIDES)
+            .Should()
+            .Equal(
+                ("child", """{"catalog":{"color":"#7a3fa0"}}"""),
+                ("grandchild", """{"catalog":{"color":"#7a3fa0"}}""")
+            );
+        JsonDocument
+            .Parse(hotel.Loaded.OwnedPartsOf(ExternalVariablesFile.ASSET_OVERLAYS)[0].Part)
+            .RootElement.EnumerateObject()
+            .Should()
+            .ContainSingle()
+            .Which.Name.Should()
+            .Be("habbo-window-manager-com/theme-habbo-border-9-border-9-default");
+
+        WriteFile("child", ThemeStyles.FILE, """{ "extends": "grandchild" }""");
+        var circle = () => hotel.Styles.ListAsync("child", Path.Combine(_folder, "child"), Ct);
+        await circle.Should().ThrowAsync<ArgumentException>().WithMessage("*circle*");
+    }
+
+    /// <summary>
+    /// The Theme tab's Images: an upload is kept in the plugin's <c>wwwroot/styles/</c>, listed with
+    /// the path a patch names and the address a variable names; content that is not the image its
+    /// name says is refused.
+    /// </summary>
+    [Fact]
+    public async Task An_image_uploaded_for_a_plugin_is_listed_with_its_path_and_address()
+    {
+        var hotel = Hotel();
+
+        (await hotel.HotelPlugin.ImagesAsync(IHotelDataPlugin.KEY, Ct))!.Value.Should().BeEmpty();
+
+        var saved = await hotel.HotelPlugin.SaveImageAsync(
+            IHotelDataPlugin.KEY,
+            "catalog-frame.png",
+            new MemoryStream([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0]),
+            Ct
+        );
+
+        saved.Path.Should().Be("styles/catalog-frame.png");
+        saved.Url.Should().StartWith("/gamedata/plugins/hotel/styles/catalog-frame.png?v=");
+        (await hotel.HotelPlugin.ImagesAsync(IHotelDataPlugin.KEY, Ct))!
+            .Value.Should()
+            .ContainSingle()
+            .Which.Path.Should()
+            .Be("styles/catalog-frame.png");
+
+        var notPng = () =>
+            hotel.HotelPlugin.SaveImageAsync(
+                IHotelDataPlugin.KEY,
+                "x.png",
+                new MemoryStream("<svg/>"u8.ToArray()),
+                Ct
+            );
+        await notPng.Should().ThrowAsync<ArgumentException>().WithMessage("*not a PNG*");
+        var outside = () =>
+            hotel.HotelPlugin.SaveImageAsync(
+                IHotelDataPlugin.KEY,
+                "x.svg",
+                new MemoryStream([1]),
+                Ct
+            );
+        await outside.Should().ThrowAsync<ArgumentException>();
+
+        (await hotel.HotelPlugin.RemoveImageAsync(IHotelDataPlugin.KEY, "../manifest.json", Ct))
+            .Should()
+            .BeFalse();
+        (await hotel.HotelPlugin.RemoveImageAsync(IHotelDataPlugin.KEY, saved.Path, Ct))
+            .Should()
+            .BeTrue();
+        (await hotel.HotelPlugin.ImagesAsync(IHotelDataPlugin.KEY, Ct))!.Value.Should().BeEmpty();
+    }
+
+    /// <summary>Make a plugin of the hotel's own: its base theme changes become a theme.json that extends it.</summary>
+    [Fact]
+    public async Task The_hotel_s_base_theme_changes_are_packaged_as_a_theme_that_extends_it()
+    {
+        var hotel = Hotel();
+        var folder = hotel.HotelPlugin.FolderOf(IHotelDataPlugin.KEY)!;
+
+        await hotel.HotelPlugin.SavePatchAsync(
+            Patch("Hidden beta", """[ { "element": "beta_sign", "remove": true } ]"""),
+            Ct
+        );
+        await hotel.Styles.SetAsync(
+            IHotelDataPlugin.KEY,
+            folder,
+            "navigator.color",
+            "#3a6ea5",
+            STAFF,
+            Ct
+        );
+
+        var zip = await hotel.HotelPlugin.ExportAsync(
+            IHotelDataPlugin.KEY,
+            new PluginExportRequest("ourlook", "Our look", "1.0.0", null),
+            Ct
+        );
+
+        using var archive = new ZipArchive(new MemoryStream(zip!));
+        var theme = JsonDocument.Parse(archive.GetEntry(ThemeStyles.FILE)!.Open()).RootElement;
+
+        theme.GetProperty("extends").GetString().Should().Be("habbo");
+        theme
+            .GetProperty("styles")
+            .EnumerateObject()
+            .Should()
+            .ContainSingle()
+            .Which.Value.EnumerateObject()
+            .Select(x => (x.Name, x.Value.GetString()))
+            .Should()
+            .Equal(("default", "#3a6ea5"));
+    }
+
+    private void WriteFile(string key, string name, string content)
+    {
+        var folder = Path.Combine(_folder, key);
+
+        Directory.CreateDirectory(Path.Combine(folder, "wwwroot"));
+        File.WriteAllText(
+            Path.Combine(folder, "manifest.json"),
+            $$"""{ "Name": "{{key}}", "Key": "{{key}}", "Version": "1.0.0", "Author": "a" }"""
+        );
+        File.WriteAllText(Path.Combine(folder, name), content);
+    }
+
     [Fact]
     public async Task A_plugin_s_phrases_list_with_its_default_beside_staff_s_change()
     {
@@ -624,24 +871,24 @@ public sealed class DataPluginTests : IDisposable
             new TestOptionsMonitor<GamedataConfig>(new GamedataConfig()),
             NullLogger<ClientModuleRegistry>.Instance
         );
-        var styles = new PluginStyleService(variables);
+        HotelDataPlugin? hotelPlugin = null;
         var host = new ServiceCollection()
             .AddSingleton<IClientModuleDirectory>(registry)
-            .AddSingleton<IPluginStyles>(styles)
+            .AddSingleton<IPluginStyles>(sp => new PluginStyleService(variables, sp))
+            .AddSingleton<IHotelDataPlugin>(_ => hotelPlugin!)
             .AddSingleton<Turbo.Primitives.Networking.Extensions.IExtensionPacketRegistry>(
                 new Turbo.Networking.Extensions.ExtensionPacketRegistry()
             )
-            .AddSingleton<IPluginGamedataSeeds>(
-                new PluginGamedataSeeds(
-                    _db,
-                    variables,
-                    texts,
-                    files,
-                    loaded,
-                    registry,
-                    NullLogger<PluginGamedataSeeds>.Instance
-                )
-            )
+            .AddSingleton<IPluginGamedataSeeds>(sp => new PluginGamedataSeeds(
+                _db,
+                variables,
+                texts,
+                files,
+                loaded,
+                registry,
+                NullLogger<PluginGamedataSeeds>.Instance,
+                sp
+            ))
             .BuildServiceProvider();
         var manager = new PluginManager(
             host,
@@ -650,14 +897,16 @@ public sealed class DataPluginTests : IDisposable
             NullLogger<PluginManager>.Instance
         );
 
+        hotelPlugin = new HotelDataPlugin(manager, host);
+
         return new HotelUnderTest(
             manager,
             loaded,
             registry,
             variables,
             texts,
-            styles,
-            new HotelDataPlugin(manager, host)
+            host.GetRequiredService<IPluginStyles>(),
+            hotelPlugin
         );
     }
 }

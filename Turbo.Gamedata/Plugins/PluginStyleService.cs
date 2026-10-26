@@ -5,7 +5,9 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Turbo.Gamedata.Variables;
+using Turbo.Primitives.ClientModules;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Plugins;
@@ -13,10 +15,15 @@ using Turbo.Primitives.Plugins;
 namespace Turbo.Gamedata.Plugins;
 
 /// <summary>
-/// <see cref="IPluginStyles"/> over the hotel's own entries of <c>templates.styles</c> and
-/// <c>asset.overlays</c>, written through the variables service as the panel's edits are.
+/// <see cref="IPluginStyles"/> over the hotel's own entries of <c>templates.styles</c> and of the
+/// variables a style also goes to (<see cref="ThemeStyles.TargetsOf"/>: <c>asset.overlays</c>,
+/// <c>frame.overrides</c>, ...), written through the variables service as the panel's edits are. The
+/// theme a style file extends is found among the server's plugins (<see cref="IHotelDataPlugin"/>).
 /// </summary>
-internal sealed class PluginStyleService(IGamedataVariableService variables) : IPluginStyles
+internal sealed class PluginStyleService(
+    IGamedataVariableService variables,
+    IServiceProvider? host = null
+) : IPluginStyles
 {
     public async Task<ImmutableArray<PluginStyle>> ListAsync(
         string pluginKey,
@@ -24,7 +31,7 @@ internal sealed class PluginStyleService(IGamedataVariableService variables) : I
         CancellationToken ct
     )
     {
-        var properties = ThemeStyles.Read(folder);
+        var properties = Read(pluginKey, folder);
 
         if (properties.IsEmpty)
             return [];
@@ -45,10 +52,14 @@ internal sealed class PluginStyleService(IGamedataVariableService variables) : I
     )
     {
         var property =
-            Find(folder, name)
+            Find(pluginKey, folder, name)
             ?? throw new ArgumentException($"The theme has no style {name}.", nameof(name));
-        // A path in the plugin's wwwroot is the theme's own file; staff give urls (an upload's address).
-        var client = ThemeStyles.ClientValue(property, value.Trim(), _ => null);
+        // A path is one of the plugin's served files (an image on its Theme tab), at its address by hash.
+        var client = ThemeStyles.ClientValue(
+            property,
+            value.Trim(),
+            path => host?.GetService<IClientModuleDirectory>()?.AddressOf(pluginKey, path)
+        );
 
         var styles = await HotelAsync(ExternalVariablesFile.TEMPLATE_STYLES, ct)
             .ConfigureAwait(false);
@@ -57,14 +68,12 @@ internal sealed class PluginStyleService(IGamedataVariableService variables) : I
         await SaveAsync(ExternalVariablesFile.TEMPLATE_STYLES, styles, actor, ct)
             .ConfigureAwait(false);
 
-        if (property is { Type: ThemeStyleType.Image, Overlay: { } asset })
+        foreach (var target in ThemeStyles.TargetsOf(property))
         {
-            var overlays = await HotelAsync(ExternalVariablesFile.ASSET_OVERLAYS, ct)
-                .ConfigureAwait(false);
+            var entries = await HotelAsync(target[0], ct).ConfigureAwait(false);
 
-            overlays[asset] = client.DeepClone();
-            await SaveAsync(ExternalVariablesFile.ASSET_OVERLAYS, overlays, actor, ct)
-                .ConfigureAwait(false);
+            ThemeStyles.SetPath(entries, target, ThemeStyles.TargetValue(property, client));
+            await SaveAsync(target[0], entries, actor, ct).ConfigureAwait(false);
         }
 
         return Of(pluginKey, property, styles);
@@ -78,7 +87,7 @@ internal sealed class PluginStyleService(IGamedataVariableService variables) : I
         CancellationToken ct
     )
     {
-        if (Find(folder, name) is not { } property)
+        if (Find(pluginKey, folder, name) is not { } property)
             return null;
 
         var styles = await HotelAsync(ExternalVariablesFile.TEMPLATE_STYLES, ct)
@@ -88,21 +97,26 @@ internal sealed class PluginStyleService(IGamedataVariableService variables) : I
             await SaveAsync(ExternalVariablesFile.TEMPLATE_STYLES, styles, actor, ct)
                 .ConfigureAwait(false);
 
-        if (property is { Type: ThemeStyleType.Image, Overlay: { } asset })
+        foreach (var target in ThemeStyles.TargetsOf(property))
         {
-            var overlays = await HotelAsync(ExternalVariablesFile.ASSET_OVERLAYS, ct)
-                .ConfigureAwait(false);
+            var entries = await HotelAsync(target[0], ct).ConfigureAwait(false);
 
-            if (overlays.Remove(asset))
-                await SaveAsync(ExternalVariablesFile.ASSET_OVERLAYS, overlays, actor, ct)
-                    .ConfigureAwait(false);
+            if (ThemeStyles.RemovePath(entries, target))
+                await SaveAsync(target[0], entries, actor, ct).ConfigureAwait(false);
         }
 
         return Of(pluginKey, property, styles);
     }
 
-    private static ThemeStyleProperty? Find(string folder, string name) =>
-        ThemeStyles.Read(folder).FirstOrDefault(x => x.Name == name);
+    private ImmutableArray<ThemeStyleProperty> Read(string pluginKey, string folder) =>
+        ThemeStyles.Read(
+            pluginKey,
+            folder,
+            key => host?.GetService<IHotelDataPlugin>()?.FolderOf(key)
+        );
+
+    private ThemeStyleProperty? Find(string pluginKey, string folder, string name) =>
+        Read(pluginKey, folder).FirstOrDefault(x => x.Name == name);
 
     private static PluginStyle Of(
         string pluginKey,
