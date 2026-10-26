@@ -19,12 +19,19 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
     public const string ROOM_ENTRY = "room-entry";
     public const string PLACEMENT = "placement";
     public const string REGISTRATION = "registration";
+    public const string AVATAR_EFFECT = "avatar-effect";
+    public const string PURCHASE_FULFILMENT = "purchase-fulfilment";
 
     /// <summary>No policies: the hotel decides as it always does.</summary>
     public static GamePolicies None => new(NullLogger<GamePolicies>.Instance);
 
     private readonly Lock _gate = new();
     private ImmutableArray<Entry> _entries = [];
+
+    // The avatar effect policies alone, kept apart since the room asks them on its turn; those
+    // that decide what is shown (their own Show) apart again, as the room asks them per viewer.
+    private ImmutableArray<Entry> _effects = [];
+    private ImmutableArray<Entry> _shows = [];
     private long _sequence;
 
     public ImmutableArray<RegisteredPolicy> Registered
@@ -211,8 +218,68 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
         return RegistrationDecision.Allow;
     }
 
+    public bool ShowsAvatarEffects => _shows.Length > 0;
+
+    public int DecideAvatarEffect(AvatarEffectRequest request)
+    {
+        var effectId = request.EffectId;
+
+        foreach (var entry in _effects)
+        {
+            try
+            {
+                effectId = Math.Max(0, ((IAvatarEffectPolicy)entry.Policy).Wear(request, effectId));
+            }
+            catch (Exception ex)
+            {
+                LogEffectFailure(ex, entry, request.RoomId.Value);
+            }
+        }
+
+        return effectId;
+    }
+
+    public int ShowAvatarEffect(AvatarEffectView view)
+    {
+        var effectId = view.EffectId;
+
+        foreach (var entry in _shows)
+        {
+            try
+            {
+                effectId = Math.Max(0, ((IAvatarEffectPolicy)entry.Policy).Show(view, effectId));
+            }
+            catch (Exception ex)
+            {
+                LogEffectFailure(ex, entry, view.RoomId.Value);
+            }
+        }
+
+        return effectId;
+    }
+
+    public IPurchaseFulfilment? FulfilmentFor(PurchaseRequest request)
+    {
+        foreach (var entry in Of(PURCHASE_FULFILMENT))
+        {
+            var fulfilment = (IPurchaseFulfilment)entry.Policy;
+
+            try
+            {
+                if (fulfilment.Fulfils(request))
+                    return fulfilment;
+            }
+            catch (Exception ex)
+            {
+                LogFailure(ex, entry, request.PlayerId.Value);
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>
-    /// Adds <paramref name="owner"/>'s policies (any of the four kinds); disposing the result
+    /// Adds <paramref name="owner"/>'s policies (any of the kinds); disposing the result
     /// takes them away. A kind another owner already has a policy of is logged as a conflict.
     /// </summary>
     public IDisposable Register(string owner, params object[] policies)
@@ -245,6 +312,8 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
                     .ThenBy(x => x.Sequence),
             ];
             all = _entries;
+            _effects = [.. _entries.Where(x => x.Kind == AVATAR_EFFECT)];
+            _shows = [.. _effects.Where(x => DecidesShown(x.Policy))];
         }
 
         foreach (var kind in added.Select(x => x.Kind).Distinct())
@@ -280,6 +349,8 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
                 (policy is IRoomEntryPolicy, ROOM_ENTRY),
                 (policy is IPlacementPolicy, PLACEMENT),
                 (policy is IRegistrationPolicy, REGISTRATION),
+                (policy is IAvatarEffectPolicy, AVATAR_EFFECT),
+                (policy is IPurchaseFulfilment, PURCHASE_FULFILMENT),
             }
                 .Where(x => x.Is)
                 .Select(x => x.Kind),
@@ -291,6 +362,8 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
             PURCHASE => ((IPurchasePolicy)policy).Order,
             ROOM_ENTRY => ((IRoomEntryPolicy)policy).Order,
             REGISTRATION => ((IRegistrationPolicy)policy).Order,
+            AVATAR_EFFECT => ((IAvatarEffectPolicy)policy).Order,
+            PURCHASE_FULFILMENT => ((IPurchaseFulfilment)policy).Order,
             _ => ((IPlacementPolicy)policy).Order,
         };
 
@@ -302,6 +375,28 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
             entry.Policy.GetType().Name,
             entry.Owner,
             playerId
+        );
+
+    /// <summary>Whether the policy has its own <see cref="IAvatarEffectPolicy.Show"/>, not the interface's, which shows what is worn.</summary>
+    private static bool DecidesShown(object policy)
+    {
+        var map = policy.GetType().GetInterfaceMap(typeof(IAvatarEffectPolicy));
+        var show = Array.IndexOf(
+            map.InterfaceMethods,
+            typeof(IAvatarEffectPolicy).GetMethod(nameof(IAvatarEffectPolicy.Show))
+        );
+
+        return map.TargetMethods[show].DeclaringType != typeof(IAvatarEffectPolicy);
+    }
+
+    private void LogEffectFailure(Exception ex, Entry entry, int roomId) =>
+        logger.LogError(
+            ex,
+            "The {Kind} policy {Policy} of {Owner} failed in room {RoomId}; it is passed over",
+            entry.Kind,
+            entry.Policy.GetType().Name,
+            entry.Owner,
+            roomId
         );
 
     private void LogRefusal(Entry entry, int playerId, string? reason) =>
@@ -321,7 +416,11 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
         public void Dispose()
         {
             lock (owner._gate)
+            {
                 owner._entries = [.. owner._entries.Where(x => !entries.Contains(x))];
+                owner._effects = [.. owner._effects.Where(x => !entries.Contains(x))];
+                owner._shows = [.. owner._shows.Where(x => !entries.Contains(x))];
+            }
         }
     }
 }

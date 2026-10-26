@@ -94,7 +94,7 @@ guide to read (turbo-cloud `docs/`).
 | `npm run make patch habbo-friend-list-com/friend_list_xml` | an entry in `wwwroot/template-patches.json` to fill with ops | the client, as the plugin loads |
 | `npm run make migration AddPrizes` | `server/Database/SkillsDb.cs` (once; its `TablePrefix` in `manifest.json`) and the migration, by `dotnet ef migrations add` | the host, which migrates the tables as the plugin loads |
 | `npm run make schedule weekly-rotation --cron "0 18 * * MON"` | `server/Tasks/WeeklyRotation.cs`: a scheduled task (`--every 00:05:00` for an interval) | the scheduled task scan |
-| `npm run make policy purchase club-discount` | `server/Policies/ClubDiscountPolicy.cs`: allows, refuses or changes a purchase (`room-entry`, `placement` for the others) | the game policy scan |
+| `npm run make policy purchase club-discount` | `server/Policies/ClubDiscountPolicy.cs`: allows, refuses or changes a purchase (`room-entry`, `placement`, `registration`, `avatar-effect`, `purchase-fulfilment` for the others) | the game policy scan |
 
 `make migration` needs `dotnet ef` once per machine (`dotnet tool install --global dotnet-ef`) and
 a built server (`TurboBin`): the context needs no design-time factory. The first run writes the
@@ -212,6 +212,10 @@ public sealed class ClubDiscountPolicy(IHotel hotel) : IPurchasePolicy
             : proposed;
 }
 ```
+
+Two kinds do more than decide: an `IAvatarEffectPolicy` chooses the effect an avatar wears and the
+one each player is shown on it (a command that turns effects off), and an `IPurchaseFulfilment`
+hands over an offer or room ad in the hotel's place, once the hotel has taken its price.
 
 What happened afterwards is an event: an `IEventHandler<PurchaseCompletedEvent>` (or
 `PlayerLoggedInEvent`, `PlayerRegisteredEvent`, `RoomEnteredEvent`) hears it once it is done, never

@@ -230,6 +230,9 @@ public sealed class RoomHarness
                 f.SetValue(Room, NullLogger.Instance);
             else if (t.Name.EndsWith("Config", StringComparison.Ordinal) && t.IsClass)
                 f.SetValue(Room, Activator.CreateInstance(t));
+            // No game policies: avatars wear and show what the hotel puts on them.
+            else if (t == typeof(Turbo.Primitives.Policies.IGamePolicies))
+                f.SetValue(Room, Turbo.Players.Policies.GamePolicies.None);
             else if (t.IsInterface && !t.IsGenericType && !t.Name.StartsWith("IAsyncStream"))
                 f.SetValue(Room, Fakes.Create(t));
             else if (t.IsInterface && t.IsGenericType && t.Name.StartsWith("IDbContextFactory"))

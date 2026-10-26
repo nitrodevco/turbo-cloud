@@ -35,6 +35,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Onboarding;
 using Turbo.Primitives.Players.Providers;
+using Turbo.Primitives.Policies;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
@@ -94,6 +95,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
     internal readonly IOperatorCommandRunner _operatorCommandRunner;
     internal readonly IPlayerNoticeService _playerNoticeService;
     internal readonly IPlayerTradePolicy _tradePolicy;
+    internal readonly IGamePolicies _policies;
     internal readonly IRoomEventListenerRegistry _eventListeners;
     internal readonly EventSystem _eventSystem;
     internal readonly ILogger<IRoomGrain> _logger;
@@ -186,6 +188,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
         IOperatorCommandRunner operatorCommandRunner,
         IPlayerNoticeService playerNoticeService,
         IPlayerTradePolicy tradePolicy,
+        IGamePolicies policies,
         IRoomEventListenerRegistry eventListeners,
         EventSystem eventSystem,
         IAchievementFactRecorder achievementFacts,
@@ -223,6 +226,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
         _operatorCommandRunner = operatorCommandRunner;
         _playerNoticeService = playerNoticeService;
         _tradePolicy = tradePolicy;
+        _policies = policies;
         _eventListeners = eventListeners;
         _eventSystem = eventSystem;
         _logger = logger;

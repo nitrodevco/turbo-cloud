@@ -230,15 +230,23 @@ public sealed partial class RoomGrain
                     DanceType = x.DanceType,
                 })
         );
+        // As the arriving player is shown each (IAvatarEffectPolicy.Show).
         tail.AddRange(
             others
                 .Where(x => x.EffectId > 0)
                 .Select(x => new AvatarEffectMessageComposer
                 {
                     ObjectId = x.ObjectId,
-                    EffectId = x.EffectId,
+                    EffectId = AvatarModule.ShownTo(
+                        playerId,
+                        x.ObjectId,
+                        x.AvatarType,
+                        x.AvatarType == RoomObjectType.Player ? x.WebId : null,
+                        x.EffectId
+                    ),
                     DelayMilliseconds = 0,
                 })
+                .Where(x => x.EffectId > 0)
         );
         tail.AddRange(
             others
