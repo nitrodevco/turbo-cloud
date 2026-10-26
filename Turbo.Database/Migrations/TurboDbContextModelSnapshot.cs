@@ -6371,6 +6371,48 @@ namespace Turbo.Database.Migrations
                     b.ToTable("player_figure_sets");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerHcPaydayEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("CreditsMissed")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("credits_missed");
+
+                    b.Property<int>("CreditsSpent")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("credits_spent");
+
+                    b.Property<DateOnly>("Payday")
+                        .HasColumnType("date")
+                        .HasColumnName("payday");
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerEntityId")
+                        .IsUnique();
+
+                    b.ToTable("player_hc_paydays");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerIncomeRewardEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -10469,6 +10511,17 @@ namespace Turbo.Database.Migrations
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerFigureSetEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PlayerEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerHcPaydayEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
                         .WithMany()

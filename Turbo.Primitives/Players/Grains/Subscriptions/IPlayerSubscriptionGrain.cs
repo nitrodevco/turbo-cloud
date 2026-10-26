@@ -48,4 +48,13 @@ public interface IPlayerSubscriptionGrain : IGrainWithIntegerKey
 
     /// <summary>Sends the Habbo Club membership detail the club centre and purse read.</summary>
     public Task SendClubInfoAsync(ScrUserInfoResponseType responseType, CancellationToken ct);
+
+    /// <summary>The player's coming HC Payday, as the club centre shows it.</summary>
+    public Task<HcPaydaySnapshot> GetHcPaydayAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Counts catalogue credits the player spent towards the coming HC Payday: as spent while they
+    /// are in Habbo Club, as missed while they are not.
+    /// </summary>
+    public Task RecordCatalogSpendAsync(int credits, CancellationToken ct);
 }
