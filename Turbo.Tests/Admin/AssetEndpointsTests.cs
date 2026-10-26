@@ -188,7 +188,8 @@ public sealed class AssetEndpointsTests : IAsyncDisposable
                 "catalog-icon",
                 "badge",
                 "catalog-image",
-                "sound"
+                "sound",
+                "library-image"
             );
 
         (await SendAsync(HttpMethod.Delete, "/api/assets/bundles/furniture/lamp"))
