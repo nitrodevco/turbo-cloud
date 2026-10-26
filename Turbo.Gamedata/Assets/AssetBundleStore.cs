@@ -43,6 +43,7 @@ internal sealed partial class AssetBundleStore(
             AssetBundleKind.Badge => "images/badges",
             AssetBundleKind.CatalogImage => "images/catalog",
             AssetBundleKind.Sound => "sounds",
+            AssetBundleKind.LibraryImage => "c_images",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
 
@@ -54,7 +55,7 @@ internal sealed partial class AssetBundleStore(
 
     public string FullPathOf(AssetBundleKind kind, string name)
     {
-        if (!IsValidName(name))
+        if (!IsValidName(kind, name))
             throw new ArgumentException($"\"{name}\" can't be a bundle's name.", nameof(name));
 
         return Path.Combine(Root, PathOf(kind, name));
@@ -64,6 +65,12 @@ internal sealed partial class AssetBundleStore(
         name.Length is > 0 and <= Database.Entities.Assets.AssetBundleEntity.NAME_MAX_LENGTH
         && NamePattern().IsMatch(name)
         && name is not "." and not "..";
+
+    public bool IsValidName(AssetBundleKind kind, string name) =>
+        kind == AssetBundleKind.LibraryImage
+            ? name.Length <= Database.Entities.Assets.AssetBundleEntity.NAME_MAX_LENGTH
+                && name.Split('/').All(IsValidName)
+            : IsValidName(name);
 
     public async Task<string> WriteAsync(
         AssetBundleKind kind,
@@ -113,9 +120,20 @@ internal sealed partial class AssetBundleStore(
         if (!Directory.Exists(folder))
             return names;
 
-        foreach (var path in Directory.EnumerateFiles(folder))
+        // The image library's pictures are in folders of their own under it, named with them.
+        var nested = kind == AssetBundleKind.LibraryImage;
+
+        foreach (
+            var path in Directory.EnumerateFiles(
+                folder,
+                "*",
+                nested ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly
+            )
+        )
         {
-            var file = Path.GetFileName(path);
+            var file = nested
+                ? Path.GetRelativePath(folder, path).Replace(Path.DirectorySeparatorChar, '/')
+                : Path.GetFileName(path);
 
             if (extension.Length == 0)
                 names.Add(file);

@@ -120,6 +120,7 @@ internal sealed class AdminApiServer(
         ActivatorUtilities.CreateInstance<ClientTelemetryEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<CatalogEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<CatalogImageEndpoints>(services).Map(secured);
+        ActivatorUtilities.CreateInstance<MediaEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<GamedataEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<AssetEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<AssetPublishEndpoints>(services).Map(secured);

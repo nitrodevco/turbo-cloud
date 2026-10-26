@@ -1447,6 +1447,13 @@ chat library is taken at the end of each asset sync on its own (see `docs/asset-
 The preview pieces (`src/preview`: text, bubbles, avatars, images, the stage) are the panel's own,
 for other previews to draw with too.
 
+## Media library
+
+Gamedata > Media library finds any image the hotel can show (the image library, catalog pictures and
+icons, badges, furniture icons, the client's own images, plugins' images), shows what a field stores
+for it and where it is shown, and takes uploads into the image library for the next publish. See
+[media-library.md](media-library.md).
+
 ## Hotel view
 
 The **Hotel view** page edits the reception players land in: its backgrounds and their timed sets,

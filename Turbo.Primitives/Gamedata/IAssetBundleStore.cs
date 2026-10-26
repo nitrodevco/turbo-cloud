@@ -27,6 +27,12 @@ public interface IAssetBundleStore
     /// <summary>Whether a name can be a bundle's: letters, digits, <c>_ - .</c>, and no path in it.</summary>
     bool IsValidName(string name);
 
+    /// <summary>
+    /// Whether a name can be one of the kind's: as <see cref="IsValidName(string)"/>, and for an
+    /// <see cref="AssetBundleKind.LibraryImage"/> such names joined by <c>/</c>, its folders.
+    /// </summary>
+    bool IsValidName(AssetBundleKind kind, string name);
+
     /// <summary>Writes a bundle's file whole, replacing any before it; returns its SHA-1 in lowercase hex.</summary>
     Task<string> WriteAsync(AssetBundleKind kind, string name, byte[] bundle, CancellationToken ct);
 

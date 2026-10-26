@@ -10,6 +10,7 @@ using Turbo.Admin.Configuration;
 using Turbo.Admin.Content;
 using Turbo.Admin.Links;
 using Turbo.Admin.Live;
+using Turbo.Admin.Media;
 using Turbo.Admin.Moderation;
 using Turbo.Admin.Notifications;
 using Turbo.Admin.Performance;
@@ -62,6 +63,7 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<AdminCatalogPageMerge>();
         services.AddSingleton<AdminCatalogAddFurni>();
         services.AddSingleton<AdminCatalogImages>();
+        services.AddSingleton<MediaLibrary>();
         services.AddSingleton<AdminRewardTracks>();
         services.AddSingleton<AdminBadgeQueries>();
         services.AddSingleton<AdminNavigatorEditor>();
