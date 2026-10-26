@@ -189,7 +189,7 @@ public sealed class DataPluginTests : IDisposable
             );
         await bad.Should()
             .ThrowAsync<ArgumentException>()
-            .WithMessage("*one of set, remove, insert, move, wrap or bind*");
+            .WithMessage("*one of set, remove, insert, move, wrap, bind or arrange*");
 
         var green = await patches.SavePatchAsync(
             Patch(
@@ -430,6 +430,47 @@ public sealed class DataPluginTests : IDisposable
             .Which.Message.Should()
             .Contain("puts a placeholder inside another (${text.tabicon.${item.index}})");
         (await patches.PatchesAsync(Ct)).Should().BeEmpty();
+    }
+
+    // A theme's post-layout hook as data (nitro-next templatePatchArrange.ts, templateArrangeProblems):
+    // the catalogue header a theme laid out in code, saved from the panel; a formula no client runs is
+    // refused with the client's own reason. The patch is the documentation's example (docs/template-patches.md).
+    [Fact]
+    public async Task A_staff_arrange_op_is_saved_and_a_formula_no_client_runs_is_refused()
+    {
+        var patches = Hotel().HotelPlugin;
+
+        var refused = () =>
+            patches.SavePatchAsync(
+                Patch(
+                    "Header",
+                    """
+                    [ { "element": "layoutContainer", "arrange": { "y": "clamp(${catalog.header.image.bottom}, 0)", "height": "436 - (${layoutContainer.y}", "top": 1 } } ]
+                    """
+                ),
+                Ct
+            );
+        (await refused.Should().ThrowAsync<ArgumentException>())
+            .Which.Message.Should()
+            .Contain("'clamp' is no function")
+            .And.Contain("')' was expected at the end")
+            .And.Contain("top, which it does not set");
+
+        await patches.SavePatchAsync(
+            Patch(
+                "Header",
+                """
+                [
+                  { "element": "catalog.header.image", "arrange": { "x": 26, "width": "${ctx.hasHeaderImage} ? 290 : 0", "height": "${ctx.hasHeaderImage} ? 75 : 0" } },
+                  { "element": "layoutContainer", "arrange": { "y": "!${ctx.hasHeaderImage} ? 0 : ${ctx.hasHeaderText} && !oneOf(${ctx.layoutCode}, 'pets', 'pets2', 'pets3', 'trophies') ? ${catalog.header.description.y} + ${catalog.header.description.textHeight} + 8 : ${catalog.header.image.y} + 83" } },
+                  { "element": "layoutContainer", "arrange": { "height": "436 - ${layoutContainer.y}" } }
+                ]
+                """
+            ),
+            Ct
+        );
+
+        (await patches.PatchesAsync(Ct)).Should().ContainSingle();
     }
 
     // The client wraps since r58 (nitro-next templatePatch.ts, `wrap`): the panel refused it as no op.

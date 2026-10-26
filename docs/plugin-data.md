@@ -134,7 +134,7 @@ links to it.
   is about), and an **outdated** line when its window or an element it names is gone from the
   client the hotel runs. The hotel's own patches: make one, edit its
   ops as JSON (checked as it is saved: an op names its `element` and does one of `set`, `remove`,
-  `insert`, `move`, `wrap`, `bind`), turn it off without losing it, or remove it. The client's alt-click inspector
+  `insert`, `move`, `wrap`, `bind`, `arrange`), turn it off without losing it, or remove it. The client's alt-click inspector
   ("copy patch") gives JSON that pastes straight in. A window's frame - its colour, style and where
   it first opens - is one patch on its root: `{ "element": "", "set": { "color": 4288688176,
   "position": { "x": 84, "y": 153 } } }`; a window the client draws without a template is named by
@@ -144,6 +144,11 @@ links to it.
   the client draws it, once (they do not nest: `${text.icon.${item.index}}` names no text); the check
   refuses an unknown field or placeholder and one inside another, and a relative `asset` is one
   of the hotel's own served files (nitro-next `docs/template-patches.md`, "A binding as data").
+  An `arrange` op moves and sizes an element once the window is laid out, as a module's
+  `api.templates.arrange` does: each of `x`, `y`, `width`, `height` a number or a formula over
+  `${<element>.<measure>}`, `${window.<measure>}` and `${ctx.<key>}` (`${catalog.header.image.y} + 83`,
+  `${ctx.hasHeaderImage} ? 290 : 0`); the check refuses an unknown field, function or measure and a broken
+  formula with the client's own sentence (nitro-next `docs/template-patches.md`, "An arrangement as data").
   **Test**, under the ops, shows the window's element tree with them applied before saving: what each
   op changes, and each one naming an element the window lacks (clients would report it unmatched).
 - **Appearance > Outdated patches**: every patch whose window or element is gone from the client's
