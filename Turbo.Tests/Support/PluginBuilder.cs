@@ -3,16 +3,14 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
 
 namespace Turbo.Tests.Support;
 
 /// <summary>
 /// A real plugin on disk, as the server finds one: <c>&lt;folder&gt;/&lt;key&gt;/manifest.json</c>
-/// and its assembly, compiled here from the source given (against every assembly the tests have
-/// loaded, so the host's contracts and the options extensions).
+/// and its assembly, compiled here from the source given (against every assembly the test host
+/// may load, so the host's contracts and everything a server plugin can use).
 /// </summary>
 internal static class PluginBuilder
 {
@@ -56,42 +54,22 @@ internal static class PluginBuilder
     }
 
     /// <summary>
-    /// What a plugin compiled in a test builds against: every assembly loaded, and the host's
-    /// contracts, its message handlers, the options extensions, plugin databases and furni logic,
-    /// which a test run alone may not have loaded yet. Their paths are taken at once: the list of
-    /// loaded assemblies also holds any plugin another test is unloading, and reading the
-    /// references takes long enough under load to keep that plugin's context from going.
+    /// What a plugin compiled in a test builds against: every assembly the test host may load
+    /// (the framework's, the server's and their packages), read once. Not the assemblies loaded
+    /// so far: a class run on its own had not loaded Microsoft.Extensions.Hosting.Abstractions,
+    /// so a plugin with a hosted service did not compile, and that list also holds any plugin
+    /// another test is unloading, whose context reading the references kept from going.
     /// </summary>
-    public static IEnumerable<MetadataReference> References()
-    {
-        Type[] host =
-        [
-            typeof(ITurboPlugin),
-            typeof(IServiceCollection),
-            typeof(IOptionsMonitor<>),
-            typeof(OptionsBuilderConfigurationExtensions),
-            typeof(Turbo.Primitives.Settings.SecretSettingAttribute),
-            typeof(Turbo.Messages.Registry.MessageContext),
-            typeof(Turbo.Pipeline.EnvelopeInvokerFactory<>),
-            typeof(Microsoft.Extensions.Configuration.BinderOptions),
-            typeof(Turbo.Database.Context.PluginDbContextBase<>),
-            typeof(Microsoft.EntityFrameworkCore.DbContext),
-            typeof(System.ComponentModel.DataAnnotations.Schema.TableAttribute),
-            typeof(Turbo.Rooms.Object.Logic.Furniture.Floor.FurnitureFloorLogic),
-        ];
+    public static IEnumerable<MetadataReference> References() => HostReferences.Value;
 
-        string[] paths =
+    private static readonly Lazy<MetadataReference[]> HostReferences = new(() =>
         [
-            .. AppDomain
-                .CurrentDomain.GetAssemblies()
-                .Concat(host.Select(x => x.Assembly))
-                .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location))
-                .Select(a => a.Location)
-                .Distinct(),
-        ];
-
-        return paths.Select(x => MetadataReference.CreateFromFile(x));
-    }
+            .. ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
+                .Split(Path.PathSeparator)
+                .Where(x => x.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                .Select(x => MetadataReference.CreateFromFile(x)),
+        ]
+    );
 
     /// <summary>The assembly <paramref name="source"/> compiles to, as a plugin's would.</summary>
     public static byte[] Compile(string name, string source) => Compile(name, [source]);

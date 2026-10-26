@@ -263,14 +263,10 @@ public sealed class AssetWriteGuardTests
         // Every assembly the test host may load (the framework's and the server's), not just the
         // ones loaded so far: run on its own this test had not loaded System.Linq.Queryable, so
         // Where bound to Enumerable and ExecuteDeleteAsync was missing.
-        var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
-            .Split(Path.PathSeparator)
-            .Where(x => x.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-            .Select(x => MetadataReference.CreateFromFile(x));
         var compilation = CSharpCompilation.Create(
             "Turbo.Planted",
             [CSharpSyntaxTree.ParseText(PLANTED)],
-            references,
+            PluginBuilder.References(),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
         );
 
