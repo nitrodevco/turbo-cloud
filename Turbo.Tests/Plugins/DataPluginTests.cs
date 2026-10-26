@@ -236,6 +236,47 @@ public sealed class DataPluginTests : IDisposable
         (await patches.PatchesAsync(Ct)).Should().ContainSingle();
     }
 
+    /// <summary>
+    /// One window address (nitro-next docs/template-patches.md): a root patch's position restyles the
+    /// window's frame, and a window drawn without a template is named by its frame id - both saved
+    /// from the panel; a position that is not two numbers is refused.
+    /// </summary>
+    [Fact]
+    public async Task Staff_patch_a_window_s_frame_by_its_root_position_and_a_frame_by_its_id()
+    {
+        var patches = Hotel().HotelPlugin;
+
+        await patches.SavePatchAsync(
+            Patch(
+                "Catalogue",
+                """[ { "element": "", "set": { "color": 4288688176, "position": { "x": 84, "y": 153 } } } ]"""
+            ) with
+            {
+                Template = "habbo-catalog-com/catalog_ubuntu_with_tabs",
+            },
+            Ct
+        );
+        await patches.SavePatchAsync(
+            Patch("Wired", """[ { "element": "", "set": { "color": 4282019493 } } ]""") with
+            {
+                Template = "wired-setup",
+            },
+            Ct
+        );
+
+        var bad = () =>
+            patches.SavePatchAsync(
+                Patch("Bad", """[ { "element": "", "set": { "position": [ 84, 153 ] } } ]"""),
+                Ct
+            );
+        await bad.Should().ThrowAsync<ArgumentException>().WithMessage("*first opens*");
+
+        (await patches.PatchesAsync(Ct))
+            .Select(x => x.Template)
+            .Should()
+            .Equal("habbo-catalog-com/catalog_ubuntu_with_tabs", "wired-setup");
+    }
+
     [Fact]
     public async Task A_theme_with_the_hotel_s_styles_is_packaged_as_a_data_plugin_that_installs_elsewhere()
     {

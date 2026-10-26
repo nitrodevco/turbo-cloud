@@ -12,8 +12,8 @@ namespace Turbo.Plugins;
 /// What players' clients report about the plugins' client halves (<see cref="IClientExtensionReports"/>),
 /// in memory: each distinct report per plugin, the players who sent it and when one last did. Bounded
 /// against a client sending anything: so many plugins, reports per plugin and players per report,
-/// each text cut to length. A module a client refused or that threw, and a patch that names an
-/// element its template lacks, is logged here too, naming what to change: the client's console is
+/// each text cut to length. A module a client refused or that threw, a patch that names an
+/// element its template lacks and one that changes nothing the window draws, is logged here too, naming what to change: the client's console is
 /// not where a hotel owner looks. Logged once per report and quarter hour, however many clients send it.
 /// </summary>
 internal sealed partial class ClientExtensionReports(
@@ -136,6 +136,15 @@ internal sealed partial class ClientExtensionReports(
                     "Plugin {Owner}'s template patch names an element {Template} does not have: fix the element key in its wwwroot/template-patches.json or api.templates.patch call (alt-click the element in the client's dev inspector for its key). Client said: {Message}",
                     owner,
                     key.Subject,
+                    message
+                );
+                break;
+            case ClientExtensionReportKinds.PATCH_INEFFECTIVE:
+                logger.LogWarning(
+                    "Plugin {Owner}'s template patch of {Template} sets {Field}, which the window's code sets too, so it changes nothing: bind the element with override: true instead, or use the window's own frame ('' color, style, position). Client said: {Message}",
+                    owner,
+                    key.Subject,
+                    key.Reason,
                     message
                 );
                 break;

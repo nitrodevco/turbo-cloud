@@ -121,6 +121,12 @@ public static class ClientExtensionReportKinds
     /// <summary>The ops an owner's patches applied to a template (the subject), as a count.</summary>
     public const string PATCH_APPLIED = "patch.applied";
 
+    /// <summary>
+    /// A patch op matched its element but changes nothing the window draws (the window's code sets
+    /// that field); the reason is <c>element.field</c>.
+    /// </summary>
+    public const string PATCH_INEFFECTIVE = "patch.ineffective";
+
     /// <summary>The reason a module was refused because of its origin: the hotel's setting names it.</summary>
     public const string HOST_NOT_ALLOWED = "host";
 
@@ -131,6 +137,7 @@ public static class ClientExtensionReportKinds
         PATCH_UNMATCHED,
         PATCH_CONFLICT,
         PATCH_APPLIED,
+        PATCH_INEFFECTIVE,
     ];
 }
 

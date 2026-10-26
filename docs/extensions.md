@@ -243,7 +243,7 @@ name one, the hotel's own entries over all, collisions logged):
 | --- | --- |
 | `asset.bundles.templates.overrides` | a whole library's bundle url, for what nothing finer expresses (new art sheets) |
 | `templates.patches` | a patch file's url per plugin - its `wwwroot/template-patches.json`, listed without it naming it |
-| `frame.overrides` | `{ "<frame id or window name>": { "variant", "color" } }`: the style of a window drawn without a template (the wired setup window) |
+| `frame.overrides` | `{ "<frame id or window name>": { "variant", "color", "position" } }`: a window's frame style, below every template patch. A patch restyles the same frame in one place: `color`, `style` and `position` on a window's root (`''`) go over what its code sets, and a window drawn without a template (the wired setup window) is named by its frame id as the patch's `template` (nitro-next `docs/template-patches.md`) |
 | `asset.overlays` | `{ "<library>/<asset>": "<url>" }`: one bitmap of a library - one frame's art in the theme sheet (`theme-...`), one icon. A plugin names a file of its `wwwroot/` by its path (`"frame.png"`); clients are given its address by hash, and one that is not there is logged and left out |
 | `loading.screen` | `{ "background", "backgroundImage", "layers", "logo", "bar", "order", ... }`: the loading screen's look, a key per part (nitro-next `docs/client-modules.md`); each key a theme leaves out is Habbo's own. A plugin names its pictures (`backgroundImage`, `logo`, each layer's `image`) by their path in its `wwwroot/`, as its overlays; one that is not there is logged and left out |
 

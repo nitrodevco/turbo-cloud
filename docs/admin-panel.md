@@ -1445,10 +1445,12 @@ a run now goes to the command log.
 **Installing a package** is off unless the server sets `Turbo:Plugin:UploadEnabled` to `true`,
 and needs `admin.plugins.install`, which no wildcard grants: a package is server code that runs
 with the hotel's own access. A package is a zip with `manifest.json` and the plugin's assembly at
-its root, or a zipped plugin folder (`dist/<key>` as a plugin's packaging script builds it). The
-manifest is checked first (it needs `Name`, `Key`, `Version` and `AssemblyFile`, its key only
-letters, digits, `.`, `_` and `-`, and the assembly it names), and nothing is written to the
-plugin folder unless it passes. It is installed into `<plugin folder>/<key>`, replacing that
+its root, or a zipped plugin folder (`dist/<key>` as a plugin's packaging script builds it). A
+**data plugin** (a theme, texts, template patches: `docs/plugin-data.md`) is the same zip with no
+assembly and no `AssemblyFile` in its manifest. The manifest is checked first (it needs `Name`,
+`Key` and `Version`, its key only letters, digits, `.`, `_` and `-`, and the assembly its
+`AssemblyFile` names, when it names one), and nothing is written to the plugin folder unless it
+passes. Without `admin.plugins.install` the page shows no upload control. It is installed into `<plugin folder>/<key>`, replacing that
 plugin's files if it is installed already, and loaded. `Turbo:Plugin:MaxUploadBytes` (16 MB)
 bounds the package, packed and unpacked. A plugin from `DevPluginPaths` can't be replaced this way.
 
