@@ -303,6 +303,10 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<Turbo.Admin.Content.AdminRewardTracks>();
         services.AddSingleton<Turbo.Admin.Content.AdminBadgeQueries>();
         services.AddSingleton<Turbo.Admin.Content.AdminNavigatorEditor>();
+        services.AddSingleton<
+            Turbo.Primitives.Navigator.IPublicRoomEditor,
+            Turbo.Navigator.PublicRoomEditor
+        >();
         services.AddSingleton<Turbo.Admin.Content.AdminGroupQueries>();
         services.AddSingleton<Turbo.Admin.Content.AdminPetEditor>();
         services.AddSingleton<Turbo.Admin.Content.AdminCurrencyEditor>();

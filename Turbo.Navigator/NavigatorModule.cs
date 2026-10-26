@@ -19,6 +19,7 @@ public sealed class NavigatorModule : IHostPluginModule
 
         services.AddSingleton<INavigatorService, NavigatorService>();
         services.AddSingleton<INavigatorProvider, NavigatorProvider>();
+        services.AddSingleton<IPublicRoomEditor, PublicRoomEditor>();
         services.AddSingleton<IStarterRoomDirectory, StarterRoomDirectory>();
         services.AddSingleton<INoobLobbyDirectory, NoobLobbyDirectory>();
         services.AddSingleton<IStarterRoomService, StarterRoomService>();

@@ -51,7 +51,15 @@ public interface INavigatorProvider
         CancellationToken ct
     );
     public Task<List<RoomInfoSnapshot>> GetHighestScoredRoomsAsync(int limit, CancellationToken ct);
+
+    /// <summary>The staff-picked rooms, newest pick first, doorbell and invisible ones included.</summary>
     public Task<List<RoomInfoSnapshot>> GetStaffPickedRoomsAsync(int limit, CancellationToken ct);
+
+    /// <summary>Every category of the Public tab, hidden ones too, in their order.</summary>
+    public Task<ImmutableArray<NavigatorPublicCategorySnapshot>> GetPublicCategoriesAsync(
+        CancellationToken ct
+    );
+
     public Task<List<RoomInfoSnapshot>> GetRoomsWithActiveEventsAsync(
         int? eventCategoryId,
         int limit,

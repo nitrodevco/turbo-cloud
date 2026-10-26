@@ -117,6 +117,9 @@ public static class PermissionNodes
     {
         public const string CATEGORY_STAFF = "navigator.category.staff";
         public const string STAFF_PICK = "navigator.staff_pick";
+
+        /// <summary>Edit the Public tab's categories and the rooms in them (admin panel).</summary>
+        public const string PUBLIC_MANAGE = "navigator.public.manage";
     }
 
     public static class Campaign

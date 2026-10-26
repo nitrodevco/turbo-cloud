@@ -236,6 +236,10 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<NavigatorEventCategoryEntity> NavigatorEventCategories { get; init; }
 
+    public DbSet<NavigatorPublicCategoryEntity> NavigatorPublicCategories { get; init; }
+
+    public DbSet<NavigatorPublicRoomEntity> NavigatorPublicRooms { get; init; }
+
     public DbSet<PlayerChatStyleEntity> PlayerChatStyles { get; init; }
     public DbSet<PlayerChatStyleOwnedEntity> PlayerOwnedChatStyles { get; init; }
     public DbSet<PlayerChatStyleBitmapEntity> PlayerChatStyleBitmaps { get; init; }

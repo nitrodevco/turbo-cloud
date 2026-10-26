@@ -1261,6 +1261,7 @@ passkey; they add more while signed in instead.
 | `settings.manage` | Changing settings on that page: overriding appsettings.json, replacing a secret, putting a setting back (see `docs/settings.md`). |
 | `admin.content.view` | The Content page: achievements, badges, the navigator's categories, groups, pets and bots. |
 | `content.manage` | Changing the content on that page: publishing achievements, pinning badges' rarity, giving or taking them (with `command.givebadge` or `command.takebadge` as well, as `:givebadge` and `:takebadge` need, each in the command log), and the rest of its tabs. |
+| `navigator.public.manage` | With `content.manage`: changing the navigator's Public tab (its categories and the rooms in them) on the Content page. |
 | `admin.plugins.view` | The Plugins page: each plugin's manifest, whether it loaded and why not, and the capabilities, packet headers and migrations it added. |
 | `admin.plugins.manage` | Reloading a plugin, scanning the plugin folders again, and turning a plugin off or on on that page. |
 | `admin.plugins.install` | With `admin.plugins.manage`: installing a plugin package on that page, when `Turbo:Plugin:UploadEnabled` is on. No wildcard grants it. |
@@ -1326,6 +1327,21 @@ The **Content** page is the game's content, each change made at once and on reco
   the navigator's categories and drops the listings kept under a renamed or removed category, so
   players see it the next time they open the navigator. A category rooms are in, or an event
   category events are in, can't be removed. Staff picks stay on each room's page.
+- **Public rooms** (`/api/content/navigator/public`): the navigator's Public tab. As on Habbo
+  (official client capture 2026-10-13 .. 10-18), the tab is a list of categories, each one block
+  (`official_<id>`) titled by its name, with its own "opens closed" and list or thumbnails, and
+  the rooms staff put in it in the order they set, doorbell and invisible rooms included. A room
+  can be in several categories, once in each; a category with no rooms is not sent. The staff
+  picks category (`kind` `staffpicks`) lists the rooms picked from the room info or the room's
+  page, newest pick first, titled "Staff Picks" by the client; a new hotel has it hidden, as
+  Habbo's tab has none. Routes: `GET`; `POST /categories`, `PUT /categories/{id}`,
+  `DELETE /categories/{id}`, `PUT /categories/order` (`ids`, every category once);
+  `POST /categories/{id}/rooms` (`roomId`, `first`), `PUT /categories/{id}/rooms/order`,
+  `POST /categories/{id}/rooms/{roomId}/move` (`toCategoryId`, `index`),
+  `DELETE /categories/{id}/rooms/{roomId}`. Changing needs `navigator.public.manage` as well as
+  `content.manage`; every change, refused ones too, is in the command log as `navigator public
+  ...`. Players see it with their next search (Habbo pushes none). Plugins edit the same data
+  through `IPublicRoomEditor`.
 - **Groups**: found by name, owner, group or room id. Staff rename a group (as typed, not
   word-filtered), put its badge back to the default, take any member, admin, request or block out,
   or delete it, whatever its size or `Turbo:Guilds:DeletionEnabled`. Each goes through the group's

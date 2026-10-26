@@ -292,16 +292,65 @@ public sealed class NavigatorProvider : INavigatorProvider, IDisposable
             ct
         );
 
+    /// <summary>
+    /// Newest pick first (inference: Habbo's "New" block puts its newest room first), with no
+    /// door filter: Habbo's Public tab lists doorbell and invisible rooms (official client capture
+    /// 2026-10-13 and 2026-10-18).
+    /// </summary>
     public Task<List<RoomInfoSnapshot>> GetStaffPickedRoomsAsync(int limit, CancellationToken ct) =>
         GetCachedListAsync(
             NavigatorListingKeys.STAFF_PICKS,
             limit,
             q =>
-                q.Where(x => x.StaffPick && x.DoorMode != RoomDoorModeType.Invisible)
-                    .OrderByDescending(x => x.Score)
-                    .ThenBy(x => x.Id),
+                q.Where(x => x.StaffPick)
+                    .OrderByDescending(x => x.StaffPickedAt)
+                    .ThenByDescending(x => x.Id),
             ct
         );
+
+    public Task<ImmutableArray<NavigatorPublicCategorySnapshot>> GetPublicCategoriesAsync(
+        CancellationToken ct
+    ) => GetOrLoadAsync(NavigatorListingKeys.PUBLIC, _resultTtl, LoadPublicCategoriesAsync, ct);
+
+    private async Task<ImmutableArray<NavigatorPublicCategorySnapshot>> LoadPublicCategoriesAsync(
+        CancellationToken ct
+    )
+    {
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var categories = await dbCtx
+            .NavigatorPublicCategories.AsNoTracking()
+            .OrderBy(x => x.OrderNum)
+            .ThenBy(x => x.Id)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        var rooms = (
+            await dbCtx
+                .NavigatorPublicRooms.AsNoTracking()
+                .OrderBy(x => x.OrderNum)
+                .ThenBy(x => x.Id)
+                .Select(x => new { x.CategoryEntityId, x.RoomEntityId })
+                .ToListAsync(ct)
+                .ConfigureAwait(false)
+        ).ToLookup(x => x.CategoryEntityId, x => RoomId.Parse(x.RoomEntityId));
+
+        return
+        [
+            .. categories.Select(x => new NavigatorPublicCategorySnapshot
+            {
+                Id = x.Id,
+                Name = x.Name,
+                OrderNum = x.OrderNum,
+                ForceClosed = x.ForceClosed,
+                ViewMode = x.ViewMode,
+                Visible = x.Visible,
+                Kind = x.Kind,
+                PluginKey = x.PluginKey,
+                RoomIds = [.. rooms[x.Id]],
+            }),
+        ];
+    }
 
     public Task<List<RoomInfoSnapshot>> GetRoomsWithActiveEventsAsync(
         int? eventCategoryId,

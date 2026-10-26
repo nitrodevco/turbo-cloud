@@ -88,6 +88,54 @@ public sealed record NavigatorEventCategoryRequest(string? Name, bool? Visible);
 
 public sealed record NavigatorContextRequest(string? SearchCode, bool? Visible, int? OrderNum);
 
+/// <summary>A room in a Public tab category: who owns it, and who put it there when.</summary>
+public sealed record NavigatorPublicRoomItem(
+    int RoomId,
+    string Name,
+    int OwnerId,
+    string OwnerName,
+    DateTime AddedAt,
+    int? AddedBy
+);
+
+/// <summary>
+/// A category of the navigator's Public tab with its rooms in their order. <c>kind</c> is
+/// <c>manual</c> (staff put rooms in it) or <c>staffpicks</c> (the staff-picked rooms, newest
+/// first); <c>viewMode</c> 0 is a list, 1 thumbnails; <c>pluginKey</c> names the plugin that made it.
+/// </summary>
+public sealed record NavigatorPublicCategoryItem(
+    int Id,
+    string Name,
+    int OrderNum,
+    bool ForceClosed,
+    int ViewMode,
+    bool Visible,
+    string Kind,
+    string? PluginKey,
+    string SearchCode,
+    List<NavigatorPublicRoomItem> Rooms
+);
+
+public sealed record NavigatorPublicResponse(List<NavigatorPublicCategoryItem> Categories);
+
+/// <summary>A Public tab category as staff write it; a field left out keeps what it was. <c>kind</c> only on a new one.</summary>
+public sealed record NavigatorPublicCategoryRequest(
+    string? Name,
+    bool? Visible,
+    bool? ForceClosed,
+    int? ViewMode,
+    string? Kind
+);
+
+/// <summary>Every category, or every room of a category, once, in the new order.</summary>
+public sealed record NavigatorPublicOrderRequest(List<int>? Ids);
+
+/// <summary>A room to put in a category, first (the default) or last.</summary>
+public sealed record NavigatorPublicRoomRequest(int? RoomId, bool? First);
+
+/// <summary>The category a room moves to, and where in it (0 = first, the default).</summary>
+public sealed record NavigatorPublicMoveRequest(int? ToCategoryId, int? Index);
+
 /// <summary>A group as staff find it: its owner, homeroom and how many members it has.</summary>
 public sealed record GroupItem(
     int Id,
