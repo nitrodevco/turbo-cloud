@@ -76,6 +76,17 @@ internal sealed class FtpPublishConnection : IPublishConnection
             throw new IOException($"The server did not put {path} in place.");
     }
 
+    public async Task DownloadAsync(string path, Stream destination, CancellationToken ct)
+    {
+        var target = RemotePaths.Join(_root, path);
+
+        if (!await _client.FileExists(target, ct).ConfigureAwait(false))
+            throw new FileNotFoundException($"The target holds no {path}.", path);
+
+        if (!await _client.DownloadStream(destination, target, token: ct).ConfigureAwait(false))
+            throw new IOException($"The server did not give {path}.");
+    }
+
     public async Task DeleteAsync(string path, CancellationToken ct)
     {
         var target = RemotePaths.Join(_root, path);

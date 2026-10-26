@@ -139,20 +139,21 @@ internal sealed class AssetPublishHotel : IDisposable
     public string TargetFileOf(string name) =>
         Path.Combine(TargetFolder, "bundled", "furniture", $"{name}.nitro");
 
-    /// <summary>Writes a furniture bundle to the store and saves its row, or replaces both.</summary>
+    /// <summary>Writes a bundle (a furniture's, unless said) to the store and saves its row, or replaces both.</summary>
     public async Task PutBundleAsync(
         string name,
         byte[] bundle,
         CancellationToken ct,
-        string? revision = null
+        string? revision = null,
+        AssetBundleKind kind = AssetBundleKind.Furniture
     )
     {
-        var hash = await Store.WriteAsync(AssetBundleKind.Furniture, name, bundle, ct);
+        var hash = await Store.WriteAsync(kind, name, bundle, ct);
 
         await using var dbCtx = await Db.CreateDbContextAsync(ct);
 
         var row = await dbCtx.AssetBundles.SingleOrDefaultAsync(
-            x => x.Kind == AssetBundleKind.Furniture && x.Name == name,
+            x => x.Kind == kind && x.Name == name,
             ct
         );
 
@@ -160,7 +161,7 @@ internal sealed class AssetPublishHotel : IDisposable
             dbCtx.AssetBundles.Add(
                 row = new AssetBundleEntity
                 {
-                    Kind = AssetBundleKind.Furniture,
+                    Kind = kind,
                     Name = name,
                     Source = AssetBundleSource.Habbo,
                 }

@@ -47,6 +47,28 @@ public interface IAssetPublishService
         CancellationToken ct
     );
 
+    /// <summary>
+    /// What changed in the files the target holds an older copy of: the copy it holds, read through
+    /// it (and kept, by its path and recorded hash, until it is sent again), against the hotel's.
+    /// <paramref name="path"/> compares that one file, a pending one or not; without it, every file
+    /// pending as changed, up to a limit. Null when there is no such target, or the hotel has no file
+    /// at <paramref name="path"/>.
+    /// </summary>
+    Task<AssetPublishComparisons?> CompareAsync(int targetId, string? path, CancellationToken ct);
+
+    /// <summary>
+    /// An image a comparison names, as the target holds it (<paramref name="fromTarget"/>) or as the
+    /// hotel does: the file at <paramref name="path"/>, or the <paramref name="entry"/> in that
+    /// bundle. Null when there is no such target, file or image.
+    /// </summary>
+    Task<byte[]?> ReadComparedImageAsync(
+        int targetId,
+        string path,
+        string? entry,
+        bool fromTarget,
+        CancellationToken ct
+    );
+
     /// <summary>Connects (within the configured time) and lists its folder; null when there is no such target.</summary>
     Task<AssetPublishTestResult?> TestAsync(int targetId, CancellationToken ct);
 
