@@ -475,6 +475,7 @@ group rooms' rights, the settings' limits). Buttons only appear for what you may
 | Unload (sends everyone out) | `command.unloadroom` | Yes |
 | Room alert (a pop-up for everyone inside, up to 500 characters) | `command.roomalert` | Yes |
 | **Give to another player** (by name) | `admin.rooms.transfer` | No |
+| Take a furniture item back to its owner's inventory (the **Furniture** tab) | Owning the room, or `room.furni.pickup_any` | No (the room loads its furniture to do it) |
 
 The settings are saved through the room itself, the same way the owner's settings dialog saves
 them: values are kept within the hotel's limits, the navigator is updated, and everyone inside
@@ -499,6 +500,13 @@ listings move with it. Other players' rights are kept. Two settings decide the r
 so; on: it stays the group's home room, whose rights are the group's). Furni, pets and bots in the
 room keep their owners. Every request, given or not, is in the [command log](#command-log) as
 `room owner <room id> <player id>`.
+
+A room's **Furniture** tab lists every item standing in it (`GET /api/rooms/<id>/furniture`, read
+from the database, so looking never loads the room): found by classname, name, owner or id, each
+opened to its owner, definition (linked to the library), server logic, position and data. Taking
+one out goes through the room grain (`StaffPickupItemAsync`) as a moderator picking it up in the
+room would: those inside see it go and it reaches its owner's inventory, the staff member named
+as the movement's actor.
 
 A room's **Visitors** tab links to every visit in the [Room visits](#room-visits) log. Deleting
 rooms isn't in the panel yet.
@@ -1348,7 +1356,12 @@ The **Content** page is the game's content, each change made at once and on reco
   grain (`StaffRenameAsync`, ...) as the owner's own change would, the staff member named in the
   log. Deleting needs `guild.delete_any`, the node that deletes any group in the game, rather than
   `content.manage`, and every delete, refused ones too, is in the command log as `group delete
-  <id>`. The deletion setting and the member cap are left out on purpose: in the client
+  <id>`. A group with a forum shows it (threads, messages, the last post) and who may read it, post,
+  start threads and moderate; the settings are saved through the forum (`PUT
+  /api/content/groups/<id>/forum`) under its settings window's own rules (posting allows no more
+  than reading, starting threads no more than posting, moderating starts at admins), which takes
+  `moderation.tool` as it does in the game. A group without one says its owner opens one by buying
+  a forum terminal. The deletion setting and the member cap are left out on purpose: in the client
   `group.deletion.enabled` hides the button from owners and staff alike, and the panel is where
   staff remove an abusive group whatever a hotel has set for its players. Below, the badge parts and colours group badges are built from: added under the next id of
   their kind (ids are written into badge codes, so they are never reused), their files or hex
@@ -1441,7 +1454,10 @@ The Plugins page lists every plugin the server found: in the plugin folder
 manifest, a missing dependency, its tables that could not be migrated, an exception as it
 started), **off** or **not loaded** yet, and what it added: the client capabilities it registered,
 the incoming and outgoing packet headers it handles (`docs/plugin-packets.md`) and the migrations
-applied to its tables. A folder whose `manifest.json` can't be read is listed as failed too.
+applied to its tables. A folder whose `manifest.json` can't be read is listed as failed too. A
+failed plugin is also at the top of the Overview, with why and what to do (one that names a type,
+method or assembly that is gone was built against another server: rebuild it against this one),
+for staff with `admin.plugins.view`.
 
 With `admin.plugins.manage`:
 

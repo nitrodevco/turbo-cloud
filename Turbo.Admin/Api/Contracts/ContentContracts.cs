@@ -6,6 +6,7 @@ using Turbo.Primitives.Achievements.Enums;
 using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Guilds.Enums;
+using Turbo.Primitives.Guilds.Forums.Enums;
 
 namespace Turbo.Admin.Api.Contracts;
 
@@ -171,7 +172,30 @@ public sealed record GroupDetailResponse(
     int RoomId,
     string RoomName,
     DateTime CreatedAt,
-    List<GroupMemberItem> Members
+    List<GroupMemberItem> Members,
+    GroupForumItem? Forum
+);
+
+/// <summary>
+/// A group's forum: who may read it, post in it, start threads and moderate it, and how busy it
+/// is. A group has one once its owner bought a forum terminal for it.
+/// </summary>
+public sealed record GroupForumItem(
+    GuildForumPermission ReadPermission,
+    GuildForumPermission PostMessagePermission,
+    GuildForumPermission PostThreadPermission,
+    GuildForumPermission ModeratePermission,
+    int ThreadCount,
+    int MessageCount,
+    DateTime? LastMessageAt
+);
+
+/// <summary>A forum's settings as staff set them, each a <c>GuildForumPermission</c>.</summary>
+public sealed record GroupForumRequest(
+    int ReadPermission,
+    int PostMessagePermission,
+    int PostThreadPermission,
+    int ModeratePermission
 );
 
 /// <summary>A group's new name and description, as staff typed them.</summary>

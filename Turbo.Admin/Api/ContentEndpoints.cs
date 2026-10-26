@@ -117,6 +117,7 @@ internal sealed partial class ContentEndpoints(
                     "Not renamed: a group needs a name."
                 )
         );
+        group.MapPut("/groups/{id:int}/forum", SaveForumAsync);
         group.MapPost(
             "/groups/{id:int}/reset-badge",
             (int id, HttpContext http, CancellationToken ct) =>
@@ -684,6 +685,65 @@ internal sealed partial class ContentEndpoints(
                 ? Results.NoContent()
                 : AdminResults.Error(StatusCodes.Status400BadRequest, refusal)
         );
+
+    /// <summary>
+    /// A group's forum settings, set as staff with the moderation tool set them in the forum's own
+    /// settings window: through the forum, which holds them to the same rules.
+    /// </summary>
+    private Task<IResult> SaveForumAsync(
+        int id,
+        GroupForumRequest request,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ContentAccess.ChangeAsync(async () =>
+        {
+            if (await groups.GetForumAsync(id, ct).ConfigureAwait(false) is null)
+                return AdminResults.Error(
+                    StatusCodes.Status404NotFound,
+                    "The group has no forum: its owner opens one by buying a forum terminal."
+                );
+
+            var staff = AdminIdentity.Of(http).PlayerId;
+
+            await grainFactory
+                .GetGuildForumGrain(new GuildId(id))
+                .UpdateSettingsAsync(
+                    staff,
+                    request.ReadPermission,
+                    request.PostMessagePermission,
+                    request.PostThreadPermission,
+                    request.ModeratePermission,
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            var forum = await groups.GetForumAsync(id, ct).ConfigureAwait(false);
+            var saved =
+                forum is not null
+                && (int)forum.ReadPermission == request.ReadPermission
+                && (int)forum.PostMessagePermission == request.PostMessagePermission
+                && (int)forum.PostThreadPermission == request.PostThreadPermission
+                && (int)forum.ModeratePermission == request.ModeratePermission;
+
+            if (!saved)
+                return AdminResults.Error(
+                    StatusCodes.Status400BadRequest,
+                    "Not saved: posting allows no more than reading, starting threads no more than posting, moderating starts at admins, and changing them needs the moderation tool."
+                );
+
+            logger.LogInformation(
+                "Admin panel: {Admin} set the forum of group {GroupId}: read {Read}, post {Post}, threads {Threads}, moderate {Moderate}",
+                AdminIdentity.Of(http).Name,
+                id,
+                forum!.ReadPermission,
+                forum.PostMessagePermission,
+                forum.PostThreadPermission,
+                forum.ModeratePermission
+            );
+
+            return Results.Ok(forum);
+        });
 
     private static IResult Saved(int id) => Results.Ok(new { id });
 
