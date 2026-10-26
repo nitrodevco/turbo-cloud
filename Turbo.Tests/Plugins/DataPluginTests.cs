@@ -479,7 +479,8 @@ public sealed class DataPluginTests : IDisposable
             .Should()
             .BeFalse();
 
-        // Another hotel installs it as it installs any package.
+        // Another hotel installs it as it installs any package, and it is data, so staff without
+        // admin.plugins.install may install it there.
         var other = Path.Combine(_folder, "other");
         var install = new PluginAdministration(
             new PluginManager(
@@ -496,7 +497,11 @@ public sealed class DataPluginTests : IDisposable
             NullLogger<PluginAdministration>.Instance
         );
 
-        var result = await install.InstallAsync(new MemoryStream(zip!), Ct);
+        var result = await install.InstallAsync(
+            new MemoryStream(zip!),
+            package => package.HasCode ? $"it has code: {package.CodeFile}" : null,
+            Ct
+        );
 
         result.Ok.Should().BeTrue(result.Message);
         result.Plugin!.State.Should().Be(PluginStateType.Loaded);

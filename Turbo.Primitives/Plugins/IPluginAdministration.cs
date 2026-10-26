@@ -57,9 +57,16 @@ public interface IPluginAdministration
     /// <summary>
     /// Installs a plugin package: a zip with <c>manifest.json</c> and the plugin's assembly at
     /// its root. The manifest is checked before anything on disk changes; an installed plugin
-    /// with the same key is replaced, and the plugin is loaded.
+    /// with the same key is replaced, and the plugin is loaded. <paramref name="refuse"/> is
+    /// shown what the package holds (<see cref="PluginPackage"/>), still before anything changes,
+    /// and gives the reason to refuse it, or null to go on: who may install which kind of
+    /// package is the caller's to decide.
     /// </summary>
-    public Task<PluginActionResult> InstallAsync(Stream package, CancellationToken ct);
+    public Task<PluginActionResult> InstallAsync(
+        Stream package,
+        Func<PluginPackage, string?> refuse,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// The earlier versions of the plugin kept to roll back to (<c>Turbo:Plugin:KeepVersions</c>),
@@ -68,12 +75,14 @@ public interface IPluginAdministration
     public ImmutableArray<string> VersionsOf(string key);
 
     /// <summary>
-    /// Installs a kept earlier version again, as a package is installed; the version it replaces
-    /// is kept in turn. Null when the plugin has no such version kept.
+    /// Installs a kept earlier version again, as a package is installed (<paramref name="refuse"/>
+    /// as for <see cref="InstallAsync"/>); the version it replaces is kept in turn. Null when the
+    /// plugin has no such version kept.
     /// </summary>
     public Task<PluginActionResult?> RollbackAsync(
         string key,
         string version,
+        Func<PluginPackage, string?> refuse,
         CancellationToken ct
     );
 
@@ -175,6 +184,27 @@ public sealed record PluginSnapshot(
     DateTime? LoadedAtUtc,
     ImmutableArray<RegisteredPolicy> Policies = default
 );
+
+/// <summary>
+/// What a package holds, as installing it sees it before anything on disk changes.
+/// <see cref="CodeFile"/> is what makes it code, null for a data plugin: the assembly its manifest
+/// names, or the first file that is not data (data is JSON, text, Markdown and PNG, GIF, JPEG or
+/// WebP images; a page or script a client could run is not). <see cref="ReplacesCode"/>: it replaces
+/// an installed plugin that has an assembly. <see cref="Gamedata"/>: it brings external texts or
+/// variables (its <c>gamedata/</c> folder).
+/// </summary>
+public sealed record PluginPackage(
+    string Key,
+    string Name,
+    string Version,
+    string? CodeFile,
+    bool ReplacesCode,
+    bool Gamedata
+)
+{
+    /// <summary>Server or client code goes in place, or comes out: neither is a data plugin's doing.</summary>
+    public bool HasCode => CodeFile is not null || ReplacesCode;
+}
 
 /// <summary>What an action did: whether it worked, what to tell the operator, and the plugin after it.</summary>
 public sealed record PluginActionResult(bool Ok, string Message, PluginSnapshot? Plugin);

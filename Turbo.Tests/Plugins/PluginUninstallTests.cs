@@ -126,7 +126,7 @@ public sealed class PluginUninstallTests : IDisposable
         _fakes.Log.Of("UnsetNodeAsync").Should().BeEmpty();
 
         await using (var package = new MemoryStream(Package("sample", "sample_")))
-            await _plugins.InstallAsync(package, Ct);
+            await _plugins.InstallAsync(package, _ => null, Ct);
 
         Directory.Exists(Path.Combine(_folder, "sample")).Should().BeTrue();
         (await _plugins.PlanUninstallAsync("sample", Ct))!

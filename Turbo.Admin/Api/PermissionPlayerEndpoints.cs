@@ -179,7 +179,7 @@ internal sealed class PermissionPlayerEndpoints(
         HttpContext http,
         int id,
         string group,
-        PermissionGroupChange change,
+        PermissionEditChange change,
         CancellationToken ct
     )
     {

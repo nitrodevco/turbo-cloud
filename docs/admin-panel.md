@@ -285,8 +285,9 @@ setup link ([The first admin](#4-the-first-admin)).
 
 ## Adding staff
 
-1. Give them access: `perm user <name> set admin.panel`, at the console or with an in-game
-   `:perm` command.
+1. Give them access: `perm user <name> set admin.panel` at the server console, or
+   `:perm user <name> set admin.panel` in the hotel or the panel's **Console** (yours to give when
+   you hold the node and outrank them; a superuser always).
 2. Make their setup link: under **Access**, on the **Staff passkeys** tab, enter their name. In the hotel, an admin
    can use `:adminsetup <name>` instead.
 3. Send them the link privately. It works **once**, for **24 hours**. Whoever opens it first
@@ -1204,8 +1205,9 @@ them in the panel. Anything the panel refuses, the console can still do.
 **Superuser.** A player who holds both `permissions.manage` and `permissions.superuser` is bound by
 none of the rows above: any group, any other player and any node. They are still audited. It is
 how a hotel with no console to hand (a hosted one) gives the top group to a second admin. No
-wildcard grants the node, not even `*`: it is given by naming it, from the console
-(`perm user <player> set permissions.superuser true`), by another superuser, or by naming the
+wildcard grants the node, not even `*`: it is given by naming it, from the server console
+(`perm user <player> set permissions.superuser true`), by another superuser (on their page under
+Access, or `:perm user <player> set permissions.superuser` in the panel's Console), or by naming the
 hotel's owner (see the first admin, above). A group that gives it, directly or through a parent,
 can only be changed or joined by a superuser.
 
@@ -1463,7 +1465,8 @@ With `admin.plugins.manage`:
 
 - **Reload** loads one plugin again from its folder, as the console's `reload-plugin <key>` does.
 - **Rescan** reads the folders again: new and changed plugins load, removed ones unload
-  (`reload-plugins`, `:reload plugins`).
+  (`reload-plugins`, `:reload plugins`). It says what it loaded and took away, and names each
+  plugin that failed and why; a plugin failing does not make the scan fail.
 - **Turn off** unloads a plugin and keeps it off across restarts; **Turn on** loads it again. A
   plugin can't be turned off while a loaded plugin depends on it. What is off is kept in
   `plugins.json` in the plugin folder (`{"Disabled": ["key"]}`), so it travels with the folder and
@@ -1475,21 +1478,30 @@ many runs were skipped because the one before was still going, and how many serv
 loaded. With `admin.plugins.manage`, **Run now** runs one at once without moving its schedule;
 a run now goes to the command log.
 
-**Installing a package** is off unless the server sets `Turbo:Plugin:UploadEnabled` to `true`,
-and needs `admin.plugins.install`, which no wildcard grants: a package is server code that runs
-with the hotel's own access. A package is a zip with `manifest.json` and the plugin's assembly at
-its root, or a zipped plugin folder (`dist/<key>` as a plugin's packaging script builds it). A
-**data plugin** (a theme, texts, template patches: `docs/plugin-data.md`) is the same zip with no
-assembly and no `AssemblyFile` in its manifest. The manifest is checked first (it needs `Name`,
-`Key` and `Version`, its key only letters, digits, `.`, `_` and `-`, and the assembly its
-`AssemblyFile` names, when it names one), and nothing is written to the plugin folder unless it
-passes. Without `admin.plugins.install` the page shows no upload control. It is installed into `<plugin folder>/<key>`, replacing that
+**Installing a package** is off unless the server sets `Turbo:Plugin:UploadEnabled` to `true`.
+A package is a zip with `manifest.json` and the plugin's assembly at its root, or a zipped plugin
+folder (`dist/<key>` as a plugin's packaging script builds it). A **data plugin** (a theme, texts,
+template patches: `docs/plugin-data.md`) is the same zip with no assembly and no `AssemblyFile` in
+its manifest. Who may install which:
+
+| Package | Needs |
+| --- | --- |
+| A data plugin: no `AssemblyFile`, and only JSON, text, Markdown and PNG, GIF, JPEG or WebP files (or files with no extension) | `admin.plugins.manage` |
+| A data plugin with a `gamedata/` folder (external texts or variables) | `admin.plugins.manage` and `gamedata.manage` |
+| Anything else: an assembly, any other file (a page or script could run from the address a plugin's files are served at), or one replacing an installed plugin that has an assembly | `admin.plugins.manage` and `admin.plugins.install`, which no wildcard grants: it is server code that runs with the hotel's own access |
+
+The manifest is checked first (it needs `Name`, `Key` and `Version`, its key only letters,
+digits, `.`, `_` and `-`, and the assembly its `AssemblyFile` names, when it names one), then what
+the package holds against the table, and nothing is written to the plugin folder unless both pass;
+a refusal says what it needs. The page always shows **Install**, **Link from GitHub** and
+**Uninstall**, greyed out when they need a node the staff member lacks, with a line saying which
+and a link to their own page under Access, where **Nodes** grants it. It is installed into `<plugin folder>/<key>`, replacing that
 plugin's files if it is installed already, and loaded. `Turbo:Plugin:MaxUploadBytes` (16 MB)
 bounds the package, packed and unpacked. A plugin from `DevPluginPaths` can't be replaced this way.
 
 Every install keeps the version it replaces, zipped, in `<plugin folder>/.versions/<key>/`
 (the newest `Turbo:Plugin:KeepVersions`, 3); the plugin's **Earlier versions** roll back to one,
-through the same checks, and the version rolled back from is kept in turn. A new version that does
+through the same checks (a data plugin's with `admin.plugins.manage`), and the version rolled back from is kept in turn. A new version that does
 not load is taken out again and the one it replaced put back, with why it failed. A manifest may
 say which plugin API it was built for (`ApiVersion`, and `BuiltAgainst`: the turbo-cloud ref, for
 people to read); a server takes `PluginApi.OLDEST` to `PluginApi.VERSION` and refuses any other,

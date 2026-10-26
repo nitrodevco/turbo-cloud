@@ -33,6 +33,27 @@ internal sealed partial class PluginAdministration(
 {
     private const string MANIFEST = "manifest.json";
 
+    /// <summary>A plugin's own external texts and variables, given to the hotel as it loads.</summary>
+    private const string GAMEDATA = "gamedata";
+
+    /// <summary>
+    /// What a data plugin's files may be (<see cref="PluginPackage"/>): data, never a page or a
+    /// script a browser would run from the address the plugin's files are served at. No
+    /// extension (a <c>LICENSE</c>) is served as a download.
+    /// </summary>
+    private static readonly FrozenSet<string> DATA_FILES = new[]
+    {
+        "",
+        ".json",
+        ".txt",
+        ".md",
+        ".png",
+        ".gif",
+        ".jpg",
+        ".jpeg",
+        ".webp",
+    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>The first segments core's nodes and meta keys use: never a plugin's, whatever its key.</summary>
     private static readonly FrozenSet<string> CORE_NODE_ROOTS = CoreRoots();
 
@@ -70,19 +91,54 @@ internal sealed partial class PluginAdministration(
             .ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// The scan worked when it ran, whatever the plugins did: its message says, plugin by plugin,
+    /// what it loaded and took away, and which plugins failed and why.
+    /// </summary>
     public async Task<PluginActionResult> RescanAsync(CancellationToken ct)
     {
+        var before = manager.Snapshot().ToDictionary(p => p.Folder, StringComparer.Ordinal);
+
         await manager.LoadChangedAsync(ct).ConfigureAwait(false);
 
         var plugins = manager.Snapshot();
-        var loaded = plugins.Count(p => p.State == PluginStateType.Loaded);
-        var failed = plugins.Count(p => p.State == PluginStateType.Failed);
+        var parts = new List<string>();
+        var changed = plugins
+            .Where(p =>
+                p.State == PluginStateType.Loaded
+                && (
+                    !before.TryGetValue(p.Folder, out var was)
+                    || was.State != PluginStateType.Loaded
+                    || was.LoadedAtUtc != p.LoadedAtUtc
+                )
+            )
+            .Select(p => $"{p.Key} {p.Version}".TrimEnd())
+            .ToList();
+        var gone = before
+            .Keys.Except(plugins.Select(p => p.Folder), StringComparer.Ordinal)
+            .Select(folder => before[folder].Key)
+            .ToList();
+        var failed = plugins.Where(p => p.State == PluginStateType.Failed).ToList();
+
+        if (changed.Count > 0)
+            parts.Add($"loaded {string.Join(", ", changed)}");
+
+        if (gone.Count > 0)
+            parts.Add($"took away {string.Join(", ", gone)}");
+
+        if (changed.Count == 0 && gone.Count == 0)
+            parts.Add("no plugin loaded or taken away");
+
+        var summary =
+            $"{plugins.Count(p => p.State == PluginStateType.Loaded)} loaded"
+            + (failed.Count > 0 ? $", {failed.Count} failed" : "");
+        var failures = string.Concat(
+            failed.Select(p => $" {p.Key} failed: {p.Error ?? "it did not load."}")
+        );
 
         return new PluginActionResult(
-            failed == 0,
-            failed == 0
-                ? $"Scanned the plugin folders: {loaded} loaded."
-                : $"Scanned the plugin folders: {loaded} loaded, {failed} failed.",
+            true,
+            $"Scanned the plugin folders: {string.Join("; ", parts)} ({summary}).{failures}",
             null
         );
     }
@@ -140,8 +196,11 @@ internal sealed partial class PluginAdministration(
             .ConfigureAwait(false);
     }
 
-    public Task<PluginActionResult> InstallAsync(Stream package, CancellationToken ct) =>
-        InstallAsync(package, null, ct);
+    public Task<PluginActionResult> InstallAsync(
+        Stream package,
+        Func<PluginPackage, string?> refuse,
+        CancellationToken ct
+    ) => InstallAsync(package, null, refuse, ct);
 
     public ImmutableArray<string> VersionsOf(string key)
     {
@@ -165,6 +224,7 @@ internal sealed partial class PluginAdministration(
     public async Task<PluginActionResult?> RollbackAsync(
         string key,
         string version,
+        Func<PluginPackage, string?> refuse,
         CancellationToken ct
     )
     {
@@ -179,7 +239,7 @@ internal sealed partial class PluginAdministration(
             await File.ReadAllBytesAsync(path, ct).ConfigureAwait(false)
         );
 
-        var result = await InstallAsync(copy, key, ct).ConfigureAwait(false);
+        var result = await InstallAsync(copy, key, refuse, ct).ConfigureAwait(false);
 
         if (!result.Ok)
             return result;
@@ -490,13 +550,14 @@ internal sealed partial class PluginAdministration(
     }
 
     /// <summary>
-    /// <see cref="InstallAsync(Stream, CancellationToken)"/>; with <paramref name="expectedKey"/>,
-    /// a package holding another plugin is refused. The version replaced is kept (see
-    /// <see cref="VersionsOf"/>), and put back when the new one does not load.
+    /// <see cref="InstallAsync(Stream, Func{PluginPackage, string?}, CancellationToken)"/>; with
+    /// <paramref name="expectedKey"/>, a package holding another plugin is refused. The version
+    /// replaced is kept (see <see cref="VersionsOf"/>), and put back when the new one does not load.
     /// </summary>
     internal async Task<PluginActionResult> InstallAsync(
         Stream package,
         string? expectedKey,
+        Func<PluginPackage, string?> refuse,
         CancellationToken ct
     )
     {
@@ -507,7 +568,7 @@ internal sealed partial class PluginAdministration(
 
         try
         {
-            return await InstallHeldAsync(package, expectedKey, ct).ConfigureAwait(false);
+            return await InstallHeldAsync(package, expectedKey, refuse, ct).ConfigureAwait(false);
         }
         finally
         {
@@ -518,6 +579,7 @@ internal sealed partial class PluginAdministration(
     private async Task<PluginActionResult> InstallHeldAsync(
         Stream package,
         string? expectedKey,
+        Func<PluginPackage, string?> refuse,
         CancellationToken ct
     )
     {
@@ -577,6 +639,9 @@ internal sealed partial class PluginAdministration(
                     null
                 );
 
+            if (refuse(PackageOf(manifest, staging, existing)) is { } refused)
+                return new PluginActionResult(false, refused, null);
+
             var target = existing ?? Path.Combine(manager.Config.PluginFolderPath, manifest.Key);
             var kept = existing is null ? null : Keep(manifest.Key, existing);
 
@@ -624,6 +689,49 @@ internal sealed partial class PluginAdministration(
                 logger.LogWarning(ex, "Could not remove the staging folder {Folder}", staging);
             }
         }
+    }
+
+    /// <summary>
+    /// What the unpacked package in <paramref name="staging"/> holds: the file that makes it code,
+    /// if one does, whether the plugin it replaces in <paramref name="existing"/> has code (one
+    /// whose manifest can't be read is taken to), and whether it brings gamedata.
+    /// </summary>
+    private static PluginPackage PackageOf(
+        PluginManifest manifest,
+        string staging,
+        string? existing
+    )
+    {
+        var codeFile = PluginHelpers.IsDataOnly(manifest)
+            ? Directory
+                .EnumerateFiles(staging, "*", SearchOption.AllDirectories)
+                .Select(file => Path.GetRelativePath(staging, file).Replace('\\', '/'))
+                .Where(file => !DATA_FILES.Contains(Path.GetExtension(file)))
+                .Order(StringComparer.Ordinal)
+                .FirstOrDefault()
+            : Path.GetFileName(manifest.AssemblyFile);
+        var replacesCode = false;
+
+        if (existing is not null)
+            try
+            {
+                replacesCode = !PluginHelpers.IsDataOnly(PluginHelpers.ReadManifest(existing));
+            }
+            catch (PluginException)
+            {
+                replacesCode = true;
+            }
+
+        var gamedata = Path.Combine(staging, GAMEDATA);
+
+        return new PluginPackage(
+            manifest.Key,
+            manifest.Name,
+            manifest.Version,
+            codeFile,
+            replacesCode,
+            Directory.Exists(gamedata) && Directory.EnumerateFiles(gamedata).Any()
+        );
     }
 
     /// <summary>

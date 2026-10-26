@@ -72,7 +72,13 @@ is updated.
   to install on another hotel. A theme's package carries this hotel's style values as its defaults
   (and the images uploaded for them); the hotel's own plugin's carries its enabled patches.
 - **Gamedata > Texts**, filtered to a plugin: the phrases it brought, each marked when staff changed
-  it from the plugin's default, with the default beside it to put back.
+  it from the plugin's default, with the default beside it to put back. A label's text key is in
+  its caption: the client's alt-click inspector copies a label as a patch whose `caption` is
+  `"${earnings.title}"`, and `earnings.title` is the key to edit (or to give in a plugin's
+  `gamedata/external_texts.txt`).
+- **Installing** one needs `admin.plugins.manage` only, not `admin.plugins.install`: it runs no
+  code. That holds while its files are data (JSON, text, Markdown, images); one bringing texts or
+  variables needs `gamedata.manage` as well (`docs/admin-panel.md`, "Installing a package").
 
 ## The hotel's own data plugin
 

@@ -113,7 +113,7 @@ public sealed class PluginSourcesTests : IDisposable
     {
         await InstallTwoAsync();
 
-        var result = await _plugins.RollbackAsync("sample", "1.0.0", Ct);
+        var result = await _plugins.RollbackAsync("sample", "1.0.0", _ => null, Ct);
 
         result!.Ok.Should().BeTrue(result.Message);
         Loaded().Version.Should().Be("1.0.0");
@@ -123,7 +123,7 @@ public sealed class PluginSourcesTests : IDisposable
         source.UpdateAvailable.Should().BeTrue();
         source.InstalledVersion.Should().Be("1.0.0");
 
-        (await _plugins.RollbackAsync("sample", "../../etc", Ct)).Should().BeNull();
+        (await _plugins.RollbackAsync("sample", "../../etc", _ => null, Ct)).Should().BeNull();
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public sealed class PluginSourcesTests : IDisposable
         (await JobAsync()).Status.Should().Be(PluginJobStatus.Done);
         Loaded().Version.Should().Be("1.0.1");
 
-        await _plugins.RollbackAsync("sample", "1.0.0", Ct);
+        await _plugins.RollbackAsync("sample", "1.0.0", _ => null, Ct);
         var jobs = _github.Downloads;
         await _sources.CheckAllAsync(Ct);
 

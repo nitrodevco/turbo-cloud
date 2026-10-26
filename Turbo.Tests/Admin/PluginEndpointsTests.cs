@@ -80,7 +80,12 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
         _fakes.Handlers["ContributionsOf"] = call =>
             _plugins.ContributionsOf((string)call.Args[0]!);
         _fakes.Handlers["RollbackAsync"] = call =>
-            _plugins.RollbackAsync((string)call.Args[0]!, (string)call.Args[1]!, Ct);
+            _plugins.RollbackAsync(
+                (string)call.Args[0]!,
+                (string)call.Args[1]!,
+                (Func<PluginPackage, string?>)call.Args[2]!,
+                Ct
+            );
         _fakes.Handlers["get_AllowedOwners"] = _ => _sources.AllowedOwners;
         _fakes.Handlers["get_CheckMinutes"] = _ => _sources.CheckMinutes;
         _fakes.Handlers["get_Job"] = _ => _sources.Job;
@@ -92,7 +97,12 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
         _fakes.Handlers["ReloadAsync"] = call => _plugins.ReloadAsync((string)call.Args[0]!, Ct);
         _fakes.Handlers["SetEnabledAsync"] = call =>
             _plugins.SetEnabledAsync((string)call.Args[0]!, (bool)call.Args[1]!, Ct);
-        _fakes.Handlers["InstallAsync"] = call => _plugins.InstallAsync((Stream)call.Args[0]!, Ct);
+        _fakes.Handlers["InstallAsync"] = call =>
+            _plugins.InstallAsync(
+                (Stream)call.Args[0]!,
+                (Func<PluginPackage, string?>)call.Args[1]!,
+                Ct
+            );
         _fakes.Handlers["PlanUninstallAsync"] = call =>
             _plugins.PlanUninstallAsync((string)call.Args[0]!, Ct);
         _fakes.Handlers["UninstallAsync"] = call =>
@@ -381,7 +391,7 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task Installing_needs_the_install_node_by_name_besides_manage()
+    public async Task Installing_a_package_with_code_needs_the_install_node_by_name_besides_manage()
     {
         _holds = node => node != PermissionNodes.Admin.PLUGINS_INSTALL;
         await _server.StartAsync(Ct);
@@ -391,15 +401,104 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
             .GetBoolean()
             .Should()
             .BeFalse();
-        (
-            await InstallAsync(
-                Package(("manifest.json", Manifest("sample", "Sample")), ("Sample.dll", "MZ"))
-            )
-        )
-            .StatusCode.Should()
-            .Be(HttpStatusCode.Forbidden);
+        var response = await InstallAsync(
+            Package(("manifest.json", Manifest("sample", "Sample")), ("Sample.dll", "MZ"))
+        );
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await JsonAsync(response))
+            .GetProperty("message")
+            .GetString()
+            .Should()
+            .Be(
+                "Sample has code (Sample.dll): installing it needs admin.plugins.install. A data plugin (no AssemblyFile; JSON, text and images only) needs only admin.plugins.manage."
+            );
         Directory.EnumerateFileSystemEntries(_folder).Should().BeEmpty();
-        Log().Should().Equal([("install", "refused")]);
+        Log().Should().Equal([("install sample 1.2.3", "refused")]);
+    }
+
+    /// <summary>
+    /// A data plugin runs no code on either side (docs/plugin-data.md), so the node that guards
+    /// server code does not guard it: staff who manage plugins install one. Anything that would
+    /// put code in place, or take a plugin's code away, still needs admin.plugins.install.
+    /// </summary>
+    [Theory]
+    [InlineData("data", null)]
+    [InlineData("page", "has code (wwwroot/page.html)")]
+    [InlineData("script", "has code (wwwroot/mytheme.js)")]
+    [InlineData(
+        "texts",
+        "brings texts or variables (its gamedata folder): installing it needs gamedata.manage too."
+    )]
+    [InlineData("replaces-code", "would replace the installed plugin sample, which has code")]
+    public async Task A_data_plugin_installs_with_manage_alone(string kind, string? refusal)
+    {
+        _holds = node =>
+            node != PermissionNodes.Admin.PLUGINS_INSTALL
+            && node != PermissionNodes.Gamedata.MANAGE;
+        await _server.StartAsync(Ct);
+
+        if (kind == "replaces-code")
+            WritePlugin("sample", "Sample");
+
+        var key = kind == "replaces-code" ? "sample" : "mytheme";
+        var files = new List<(string, string)>
+        {
+            ("manifest.json", DataManifest(key)),
+            (
+                "theme.json",
+                """{ "styles": { "frame.header": { "type": "color", "default": "#6b6861" } } }"""
+            ),
+            ("wwwroot/template-patches.json", "[]"),
+            ("wwwroot/frame.png", "PNG"),
+            ("LICENSE", "MIT"),
+        };
+
+        if (kind == "page")
+            files.Add(("wwwroot/page.html", "<script>alert(1)</script>"));
+        if (kind == "script")
+            files.Add(("wwwroot/mytheme.js", "export default {}"));
+        if (kind == "texts")
+            files.Add(("gamedata/external_texts.txt", "earnings.title=Riches"));
+
+        var response = await InstallAsync(Package([.. files]));
+        var message = (await JsonAsync(response)).GetProperty("message").GetString();
+
+        if (refusal is null)
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.OK, message);
+            File.Exists(Path.Combine(_folder, key, "wwwroot", "frame.png")).Should().BeTrue();
+            Log().Should().Equal([($"install {key} 1.0.0", "completed")]);
+        }
+        else
+        {
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            message.Should().Contain(refusal);
+            File.Exists(Path.Combine(_folder, key, "theme.json")).Should().BeFalse();
+            Log().Should().Equal([($"install {key} 1.0.0", "refused")]);
+        }
+    }
+
+    [Fact]
+    public async Task A_rescan_with_a_plugin_that_fails_went_through_and_names_the_plugin_and_why()
+    {
+        // The command log read "did not go through" for every scan while one plugin failed to
+        // load, though the scan itself ran (admin panel audit 2026-10-26).
+        WritePlugin("broken", "Broken");
+        await _server.StartAsync(Ct);
+
+        var response = await SendAsync(HttpMethod.Post, "/api/plugins/rescan");
+        var body = await JsonAsync(response);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        body.GetProperty("ok").GetBoolean().Should().BeTrue();
+        body.GetProperty("message")
+            .GetString()
+            .Should()
+            .StartWith(
+                "Scanned the plugin folders: no plugin loaded or taken away (0 loaded, 1 failed). broken failed: "
+            );
+        Log().Should().Equal([("rescan", "completed")]);
     }
 
     [Fact]
@@ -609,6 +708,17 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
         File.WriteAllText(Path.Combine(dir, "manifest.json"), Manifest(key, name));
         File.WriteAllText(Path.Combine(dir, "Sample.dll"), "MZ");
     }
+
+    private static string DataManifest(string key) =>
+        JsonSerializer.Serialize(
+            new
+            {
+                Name = "My theme",
+                Key = key,
+                Version = "1.0.0",
+                Author = "Staff",
+            }
+        );
 
     private static string Manifest(string key, string name) =>
         JsonSerializer.Serialize(
