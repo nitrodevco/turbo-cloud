@@ -52,11 +52,12 @@ public sealed record MediaFacets(
     IReadOnlyDictionary<string, int> Sources
 );
 
-/// <summary>A page of the images a search found, of <see cref="Total"/>.</summary>
+/// <summary>A page of the images a search found, of <see cref="Total"/>; <see cref="CanManage"/> says whether the asker may upload, rename and delete.</summary>
 public sealed record MediaSearchResponse(
     int Total,
     IReadOnlyList<MediaImage> Items,
-    MediaFacets Facets
+    MediaFacets Facets,
+    bool CanManage = false
 );
 
 /// <summary>A file an upload did not take, and why.</summary>
@@ -72,4 +73,4 @@ public sealed record MediaUploadResponse(
 public sealed record MediaEditRequest(string? Name, IReadOnlyList<string>? Tags);
 
 /// <summary>Why an image can't be deleted or renamed, with every place that shows it.</summary>
-public sealed record MediaInUseResponse(string Error, IReadOnlyList<MediaUse> UsedOn);
+public sealed record MediaInUseResponse(string Message, IReadOnlyList<MediaUse> UsedOn);

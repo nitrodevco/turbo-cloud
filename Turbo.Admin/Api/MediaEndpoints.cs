@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
+using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Commands;
 using Turbo.Admin.Media;
@@ -24,6 +25,7 @@ namespace Turbo.Admin.Api;
 /// id in the query (<c>?id=library:web_promo/summer.png</c>), as ids hold slashes.
 /// </summary>
 internal sealed class MediaEndpoints(
+    IGrainFactory grainFactory,
     MediaLibrary media,
     AdminActionLog audit,
     ILogger<MediaEndpoints> logger
@@ -52,7 +54,7 @@ internal sealed class MediaEndpoints(
         group.MapDelete("/item", DeleteAsync);
     }
 
-    private Task<MediaSearchResponse> SearchAsync(
+    private async Task<MediaSearchResponse> SearchAsync(
         string? q,
         string? kind,
         string? source,
@@ -66,26 +68,36 @@ internal sealed class MediaEndpoints(
         bool? desc,
         int? page,
         int? size,
+        HttpContext http,
         CancellationToken ct
     ) =>
-        media.SearchAsync(
-            new MediaQuery(
-                q,
-                kind,
-                source,
-                shape,
-                used,
-                minWidth,
-                maxWidth,
-                minHeight,
-                maxHeight,
-                sort,
-                desc ?? false,
-                page ?? 0,
-                size ?? 60
-            ),
-            ct
-        );
+        (
+            await media
+                .SearchAsync(
+                    new MediaQuery(
+                        q,
+                        kind,
+                        source,
+                        shape,
+                        used,
+                        minWidth,
+                        maxWidth,
+                        minHeight,
+                        maxHeight,
+                        sort,
+                        desc ?? false,
+                        page ?? 0,
+                        size ?? 60
+                    ),
+                    ct
+                )
+                .ConfigureAwait(false)
+        ) with
+        {
+            CanManage = await grainFactory
+                .HoldsAsync(http, PermissionNodes.Gamedata.MANAGE, ct)
+                .ConfigureAwait(false),
+        };
 
     private async Task<IResult> ItemAsync(string? id, CancellationToken ct) =>
         await media.GetAsync(id ?? "", ct).ConfigureAwait(false) is { } image

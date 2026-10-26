@@ -48,6 +48,7 @@ serves it, so it can itself be served, or published as it is:
 | Catalog icon | `images/catalog-icons/icon_<n>.png` | the icon's number | `catalog.icons.url` |
 | Badge | `images/badges/<code>.gif` | the badge code | `badge.asset.url` |
 | Catalog picture | `images/catalog/<name>.gif` | a page's `image_data` name | `asset.urls.catalog` |
+| Image library picture | `c_images/<folder>/<name>.png` (`.gif`, `.jpg`, `.webp`) | its path under the library, folders kept (`web_promo/summer.png`); uploaded on the [media library](media-library.md) | `image.library.url` |
 | Trax sample | `sounds/sound_machine_sample_<n>.mp3` | the sample's number | `flash.dynamic.download.url` (the folder's root) and `flash.dynamic.download.samples.template` (`sounds/sound_machine_sample_%typeid%.mp3`) |
 
 This is the layout nitro-studio publishes a hotel's assets in, so a folder published from either is the
