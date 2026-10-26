@@ -169,6 +169,12 @@ refusal is the answer. Two plugins with a policy of one kind both run and are re
 (logged, and listed on each plugin in the admin API). With none the hotel decides as it always did.
 `docs/plugin-policies.md`.
 
+Two kinds go further than allow or refuse. `IAvatarEffectPolicy` decides on the room's turn what
+an avatar wears and what each player is shown on it (a command that turns effects off), and
+`IPurchaseFulfilment` replaces what the hotel hands over for an offer or a room ad (a room ad that
+is the plugin's own promotion, not a room event) while the purchase stays the hotel's: its checks,
+its policies and one charge, refunded when the plugin fails.
+
 ### 4.3 Service contracts
 
 A host service marked `[ReplaceableService]` is replaced by a plugin that registers its own in its
