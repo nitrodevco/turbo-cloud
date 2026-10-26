@@ -989,6 +989,9 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
             CostSilver = decision.CostSilver,
             CostActivityPoints = decision.CostActivityPoints,
             ActivityPointType = offer.ActivityPointType,
+            GivesCreditFurni = offer.Products.Any(x =>
+                x.ClassName is { } name && CreditFurniValue.TryParse(name, out _)
+            ),
             GiftReceiverId = giftReceiverId,
         };
 

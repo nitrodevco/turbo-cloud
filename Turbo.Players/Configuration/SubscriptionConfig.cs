@@ -65,11 +65,22 @@ public class SubscriptionConfig
     public double PaydayKickbackPercentage { get; init; } = 0.1;
 
     /// <summary>
-    /// Minutes the club centre counts down to HC Payday. Turbo pays no payday yet, so this is the
-    /// countdown Habbo sent a non-member (2880, recorded on hhus, 2026-10-13); a hotel without a
-    /// payday turns the block off with the <c>hccenter.activity.enabled</c> client variable.
+    /// The day of the month HC Payday falls on (UTC; the month's last day in a shorter month). The
+    /// club centre counts down to it in whole days. Habbo's is the 15th: its countdown read 2 days
+    /// on 10-13, 30 on 10-16, 29 on 10-17 and 20 on 10-26 (official client captures, 2026), every
+    /// one of them a whole number of days to a 15th; the hour it pays at is not known. A hotel
+    /// without a payday turns the block off with the <c>hccenter.activity.enabled</c> client
+    /// variable.
     /// </summary>
-    public int MinutesUntilPayday { get; init; } = 2880;
+    public int PaydayDayOfMonth { get; init; } = 15;
+
+    /// <summary>
+    /// The credits HC Payday adds for a member on a club streak
+    /// (<c>hccenter.breakdown.streakbonus</c>). Habbo's: 5 at a 13 day streak, none at 0 (official
+    /// client captures, 2026-10-13 and 2026-10-26); whether it grows with a longer streak is not
+    /// known.
+    /// </summary>
+    public int PaydayStreakBonusCredits { get; init; } = 5;
 
     /// <summary>
     /// How the club centre writes the day a player first joined Habbo Club. The client shows the

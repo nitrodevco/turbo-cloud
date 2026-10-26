@@ -123,6 +123,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<PlayerSettingsEntity> PlayerSettings { get; init; }
 
     public DbSet<PlayerSubscriptionEntity> PlayerSubscriptions { get; init; }
+    public DbSet<PlayerHcPaydayEntity> PlayerHcPaydays { get; init; }
 
     public DbSet<PlayerClubGiftEntity> PlayerClubGifts { get; init; }
     public DbSet<PlayerProductClaimEntity> PlayerProductClaims { get; init; }

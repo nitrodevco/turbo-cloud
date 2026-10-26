@@ -31,13 +31,14 @@ namespace Turbo.Players.Grains.Subscriptions;
 /// Owns a player's subscriptions. Write-through: an extension is saved before the in-memory row
 /// moves, so an activation can be collected at any time without a flush on deactivation.
 /// </summary>
-internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
+internal sealed partial class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
     private readonly SubscriptionConfig _subscriptionConfig;
     private readonly IGrainFactory _grainFactory;
     private readonly ILogger<IPlayerSubscriptionGrain> _logger;
     private readonly IAchievementFactRecorder _achievementFacts;
+    private readonly TimeProvider _time;
 
     private readonly PlayerSubscriptionLiveState _state;
 
@@ -48,6 +49,7 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
         IOptions<PlayerConfig> playerConfig,
         IGrainFactory grainFactory,
         IAchievementFactRecorder achievementFacts,
+        TimeProvider time,
         ILogger<IPlayerSubscriptionGrain> logger
     )
     {
@@ -56,6 +58,7 @@ internal sealed class PlayerSubscriptionGrain : Grain, IPlayerSubscriptionGrain
         _grainFactory = grainFactory;
         _logger = logger;
         _achievementFacts = achievementFacts;
+        _time = time;
 
         _state = new() { PlayerId = this.GetPlayerId() };
     }

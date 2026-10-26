@@ -33,6 +33,11 @@ public sealed record PurchaseCompletedEvent : DomainEvent
     /// <summary>The activity point currency of <see cref="CostActivityPoints"/>; null when none.</summary>
     public int? ActivityPointType { get; init; }
 
+    /// <summary>
+    /// Whether the offer hands over credit furni (<c>CF_*</c>), which are credits in another form.
+    /// </summary>
+    public bool GivesCreditFurni { get; init; }
+
     /// <summary>Who it was a gift for; null when bought for oneself.</summary>
     public PlayerId? GiftReceiverId { get; init; }
 

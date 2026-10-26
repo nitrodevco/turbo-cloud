@@ -454,8 +454,10 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Subscriptions.IPl
   F633EBCC: ExtendAsync(Turbo.Primitives.Players.Enums.SubscriptionType, int, System.Threading.CancellationToken) -> Task
   68BAF176: ExtendPurchasedAsync(Turbo.Primitives.Players.Enums.SubscriptionType, int, System.Threading.CancellationToken) -> Task
   AE9C334B: GetAsync(Turbo.Primitives.Players.Enums.SubscriptionType, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.PlayerSubscriptionSnapshot>
+  78A356EB: GetHcPaydayAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.HcPaydaySnapshot>
   7666A318: HasActiveAsync(Turbo.Primitives.Players.Enums.SubscriptionType, System.Threading.CancellationToken) -> Task<bool>
   15DB909B: OnChangedAsync(Turbo.Primitives.Players.Enums.SubscriptionType, System.Threading.CancellationToken) -> Task
+  0BD61596: RecordCatalogSpendAsync(int, System.Threading.CancellationToken) -> Task
   6EC687E1: SendClubInfoAsync(Turbo.Primitives.Players.Enums.ScrUserInfoResponseType, System.Threading.CancellationToken) -> Task
   E139C0E9: SendStatusAsync(System.Threading.CancellationToken) -> Task
 
