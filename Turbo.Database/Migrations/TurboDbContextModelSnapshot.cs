@@ -2572,6 +2572,67 @@ namespace Turbo.Database.Migrations
                     b.ToTable("gamedata_texts");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Gamedata.GamedataThemeEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AudienceGroups")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("longtext")
+                        .HasColumnName("audience_groups");
+
+                    b.Property<string>("AudiencePlayers")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("longtext")
+                        .HasColumnName("audience_players");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_default");
+
+                    b.Property<string>("PluginKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("plugin_key");
+
+                    b.Property<bool>("Selectable")
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("selectable");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PluginKey")
+                        .IsUnique();
+
+                    b.ToTable("gamedata_themes");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.GamedataVariableEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -7132,6 +7193,40 @@ namespace Turbo.Database.Migrations
                     b.ToTable("player_subscriptions");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerThemeEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<int>("PlayerEntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<string>("PluginKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("plugin_key");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerEntityId")
+                        .IsUnique();
+
+                    b.ToTable("player_themes");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerUnseenItemEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -10766,6 +10861,17 @@ namespace Turbo.Database.Migrations
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerSubscriptionEntity", b =>
+                {
+                    b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
+                        .WithMany()
+                        .HasForeignKey("PlayerEntityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PlayerEntity");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Players.PlayerThemeEntity", b =>
                 {
                     b.HasOne("Turbo.Database.Entities.Players.PlayerEntity", "PlayerEntity")
                         .WithMany()

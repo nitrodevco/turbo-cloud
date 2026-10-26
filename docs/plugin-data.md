@@ -260,8 +260,41 @@ they are on; `wwwroot/template-patches.json` is what clients load (the enabled o
 `wwwroot/styles/` holds uploaded images and fonts. It is listed on the Plugins page like any other, and
 turning it off takes every staff patch away at once.
 
+## Who gets which theme
+
+A theme is a plugin with a `theme.json` (the hotel's own `hotel` always is one). Like XenForo's
+styles, each has a **status**, may be the hotel's **default**, and may be **chosen by players**;
+nothing of it is a setting, it is the hotel's data (`gamedata_themes`, `player_themes`), changed on
+**Appearance > Themes** (**Who gets it**, `admin.plugins.manage`, audited) or
+`PUT /api/plugins/themes/{key}/audience`.
+
+| Status | Who draws it |
+| --- | --- |
+| **Live** (a theme no one set) | everyone, when it is the default (or there is no default, as before themes had an audience); a player who chose it, when players may choose it |
+| **In development** | its **audience** only: the players and permission groups it names (a group held by inheritance counts), and staff with `appearance.themes.preview` who choose it or open **Preview as this theme** |
+| **Off** | nobody, but as the theme one that reaches them extends |
+
+- A client draws one theme's **chain**: the theme and every theme it `extends`, plus every plugin
+  that is no theme (a client module's patches). The hotel's own entries of the merged variables are
+  the `hotel` theme's, so they are drawn only where `hotel` is in the chain (its template library
+  addresses, `asset.bundles.templates.overrides`, always).
+- A session's theme is, in order: a development theme the player chose and may have, a development
+  theme whose audience they are in, the theme they chose while it may be chosen, the default.
+- The external variables every client loads are the default's. While any theme is in development or
+  may be chosen, they also name `theme.session.url` (the gamedata host's `/gamedata/theme`): before
+  it connects the client posts `{ "ticket": "<its login ticket>", "theme": "<staff's preview>" }`
+  there (the ticket is looked at, not used up) and gets `{ theme, variables, choices, chosen }`;
+  `variables` are its theme's merged variables, built once per theme, or null when they are the
+  file's own. A client never takes the address from its page's query: the ticket goes there.
+- **Choosing**: the client's **Other settings** lists **Hotel default** and the themes the player
+  may choose; **Apply and reload** sends the Turbo named message `turbo.theme.choose { key }`
+  (answered `turbo.theme.chosen { key, ok, message }`, `docs/plugin-messages.md`) and reloads.
+- **Preview as this theme** opens the client page with `?theme=<key>`: honoured for that load for a
+  player who may have the theme.
+
 ## Not yet
 
+- Switching theme reloads the client: its theme's variables are read as it starts.
 - Clients read styles and patch files as they start: a change reaches a player at their next load
   (the preview reloads its client for that reason).
 - A data plugin's files are not watched: change one by hand and **Reload** it on the Plugins page.

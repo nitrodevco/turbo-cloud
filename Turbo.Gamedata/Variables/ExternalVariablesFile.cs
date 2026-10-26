@@ -56,6 +56,9 @@ internal static class ExternalVariablesFile
     /// </summary>
     public const string TEMPLATE_PATCHES = "templates.patches";
 
+    /// <summary>The template libraries the client loads in place of its own: a url per library.</summary>
+    public const string TEMPLATE_BUNDLES = "asset.bundles.templates.overrides";
+
     /// <summary>
     /// The style of windows the client draws with a frame of its own rather than from a template
     /// (nitro-next <c>docs/template-patches.md</c>): <c>{ "&lt;frame id or window name&gt;": { "variant": "&lt;style&gt;", "color": "#rrggbb" } }</c>.
@@ -109,7 +112,7 @@ internal static class ExternalVariablesFile
     /// </summary>
     public static readonly IReadOnlyList<string> MERGED =
     [
-        "asset.bundles.templates.overrides",
+        TEMPLATE_BUNDLES,
         TEMPLATE_PATCHES,
         FRAME_OVERRIDES,
         ASSET_OVERLAYS,
@@ -118,6 +121,17 @@ internal static class ExternalVariablesFile
         TEXT_STYLES,
         TEXT_FONTS,
     ];
+
+    /// <summary>
+    /// Where a client asks, with the ticket it logs in with, for the theme its player draws and that
+    /// theme's merged variables (<see cref="Plugins.ThemeChains"/>): written while a player may draw
+    /// another theme than the default.
+    /// </summary>
+    public const string THEME_SESSION_URL = "theme.session.url";
+
+    /// <summary>The theme route on the gamedata host, under the public address when there is one.</summary>
+    public static string ThemeSessionAddress(Addresses addresses) =>
+        Text($"{addresses.Root}{Api.GamedataServer.THEME_ROUTE}");
 
     public static bool IsLinkable(string file) => LINKABLE.Contains(file, StringComparer.Ordinal);
 

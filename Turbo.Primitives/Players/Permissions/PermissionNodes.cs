@@ -72,6 +72,15 @@ public static class PermissionNodes
         public const string MANAGE = "gamedata.manage";
     }
 
+    public static class Appearance
+    {
+        /// <summary>
+        /// Draw the hotel with any theme in development, chosen in the client's settings or opened
+        /// from the panel's "Preview as" link, besides the ones whose audience the player is in.
+        /// </summary>
+        public const string THEMES_PREVIEW = "appearance.themes.preview";
+    }
+
     public static class Content
     {
         /// <summary>

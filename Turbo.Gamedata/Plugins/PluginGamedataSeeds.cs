@@ -114,6 +114,11 @@ internal sealed class PluginGamedataSeeds(
 
         AddStyles(pluginKey, folder, parts);
 
+        // Whose look it is: a theme's parts reach the players its audience gives it to
+        // (ThemeAudienceService), another plugin's every player.
+        var theme = ThemeOf(pluginKey, folder);
+
+        loaded.SetTheme(pluginKey, theme is not null, theme?.Extends);
         loaded.SetParts(pluginKey, parts);
         Invalidate();
 
@@ -166,6 +171,19 @@ internal sealed class PluginGamedataSeeds(
     }
 
     public IDisposable Loaded(string pluginKey) => loaded.Add(pluginKey, Invalidate);
+
+    /// <summary>The plugin as a theme; a <c>theme.json</c> that can't be read (logged by <see cref="AddStyles"/>) still makes it one.</summary>
+    private static PluginTheme? ThemeOf(string pluginKey, string folder)
+    {
+        try
+        {
+            return ThemeStyles.ThemeOf(pluginKey, folder);
+        }
+        catch (ArgumentException)
+        {
+            return new PluginTheme(pluginKey, null);
+        }
+    }
 
     /// <summary>
     /// A plugin's <see cref="ExternalVariablesFile.ASSET_OVERLAYS"/> or <see cref="ExternalVariablesFile.TEXT_FONTS"/>:

@@ -88,6 +88,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<GamedataFigureEntity> GamedataFigures { get; init; }
     public DbSet<GamedataVariableEntity> GamedataVariables { get; init; }
     public DbSet<GamedataPluginValueEntity> GamedataPluginValues { get; init; }
+    public DbSet<GamedataThemeEntity> GamedataThemes { get; init; }
     public DbSet<ServerSettingEntity> ServerSettings { get; init; }
     public DbSet<ServerSettingChangeEntity> ServerSettingChanges { get; init; }
     public DbSet<GamedataChangeSetEntity> GamedataChangeSets { get; init; }
@@ -124,6 +125,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
 
     public DbSet<PlayerSubscriptionEntity> PlayerSubscriptions { get; init; }
     public DbSet<PlayerHcPaydayEntity> PlayerHcPaydays { get; init; }
+    public DbSet<PlayerThemeEntity> PlayerThemes { get; init; }
 
     public DbSet<PlayerClubGiftEntity> PlayerClubGifts { get; init; }
     public DbSet<PlayerProductClaimEntity> PlayerProductClaims { get; init; }

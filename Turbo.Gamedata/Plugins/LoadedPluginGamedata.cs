@@ -22,6 +22,10 @@ internal sealed class LoadedPluginGamedata
         StringComparer.OrdinalIgnoreCase
     );
 
+    private readonly ConcurrentDictionary<string, string?> _themes = new(
+        StringComparer.OrdinalIgnoreCase
+    );
+
     public bool IsLoaded(string pluginKey) =>
         _loaded.TryGetValue(pluginKey, out var count) && count > 0;
 
@@ -34,11 +38,35 @@ internal sealed class LoadedPluginGamedata
             _parts[pluginKey] = parts;
     }
 
-    /// <summary>The loaded plugins' parts of one merged variable, in the order of their keys, each with its plugin's key.</summary>
-    public IReadOnlyList<(string Plugin, string Part)> OwnedPartsOf(string key) =>
+    /// <summary>
+    /// The plugin is a theme (it has a <c>theme.json</c>) that extends <paramref name=extends/>, or,
+    /// with <paramref name=isTheme/> false, it is none.
+    /// </summary>
+    public void SetTheme(string pluginKey, bool isTheme, string? extends)
+    {
+        if (isTheme)
+            _themes[pluginKey] = extends;
+        else
+            _themes.TryRemove(pluginKey, out _);
+    }
+
+    /// <summary>The loaded plugins that are themes, each with the theme it extends.</summary>
+    public IReadOnlyDictionary<string, string?> Themes() =>
+        _themes
+            .Where(x => IsLoaded(x.Key))
+            .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The loaded plugins' parts of one merged variable, in the order of their keys, each with its
+    /// plugin's key; with <paramref name="include"/>, only the plugins it takes (a session's theme chain).
+    /// </summary>
+    public IReadOnlyList<(string Plugin, string Part)> OwnedPartsOf(
+        string key,
+        Func<string, bool>? include = null
+    ) =>
         [
             .. _parts
-                .Where(x => IsLoaded(x.Key))
+                .Where(x => IsLoaded(x.Key) && (include is null || include(x.Key)))
                 .OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(x => (x.Key, Part: x.Value.TryGetValue(key, out var part) ? part : null))
                 .Where(x => x.Part is not null)
