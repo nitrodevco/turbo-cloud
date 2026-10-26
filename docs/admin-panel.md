@@ -1384,7 +1384,7 @@ The **Content** page is the game's content, each change made at once and on reco
   skills could (name, motto, look, lines, roaming, dance; held to `Turbo:Bots`' lengths, not
   word-filtered) through its room grain (`StaffUpdateBotAsync`), so the room sees it, or taken back
   to its owner's inventory. A bot in an inventory can only be deleted.
-- **Chat styles**: every chat bubble the hotel has, built as Nitro Studio builds them (see
+- **Chat styles**: a link to **Appearance > Chat bubbles**, where the chat bubbles are edited (see
   [Chat styles](#chat-styles)).
 - **Daily tasks**: the tasks a player is given a few of each day at random (`Turbo:DailyTasks`),
   and the bonus ones once those are done. Each is an explore task (rooms other players own, each
@@ -1411,14 +1411,20 @@ It needs `admin.content.view` to look and `content.manage` to change anything.
 
 ### Chat styles
 
-Each chat bubble is a row in `player_chat_styles`: the id the client draws it by, its asset id, who
+Appearance > Chat bubbles (`/appearance/chat-bubbles`; Content > Chat styles links there). Each chat bubble is a row in `player_chat_styles`: the id the client draws it by, its asset id, who
 may speak with it (club members, owners of a bought or NFT style, ambassadors, staff, or no player
 for a system style; the server checks each line, and says one in a bubble its speaker may not use
 in the normal one), how it behaves (staff may pick it anyway, formatted text, notification), and
 how it is drawn: its reg points (`reg_points`, as `chat-style-definitions.json` has them) and its
 bitmaps (`player_chat_style_bitmaps`, each kept untrimmed: the nine-slice counts from its edges).
 
-The tab draws the style picked as a room does: the client's own text renderer and fonts (vendored
+Under the stage the game draws it too: the client's preview host in a frame (`Turbo:Admin:ClientPreviewUrl`,
+its `preview.allowed_origins` naming the panel) is sent the draft on every change - each bitmap as saving
+would send it, the reg points, the flags, the speaker and the bubble width - and the line says the size it
+drew, or why it could not; nothing is saved. A theme plugin brings bubbles of its own as data, in its
+`chatstyles/` folder (`docs/plugin-data.md`, "Chat bubbles").
+
+The stage draws the style picked as a room does: the client's own text renderer and fonts (vendored
 from nitro-theme into the panel), the room's bubble widths and chat font sizes, the speaker's head
 from the imager (`ImagerUrl`) and their shirt's colour in a coloured bubble, the icon and emblems
 where a style has them. Any style is edited or copied: its colours round the wheel and its bitmaps
