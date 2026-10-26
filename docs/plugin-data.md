@@ -270,10 +270,17 @@ nothing of it is a setting, it is the hotel's data (`gamedata_themes`, `player_t
 
 | Status | Who draws it |
 | --- | --- |
-| **Live** (a theme no one set) | everyone, when it is the default (or there is no default, as before themes had an audience); a player who chose it, when players may choose it |
-| **In development** | its **audience** only: the players and permission groups it names (a group held by inheritance counts), and staff with `appearance.themes.preview` who choose it or open **Preview as this theme** |
+| **Live** | everyone, when it is the default (or there is no default, as before themes had an audience); a player who chose it, when players may choose it |
+| **In development** (a theme no one set) | its **audience** only: the players and permission groups it names (a group held by inheritance counts), and staff with `appearance.themes.preview` who choose it or open **Preview as this theme** |
 | **Off** | nobody, but as the theme one that reaches them extends |
 
+- **A new theme starts in development.** One made in the panel (**New theme**, **Duplicate**) or
+  newly installed has no row, so it reaches no player, only staff who may preview themes, until
+  staff set it Live. The themes a hotel already had when it took this in were every player's: the
+  migration `AddThemeAudiences` leaves a marker, and the first start after it, its plugins loaded,
+  gives each theme then loaded a Live row and takes the marker away.
+- `habbo` (Habbo's own look) and `hotel` (the hotel's own) are always Live: every chain ends in
+  them, so neither can be put in development or off.
 - A client draws one theme's **chain**: the theme and every theme it `extends`, plus every plugin
   that is no theme (a client module's patches). The hotel's own entries of the merged variables are
   the `hotel` theme's, so they are drawn only where `hotel` is in the chain (its template library

@@ -107,6 +107,12 @@ namespace Turbo.Database.Migrations
                 column: "player_id",
                 unique: true
             );
+
+            // The themes this hotel has now were every player's: the first start keeps each Live and
+            // takes this row away (ThemeAudienceService.AdoptAsync). A theme added later starts in development.
+            migrationBuilder.Sql(
+                "INSERT IGNORE INTO `gamedata_themes` (`plugin_key`, `status`, `is_default`, `selectable`, `audience_players`, `audience_groups`, `updated_at`, `created_at`) VALUES ('*', 0, 0, 0, '[]', '[]', UTC_TIMESTAMP(6), UTC_TIMESTAMP(6));"
+            );
         }
 
         /// <inheritdoc />

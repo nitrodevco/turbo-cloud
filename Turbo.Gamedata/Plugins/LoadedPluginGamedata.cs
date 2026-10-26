@@ -39,8 +39,8 @@ internal sealed class LoadedPluginGamedata
     }
 
     /// <summary>
-    /// The plugin is a theme (it has a <c>theme.json</c>) that extends <paramref name=extends/>, or,
-    /// with <paramref name=isTheme/> false, it is none.
+    /// The plugin is a theme (it has a <c>theme.json</c>) that extends <paramref name="extends"/>, or,
+    /// with <paramref name="isTheme"/> false, it is none.
     /// </summary>
     public void SetTheme(string pluginKey, bool isTheme, string? extends)
     {

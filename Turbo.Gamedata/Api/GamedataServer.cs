@@ -113,7 +113,7 @@ internal sealed class GamedataServer(
 
     /// <summary>
     /// Where a client asks, before it connects, which theme its player draws: a <c>POST</c> of
-    /// <c>{ "ticket": "...", "theme": "<staff's preview>" }</c>, the ticket it will log in with
+    /// <c>{ "ticket": "...", "theme": "&lt;staff's preview&gt;" }</c>, the ticket it will log in with
     /// (looked at, not used up), answered <c>{ theme, variables, choices, chosen }</c>
     /// (<see cref="IThemeAudiences.SessionAsync"/>; <c>variables</c> null when they are the file's
     /// own). A ticket that is no player's answers the hotel's default. Never cached: it is a player's.

@@ -73,6 +73,12 @@ internal sealed class ThemeAudienceService(
         var status = change.Status ?? theme.Status;
         var isDefault = change.IsDefault ?? theme.IsDefault;
 
+        if (ThemeRows.IsAlwaysLive(theme.Key) && status != ThemeStatus.Live)
+            throw new ArgumentException(
+                $"{theme.Key} is the theme every other extends: it is always Live.",
+                nameof(change)
+            );
+
         if (isDefault && status != ThemeStatus.Live)
             throw new ArgumentException(
                 $"The default theme is one every player gets: make {key} Live first.",
@@ -167,6 +173,56 @@ internal sealed class ThemeAudienceService(
         );
 
         return ThemeRows.Of(theme.Key, theme.Extends, row);
+    }
+
+    /// <summary>
+    /// The first start after the migration that made the table: every theme loaded now was every
+    /// player's before themes had an audience, so each is kept Live with a row of its own, and the
+    /// migration's <see cref="ThemeRows.ADOPT"/> row goes. A theme loaded later with no row is in
+    /// development. Does nothing once done.
+    /// </summary>
+    public async Task AdoptAsync(CancellationToken ct)
+    {
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var rows = await dbCtx.GamedataThemes.ToListAsync(ct).ConfigureAwait(false);
+
+        if (rows.FirstOrDefault(x => x.PluginKey == ThemeRows.ADOPT) is not { } adopt)
+            return;
+
+        var now = time.GetUtcNow().UtcDateTime;
+        var kept = new List<string>();
+
+        foreach (var key in loaded.Themes().Keys.Order(StringComparer.OrdinalIgnoreCase))
+        {
+            if (
+                ThemeRows.IsAlwaysLive(key)
+                || rows.Any(x =>
+                    string.Equals(x.PluginKey, key, StringComparison.OrdinalIgnoreCase)
+                )
+            )
+                continue;
+
+            dbCtx.GamedataThemes.Add(
+                new GamedataThemeEntity
+                {
+                    PluginKey = key,
+                    Status = ThemeStatus.Live,
+                    UpdatedAt = now,
+                }
+            );
+            kept.Add(key);
+        }
+
+        dbCtx.GamedataThemes.Remove(adopt);
+        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+        files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
+
+        logger.LogInformation(
+            "Themes the hotel had before they had an audience are kept Live: {Themes}; a theme added from now on starts in development",
+            kept.Count == 0 ? "none" : string.Join(", ", kept)
+        );
     }
 
     public async Task<ThemeSession> SessionAsync(

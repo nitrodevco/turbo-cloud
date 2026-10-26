@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Orleans;
+using Turbo.Database.Entities.Gamedata;
 using Turbo.Database.Entities.Players;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Files;
@@ -95,10 +96,15 @@ public sealed class ThemeAudienceTests : IDisposable
             NullLogger<ThemeAudienceService>.Instance
         );
 
-        // Two themes (each extends Habbo's own), and a plugin that is no theme: every client gets its patches.
+        // A hotel that had two themes (each extends Habbo's own) and a plugin that is no theme (every
+        // client gets its patches) when the migration ran: the first start keeps both themes Live.
+        _db.Insert(
+            new GamedataThemeEntity { PluginKey = ThemeRows.ADOPT, UpdatedAt = DateTime.UtcNow }
+        );
         Load("night", theme: true);
         Load("blue", theme: true);
         Load("chat", theme: false);
+        _themes.AdoptAsync(CancellationToken.None).GetAwaiter().GetResult();
     }
 
     public void Dispose()
@@ -246,6 +252,46 @@ public sealed class ThemeAudienceTests : IDisposable
             .Select(x => x.Key)
             .Should()
             .Equal("blue");
+    }
+
+    [Fact]
+    public async Task A_theme_added_after_the_first_start_reaches_no_player_until_staff_set_it_live()
+    {
+        // Made in the panel or installed now: no row, so in development with no audience.
+        Load("fresh", theme: true);
+
+        (await _themes.ListAsync(Ct))
+            .Single(x => x.Key == "fresh")
+            .Status.Should()
+            .Be(ThemeStatus.Development);
+        (await PatchesInFileAsync()).Should().BeEquivalentTo("night", "blue", "chat");
+
+        var b = await _themes.SessionAsync(B, null, Ct);
+
+        b.Theme.Should().BeEmpty();
+        b.Choices.Should().BeEmpty();
+
+        // Staff who may preview themes may choose it; once Live it is every player's again.
+        _previewers.Add(STAFF.Value);
+        (await _themes.SessionAsync(STAFF, null, Ct))
+            .Choices.Select(x => x.Key)
+            .Should()
+            .Equal("fresh");
+
+        await _themes.SetAsync("fresh", new ThemeAudienceChange(ThemeStatus.Live), STAFF, Ct);
+
+        (await PatchesInFileAsync()).Should().BeEquivalentTo("night", "blue", "fresh", "chat");
+
+        // The hotel's own theme is in every chain it ends in: never in development or off.
+        var off = () =>
+            _themes.SetAsync(
+                ThemeChains.HOTEL,
+                new ThemeAudienceChange(ThemeStatus.Off),
+                STAFF,
+                Ct
+            );
+
+        await off.Should().ThrowAsync<ArgumentException>();
     }
 
     [Fact]
