@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Routing;
 using Orleans;
+using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Commands;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Players.Permissions;
@@ -30,7 +31,8 @@ internal sealed class PluginNoCodeEndpoints(
     IGrainFactory grainFactory,
     AdminActionLog audit,
     IPluginStyles? stylesService = null,
-    IHotelDataPlugin? hotelService = null
+    IHotelDataPlugin? hotelService = null,
+    IPluginAdministration? plugins = null
 )
 {
     private const string NO_ACCESS = "You can't see the server's plugins.";
@@ -38,6 +40,9 @@ internal sealed class PluginNoCodeEndpoints(
     private const string NO_PLUGIN = "There is no plugin with that key.";
     private const string NO_STYLE = "The theme has no such style.";
     private const long IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+
+    // The base theme Turbo ships, Habbo's own look: the root every theme tree grows from.
+    private const string BASE_THEME = "habbo";
 
     // A host without plugins (an admin API on its own) has neither: every route answers 404.
     private IPluginStyles Styles =>
@@ -55,6 +60,8 @@ internal sealed class PluginNoCodeEndpoints(
                 "Each change checks admin.plugins.manage in the handler, so a refusal is written to the command log too."
             );
 
+        group.MapGet("/themes", ThemesAsync);
+        group.MapGet("/{key}/template-patches", PluginPatchesAsync);
         group.MapGet("/hotel-patches", PatchesAsync);
         group.MapPost("/hotel-patches", SavePatchAsync);
         group.MapDelete("/hotel-patches/{id}", RemovePatchAsync);
@@ -80,11 +87,87 @@ internal sealed class PluginNoCodeEndpoints(
             return Results.Ok(
                 new PluginStylesResponse(
                     key,
+                    Styles.ThemeOf(key, folder)?.Extends,
                     [.. list.Select(PluginStyleView.From)],
                     await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_MANAGE, ct)
                         .ConfigureAwait(false)
                 )
             );
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status422UnprocessableEntity, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Every plugin that is a theme (the hotel's own always: it extends the base theme), with the
+    /// theme it extends and how many of its style properties the hotel changed, so the panel draws
+    /// them as a tree under <see cref="BASE_THEME"/>.
+    /// </summary>
+    private async Task<IResult> ThemesAsync(HttpContext http, CancellationToken ct)
+    {
+        if (stylesService is null || hotelService is null)
+            return AdminResults.Error(StatusCodes.Status404NotFound, "The server runs no plugins.");
+
+        var found = (plugins?.List() ?? []).ToDictionary(x => x.Key, StringComparer.Ordinal);
+        var keys = found.Keys.Append(IHotelDataPlugin.KEY).Distinct(StringComparer.Ordinal);
+        var themes = new List<PluginThemeView>();
+
+        foreach (var key in keys.Order(StringComparer.OrdinalIgnoreCase))
+        {
+            if (Hotel.FolderOf(key) is not { } folder)
+                continue;
+
+            var plugin = found.GetValueOrDefault(key);
+            var state = plugin is null ? "loaded" : PluginView.StateName(plugin.State);
+
+            try
+            {
+                if (Styles.ThemeOf(key, folder) is not { } theme)
+                    continue;
+
+                var styles = await Styles.ListAsync(key, folder, ct).ConfigureAwait(false);
+
+                themes.Add(
+                    new(
+                        key,
+                        plugin?.Name,
+                        state,
+                        theme.Extends,
+                        styles.Length,
+                        styles.Count(x => x.Changed),
+                        styles.Count(x => x.Property.From == key),
+                        null
+                    )
+                );
+            }
+            catch (ArgumentException ex)
+            {
+                themes.Add(new(key, plugin?.Name, state, null, 0, 0, 0, ex.Message));
+            }
+        }
+
+        return Results.Ok(
+            new PluginThemesResponse(
+                BASE_THEME,
+                [.. themes],
+                await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_MANAGE, ct)
+                    .ConfigureAwait(false)
+            )
+        );
+    }
+
+    private async Task<IResult> PluginPatchesAsync(string key, CancellationToken ct)
+    {
+        if (hotelService is null)
+            return AdminResults.Error(StatusCodes.Status404NotFound, "The server runs no plugins.");
+
+        try
+        {
+            return await Hotel.TemplatePatchesAsync(key, ct).ConfigureAwait(false) is { } patches
+                ? Results.Ok(new PluginTemplatePatchesResponse(key, patches))
+                : AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN);
         }
         catch (ArgumentException ex)
         {
@@ -398,7 +481,8 @@ internal sealed record PluginStyleView(
     double? Max,
     string? Default,
     string? Value,
-    bool Changed
+    bool Changed,
+    string? Origin
 )
 {
     public static PluginStyleView From(PluginStyle style) =>
@@ -414,15 +498,46 @@ internal sealed record PluginStyleView(
             style.Property.Max,
             style.Property.Default,
             style.Value,
-            style.Changed
+            style.Changed,
+            style.Property.From
         );
 }
 
 /// <summary>A theme's style properties; <c>canManage</c>: may change them.</summary>
 internal sealed record PluginStylesResponse(
     string Key,
+    string? Extends,
     ImmutableArray<PluginStyleView> Styles,
     bool CanManage
+);
+
+/// <summary>
+/// A plugin that is a theme: the theme it extends (null: none), its style properties, those the
+/// hotel changed and those it declares itself (the rest are its parent's); <c>error</c> why its
+/// <c>theme.json</c> can't be read.
+/// </summary>
+internal sealed record PluginThemeView(
+    string Key,
+    string? Name,
+    string State,
+    string? Extends,
+    int Styles,
+    int Changed,
+    int Own,
+    string? Error
+);
+
+/// <summary>The themes, under the base theme <c>base</c>; <c>canManage</c>: may change their styles.</summary>
+internal sealed record PluginThemesResponse(
+    string Base,
+    ImmutableArray<PluginThemeView> Themes,
+    bool CanManage
+);
+
+/// <summary>A plugin's <c>wwwroot/template-patches.json</c>, as its clients are given it.</summary>
+internal sealed record PluginTemplatePatchesResponse(
+    string Key,
+    ImmutableArray<PluginTemplatePatch> Patches
 );
 
 /// <summary>The images in a plugin's <c>wwwroot/styles/</c>; <c>canManage</c>: may upload and remove them.</summary>

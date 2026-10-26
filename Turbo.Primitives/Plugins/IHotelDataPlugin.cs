@@ -31,6 +31,13 @@ public sealed record PluginImage(
     System.DateTimeOffset Modified
 );
 
+/// <summary>
+/// One entry of a plugin's <c>wwwroot/template-patches.json</c> (nitro-next
+/// <c>docs/template-patches.md</c>): the template it patches, its ops as the file has them and its
+/// order (null: the file's).
+/// </summary>
+public sealed record PluginTemplatePatch(string Template, JsonElement Ops, int? Order);
+
 /// <summary>A plugin made from the hotel's changes, as the panel names it.</summary>
 public sealed record PluginExportRequest(string Key, string Name, string Version, string? Author);
 
@@ -60,6 +67,16 @@ public interface IHotelDataPlugin
 
     /// <summary>Takes the patch away; false when there is none with the id.</summary>
     public Task<bool> RemovePatchAsync(string id, CancellationToken ct);
+
+    /// <summary>
+    /// The window patches the plugin's <c>wwwroot/template-patches.json</c> gives clients, in the
+    /// file's order (the hotel's own: its enabled ones); none without the file, null for no plugin
+    /// with the key. Throws <see cref="System.ArgumentException"/> for a file that isn't JSON.
+    /// </summary>
+    public Task<ImmutableArray<PluginTemplatePatch>?> TemplatePatchesAsync(
+        string pluginKey,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Keeps a file staff uploaded in the hotel's plugin's <c>wwwroot/</c> at

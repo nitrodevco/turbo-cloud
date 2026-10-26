@@ -42,6 +42,9 @@ internal static class ThemeStyles
     private const string BASE_RESOURCE = "Turbo.Gamedata.Themes.habbo.theme.json";
     private const int EXTENDS_MAX_DEPTH = 8;
 
+    // Marks, in a merged declaration, the theme whose default it has; no file's own field.
+    private const string FROM = "$from";
+
     /// <summary>
     /// The properties the plugin <paramref name="pluginKey"/>'s <c>theme.json</c> in
     /// <paramref name="folder"/> declares: those of the theme it <c>"extends"</c> first, in that
@@ -93,7 +96,8 @@ internal static class ThemeStyles
                 entry["overlay"]?.GetValue<string>(),
                 entry["min"]?.GetValue<double>(),
                 entry["max"]?.GetValue<double>(),
-                VariableOf(entry["variable"], name)
+                VariableOf(entry["variable"], name),
+                entry[FROM]?.GetValue<string>()
             );
 
             // A default that would be refused as a change is a mistake of the theme's.
@@ -105,6 +109,22 @@ internal static class ThemeStyles
 
         return list.ToImmutable();
     }
+
+    /// <summary>
+    /// The plugin <paramref name="pluginKey"/> as a theme: the theme its <c>theme.json</c> in
+    /// <paramref name="folder"/> extends; the hotel's own plugin with no file extends
+    /// <see cref="BASE"/>; null for another plugin with no file.
+    /// </summary>
+    public static PluginTheme? ThemeOf(string pluginKey, string? folder) =>
+        ReadFile(folder) switch
+        {
+            null when string.Equals(pluginKey, HOTEL, StringComparison.Ordinal) => new(
+                pluginKey,
+                BASE
+            ),
+            null => null,
+            var root => new(pluginKey, root["extends"]?.GetValue<string>()),
+        };
 
     /// <summary>The properties of a theme's file and of the ones it extends, as their JSON, merged in order.</summary>
     private static List<KeyValuePair<string, JsonObject>> Declarations(
@@ -172,7 +192,10 @@ internal static class ThemeStyles
 
             if (at < 0)
             {
-                merged.Add(new(name, (JsonObject)entry.DeepClone()));
+                var added = (JsonObject)entry.DeepClone();
+
+                added[FROM] = key;
+                merged.Add(new(name, added));
 
                 continue;
             }
@@ -181,6 +204,9 @@ internal static class ThemeStyles
 
             foreach (var (field, value) in entry)
                 over[field] = value?.DeepClone();
+
+            if (entry.ContainsKey("default"))
+                over[FROM] = key;
 
             merged[at] = new(name, over);
         }

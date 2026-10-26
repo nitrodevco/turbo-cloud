@@ -689,6 +689,21 @@ public sealed class DataPluginTests : IDisposable
         color.Property.Type.Should().Be(ThemeStyleType.Color);
         color.Property.Group.Should().Be("Catalogue");
         color.Value.Should().Be("#7a3fa0");
+        // Where each default comes from, so the panel's Reset says whose: the child's own or Habbo's.
+        color.Property.From.Should().Be("child");
+        child
+            .Where(x => x.Property.Name is not ("catalog.color" or "purse.frame" or "shop.name"))
+            .Should()
+            .NotBeEmpty()
+            .And.OnlyContain(x => x.Property.From == ThemeStyles.BASE);
+        hotel
+            .Styles.ThemeOf("child", Path.Combine(_folder, "child"))
+            .Should()
+            .Be(new PluginTheme("child", ThemeStyles.BASE));
+        hotel
+            .Styles.ThemeOf(IHotelDataPlugin.KEY, Path.Combine(_folder, IHotelDataPlugin.KEY))
+            .Should()
+            .Be(new PluginTheme(IHotelDataPlugin.KEY, ThemeStyles.BASE));
         child.Last().Property.Name.Should().Be("shop.name");
         (await hotel.Styles.ListAsync("achild", Path.Combine(_folder, "achild"), Ct))
             .Select(x => x.Property.Name)
@@ -808,6 +823,32 @@ public sealed class DataPluginTests : IDisposable
             .Select(x => (x.Name, x.Value.GetString()))
             .Should()
             .Equal(("default", "#3a6ea5"));
+    }
+
+    /// <summary>
+    /// The panel's Template patches and Outdated patches read what a plugin's
+    /// <c>wwwroot/template-patches.json</c> gives clients, ops and order with each template.
+    /// </summary>
+    [Fact]
+    public async Task A_plugin_s_template_patches_are_read_back_with_their_ops()
+    {
+        WriteFile("mytheme", Path.Combine("wwwroot", "template-patches.json"), PATCHES);
+        WriteFile("plain", "readme.txt", "no patches");
+
+        var hotel = Hotel();
+
+        await hotel.Manager.LoadAllAsync(ct: Ct);
+
+        var patch = (await hotel.HotelPlugin.TemplatePatchesAsync("mytheme", Ct))!
+            .Value.Should()
+            .ContainSingle()
+            .Subject;
+
+        patch.Template.Should().Be("habbo-toolbar-com/purse_xml");
+        patch.Order.Should().Be(-10);
+        patch.Ops[0].GetProperty("element").GetString().Should().Be("help_button");
+        (await hotel.HotelPlugin.TemplatePatchesAsync("plain", Ct))!.Value.Should().BeEmpty();
+        (await hotel.HotelPlugin.TemplatePatchesAsync("missing", Ct)).Should().BeNull();
     }
 
     private void WriteFile(string key, string name, string content)

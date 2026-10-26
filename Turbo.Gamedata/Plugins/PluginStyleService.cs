@@ -42,6 +42,9 @@ internal sealed class PluginStyleService(
         return [.. properties.Select(x => Of(pluginKey, x, hotel))];
     }
 
+    public PluginTheme? ThemeOf(string pluginKey, string? folder) =>
+        ThemeStyles.ThemeOf(pluginKey, folder);
+
     public async Task<PluginStyle> SetAsync(
         string pluginKey,
         string folder,
