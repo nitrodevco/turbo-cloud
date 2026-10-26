@@ -23,6 +23,10 @@ avatar editor's effects tab.
   overwrites one. Nothing about what is worn is kept in the grain, so it cannot go stale when the
   grain deactivates.
 - When one effect expires, only **that** id is taken off, never every effect the player owns.
+- A plugin's **avatar effect policy** (`IAvatarEffectPolicy`, `docs/plugin-policies.md`) may change
+  what an avatar wears when any of these puts an effect on, or what one player is shown on it
+  (a command that turns effects off). Without one, the room sends the effect to everyone in one
+  packet, as here.
 
 ## Data
 

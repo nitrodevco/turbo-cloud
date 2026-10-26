@@ -186,15 +186,41 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
                 : quantity;
 
         // The hotel's plugins may refuse it, or change what it costs or gives (IPurchasePolicy).
-        var decision = await DecideAsync(
-            new PurchaseRequest(this.GetPlayerId(), catalogType, offer, quantity),
-            offer,
-            quantity,
-            units,
-            ct
-        );
+        var request = new PurchaseRequest(this.GetPlayerId(), catalogType, offer, quantity);
+        var decision = await DecideAsync(request, offer, quantity, units, ct);
 
         units = decision.Units;
+
+        // Or hand it over themselves (IPurchaseFulfilment): paid for here, given by the plugin.
+        if (_policies.FulfilmentFor(request) is { } fulfilment)
+        {
+            await FulfilByPluginAsync(
+                fulfilment,
+                request,
+                offer,
+                decision,
+                MovementCause.New(
+                    MovementCauses.CATALOG_PURCHASE,
+                    this.GetPlayerId().Value,
+                    offerId
+                ),
+                ct
+            );
+
+            CountForRewardTracks();
+
+            if (catalogType == CatalogType.Normal)
+                await RecordReceptionProgressAsync(
+                    offer,
+                    ToDebitRequests(decision, offer),
+                    quantity,
+                    ct
+                );
+
+            _events.PublishCommitted(Completed(catalogType, offer, decision, units, null));
+
+            return new CatalogPurchaseResult { Offer = offer };
+        }
 
         ValidatePetProducts(offer, extraParam);
         extraParam = PrepareTrophyInscription(offer, extraParam);
@@ -248,20 +274,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         await GrantSubscriptionsAsync(offer, units, ct);
         await OpenGuildForumAsync(offer, extraParam, ct);
 
-        // A reward track task of that type counts the purchase (the player's grain ignores it
-        // when no task does); the purchase does not wait on it.
-        _grainFactory
-            .GetPlayerRewardTrackGrain(this.GetPlayerId())
-            .RecordActionAsync(
-                RewardTrackActionTypes.BUY_FROM_CATALOGUE,
-                "",
-                CancellationToken.None
-            )
-            .LogAndForget(
-                _logger,
-                "count a catalogue purchase of player {PlayerId}",
-                this.GetPlayerId()
-            );
+        CountForRewardTracks();
 
         if (catalogType == CatalogType.Normal)
             await RecordReceptionProgressAsync(offer, debitRequests, quantity, ct);
@@ -286,6 +299,24 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
             ],
         };
     }
+
+    /// <summary>
+    /// A reward track task of that type counts the purchase (the player's grain ignores it when no
+    /// task does); the purchase does not wait on it.
+    /// </summary>
+    private void CountForRewardTracks() =>
+        _grainFactory
+            .GetPlayerRewardTrackGrain(this.GetPlayerId())
+            .RecordActionAsync(
+                RewardTrackActionTypes.BUY_FROM_CATALOGUE,
+                "",
+                CancellationToken.None
+            )
+            .LogAndForget(
+                _logger,
+                "count a catalogue purchase of player {PlayerId}",
+                this.GetPlayerId()
+            );
 
     /// <summary>
     /// What a purchase counts for on the reception: the items, for the running community goal when
@@ -739,28 +770,44 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
 
         // A new promotion needs a free room; an extension needs a running one.
-        var activeEvent = await roomGrain.GetActiveEventAsync(ct);
+        var request = new PurchaseRequest(
+            playerId,
+            CatalogType.Normal,
+            offer,
+            1,
+            RoomAd: new RoomAdRequest(roomId, categoryId, name, description, extended, duration)
+        );
+        var cause = MovementCause.New(MovementCauses.CATALOG_ROOM_AD, playerId.Value, offerId);
+        var fulfilment = _policies.FulfilmentFor(request);
 
-        if (extended ? activeEvent is null : activeEvent is not null)
-            throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
+        // The room event is the hotel's own ad; a plugin that runs its ads its own way
+        // (IPurchaseFulfilment) does not need the room's.
+        if (fulfilment is null)
+        {
+            var activeEvent = await roomGrain.GetActiveEventAsync(ct);
+
+            if (extended ? activeEvent is null : activeEvent is not null)
+                throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
+        }
 
         // The hotel's plugins may refuse it or change its price, as for any offer (IPurchasePolicy);
         // an ad is one ad, so the units they decide are not read.
-        var decision = await DecideAsync(
-            new PurchaseRequest(
-                playerId,
-                CatalogType.Normal,
-                offer,
-                1,
-                RoomAd: new RoomAdRequest(roomId, categoryId, name, description, extended, duration)
-            ),
-            offer,
-            1,
-            1,
-            ct
-        );
+        var decision = await DecideAsync(request, offer, 1, 1, ct);
+
+        if (fulfilment is not null)
+        {
+            await FulfilByPluginAsync(fulfilment, request, offer, decision, cause, ct);
+            _events.PublishCommitted(
+                Completed(CatalogType.Normal, offer, decision, 1, null) with
+                {
+                    RoomAdExtended = extended,
+                }
+            );
+
+            return offer;
+        }
+
         var debitRequests = ToDebitRequests(decision, offer);
-        var cause = MovementCause.New(MovementCauses.CATALOG_ROOM_AD, playerId.Value, offerId);
 
         await DebitAsync(debitRequests, cause, ct);
 
@@ -861,6 +908,53 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
             );
 
         return decision;
+    }
+
+    /// <summary>
+    /// A purchase a plugin hands over (<see cref="IPurchaseFulfilment"/>): its price is taken once,
+    /// then the plugin gives it; when the plugin throws, the price goes back and the buyer gets the
+    /// purchase error.
+    /// </summary>
+    private async Task FulfilByPluginAsync(
+        IPurchaseFulfilment fulfilment,
+        PurchaseRequest request,
+        CatalogOfferSnapshot offer,
+        PurchaseDecision decision,
+        MovementCause cause,
+        CancellationToken ct
+    )
+    {
+        var debitRequests = ToDebitRequests(decision, offer);
+
+        await DebitAsync(debitRequests, cause, ct);
+
+        try
+        {
+            await fulfilment.FulfilAsync(request, decision, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Offer {OfferId} was charged to player {PlayerId} but {Fulfilment} could not hand it over; refunding",
+                offer.Id,
+                request.PlayerId,
+                fulfilment.GetType().Name
+            );
+
+            await _grainFactory.RefundAsync(
+                request.PlayerId,
+                debitRequests,
+                cause,
+                _logger,
+                $"catalog offer {offer.Id}"
+            );
+
+            if (ex is CatalogPurchaseException or OperationCanceledException)
+                throw;
+
+            throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
+        }
     }
 
     /// <summary>What the purchase takes out of the wallet, one request per currency it costs.</summary>

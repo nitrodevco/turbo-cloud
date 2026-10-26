@@ -606,15 +606,7 @@ public sealed partial class RoomBotModule(RoomGrain roomGrain) : RoomGrainCompon
             );
 
         if (bot.EffectId > 0)
-            await _roomGrain.SendComposerToRoomAsync(
-                new AvatarEffectMessageComposer
-                {
-                    ObjectId = bot.ObjectId,
-                    EffectId = bot.EffectId,
-                    DelayMilliseconds = 0,
-                },
-                ct
-            );
+            AvatarModule.SendEffectToRoom(bot);
 
         return true;
     }

@@ -198,6 +198,42 @@ public sealed class HostHotelContractTests : HotelContract
 
         public void Enter(RoomId room, PlayerId player) => _inRoom[room].Add(player);
 
+        public void GiveRespect(PlayerId from, PlayerId to)
+        {
+            using var db = _world.Db.CreateDbContext();
+
+            db.HumanRespectOperations.Add(
+                new HumanRespectOperationEntity
+                {
+                    OperationId = Guid.NewGuid().ToString("N"),
+                    ActorId = from.Value,
+                    TargetId = to.Value,
+                    Completed = true,
+                }
+            );
+            // One that ran out of respects: not given.
+            db.HumanRespectOperations.Add(
+                new HumanRespectOperationEntity
+                {
+                    OperationId = Guid.NewGuid().ToString("N"),
+                    ActorId = from.Value,
+                    TargetId = to.Value,
+                    Rejected = true,
+                }
+            );
+            db.Players.Single(x => x.Id == to.Value).RespectPoints++;
+            db.SaveChanges();
+        }
+
+        public void SetOnlineTime(PlayerId player, TimeSpan total)
+        {
+            using var db = _world.Db.CreateDbContext();
+
+            db.Players.Single(x => x.Id == player.Value).OnlineMilliseconds = (long)
+                total.TotalMilliseconds;
+            db.SaveChanges();
+        }
+
         public void CloseForMaintenance(string reason) =>
             _availability = new HotelAvailabilitySnapshot(
                 HotelAvailabilityPhase.Maintenance,

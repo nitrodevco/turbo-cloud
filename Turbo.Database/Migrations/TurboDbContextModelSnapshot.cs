@@ -5721,6 +5721,8 @@ namespace Turbo.Database.Migrations
 
                     b.HasKey("OperationId");
 
+                    b.HasIndex("ActorId", "Completed");
+
                     b.ToTable("human_respect_operations");
                 });
 
@@ -6248,6 +6250,11 @@ namespace Turbo.Database.Migrations
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("onboarding_room_pending");
+
+                    b.Property<long>("OnlineMilliseconds")
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
+                        .HasColumnName("online_ms");
 
                     b.Property<int>("PetRespectsLeft")
                         .HasColumnType("int")

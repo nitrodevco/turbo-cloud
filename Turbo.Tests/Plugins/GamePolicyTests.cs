@@ -155,6 +155,107 @@ public sealed class GamePolicyTests : IAsyncDisposable
         _events.Of<PurchaseCompletedEvent>().Should().BeEmpty();
     }
 
+    /// <summary>
+    /// A hotel that sells an offer its own way: the plugin hands it over, the buyer pays once and
+    /// the hotel grants nothing of its own.
+    /// </summary>
+    [Fact]
+    public async Task A_plugins_purchase_fulfilment_hands_the_offer_over_paid_once_and_the_hotel_grants_nothing()
+    {
+        await LoadAsync(
+            (
+                "ownshop",
+                """
+                public sealed class OwnShop : IPurchaseFulfilment
+                {
+                    public bool Fulfils(PurchaseRequest request) => request.Offer.Id > 0;
+
+                    public ValueTask FulfilAsync(
+                        PurchaseRequest request, PurchaseDecision paid, CancellationToken ct
+                    ) => ValueTask.CompletedTask;
+                }
+                """
+            )
+        );
+
+        await BuyAsync(SOLD, 2);
+
+        Charged().Should().Be(10);
+        _catalog.Fakes.Log.Of("GrantCatalogOfferAsync").Should().BeEmpty();
+        _catalog.Fakes.Log.Of("CreditAsync").Should().BeEmpty("nothing is refunded");
+        await _events.WhenPublishedAsync<PurchaseCompletedEvent>(1);
+        _events
+            .Of<PurchaseCompletedEvent>()
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .Match<PurchaseCompletedEvent>(x => x.OfferId == SOLD && x.CostCredits == 10);
+        _policies
+            .Registered.Should()
+            .ContainSingle(x => x.Kind == GamePolicies.PURCHASE_FULFILMENT);
+    }
+
+    [Fact]
+    public async Task A_purchase_fulfilment_that_fails_gives_the_money_back_and_raises_no_event()
+    {
+        await LoadAsync(
+            (
+                "brokenshop",
+                """
+                public sealed class BrokenShop : IPurchaseFulfilment
+                {
+                    public bool Fulfils(PurchaseRequest request) => true;
+
+                    public ValueTask FulfilAsync(
+                        PurchaseRequest request, PurchaseDecision paid, CancellationToken ct
+                    ) => throw new System.InvalidOperationException("out of stock");
+                }
+                """
+            )
+        );
+
+        var buy = () => BuyAsync(SOLD, 1);
+
+        await buy.Should().ThrowAsync<CatalogPurchaseException>();
+        Charged().Should().Be(5);
+        _catalog.Fakes.Log.Of("CreditAsync").Select(x => x.Args[1]).Should().Equal(5);
+        _catalog.Fakes.Log.Of("GrantCatalogOfferAsync").Should().BeEmpty();
+        await _events.WhenPublishedAsync<PurchaseCompletedEvent>(0);
+        _events.Of<PurchaseCompletedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_plugins_avatar_effect_policy_is_found_and_decides_what_avatars_wear()
+    {
+        await LoadAsync(
+            (
+                "noeffects",
+                """
+                public sealed class NoEffects : IAvatarEffectPolicy
+                {
+                    public int Wear(AvatarEffectRequest request, int proposed) => 0;
+                }
+                """
+            )
+        );
+
+        _policies.Registered.Should().ContainSingle(x => x.Kind == GamePolicies.AVATAR_EFFECT);
+        _policies
+            .DecideAvatarEffect(new AvatarEffectRequest(1, 1, RoomObjectType.Player, 7, 116))
+            .Should()
+            .Be(0);
+        _policies
+            .ShowsAvatarEffects.Should()
+            .BeFalse("it decides only what is worn, so the room keeps one packet for everyone");
+
+        await _manager!.UnloadAllAsync(Ct);
+
+        _policies
+            .DecideAvatarEffect(new AvatarEffectRequest(1, 1, RoomObjectType.Player, 7, 116))
+            .Should()
+            .Be(116, "the policy went with its plugin");
+    }
+
     [Fact]
     public async Task Without_a_policy_a_purchase_costs_what_the_offer_says()
     {

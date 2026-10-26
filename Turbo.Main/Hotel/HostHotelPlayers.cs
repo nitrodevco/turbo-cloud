@@ -306,6 +306,61 @@ internal sealed class HostHotelPlayers(
         return new(club.IsActive, club.CurrentStreakDays);
     }
 
+    public async Task<HotelOnlineTime?> OnlineTimeAsync(PlayerId player, CancellationToken ct)
+    {
+        // The saved total first: a save landing between the two reads then counts its interval
+        // in neither, never in both.
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+
+        var saved = await db
+            .Players.AsNoTracking()
+            .Where(x => x.Id == player.Value)
+            .Select(x => (long?)x.OnlineMilliseconds)
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+        if (saved is null)
+            return null;
+
+        var clock = await grains
+            .GetPlayerPresenceGrain(player)
+            .GetOnlineClockAsync(ct)
+            .ConfigureAwait(false);
+        var now = DateTime.UtcNow;
+        var unsaved =
+            clock?.UnsavedSinceUtc is { } since && now > since ? now - since : TimeSpan.Zero;
+        var session =
+            clock?.SessionStartedUtc is { } started && now > started
+                ? now - started
+                : TimeSpan.Zero;
+
+        return new HotelOnlineTime(TimeSpan.FromMilliseconds(saved.Value) + unsaved, session);
+    }
+
+    public async Task<HotelRespects?> RespectsAsync(PlayerId player, CancellationToken ct)
+    {
+        var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbScope = db.ConfigureAwait(false);
+
+        var received = await db
+            .Players.AsNoTracking()
+            .Where(x => x.Id == player.Value)
+            .Select(x => (int?)x.RespectPoints)
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+
+        if (received is null)
+            return null;
+
+        var given = await db
+            .HumanRespectOperations.AsNoTracking()
+            .CountAsync(x => x.ActorId == player.Value && x.Completed, ct)
+            .ConfigureAwait(false);
+
+        return new HotelRespects(received.Value, given);
+    }
+
     public Task<bool> HasPermissionAsync(PlayerId player, string node, CancellationToken ct) =>
         grains.HasPermissionAsync(player, node, ct);
 

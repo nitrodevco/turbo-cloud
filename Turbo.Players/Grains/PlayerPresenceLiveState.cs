@@ -16,6 +16,9 @@ internal sealed class PlayerPresenceLiveState
     public long SessionGeneration { get; set; }
     public DateTime? AchievementOnlineSinceUtc { get; set; }
 
+    /// <summary>When the session attached now began; null with none.</summary>
+    public DateTime? SessionStartedUtc { get; set; }
+
     /// <summary>
     /// Protocol extensions the current session accepted, by name, at the agreed version. Cleared
     /// with every session change.

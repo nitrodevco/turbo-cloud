@@ -22,7 +22,7 @@
  *   migration <Name>                    the plugin's tables (server/Database) and a migration (dotnet ef)
  *   schedule <name> [--cron "0 18 * * MON" | --every 00:05:00] [--per-server]
  *                                       a scheduled task, run once per cluster (server/Tasks)
- *   policy <purchase|room-entry|placement|registration> [<name>]
+ *   policy <purchase|room-entry|placement|registration|avatar-effect|purchase-fulfilment> [<name>]
  *                                       a game policy: allow, refuse or change the action (server/Policies)
  *
  * A file that is there already is left alone (the command says so and stops).
@@ -448,6 +448,21 @@ public sealed class ${type} : IScheduledTask
                 body: 'ValueTask.FromResult(RegistrationDecision.Allow)',
                 summary: 'Asked before a new account is made (its name, look, source and address): RegistrationDecision.Allow\n/// or .Refuse("why").',
             },
+            'avatar-effect': {
+                contract: 'IAvatarEffectPolicy',
+                summary: 'Asked on the room\'s turn when the hotel puts an effect on an avatar (Wear) and for each player it is sent to\n/// (Show): return the effect as it is, another one, or 0 for none. Answer from memory, at once.',
+                members: `    public int Wear(AvatarEffectRequest request, int proposed) => proposed;
+
+    public int Show(AvatarEffectView view, int shown) => shown;`,
+            },
+            'purchase-fulfilment': {
+                contract: 'IPurchaseFulfilment',
+                summary: 'Hands over a catalogue purchase or room ad in place of the hotel: Fulfils says which; FulfilAsync runs once\n/// it is paid for, and throwing gives the buyer their money back.',
+                members: `    public bool Fulfils(PurchaseRequest request) => false;
+
+    public ValueTask FulfilAsync(PurchaseRequest request, PurchaseDecision paid, CancellationToken ct) =>
+        ValueTask.CompletedTask;`,
+            },
         };
         const policy = kinds[name];
 
@@ -468,8 +483,8 @@ namespace ${assembly};
 /// </summary>
 public sealed class ${type} : ${policy.contract}
 {
-    public ValueTask<${policy.decision}> DecideAsync(${policy.parameters}) =>
-        ${policy.body};
+${policy.members ?? `    public ValueTask<${policy.decision}> DecideAsync(${policy.parameters}) =>
+        ${policy.body};`}
 }
 `);
 

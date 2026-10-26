@@ -56,8 +56,15 @@ public static class PluginApi
     /// own campaign calendar, trade policy or game access policy replaces the host's for the whole
     /// host while it is live. A plugin built for 1 to 7 loads as before.
     /// </para>
+    /// <para>
+    /// 9: avatar effect policies (<c>Policies.IAvatarEffectPolicy</c>: what an avatar wears and what
+    /// each player is shown), purchase fulfilments (<c>Policies.IPurchaseFulfilment</c>: an offer or
+    /// room ad handed over by the plugin in the hotel's place), a player's time online and respects
+    /// (<c>Hotel.IHotelPlayers.OnlineTimeAsync</c>, <c>RespectsAsync</c>), and online reward rules of
+    /// their own for rooms only, idling and sleeping. A plugin built for 1 to 8 loads as before.
+    /// </para>
     /// </summary>
-    public const int VERSION = 8;
+    public const int VERSION = 9;
 
     /// <summary>The oldest plugin API this server still loads.</summary>
     public const int OLDEST = 1;

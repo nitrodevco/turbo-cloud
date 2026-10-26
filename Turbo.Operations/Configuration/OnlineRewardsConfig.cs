@@ -28,14 +28,14 @@ public class OnlineRewardsConfig
     /// <summary>
     /// A player who has done nothing for this many minutes (moved, chatted, clicked; the client's
     /// own timers don't count) is not paid when a payout comes round. 0 leaves only
-    /// <see cref="SkipSleeping"/>.
+    /// <see cref="SkipSleeping"/>. A rule may have its own (<see cref="OnlineRewardRule.IdleMinutes"/>).
     /// </summary>
     [LiveSetting]
     public int IdleMinutes { get; init; } = 10;
 
     /// <summary>
     /// Not to pay a player whose avatar is asleep in its room: the room's idle sleep, or one who
-    /// chose to sleep.
+    /// chose to sleep. A rule may have its own (<see cref="OnlineRewardRule.SkipSleeping"/>).
     /// </summary>
     [LiveSetting]
     public bool SkipSleeping { get; init; } = true;

@@ -5,6 +5,7 @@ using Orleans;
 using Orleans.Concurrency;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans.Observers;
+using Turbo.Primitives.Players.Snapshots;
 
 namespace Turbo.Primitives.Players.Grains;
 
@@ -81,4 +82,11 @@ public partial interface IPlayerPresenceGrain : IGrainWithIntegerKey
     /// </summary>
     [AlwaysInterleave]
     public Task<bool> HasActiveSessionAsync(CancellationToken ct);
+
+    /// <summary>
+    /// When the player's session began and since when its time online is not yet saved to their
+    /// total (<c>players.online_ms</c>); both null when they are offline. Interleaved: it only reads.
+    /// </summary>
+    [AlwaysInterleave]
+    public Task<PlayerOnlineClockSnapshot> GetOnlineClockAsync(CancellationToken ct);
 }

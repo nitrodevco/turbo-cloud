@@ -31,6 +31,12 @@ public interface IHotelWorld : IAsyncDisposable
 
     void Enter(RoomId room, PlayerId player);
 
+    /// <summary>A respect one player gave another, done.</summary>
+    void GiveRespect(PlayerId from, PlayerId to);
+
+    /// <summary>The player's saved time online, all of it before any session running now.</summary>
+    void SetOnlineTime(PlayerId player, TimeSpan total);
+
     int AddFurniture(string name);
 
     /// <summary>The hotel in maintenance: closed to players without the bypass node.</summary>
@@ -260,6 +266,35 @@ public abstract class HotelContract
         (await world.Hotel.Catalog.CirculationAsync([throne], Ct))
             .Should()
             .BeEquivalentTo(new Dictionary<int, int> { [throne] = 2 });
+    }
+
+    /// <summary>
+    /// A hotel's <c>:stats</c>: the respects a player was given and gave, and their time online,
+    /// read back as the hotel counts them.
+    /// </summary>
+    [Fact]
+    public async Task A_players_respects_and_time_online_are_read_as_counted()
+    {
+        await using var world = NewWorld();
+        var alice = world.AddPlayer("Alice", respects: 2);
+        var bob = world.AddPlayer("Bob");
+        world.GiveRespect(bob, alice);
+        world.GiveRespect(bob, alice);
+        world.GiveRespect(alice, bob);
+        world.SetOnlineTime(alice, TimeSpan.FromHours(2));
+        await world.StartAsync(Ct);
+        var players = world.Hotel.Players;
+
+        (await players.RespectsAsync(alice, Ct)).Should().Be(new HotelRespects(4, 1));
+        (await players.RespectsAsync(bob, Ct)).Should().Be(new HotelRespects(1, 2));
+        (await players.RespectsAsync(new PlayerId(999), Ct)).Should().BeNull();
+        (await players.OnlineTimeAsync(alice, Ct))
+            .Should()
+            .Be(new HotelOnlineTime(TimeSpan.FromHours(2), TimeSpan.Zero));
+        (await players.OnlineTimeAsync(bob, Ct))
+            .Should()
+            .Be(new HotelOnlineTime(TimeSpan.Zero, TimeSpan.Zero));
+        (await players.OnlineTimeAsync(new PlayerId(999), Ct)).Should().BeNull();
     }
 
     [Fact]

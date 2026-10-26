@@ -33,6 +33,15 @@ public sealed class FakeHotelContractTests : HotelContract
             return player;
         }
 
+        public void GiveRespect(PlayerId from, PlayerId to)
+        {
+            Player(from).RespectsGiven++;
+            Player(to).Respects++;
+        }
+
+        public void SetOnlineTime(PlayerId player, TimeSpan total) =>
+            Player(player).OnlineTime = total;
+
         public void SetBalance(PlayerId player, string currency, int amount) =>
             _hotel.Wallet.Set(player, currency, amount);
 

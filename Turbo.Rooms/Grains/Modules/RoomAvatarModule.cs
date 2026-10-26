@@ -18,6 +18,7 @@ using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Snapshots.Permissions;
+using Turbo.Primitives.Policies;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Avatar;
@@ -1043,26 +1044,123 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         return Task.FromResult(true);
     }
 
+    /// <summary>
+    /// Puts the effect on the avatar, or takes it off with 0, and tells the room. The hotel's
+    /// avatar effect policies (<see cref="IAvatarEffectPolicy"/>) decide what it wears when one is
+    /// put on, and what each player is shown.
+    /// </summary>
     public Task<bool> SetAvatarEffectAsync(
         RoomObjectId objectId,
         int effectId,
         CancellationToken ct
     )
     {
-        if (objectId <= 0 || !TryGetAvatar(objectId, out var avatar) || !avatar.SetEffect(effectId))
+        if (objectId <= 0 || !TryGetAvatar(objectId, out var avatar))
             return Task.FromResult(false);
 
-        _roomGrain.SendComposerToRoomAndForget(
-            new AvatarEffectMessageComposer
-            {
-                ObjectId = avatar.ObjectId,
-                EffectId = avatar.EffectId,
-                DelayMilliseconds = 0,
-            }
-        );
+        if (effectId > 0)
+            effectId = _roomGrain._policies.DecideAvatarEffect(
+                new AvatarEffectRequest(
+                    _roomGrain.RoomId,
+                    avatar.ObjectId,
+                    avatar.AvatarType,
+                    (avatar as IRoomPlayer)?.PlayerId,
+                    effectId
+                )
+            );
+
+        if (!avatar.SetEffect(effectId))
+            return Task.FromResult(false);
+
+        SendEffectToRoom(avatar);
 
         return Task.FromResult(true);
     }
+
+    /// <summary>
+    /// The effect the avatar wears, to everyone in the room: one packet for all, unless an avatar
+    /// effect policy shows some players another, who are sent their own.
+    /// </summary>
+    internal void SendEffectToRoom(IRoomAvatar avatar)
+    {
+        var composer = new AvatarEffectMessageComposer
+        {
+            ObjectId = avatar.ObjectId,
+            EffectId = avatar.EffectId,
+            DelayMilliseconds = 0,
+        };
+
+        if (!_roomGrain._policies.ShowsAvatarEffects)
+        {
+            _roomGrain.SendComposerToRoomAndForget(composer);
+
+            return;
+        }
+
+        List<(PlayerId Viewer, int EffectId)>? own = null;
+
+        foreach (var viewer in Players)
+        {
+            var shown = ShownTo(
+                viewer.PlayerId,
+                avatar.ObjectId,
+                avatar.AvatarType,
+                (avatar as IRoomPlayer)?.PlayerId,
+                avatar.EffectId
+            );
+
+            if (shown != avatar.EffectId)
+                (own ??= []).Add((viewer.PlayerId, shown));
+        }
+
+        if (own is null)
+        {
+            _roomGrain.SendComposerToRoomAndForget(composer);
+
+            return;
+        }
+
+        _roomGrain
+            .SendComposerToRoomExceptAsync(
+                composer,
+                [.. own.Select(x => x.Viewer)],
+                CancellationToken.None
+            )
+            .LogAndForget(_roomGrain._logger, "send an effect to room {RoomId}", _roomGrain.RoomId);
+
+        foreach (var (viewer, shown) in own)
+            _roomGrain
+                ._grainFactory.SendComposerToPlayerAsync(
+                    viewer,
+                    composer with
+                    {
+                        EffectId = shown,
+                    },
+                    CancellationToken.None
+                )
+                .LogAndForget(_roomGrain._logger, "send an effect to player {PlayerId}", viewer);
+    }
+
+    /// <summary>The effect <paramref name="viewer"/> is shown on an avatar that wears <paramref name="effectId"/>.</summary>
+    internal int ShownTo(
+        PlayerId viewer,
+        RoomObjectId objectId,
+        RoomObjectType avatarType,
+        PlayerId? playerId,
+        int effectId
+    ) =>
+        _roomGrain._policies.ShowsAvatarEffects
+            ? _roomGrain._policies.ShowAvatarEffect(
+                new AvatarEffectView(
+                    _roomGrain.RoomId,
+                    viewer,
+                    objectId,
+                    avatarType,
+                    playerId,
+                    effectId
+                )
+            )
+            : effectId;
 
     /// <summary>
     /// A player's own effect, put on only over nothing or over another effect they own. The

@@ -11,7 +11,7 @@ actions:
 Neither needs registering. A public class implementing a policy interface, or an
 `IEventHandler<T>` for one of the events, anywhere in the plugin's assembly is found as the plugin
 loads (built once with the plugin's services and the hotel's, `IHotel` included) and taken away as
-it unloads. `npm run make policy purchase|room-entry|placement|registration [<name>]` in a plugin made from
+it unloads. `npm run make policy purchase|room-entry|placement|registration|avatar-effect|purchase-fulfilment [<name>]` in a plugin made from
 `templates/turbo-plugin` writes one.
 
 With no plugin policy the hotel decides as it always has: the official checks (the offer, the club
@@ -26,6 +26,8 @@ room's limits) are the hotel's own and are not policies.
 | `IRoomEntryPolicy` | before a player enters a room the hotel lets them into, or rings at its doorbell (`request.Doorbell`) | `RoomEntryDecision.Allow`, `.Refuse("why")`, `.Redirect(roomId, "why"?)` |
 | `IRegistrationPolicy` | before a new account is made, once the hotel's own checks passed (the name's rules and filter, a free name, the motto's and figure's lengths): the name, motto and figure as they would be saved (the gender's default figure when none was chosen), `request.Source` (`Site`, `Panel`, `Hotel`) and `request.RemoteAddress` (the site visitor's; empty from the panel) | `RegistrationDecision.Allow`, `.Refuse("why")` |
 | `IPlacementPolicy` | before a player places a floor or wall item (from their inventory, the builders club or a sticky note pad) or saves the room's floor plan (`PlacementKind.FloorPlan`, the plan in `request.ModelData`) | `PlacementDecision.Allow`, `.Refuse("why")` |
+| `IAvatarEffectPolicy` | `Wear`: when the hotel puts an effect on an avatar in a room (the player's own, an effect tile, wired, a game team, riding, a freeze; the avatar's kind and player); `Show`: for each player in the room it is sent to, the arriving player included (`view.ViewerId`). Taking an effect off is never asked | the effect (`proposed`/`shown` to let it stand), another, or 0 for none |
+| `IPurchaseFulfilment` | `Fulfils`: after the purchase policies, for an offer bought for oneself or a room ad (never a gift); `FulfilAsync`: once its price is taken | `Fulfils` true to hand it over in the hotel's place; `FulfilAsync` throws to refund it |
 
 How the player hears of a refusal:
 
@@ -47,12 +49,59 @@ How the player hears of a refusal:
 A hotel styles each pop-up type with `notification.<type>` in its external variables, as any
 notification type. Moving or picking up furni already placed is not asked.
 
+### Avatar effects
+
+Both methods run on the room's turn, `Show` once per player in the room for each change, so they
+answer at once from what the plugin keeps in memory, never from a table or another grain. `Wear`
+changes what the avatar has on (wired conditions read it); `Show` only what one client is sent:
+players shown another effect are left out of the room's packet and sent their own, and a policy
+without a `Show` of its own keeps the room's single packet for everyone. Answering 0 is safe either
+way. Replacing an effect with another one leaves taking it off to the plugin: the hotel takes off
+what it put on (leaving the effect tile, getting off the horse), never the replacement.
+
+```csharp
+/// <summary>Players who turned effects off see nobody's, their own included.</summary>
+public sealed class EffectsOffPolicy(EffectsOff off) : IAvatarEffectPolicy
+{
+    public int Show(AvatarEffectView view, int shown) => off.Has(view.ViewerId) ? 0 : shown;
+}
+```
+
+`EffectsOff` is the plugin's own singleton (a set loaded from its table at login, changed by its
+command). What a player was already sent stays until the next change or room entry; the command
+re-sends what is worn (an `AvatarEffect` composer per avatar through `hotel.Players.SendAsync`) to
+show it at once.
+
+### Handing a purchase over
+
+A fulfilment replaces what the hotel hands over, not the purchase: the offer, the club level, the
+safety lock, the owner's right to the room and the purchase policies are asked as always, and the
+price (as the policies left it) is taken once, before `FulfilAsync`. When it throws, the price goes
+back and the client gets its purchase error; a `CatalogPurchaseException` it throws is the one the
+client is told. What only the hotel's own hand-over needs is not checked (a pet's name, a trophy's
+inscription, for a room ad the room's running event) and not done (the furni, the badge, the
+membership, the room event). `PurchaseCompletedEvent` is raised as for any purchase, its `RoomAd`
+null. The client still gets `PurchaseOK`; what else the buyer sees is the plugin's.
+
+```csharp
+/// <summary>A room ad is the hotel's own promotion bar, not a room event.</summary>
+public sealed class PromotedRooms(PromotionBoard board) : IPurchaseFulfilment
+{
+    public bool Fulfils(PurchaseRequest request) => request.RoomAd is not null;
+
+    public async ValueTask FulfilAsync(PurchaseRequest request, PurchaseDecision paid, CancellationToken ct) =>
+        await board.AddAsync(request.RoomAd!.RoomId, request.RoomAd.Name, request.RoomAd.Duration, ct);
+}
+```
+
 ### Order and conflicts
 
 Policies of a kind run in `Order` (an `int Order => ...` on the class, 0 by default, lower first),
 then plugin key, then as registered. A purchase's policies each take the decision of the ones before
 (`proposed`), the offer's own price first, so they compose: a discount and a surcharge from two
-plugins both apply, in that order. For room entry and placement the first refusal is the answer.
+plugins both apply, in that order. Avatar effect policies compose the same way. For room entry and
+placement the first refusal is the answer; of purchase fulfilments, the first that takes the
+purchase hands it over.
 
 Two plugins with a policy of the same kind both run; the server logs it as a conflict ("Conflict:
 alpha, beta each have a purchase policy ...") and lists it on both in the admin API's plugin view

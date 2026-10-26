@@ -89,6 +89,7 @@ internal sealed partial class PlayerPresenceGrain
         _state.SessionGeneration++;
         _state.SessionKey = sessionKey;
         _state.AchievementOnlineSinceUtc = DateTime.UtcNow;
+        _state.SessionStartedUtc = _state.AchievementOnlineSinceUtc;
         _state.ClientCapabilities = _state.ClientCapabilities.Clear();
         _state.IsProcessingQueue = false;
         _state.OutgoingQueue.Clear();
@@ -151,6 +152,7 @@ internal sealed partial class PlayerPresenceGrain
         if (_state.SessionKey != sessionKey)
             return;
         _state.AchievementOnlineSinceUtc = null;
+        _state.SessionStartedUtc = null;
         _state.SessionGeneration++;
         _state.SessionKey = SessionKey.Invalid;
         _state.ClientCapabilities = _state.ClientCapabilities.Clear();

@@ -60,6 +60,18 @@ public enum IdentityLinkOutcome
 /// <summary>A player's Habbo Club: whether it runs now, and how many days the running one has lasted.</summary>
 public readonly record struct HotelClub(bool Active, int StreakDays);
 
+/// <summary>
+/// A player's time online: in all (every session's, the one running included) and in the
+/// session running now (zero while they are offline).
+/// </summary>
+public readonly record struct HotelOnlineTime(TimeSpan Total, TimeSpan Session);
+
+/// <summary>
+/// The respects a player was given by other players (the figure their infostand shows) and the
+/// ones they gave other players. Respects to and from pets are not counted.
+/// </summary>
+public readonly record struct HotelRespects(int Received, int Given);
+
 /// <summary>A player's place on a toplist (1 is the top) and the figure it ranks.</summary>
 public readonly record struct HotelRanked(int Rank, PlayerId Player, string Name, long Value);
 
@@ -169,6 +181,17 @@ public interface IHotelPlayers
 
     [HotelCall(HotelCallContext.NotFromItsGrain)]
     Task<HotelClub> ClubAsync(PlayerId player, CancellationToken ct);
+
+    /// <summary>
+    /// The player's time online, or null when there is no such player. The total is saved as a
+    /// session goes (every half minute by default), so it is never more than that behind.
+    /// </summary>
+    [HotelCall(HotelCallContext.OffGrain)]
+    Task<HotelOnlineTime?> OnlineTimeAsync(PlayerId player, CancellationToken ct);
+
+    /// <summary>The respects the player was given and gave, or null when there is no such player.</summary>
+    [HotelCall(HotelCallContext.OffGrain)]
+    Task<HotelRespects?> RespectsAsync(PlayerId player, CancellationToken ct);
 
     /// <summary>Whether the player holds the permission node (a plugin's own or core's), as every gate asks.</summary>
     [HotelCall(HotelCallContext.NotFromItsGrain)]

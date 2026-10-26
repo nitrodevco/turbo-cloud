@@ -18,5 +18,21 @@ public sealed class OnlineRewardRule
     /// <summary>The most one player gets from this rule in a day (UTC); 0 for no limit.</summary>
     public int DailyCap { get; init; }
 
+    /// <summary>
+    /// Paid only to a player who is in a room when the payout comes round: one on the hotel view
+    /// misses it.
+    /// </summary>
+    public bool InRoomOnly { get; init; }
+
+    /// <summary>
+    /// This rule's own <see cref="OnlineRewardsConfig.IdleMinutes"/>; null takes the hotel's.
+    /// </summary>
+    public int? IdleMinutes { get; init; }
+
+    /// <summary>
+    /// This rule's own <see cref="OnlineRewardsConfig.SkipSleeping"/>; null takes the hotel's.
+    /// </summary>
+    public bool? SkipSleeping { get; init; }
+
     public bool Enabled { get; init; } = true;
 }

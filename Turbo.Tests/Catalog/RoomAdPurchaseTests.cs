@@ -238,6 +238,80 @@ public sealed class RoomAdPurchaseTests : IDisposable
         fakes.Log.Of("CreateEventAsync").Should().BeEmpty();
     }
 
+    /// <summary>
+    /// A hotel whose room ads are its own promotion: the plugin takes the ad, the owner pays once,
+    /// and no room event is started, even beside one already running.
+    /// </summary>
+    [Fact]
+    public async Task A_room_ad_a_plugin_fulfils_is_paid_once_and_starts_no_room_event()
+    {
+        var (grain, fakes) = await AdGrainAsync();
+        var policies = Turbo.Players.Policies.GamePolicies.None;
+        var events = new TestEventBus();
+        var ads = new OwnAds();
+
+        fakes.Handlers["GetActiveEventAsync"] = _ =>
+            Task.FromResult<RoomEventSnapshot?>(
+                new RoomEventSnapshot
+                {
+                    EventId = 9,
+                    RoomId = ROOM,
+                    OwnerId = 7,
+                    OwnerName = "agent5",
+                    CategoryId = 2,
+                    Name = "Running",
+                    Description = "",
+                    CreatedAtUtc = DateTime.UtcNow,
+                    ExpiresAtUtc = DateTime.UtcNow.AddMinutes(60),
+                }
+            );
+        policies.Register("ads", ads);
+        GrainHarness.Replace<Turbo.Primitives.Policies.IGamePolicies>(grain, policies);
+        GrainHarness.Replace(grain, events.System);
+        events.Record<Turbo.Primitives.Catalog.Events.PurchaseCompletedEvent>();
+
+        await BuyAdAsync(grain);
+        await events.WhenPublishedAsync<Turbo.Primitives.Catalog.Events.PurchaseCompletedEvent>(1);
+
+        ads.Fulfilled.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Match<(Turbo.Primitives.Policies.PurchaseRequest Request, int Paid)>(x =>
+                x.Request.RoomAd!.Name == "Party at agent5" && x.Paid == 15
+            );
+        fakes.Log.Of("TryDebitAsync").Should().ContainSingle();
+        fakes.Log.Of("CreateEventAsync").Should().BeEmpty();
+        fakes.Log.Of("GiveBadgeAsync").Should().BeEmpty("the badge is the hotel's ad's");
+        events
+            .Of<Turbo.Primitives.Catalog.Events.PurchaseCompletedEvent>()
+            .Should()
+            .ContainSingle()
+            .Which.RoomAd.Should()
+            .BeNull();
+    }
+
+    public sealed class OwnAds : Turbo.Primitives.Policies.IPurchaseFulfilment
+    {
+        public List<(
+            Turbo.Primitives.Policies.PurchaseRequest Request,
+            int Paid
+        )> Fulfilled { get; } = [];
+
+        public bool Fulfils(Turbo.Primitives.Policies.PurchaseRequest request) =>
+            request.RoomAd is not null;
+
+        public ValueTask FulfilAsync(
+            Turbo.Primitives.Policies.PurchaseRequest request,
+            Turbo.Primitives.Policies.PurchaseDecision paid,
+            CancellationToken ct
+        )
+        {
+            Fulfilled.Add((request, paid.CostActivityPoints));
+
+            return ValueTask.CompletedTask;
+        }
+    }
+
     public sealed class HalfPriceAds(List<Turbo.Primitives.Policies.PurchaseRequest> asked)
         : Turbo.Primitives.Policies.IPurchasePolicy
     {

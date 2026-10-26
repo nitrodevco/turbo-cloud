@@ -51,6 +51,10 @@ public sealed class LiveRoomHarness
     /// <summary>The registry a room publishes to besides its own systems, where a plugin's listeners go.</summary>
     public IRoomEventListenerRegistry EventListeners { get; } = new RoomEventListenerRegistry();
 
+    /// <summary>The room's game policies: none until a test registers some (avatar effects).</summary>
+    public Turbo.Players.Policies.GamePolicies Policies { get; } =
+        Turbo.Players.Policies.GamePolicies.None;
+
     private readonly RoomConfig _roomConfig;
 
     public LiveRoomHarness(
@@ -193,6 +197,8 @@ public sealed class LiveRoomHarness
             return LogicProvider;
         if (t == typeof(IRoomEventListenerRegistry))
             return EventListeners;
+        if (t == typeof(Turbo.Primitives.Policies.IGamePolicies))
+            return Policies;
         if (
             t.IsGenericType
             && t.GetGenericTypeDefinition().FullName == "Microsoft.Extensions.Options.IOptions`1"
