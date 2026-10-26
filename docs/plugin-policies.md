@@ -182,8 +182,11 @@ Each derives from `DomainEvent`: published once, after the change is saved, neve
 was refused or failed (the two `...FailedEvent`s are the refusal itself, raised once it was given), and on the thread pool, not awaited by what raised it. `EventId` is the
 event's own id, for a handler that must act once (a reward, a call to another service) to remember;
 `OccurredAtUtc` when it happened. A handler that throws is logged and the others still run.
-`IEventHandler<T>` is in `Turbo.Events`: the plugin references `$(TurboBin)/Turbo.Events.dll` as it
-does `Turbo.Primitives.dll` (as for plugin notices, `docs/plugin-notices.md`).
+`IEventHandler<T>`, `IEventBehavior<T>` (one that runs before the handlers, ordered by `[Order]`) and
+`EventContext` are contracts in `Turbo.Primitives.dll`, which every plugin references already, under
+the namespaces they always had (`Turbo.Events.Registry`, `Turbo.Pipeline.Attributes`). They were in
+`Turbo.Events.dll` and `Turbo.Pipeline.dll`, which forward them to `Turbo.Primitives` for one
+release, so a plugin built against those still loads; drop the two references when you next build.
 
 ### Addresses
 

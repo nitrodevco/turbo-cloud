@@ -13,7 +13,9 @@ plugin sees as the same one, and it holds only texts and named values.
 ## Publishing
 
 Take `EventSystem` (`Turbo.Events`) from the host services and publish. The plugin references
-`Turbo.Events` from the turbo-cloud checkout it builds against, as it does `Turbo.Primitives`.
+`Turbo.Events` from the turbo-cloud checkout it builds against, as it does `Turbo.Primitives`. A
+relay that only handles notices does not: `IEventHandler<T>` is in `Turbo.Primitives`
+(`docs/plugin-policies.md`).
 
 ```csharp
 private EventSystem? _events;
