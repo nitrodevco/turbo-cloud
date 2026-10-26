@@ -1231,7 +1231,7 @@ internal sealed class AssetSyncService(
             x => new AssetSyncPlan.Known(
                 x.Revision,
                 x.Source,
-                x.HasHash && store.IsValidName(x.Name) && onDisk[x.Kind].Contains(x.Name),
+                x.HasHash && store.IsValidName(x.Kind, x.Name) && onDisk[x.Kind].Contains(x.Name),
                 x.Error,
                 x.Retry,
                 x.Ids

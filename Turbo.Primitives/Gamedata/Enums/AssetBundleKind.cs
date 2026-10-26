@@ -52,4 +52,11 @@ public enum AssetBundleKind
 
     /// <summary>A trax machine sample (<c>sounds</c>): <c>sound_machine_sample_&lt;n&gt;.mp3</c>.</summary>
     Sound = 10,
+
+    /// <summary>
+    /// A picture of the client's image library (<c>c_images</c>, what <c>image.library.url</c>
+    /// names): the hotel view's, the notices' and the catalog front page's promo pictures, named
+    /// with their folders under it (<c>web_promo/summer.png</c>), as Habbo serves them.
+    /// </summary>
+    LibraryImage = 11,
 }

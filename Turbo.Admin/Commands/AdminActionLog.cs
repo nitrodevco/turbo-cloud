@@ -45,6 +45,12 @@ public sealed class AdminActionLog(
     /// </summary>
     public const string NAVIGATOR = "navigator";
 
+    /// <summary>
+    /// A change to the media library: <c>media upload &lt;ids&gt;</c>, <c>media edit &lt;id&gt; [name]</c>
+    /// or <c>media delete &lt;id&gt;</c>.
+    /// </summary>
+    public const string MEDIA = "media";
+
     public const string SOURCE = "panel";
 
     /// <summary>The source of a change a plugin made through the hotel API, logged as no player (0).</summary>

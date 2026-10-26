@@ -130,7 +130,9 @@ internal sealed class AssetBundleChecks(
                 "Their row says they have a file that the bundle folder does not have. Delete them, and a sync takes Habbo's again.",
                 [
                     .. withFile
-                        .Where(x => !store.IsValidName(x.Name) || !onDisk[x.Kind].Contains(x.Name))
+                        .Where(x =>
+                            !store.IsValidName(x.Kind, x.Name) || !onDisk[x.Kind].Contains(x.Name)
+                        )
                         .Select(x => new Finding(Label(x.Kind, x.Name), x.Kind, x.Name)),
                 ]
             ),

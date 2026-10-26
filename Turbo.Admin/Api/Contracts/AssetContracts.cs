@@ -27,6 +27,7 @@ public static class AssetContractNames
             AssetBundleKind.Badge => "badge",
             AssetBundleKind.CatalogImage => "catalog-image",
             AssetBundleKind.Sound => "sound",
+            AssetBundleKind.LibraryImage => "library-image",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
         };
 
@@ -92,6 +93,7 @@ public static class AssetContractNames
             "badge" => AssetBundleKind.Badge,
             "catalog-image" => AssetBundleKind.CatalogImage,
             "sound" => AssetBundleKind.Sound,
+            "library-image" => AssetBundleKind.LibraryImage,
             _ => null,
         };
 
