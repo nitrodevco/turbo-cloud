@@ -17,6 +17,7 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Wallet;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Operations.OnlineRewards;
 
@@ -44,7 +45,7 @@ public sealed class OnlineRewardService(
     private readonly HashSet<PlayerId> _seen = [];
     private readonly HashSet<string> _unknownCurrencies = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>A rule as paid: its currency resolved.</summary>
+    /// <summary>A rule as paid: its currency resolved, the hotel's idle and sleep settings where it has none.</summary>
     private sealed record Payout(
         string Currency,
         CurrencyKind Kind,
@@ -52,8 +53,44 @@ public sealed class OnlineRewardService(
         TimeSpan Interval,
         int Amount,
         int HcBonus,
-        int DailyCap
+        int DailyCap,
+        bool InRoomOnly,
+        int IdleMinutes,
+        bool SkipSleeping
     );
+
+    /// <summary>Where a player is when a payout comes round, read once for all their payouts.</summary>
+    private sealed class Whereabouts(IGrainFactory grainFactory, PlayerId playerId)
+    {
+        private RoomPointerSnapshot? _room;
+        private bool? _asleep;
+
+        public async ValueTask<bool> InRoomAsync(CancellationToken ct) =>
+            (await RoomAsync(ct)).RoomId.Value > 0;
+
+        /// <summary>Whether the avatar sleeps in the room the player is in. Reading it does not wake it.</summary>
+        public async ValueTask<bool> AsleepAsync(CancellationToken ct)
+        {
+            if (_asleep is { } asleep)
+                return asleep;
+
+            var room = await RoomAsync(ct);
+
+            if (room.RoomId.Value <= 0)
+                return (_asleep = false).Value;
+
+            var avatar = await grainFactory
+                .GetRoomGrain(room.RoomId)
+                .GetAvatarPositionAsync(playerId, ct);
+
+            return (_asleep = avatar?.IsIdle == true).Value;
+        }
+
+        private async ValueTask<RoomPointerSnapshot> RoomAsync(CancellationToken ct) =>
+            _room ??=
+                await grainFactory.GetPlayerPresenceGrain(playerId).GetActiveRoomAsync(ct)
+                ?? new RoomPointerSnapshot { RoomId = -1, ActiveSinceUtc = default };
+    }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -114,7 +151,7 @@ public sealed class OnlineRewardService(
     )
     {
         var current = config.CurrentValue;
-        var payouts = current.Enabled ? Resolve(current.Rules) : [];
+        var payouts = current.Enabled ? Resolve(current) : [];
 
         if (payouts.Count == 0)
         {
@@ -171,7 +208,7 @@ public sealed class OnlineRewardService(
             },
             async (x, token) =>
             {
-                var count = await PayAsync(x.Player, x.Payouts, current, now, token);
+                var count = await PayAsync(x.Player, x.Payouts, now, token);
 
                 Interlocked.Add(ref paid, count);
             }
@@ -181,11 +218,11 @@ public sealed class OnlineRewardService(
     }
 
     /// <summary>The rules that pay: on, with an amount and an interval, in a currency the hotel has; the first per currency.</summary>
-    private List<Payout> Resolve(IReadOnlyList<OnlineRewardRule> rules)
+    private List<Payout> Resolve(OnlineRewardsConfig current)
     {
         var payouts = new List<Payout>();
 
-        foreach (var rule in rules)
+        foreach (var rule in current.Rules)
         {
             if (
                 !rule.Enabled
@@ -220,7 +257,10 @@ public sealed class OnlineRewardService(
                     TimeSpan.FromMinutes(rule.IntervalMinutes),
                     rule.Amount,
                     Math.Max(0, rule.HcBonus),
-                    Math.Max(0, rule.DailyCap)
+                    Math.Max(0, rule.DailyCap),
+                    rule.InRoomOnly,
+                    Math.Max(0, rule.IdleMinutes ?? current.IdleMinutes),
+                    rule.SkipSleeping ?? current.SkipSleeping
                 )
             );
         }
@@ -228,24 +268,40 @@ public sealed class OnlineRewardService(
         return payouts;
     }
 
-    /// <summary>Pays one player what is due to them, unless they are idle. Answers how many payouts were made.</summary>
+    /// <summary>
+    /// Pays one player what is due to them, but no payout whose rule they miss it by: idle, asleep
+    /// or not in a room. Answers how many payouts were made.
+    /// </summary>
     private async Task<int> PayAsync(
         OnlinePlayer player,
-        List<Payout> payouts,
-        OnlineRewardsConfig current,
+        List<Payout> due,
         DateTime now,
         CancellationToken ct
     )
     {
         try
         {
-            if (
-                current.IdleMinutes > 0
-                && now - player.LastActiveUtc >= TimeSpan.FromMinutes(current.IdleMinutes)
-            )
-                return 0;
+            var where = new Whereabouts(grainFactory, player.PlayerId);
+            var payouts = new List<Payout>(due.Count);
 
-            if (current.SkipSleeping && await IsAsleepAsync(player.PlayerId, ct))
+            foreach (var payout in due)
+            {
+                if (
+                    payout.IdleMinutes > 0
+                    && now - player.LastActiveUtc >= TimeSpan.FromMinutes(payout.IdleMinutes)
+                )
+                    continue;
+
+                if (payout.InRoomOnly && !await where.InRoomAsync(ct))
+                    continue;
+
+                if (payout.SkipSleeping && await where.AsleepAsync(ct))
+                    continue;
+
+                payouts.Add(payout);
+            }
+
+            if (payouts.Count == 0)
                 return 0;
 
             var club =
@@ -296,21 +352,6 @@ public sealed class OnlineRewardService(
 
             return 0;
         }
-    }
-
-    /// <summary>Whether the player's avatar sleeps in the room they are in. Reading it does not wake it.</summary>
-    private async Task<bool> IsAsleepAsync(PlayerId playerId, CancellationToken ct)
-    {
-        var room = await grainFactory.GetPlayerPresenceGrain(playerId).GetActiveRoomAsync(ct);
-
-        if (room is null || room.RoomId.Value <= 0)
-            return false;
-
-        var avatar = await grainFactory
-            .GetRoomGrain(room.RoomId)
-            .GetAvatarPositionAsync(playerId, ct);
-
-        return avatar?.IsIdle == true;
     }
 
     /// <summary>

@@ -50,6 +50,7 @@ public sealed class OnlineRewardServiceTests : IDisposable
     private readonly TestOptionsMonitor<OnlineRewardsConfig> _config = new(new());
     private readonly HashSet<long> _club = [];
     private readonly HashSet<long> _asleep = [];
+    private readonly HashSet<long> _inRoom = [];
     private readonly OnlineRewardService _service;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -115,7 +116,10 @@ public sealed class OnlineRewardServiceTests : IDisposable
             Task.FromResult(
                 new RoomPointerSnapshot
                 {
-                    RoomId = _asleep.Contains((long)call.Key!) ? ROOM : -1,
+                    RoomId =
+                        _asleep.Contains((long)call.Key!) || _inRoom.Contains((long)call.Key!)
+                            ? ROOM
+                            : -1,
                     ActiveSinceUtc = Login,
                 }
             );
@@ -315,6 +319,102 @@ public sealed class OnlineRewardServiceTests : IDisposable
         await SweepAsync(BOB);
 
         Credits().Where(x => x.Player == BOB).Should().ContainSingle();
+    }
+
+    /// <summary>
+    /// A hotel that pays for time spent in rooms, not on the hotel view, next to a rule that pays
+    /// anywhere: each rule asks for itself.
+    /// </summary>
+    [Fact]
+    public async Task a_rule_for_rooms_only_misses_a_player_on_the_hotel_view()
+    {
+        Rules(
+            new OnlineRewardRule
+            {
+                Currency = "duckets",
+                Amount = 5,
+                IntervalMinutes = 1,
+                InRoomOnly = true,
+            },
+            new OnlineRewardRule
+            {
+                Currency = "credits",
+                Amount = 1,
+                IntervalMinutes = 1,
+            }
+        );
+        _inRoom.Add(ALICE);
+
+        await RunMinutesAsync(2, ALICE, BOB);
+
+        Credits()
+            .Select(x => (x.Player, x.Kind))
+            .Should()
+            .BeEquivalentTo([
+                (ALICE, CurrencyKind.ActivityPoints(0)),
+                (ALICE, CurrencyKind.Credits),
+                (ALICE, CurrencyKind.ActivityPoints(0)),
+                (ALICE, CurrencyKind.Credits),
+                (BOB, CurrencyKind.Credits),
+                (BOB, CurrencyKind.Credits),
+            ]);
+    }
+
+    /// <summary>
+    /// A rule with its own idle and sleep settings pays by them; the rule without keeps the
+    /// hotel's (here: idle after 10 minutes, no pay asleep).
+    /// </summary>
+    [Fact]
+    public async Task a_rules_own_idle_and_sleep_settings_stand_over_the_hotels()
+    {
+        _config.Set(
+            new OnlineRewardsConfig
+            {
+                Enabled = true,
+                IdleMinutes = 10,
+                SkipSleeping = true,
+                Rules =
+                [
+                    new OnlineRewardRule
+                    {
+                        Currency = "duckets",
+                        Amount = 5,
+                        IntervalMinutes = 1,
+                        IdleMinutes = 0,
+                        SkipSleeping = false,
+                    },
+                    new OnlineRewardRule
+                    {
+                        Currency = "credits",
+                        Amount = 1,
+                        IntervalMinutes = 1,
+                    },
+                ],
+            }
+        );
+        _asleep.Add(BOB);
+
+        for (var minute = 1; minute <= 12; minute++)
+        {
+            _time.Set(Login.AddMinutes(minute));
+            await _service.SweepAsync(
+                [Online(ALICE, "alice", Login, lastActive: Login), Online(BOB, "bob", Login)],
+                Ct
+            );
+        }
+
+        Credits()
+            .GroupBy(x => (x.Player, x.Kind))
+            .ToDictionary(x => x.Key, x => x.Count())
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<(int, CurrencyKind), int>
+                {
+                    [(ALICE, CurrencyKind.ActivityPoints(0))] = 12,
+                    [(ALICE, CurrencyKind.Credits)] = 9,
+                    [(BOB, CurrencyKind.ActivityPoints(0))] = 12,
+                }
+            );
     }
 
     [Fact]
