@@ -56,6 +56,15 @@ public sealed class FakeHotelContractTests : HotelContract
         public void Enter(RoomId room, PlayerId player) =>
             _hotel.Rooms.Enter(_hotel.Rooms.All.Single(x => x.Id == room), Player(player));
 
+        public Task StaffRenamePublicCategoryAsync(int id, string name, CancellationToken ct)
+        {
+            var category = _hotel.Navigator.Public.All.Single(x => x.Id == id);
+            category.Name = name;
+            category.Visible = false;
+
+            return Task.CompletedTask;
+        }
+
         public int AddFurniture(string name) => _hotel.Inventory.AddFurniture(name).DefinitionId;
 
         public Task StartAsync(CancellationToken ct) => Task.CompletedTask;

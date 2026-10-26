@@ -47,11 +47,23 @@ public sealed class AdminActionLog(
 
     public const string SOURCE = "panel";
 
+    /// <summary>The source of a change a plugin made through the hotel API, logged as no player (0).</summary>
+    public const string PLUGIN_SOURCE = "plugin";
+
+    public Task WriteAsync(
+        string command,
+        PlayerId player,
+        string arguments,
+        CommandOutcome outcome,
+        CancellationToken ct
+    ) => WriteAsync(command, player, arguments, outcome, SOURCE, ct);
+
     public async Task WriteAsync(
         string command,
         PlayerId player,
         string arguments,
         CommandOutcome outcome,
+        string source,
         CancellationToken ct
     )
     {
@@ -72,7 +84,7 @@ public sealed class AdminActionLog(
                             : arguments[..CommandLogEntity.ARGUMENTS_MAX_LENGTH],
                     Outcome = CommandTelemetry.Name(outcome),
                     ExecutionId = Guid.NewGuid(),
-                    Source = SOURCE,
+                    Source = source,
                 }
             );
 

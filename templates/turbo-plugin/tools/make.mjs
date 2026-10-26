@@ -22,7 +22,7 @@
  *   migration <Name>                    the plugin's tables (server/Database) and a migration (dotnet ef)
  *   schedule <name> [--cron "0 18 * * MON" | --every 00:05:00] [--per-server]
  *                                       a scheduled task, run once per cluster (server/Tasks)
- *   policy <purchase|room-entry|placement|registration|avatar-effect|purchase-fulfilment> [<name>]
+ *   policy <purchase|room-entry|placement|registration|avatar-effect|purchase-fulfilment|public-room-order> [<name>]
  *                                       a game policy: allow, refuse or change the action (server/Policies)
  *
  * A file that is there already is left alone (the command says so and stops).
@@ -463,6 +463,13 @@ public sealed class ${type} : IScheduledTask
     public ValueTask FulfilAsync(PurchaseRequest request, PurchaseDecision paid, CancellationToken ct) =>
         ValueTask.CompletedTask;`,
             },
+            'public-room-order': {
+                contract: 'IPublicRoomOrder',
+                usings: [ 'System.Collections.Generic', 'System.Linq', 'Turbo.Primitives.Rooms.Snapshots' ],
+                summary: 'Orders a navigator Public tab category\'s rooms each time its block is built (not Habbo\'s, which keeps the order staff\n/// set): here the busiest first, the rest as staff set. Answer from the rooms given, at once.',
+                members: `    public IReadOnlyList<RoomInfoSnapshot> OrderRooms(PublicRoomCategory category, IReadOnlyList<RoomInfoSnapshot> rooms) =>
+        [.. rooms.OrderByDescending(x => x.Population)];`,
+            },
         };
         const policy = kinds[name];
 
@@ -471,9 +478,7 @@ public sealed class ${type} : IScheduledTask
         const type = `${pascal(rest.find(arg => !arg.startsWith('--')) ?? name)}Policy`;
 
         write(path.join(server, 'Policies', `${type}.cs`), `
-using System.Threading;
-using System.Threading.Tasks;
-using Turbo.Primitives.Policies;
+${[ 'System.Threading', 'System.Threading.Tasks', 'Turbo.Primitives.Policies', ...(policy.usings ?? []) ].sort().map(x => `using ${x};`).join('\n')}
 
 namespace ${assembly};
 

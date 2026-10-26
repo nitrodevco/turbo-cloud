@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Commands;
 using Turbo.Primitives.Commands;
@@ -21,9 +22,14 @@ namespace Turbo.Admin.Api;
 /// block of Habbo's <c>official_view</c>, and the rooms in them in the order staff set. Seeing it
 /// is the content view; changing it needs <c>content.manage</c> and
 /// <c>navigator.public.manage</c>, and every change is in the command log. Players see a change
-/// with their next search; Habbo pushes none.
+/// with their next search; Habbo pushes none. <c>/preview</c> is that search as players get it.
 /// </summary>
-internal sealed class NavigatorPublicEndpoints(IPublicRoomEditor editor, AdminActionLog actions)
+internal sealed class NavigatorPublicEndpoints(
+    IPublicRoomEditor editor,
+    AdminActionLog actions,
+    INavigatorService navigator,
+    IGrainFactory grainFactory
+)
 {
     private const string NO_MANAGE = "You can't change the navigator's Public tab.";
     private const string KIND_MANUAL = "manual";
@@ -36,6 +42,7 @@ internal sealed class NavigatorPublicEndpoints(IPublicRoomEditor editor, AdminAc
             .RequirePermissionToChange(PermissionNodes.Navigator.PUBLIC_MANAGE, NO_MANAGE);
 
         group.MapGet("", ListAsync);
+        group.MapGet("/preview", PreviewAsync);
         group.MapPost(
             "/categories",
             (NavigatorPublicCategoryRequest request, HttpContext http, CancellationToken ct) =>
@@ -167,36 +174,79 @@ internal sealed class NavigatorPublicEndpoints(IPublicRoomEditor editor, AdminAc
         );
     }
 
-    private async Task<IResult> ListAsync(CancellationToken ct) =>
+    private async Task<IResult> ListAsync(HttpContext http, CancellationToken ct) =>
         Results.Ok(
-            new NavigatorPublicResponse([
-                .. (await editor.ListAsync(ct).ConfigureAwait(false)).Select(
-                    x => new NavigatorPublicCategoryItem(
-                        x.Id,
-                        x.Name,
-                        x.OrderNum,
-                        x.ForceClosed,
-                        (int)x.ViewMode,
-                        x.Visible,
-                        x.Kind == NavigatorPublicCategoryKind.StaffPicks
-                            ? KIND_STAFF_PICKS
-                            : KIND_MANUAL,
-                        x.PluginKey,
-                        x.SearchCode,
-                        [
-                            .. x.Rooms.Select(r => new NavigatorPublicRoomItem(
-                                r.RoomId.Value,
-                                r.Name,
-                                r.OwnerId.Value,
-                                r.OwnerName,
-                                r.AddedAt,
-                                r.AddedBy?.Value
-                            )),
-                        ]
-                    )
-                ),
+            new NavigatorPublicResponse(
+                [
+                    .. (await editor.ListAsync(ct).ConfigureAwait(false)).Select(
+                        x => new NavigatorPublicCategoryItem(
+                            x.Id,
+                            x.Name,
+                            x.OrderNum,
+                            x.ForceClosed,
+                            (int)x.ViewMode,
+                            x.Visible,
+                            x.Kind == NavigatorPublicCategoryKind.StaffPicks
+                                ? KIND_STAFF_PICKS
+                                : KIND_MANUAL,
+                            x.PluginKey,
+                            x.SearchCode,
+                            [
+                                .. x.Rooms.Select(r => new NavigatorPublicRoomItem(
+                                    r.RoomId.Value,
+                                    r.Name,
+                                    r.OwnerId.Value,
+                                    r.OwnerName,
+                                    r.AddedAt,
+                                    r.AddedBy?.Value
+                                )),
+                            ]
+                        )
+                    ),
+                ],
+                await CanManageAsync(http, ct).ConfigureAwait(false)
+            )
+        );
+
+    /// <summary>The Public tab as the viewer's own search answers it now, as a player sees it.</summary>
+    private async Task<IResult> PreviewAsync(HttpContext http, CancellationToken ct) =>
+        Results.Ok(
+            new NavigatorPublicPreviewResponse([
+                .. (
+                    await navigator
+                        .SearchAsync(
+                            AdminIdentity.Of(http).PlayerId,
+                            NavigatorSearchCodes.OFFICIAL_VIEW,
+                            string.Empty,
+                            ct
+                        )
+                        .ConfigureAwait(false)
+                ).Select(x => new NavigatorPublicPreviewBlock(
+                    x.SearchCode,
+                    x.Text,
+                    x.ForceClosed,
+                    (int)x.ViewMode,
+                    [
+                        .. x.Results.Select(r => new NavigatorPublicPreviewRoom(
+                            r.RoomId.Value,
+                            r.Name,
+                            r.OwnerName,
+                            r.Population,
+                            r.PlayersMax,
+                            (int)r.DoorMode
+                        )),
+                    ]
+                )),
             ])
         );
+
+    private async Task<bool> CanManageAsync(HttpContext http, CancellationToken ct) =>
+        await grainFactory
+            .HoldsAsync(http, PermissionNodes.Content.MANAGE, ct)
+            .ConfigureAwait(false)
+        && await grainFactory
+            .HoldsAsync(http, PermissionNodes.Navigator.PUBLIC_MANAGE, ct)
+            .ConfigureAwait(false);
 
     private Task<IResult> SaveCategoryAsync(
         int id,

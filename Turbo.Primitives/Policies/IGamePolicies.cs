@@ -1,15 +1,17 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Primitives.Policies;
 
 /// <summary>
 /// The host's side of the game policies (<see cref="IPurchasePolicy"/>,
 /// <see cref="IRoomEntryPolicy"/>, <see cref="IPlacementPolicy"/>, <see cref="IRegistrationPolicy"/>,
-/// <see cref="IAvatarEffectPolicy"/>, <see cref="IPurchaseFulfilment"/>): every registered one of a kind,
-/// run in order (<c>Order</c>, then plugin key, then as registered). A purchase's and an avatar
-/// effect's policies each take the decision of the ones before; for room entry, placement and
+/// <see cref="IAvatarEffectPolicy"/>, <see cref="IPurchaseFulfilment"/>, <see cref="IPublicRoomOrder"/>): every registered one of a kind,
+/// run in order (<c>Order</c>, then plugin key, then as registered). A purchase's, an avatar
+/// effect's and a public room order's policies each take the decision of the ones before; for room entry, placement and
 /// registration the first refusal is the answer; the first purchase fulfilment that takes an
 /// offer fulfils it. With
 /// none the hotel decides as it always does. Two plugins with a policy of the same kind both run,
@@ -61,13 +63,23 @@ public interface IGamePolicies
     /// </summary>
     IPurchaseFulfilment? FulfilmentFor(PurchaseRequest request);
 
+    /// <summary>
+    /// A Public tab category's rooms in the order its block lists them
+    /// (<see cref="IPublicRoomOrder.OrderRooms"/>, each on the order the one before left); the
+    /// order given with none. Runs inside a navigator search.
+    /// </summary>
+    IReadOnlyList<RoomInfoSnapshot> OrderPublicRooms(
+        PublicRoomCategory category,
+        IReadOnlyList<RoomInfoSnapshot> rooms
+    );
+
     /// <summary>Every registered policy, in the order it runs within its kind.</summary>
     ImmutableArray<RegisteredPolicy> Registered { get; }
 }
 
 /// <summary>
 /// One registered policy: its kind (<c>purchase</c>, <c>room-entry</c>, <c>placement</c>,
-/// <c>registration</c>, <c>avatar-effect</c>, <c>purchase-fulfilment</c>), the
+/// <c>registration</c>, <c>avatar-effect</c>, <c>purchase-fulfilment</c>, <c>public-room-order</c>), the
 /// plugin that registered it (<c>core</c> for the host's own), its class and order, and the other
 /// owners with a policy of the same kind (empty when it has the kind to itself).
 /// </summary>

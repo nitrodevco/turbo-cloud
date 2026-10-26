@@ -45,7 +45,18 @@ public sealed class HotelApiTests : IDisposable
                 .Where(x => x.Namespace == typeof(IHotel).Namespace && x.IsInterface),
         ];
 
-        areas.Should().HaveCount(8);
+        // An area's own areas (the navigator's Public tab) say it too.
+        areas =
+        [
+            .. areas,
+            .. areas.SelectMany(area =>
+                area.GetProperties()
+                    .Select(x => x.PropertyType)
+                    .Where(x => x.Namespace == typeof(IHotel).Namespace && x.IsInterface)
+            ),
+        ];
+
+        areas.Should().HaveCount(10);
 
         var unmarked = areas
             .SelectMany(area => area.GetMethods().Select(m => $"{area.Name}.{m.Name}"))

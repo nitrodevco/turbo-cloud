@@ -352,7 +352,8 @@ public sealed class NavigatorHotelViewTests
             Options.Create(config ?? new NavigatorConfig()),
             Options.Create(new PlayerNavigatorConfig()),
             _fakes.Create<IPermissionRegistryProvider>(),
-            _fakes.Create<IWordFilter>()
+            _fakes.Create<IWordFilter>(),
+            Turbo.Players.Policies.GamePolicies.None
         );
 
     private void Live(

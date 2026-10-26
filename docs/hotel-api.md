@@ -76,6 +76,7 @@ Every member carries `[HotelCall(...)]`, and its guide is this table. The rule t
 | `Inventory` | `FindFurniture(name)`, `Furniture(id)`, `GrantFurnitureAsync(player, definition, cause)`, `GrantFurnitureAsync(player, definition, reference, cause)` (once per reference: `Granted`, `AlreadyGranted`, `Refused`), `HasBadgeAsync`, `GiveBadgeAsync` (false when they had it) |
 | `Catalog` | `Offers(page)` (the live catalog), `CirculationAsync(definitions)` (held by players, system accounts left out), `MoveOfferAsync`, `SetPageExpiryAsync`, `PublishAsync` (the panel's catalog editor, with its checks and history) |
 | `Notify` | `AlertAsync(player, textKey, defaultText, parameters)` (the hotel's alert, its text from the hotel's texts), `NotificationAsync(player, type, parameters)` (a client notification whose `notification.<type>` variable the hotel or the plugin's `external_variables.json` has), `StaffNoticeAsync(notice)` (`docs/plugin-notices.md`) |
+| `Navigator` | `Public`: the navigator's Public tab through the admin panel's own editor. `CategoriesAsync()` (every category in order, hidden ones too, its key, name, shown, opens closed, thumbnails, staff picks, rooms in order); `EnsureCategoryAsync(key, defaults)` makes the plugin's category under `key` (`<plugin-key>:<name>`, `HotelPublicKey`) once, from `defaults` (name, shown, opens closed, thumbnails, rooms), and after that answers it as staff left it, so call it every start; `AddRoomAsync(key, room, first)` (false when it is in it), `RemoveRoomAsync(key, room)` (false when it was not), `OrderRoomsAsync(key, rooms)` (every room once). Only the plugin's own categories, by key; a missing key, a room that does not exist or a bad order throws `ArgumentException`. Each change is in the command log as the plugin's (source `plugin`); players see it with their next search. To order a category's rooms at search time instead (busiest first), see `IPublicRoomOrder` in `docs/plugin-policies.md` |
 | `Wired` | `FireAsync(room, event, triggerer)` and `FireForPlayerAsync(player, event)`: a plugin's wired event for its own triggers (`docs/plugin-wired.md`); false, and the room not loaded, when no one is in it |
 | `Status` | `Current`: whether the hotel is open (`HotelAvailabilitySnapshot`: `Phase` `Open`, `MaintenanceScheduled`, `Maintenance`, `ShutdownScheduled` or `ShuttingDown`, `AtUtc` when a countdown ends, its `Reason`, `BlocksLogin` while it is closed to players without `hotel.maintenance.bypass`), in memory; each change (scheduled, called off, run out) is a `HotelAvailabilityChangedEvent` (`Previous`, `Current`) a plugin's `IEventHandler<T>` hears (`docs/plugin-policies.md`) |
 | `Clock` | a `TimeProvider`: the hotel's time; `FakeHotel.Clock` moves only when the test moves it |
@@ -125,7 +126,9 @@ plugin does:
   `AchievementScore`, `Club`, `LastLoginAt` and `Permissions` the test sets; it passes as its `PlayerId`),
   `Rooms.Add(name, owner, isPublic)`, `Rooms.Enter(room, player)`, `Wallet.Set(player, currency,
   amount)`, `Wallet.AddCurrency(name)` (credits, duckets and diamonds are there), `Inventory.AddFurniture(name)`,
-  `Inventory.Hold(...)`, `Catalog.AddOffer(...)`, `Status.Set(snapshot)` (open until then); ids count up from 1, or from `Players.NextId`,
+  `Inventory.Hold(...)`, `Catalog.AddOffer(...)`, `Status.Set(snapshot)` (open until then),
+  `Navigator.Public.AddStaffCategory(name, rooms)` (a staff one; a test changes any `FakePublicCategory`'s
+  name, shown, rooms as staff would); ids count up from 1, or from `Players.NextId`,
   `Rooms.NextId` and `Inventory.NextFurnitureId` when the test sets them;
 - fail: `Wallet.FailNext(count, throws)` and `Inventory.FailNext(count, throws)` make the next
   credits, debits, grants or badge gifts fail as a hotel write that failed does (refused, nothing
@@ -133,7 +136,8 @@ plugin does:
   exception given, as a crash mid-call does;
 - read back: `Players.SentTo(player)`, `Players.Identities`, `Rooms.SentTo(room)`, `Rooms.WhispersTo(player)`,
   `Wallet.Movements`, `Inventory.Grants`, `Notify.Alerts`, `Notify.StaffNotices`,
-  `Catalog.Publishes`, `Wired.Fired`;
+  `Catalog.Publishes`, `Wired.Fired`, `Navigator.Public.All` / `.Category(key)` (a room in a shown
+  category is on `Rooms.PublicIdsAsync`, as on a hotel);
 - assert: `Wallet.AssertCredited/AssertDebited/AssertUntouched`, `Players.AssertSent<T>/AssertNothingSent`,
   `Rooms.AssertSent<T>/AssertWhispered`, `Inventory.AssertGranted/AssertHasBadge`,
   `Notify.AssertAlerted/AssertNotAlerted`, `Wired.AssertFired<TEvent>/AssertNothingFired`. A failure throws `HotelAssertionException` with what

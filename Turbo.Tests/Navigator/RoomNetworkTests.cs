@@ -136,7 +136,8 @@ public sealed class RoomNetworkTests
             ),
             Options.Create(new PlayerNavigatorConfig()),
             _fakes.Create<IPermissionRegistryProvider>(),
-            _fakes.Create<IWordFilter>()
+            _fakes.Create<IWordFilter>(),
+            Turbo.Players.Policies.GamePolicies.None
         );
 
     private static RoomInfoSnapshot Room(RoomId roomId) =>

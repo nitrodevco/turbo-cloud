@@ -117,7 +117,33 @@ public sealed record NavigatorPublicCategoryItem(
     List<NavigatorPublicRoomItem> Rooms
 );
 
-public sealed record NavigatorPublicResponse(List<NavigatorPublicCategoryItem> Categories);
+/// <summary>The Public tab's categories, and whether the viewer may change them (<c>content.manage</c> and <c>navigator.public.manage</c>).</summary>
+public sealed record NavigatorPublicResponse(
+    List<NavigatorPublicCategoryItem> Categories,
+    bool CanManage
+);
+
+/// <summary>A room as the Public tab lists it now: its users now, its door (0 open, 1 doorbell, 2 password, 3 invisible).</summary>
+public sealed record NavigatorPublicPreviewRoom(
+    int RoomId,
+    string Name,
+    string OwnerName,
+    int Users,
+    int MaxUsers,
+    int DoorMode
+);
+
+/// <summary>One block of the Public tab as players get it now: its code, title, forced close, view mode (0 list, 1 thumbnails) and rooms in order.</summary>
+public sealed record NavigatorPublicPreviewBlock(
+    string SearchCode,
+    string Text,
+    bool ForceClosed,
+    int ViewMode,
+    List<NavigatorPublicPreviewRoom> Rooms
+);
+
+/// <summary>What the navigator's Public tab (<c>official_view</c>) answers now, a plugin's room order included.</summary>
+public sealed record NavigatorPublicPreviewResponse(List<NavigatorPublicPreviewBlock> Blocks);
 
 /// <summary>A Public tab category as staff write it; a field left out keeps what it was. <c>kind</c> only on a new one.</summary>
 public sealed record NavigatorPublicCategoryRequest(

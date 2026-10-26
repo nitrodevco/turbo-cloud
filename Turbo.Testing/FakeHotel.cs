@@ -24,6 +24,7 @@ public sealed class FakeHotel : IHotel
         Inventory = new FakeInventory(this);
         Catalog = new FakeCatalog(this);
         Notify = new FakeNotify(this);
+        Navigator = new FakeNavigator(this);
         Wired = new FakeWired(this);
     }
 
@@ -38,6 +39,8 @@ public sealed class FakeHotel : IHotel
     public FakeCatalog Catalog { get; }
 
     public FakeNotify Notify { get; }
+
+    public FakeNavigator Navigator { get; }
 
     public FakeWired Wired { get; }
 
@@ -57,6 +60,8 @@ public sealed class FakeHotel : IHotel
     IHotelCatalog IHotel.Catalog => Catalog;
 
     IHotelNotify IHotel.Notify => Notify;
+
+    IHotelNavigator IHotel.Navigator => Navigator;
 
     IHotelWired IHotel.Wired => Wired;
 

@@ -13,6 +13,7 @@ internal sealed class HostHotel(
     IHotelInventory inventory,
     IHotelCatalog catalog,
     IHotelNotify notify,
+    IHotelNavigator navigator,
     IHotelWired wired,
     IHotelStatus status,
     TimeProvider clock
@@ -29,6 +30,8 @@ internal sealed class HostHotel(
     public IHotelCatalog Catalog { get; } = catalog;
 
     public IHotelNotify Notify { get; } = notify;
+
+    public IHotelNavigator Navigator { get; } = navigator;
 
     public IHotelWired Wired { get; } = wired;
 
@@ -53,6 +56,8 @@ public static class HotelServiceCollectionExtensions
         services.TryAddSingleton<IHotelInventory, HostHotelInventory>();
         services.TryAddSingleton<IHotelCatalog, HostHotelCatalog>();
         services.TryAddSingleton<IHotelNotify, HostHotelNotify>();
+        services.TryAddSingleton<HostHotelPublicRooms>();
+        services.TryAddSingleton<IHotelNavigator, HostHotelNavigator>();
         services.TryAddSingleton<IHotelWired, HostHotelWired>();
         services.TryAddSingleton<IHotelStatus, HostHotelStatus>();
         services.TryAddSingleton<IHotel, HostHotel>();

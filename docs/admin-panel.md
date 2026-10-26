@@ -1348,10 +1348,18 @@ The **Content** page is the game's content, each change made at once and on reco
   `DELETE /categories/{id}`, `PUT /categories/order` (`ids`, every category once);
   `POST /categories/{id}/rooms` (`roomId`, `first`), `PUT /categories/{id}/rooms/order`,
   `POST /categories/{id}/rooms/{roomId}/move` (`toCategoryId`, `index`),
-  `DELETE /categories/{id}/rooms/{roomId}`. Changing needs `navigator.public.manage` as well as
-  `content.manage`; every change, refused ones too, is in the command log as `navigator public
-  ...`. Players see it with their next search (Habbo pushes none). Plugins edit the same data
-  through `IPublicRoomEditor`.
+  `DELETE /categories/{id}/rooms/{roomId}`; `GET /preview`, the tab as the viewer's own search
+  answers it now (each block's rooms with their users now, a plugin's room order applied). Changing
+  needs `navigator.public.manage` as well as `content.manage` (`GET` says `canManage`); every
+  change, refused ones too, is in the command log as `navigator public ...`. Players see it with
+  their next search (Habbo pushes none). The panel's page (Content > Navigator, Public rooms):
+  categories down the left, dragged into order, each shown or hidden, opened closed, as a list or
+  thumbnails, renamed, added or removed; the picked category's rooms on the right, dragged into
+  order or onto another category to move them, removed, and added by searching a room by name,
+  owner or id (first or last); "Public tab now" beside it is the preview. A plugin's category
+  (`hotel.Navigator.Public`, `docs/hotel-api.md`) shows "from plugin X" and stays editable; its
+  changes are in the command log with source `plugin`. A plugin may order a category's rooms its
+  own way with an `IPublicRoomOrder` policy (`docs/plugin-policies.md`).
 - **Groups**: found by name, owner, group or room id. Staff rename a group (as typed, not
   word-filtered), put its badge back to the default, take any member, admin, request or block out,
   or delete it, whatever its size or `Turbo:Guilds:DeletionEnabled`. Each goes through the group's

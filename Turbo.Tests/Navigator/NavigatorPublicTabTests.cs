@@ -7,6 +7,7 @@ using Orleans;
 using Turbo.Navigator;
 using Turbo.Navigator.Configuration;
 using Turbo.Players.Configuration;
+using Turbo.Players.Policies;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Navigator.Enums;
@@ -15,6 +16,7 @@ using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Navigator;
 using Turbo.Primitives.Players.Snapshots.Permissions;
+using Turbo.Primitives.Policies;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -496,7 +498,74 @@ public sealed class NavigatorPublicTabTests
             .Equal(69118545, 80434055);
     }
 
-    private NavigatorService Service() =>
+    /// <summary>
+    /// Not Habbo's: a plugin's <see cref="IPublicRoomOrder"/> (here the plugin template's
+    /// busiest-first one) orders a block's rooms by the players in them now; the rest keep the
+    /// order staff set, as with no policy (the golden test above).
+    /// </summary>
+    [Fact]
+    public async Task a_plugins_public_room_order_lists_a_category_busiest_first()
+    {
+        _live[70616899] = RoomActiveSnapshot.From(_rooms[70616899], 5);
+        var policies = GamePolicies.None;
+        using var registered = policies.Register("sample", new BusiestFirst());
+
+        var blocks = await Service(policies).SearchAsync(PLAYER, "official_view", string.Empty, Ct);
+
+        blocks[1]
+            .Results.Select(x => (x.RoomId.Value, x.Population))
+            .Should()
+            .Equal(
+                (69118545, 22), // Coffee House
+                (70616899, 5), // Theatre
+                (69118542, 0),
+                (79384010, 0),
+                (69118541, 0),
+                (70616906, 0),
+                (70170123, 0),
+                (69118543, 0),
+                (80434055, 0)
+            );
+        blocks[0]
+            .Results.Select(x => x.RoomId.Value)
+            .Should()
+            .Equal(Recorded[0].Rooms.Select(x => x.Id));
+    }
+
+    /// <summary>A policy only orders: a room it names that the block lacks is not listed, one it leaves out follows in its place before.</summary>
+    [Fact]
+    public async Task a_public_room_order_cannot_add_or_drop_a_room()
+    {
+        _categories = [Category(1, "Shown", 1, false, [69118545, 70616899, 69118542])];
+        var policies = GamePolicies.None;
+        using var registered = policies.Register("sample", new LastOnlyPlusStranger());
+
+        var blocks = await Service(policies).SearchAsync(PLAYER, "official_view", string.Empty, Ct);
+
+        blocks
+            .Single()
+            .Results.Select(x => x.RoomId.Value)
+            .Should()
+            .Equal(69118542, 69118545, 70616899);
+    }
+
+    public sealed class BusiestFirst : IPublicRoomOrder
+    {
+        public IReadOnlyList<RoomInfoSnapshot> OrderRooms(
+            PublicRoomCategory category,
+            IReadOnlyList<RoomInfoSnapshot> rooms
+        ) => [.. rooms.OrderByDescending(x => x.Population)];
+    }
+
+    public sealed class LastOnlyPlusStranger : IPublicRoomOrder
+    {
+        public IReadOnlyList<RoomInfoSnapshot> OrderRooms(
+            PublicRoomCategory category,
+            IReadOnlyList<RoomInfoSnapshot> rooms
+        ) => [rooms[^1] with { RoomId = 424242 }, rooms[^1]];
+    }
+
+    private NavigatorService Service(GamePolicies? policies = null) =>
         new(
             NullLogger<INavigatorService>.Instance,
             _fakes.Create<INavigatorProvider>(),
@@ -504,7 +573,8 @@ public sealed class NavigatorPublicTabTests
             Options.Create(new NavigatorConfig()),
             Options.Create(new PlayerNavigatorConfig()),
             _fakes.Create<IPermissionRegistryProvider>(),
-            _fakes.Create<IWordFilter>()
+            _fakes.Create<IWordFilter>(),
+            policies ?? GamePolicies.None
         );
 
     private static NavigatorPublicCategorySnapshot Category(

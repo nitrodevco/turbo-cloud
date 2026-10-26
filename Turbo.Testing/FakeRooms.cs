@@ -29,7 +29,7 @@ public sealed class FakeRoom
 
     public FakePlayer Owner { get; set; }
 
-    /// <summary>On the navigator's public list.</summary>
+    /// <summary>On the navigator's public list, as a room in a shown Public tab category is too.</summary>
     public bool IsPublic { get; set; }
 
     /// <summary>Whether <see cref="IHotelRooms.LoadAsync"/> (or a player entering) loaded it.</summary>
@@ -91,14 +91,15 @@ public sealed class FakeRooms : IHotelRooms
     public Task<HotelRoom?> GetAsync(RoomId room, CancellationToken ct) =>
         Task.FromResult(
             Find(room) is { } r
-                ? new HotelRoom(r.Id, r.Name, r.Description, r.Owner.Id, r.Owner.Name, r.IsPublic)
+                ? new HotelRoom(r.Id, r.Name, r.Description, r.Owner.Id, r.Owner.Name, IsListed(r))
                 : null
         );
 
     public Task<IReadOnlyCollection<RoomId>> PublicIdsAsync(CancellationToken ct) =>
-        Task.FromResult<IReadOnlyCollection<RoomId>>([
-            .. _rooms.Where(x => x.IsPublic).Select(x => x.Id),
-        ]);
+        Task.FromResult<IReadOnlyCollection<RoomId>>([.. _rooms.Where(IsListed).Select(x => x.Id)]);
+
+    /// <summary>Marked public, or in a shown category of the Public tab.</summary>
+    private bool IsListed(FakeRoom room) => room.IsPublic || _hotel.Navigator.Public.Lists(room.Id);
 
     public Task<IReadOnlyList<PlayerId>> PlayersAsync(RoomId room, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<PlayerId>>([
