@@ -239,7 +239,8 @@ when the module stops. Client detail: nitro-next `docs/template-patches.md`; wor
 A theme is a plugin whose contribution is presentation: template patches, text styles, font faces,
 frame art. Each is a merged variable a plugin brings its entries of (in its
 `gamedata/external_variables.json`; never given to the hotel, the first plugin's entry used where two
-name one, the hotel's own entries over all, collisions logged):
+name one, the hotel's own entries over all - field by field where both are objects, so staff's frame colour
+for a window keeps a theme's first position for it - collisions logged):
 
 | Variable | Entries |
 | --- | --- |
@@ -248,9 +249,11 @@ name one, the hotel's own entries over all, collisions logged):
 | `frame.overrides` | `{ "<frame id or window name>": { "variant", "color", "position" } }`: a window's frame style, below every template patch. A patch restyles the same frame in one place: `color`, `style` and `position` on a window's root (`''`) go over what its code sets, and a window drawn without a template (the wired setup window) is named by its frame id as the patch's `template` (nitro-next `docs/template-patches.md`) |
 | `asset.overlays` | `{ "<library>/<asset>": "<url>" }`: one bitmap of a library - one frame's art in the theme sheet (`theme-...`), one icon. A plugin names a file of its `wwwroot/` by its path (`"frame.png"`); clients are given its address by hash, and one that is not there is logged and left out |
 | `loading.screen` | `{ "background", "backgroundImage", "layers", "logo", "bar", "order", ... }`: the loading screen's look, a key per part (nitro-next `docs/client-modules.md`); each key a theme leaves out is Habbo's own. A plugin names its pictures (`backgroundImage`, `logo`, each layer's `image`) by their path in its `wwwroot/`, as its overlays; one that is not there is logged and left out |
+| `text.styles.overrides` | `{ "<text style>": "<another style>" }` or the format fields it changes (`{ "u_regular": { "fontFamily": "Volter" } }`): the client's text styles (nitro-next `docs/template-patches.md`) |
 
 So a theme replaces the one frame or icon it changes rather than shipping a copy of the window
-manager library. Next: text-style sources per plugin.
+manager library. A theme's style properties (`theme.json`, `docs/plugin-data.md`) write these entries for it, and
+the base theme `habbo` names Habbo's own so staff change them on the hotel's Theme tab.
 
 ### 4.7 Messages
 
