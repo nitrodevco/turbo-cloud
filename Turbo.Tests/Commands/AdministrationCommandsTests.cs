@@ -31,6 +31,9 @@ public class AdministrationCommandsTests : OperatorCommandsTestBase
         [BOB] = ["admin"],
     };
 
+    /// <summary>The players who hold <c>permissions.superuser</c> besides <c>permissions.manage</c>.</summary>
+    private readonly HashSet<int> _superusers = [];
+
     public AdministrationCommandsTests()
     {
         var registry = new PermissionRegistry([new CorePermissionNodeSource()]);
@@ -61,6 +64,9 @@ public class AdministrationCommandsTests : OperatorCommandsTestBase
                         Granted =
                         [
                             PermissionNodes.Permissions.MANAGE,
+                            .. _superusers.Contains((int)(long)call.Key!)
+                                ? [PermissionNodes.Permissions.SUPERUSER]
+                                : Array.Empty<string>(),
                             .. _groups
                                 .GetValueOrDefault((int)(long)call.Key!, [])
                                 .Append(PermissionGroupNames.DEFAULT)
@@ -96,7 +102,14 @@ public class AdministrationCommandsTests : OperatorCommandsTestBase
                     Clock
                 )
             ),
-            new PermCommand(Grains),
+            new PermCommand(
+                Grains,
+                new PermissionEditService(
+                    Grains,
+                    Hotel.Fakes.Create<IPermissionRegistryProvider>(),
+                    Clock
+                )
+            ),
             new StatusCommand(Grains, sessions, _availability, Clock),
             new OnlineCommand(Grains, sessions, Config),
             new MaintenanceCommand(_availability, live),
@@ -333,6 +346,89 @@ public class AdministrationCommandsTests : OperatorCommandsTestBase
                 "Alice: made.up is denied (no such node is registered)",
                 "Decided by nothing: no group or player sets it, and it is not granted by default"
             );
+    }
+
+    [Fact]
+    public async Task Perm_User_Set_GivesALighterPlayerANodeTheEditorHolds_ThroughTheEditRule()
+    {
+        var staff = Staff(PermissionNodes.Command.PERM, PermissionNodes.Permissions.MANAGE);
+
+        await Hotel.RunAsync("perm", staff, "user alice set permissions.manage");
+        await Hotel.RunAsync("perm", staff, "user alice set admin.plugins.install");
+        await Hotel.RunAsync("perm", staff, "user bob set permissions.manage");
+        await Hotel.RunAsync("perm", staff, "user staff set permissions.manage");
+
+        var call = PermissionCalls("SetNodeAsync", ALICE).Should().ContainSingle().Subject;
+        call.Args[0].Should().Be("permissions.manage");
+        call.Args[1].Should().Be(true);
+        call.Args[2].Should().BeNull();
+        ((PlayerId?)call.Args[4])!.Value.Value.Should().Be(STAFF);
+        PermissionCalls("SetNodeAsync", BOB).Should().BeEmpty();
+        PermissionCalls("SetNodeAsync", STAFF).Should().BeEmpty();
+        staff
+            .Replies.Should()
+            .Equal(
+                "Alice now has permissions.manage = true.",
+                "Only nodes you hold are yours to hand out, and admin.plugins.install is not.",
+                "Bob is in a group as heavy as your heaviest or heavier, so their permissions are not yours to change.",
+                "Only a superuser changes their own permissions."
+            );
+    }
+
+    [Fact]
+    public async Task Perm_User_A_superuser_grants_themselves_a_node_from_the_panel_s_console()
+    {
+        // admin-panel.md tells a hotel owner to give themselves admin.plugins.install with
+        // "perm user <you> set ..."; the panel's console only knew "perm check" (stranger test S3).
+        _superusers.Add(STAFF);
+        Hotel.Fakes.Handlers["GetAssignmentsAsync"] = _ =>
+            Task.FromResult(
+                PlayerPermissionAssignmentsSnapshot.EMPTY with
+                {
+                    Nodes =
+                    [
+                        new PermissionNodeAssignmentSnapshot
+                        {
+                            Node = PermissionNodes.Permissions.MANAGE,
+                            Value = true,
+                        },
+                        new PermissionNodeAssignmentSnapshot
+                        {
+                            Node = PermissionNodes.Permissions.SUPERUSER,
+                            Value = true,
+                        },
+                    ],
+                }
+            );
+        var staff = Staff(PermissionNodes.Command.PERM, PermissionNodes.Permissions.MANAGE);
+
+        await Hotel.RunAsync("perm", staff, "user staff set admin.plugins.install");
+        await Hotel.RunAsync("perm", staff, "user staff unset admin.plugins.install");
+
+        PermissionCalls("SetNodeAsync", STAFF)
+            .Should()
+            .ContainSingle()
+            .Which.Args[0]
+            .Should()
+            .Be("admin.plugins.install");
+        PermissionCalls("UnsetNodeAsync", STAFF).Single().Args[1].Should().Be(false);
+        staff
+            .Replies.Should()
+            .Equal(
+                "staff now has admin.plugins.install = true.",
+                "Took admin.plugins.install off staff."
+            );
+    }
+
+    [Fact]
+    public async Task Perm_User_NeedsTheRightToManagePermissions_NotJustTheCommand()
+    {
+        var staff = Staff(PermissionNodes.Command.PERM);
+
+        await Hotel.RunAsync("perm", staff, "user alice set vip.badge");
+
+        PermissionCalls("SetNodeAsync", ALICE).Should().BeEmpty();
+        staff.Replies.Should().ContainSingle().Which.Should().NotContain("now has");
     }
 
     [Fact]
