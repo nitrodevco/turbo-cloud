@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -91,10 +92,37 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
     public string? FolderOf(string pluginKey) =>
         manager.FoundFolderOf(pluginKey) ?? (pluginKey == IHotelDataPlugin.KEY ? Folder : null);
 
-    public async Task<ImmutableArray<HotelPatch>> PatchesAsync(CancellationToken ct) =>
-        [.. await ReadAsync(ct).ConfigureAwait(false)];
+    public string EditableFolderOf(string pluginKey)
+    {
+        if (pluginKey == IHotelDataPlugin.KEY)
+            return Folder;
 
-    public async Task<HotelPatch> SavePatchAsync(HotelPatch patch, CancellationToken ct)
+        var folder =
+            manager.FoundFolderOf(pluginKey)
+            ?? throw new KeyNotFoundException("There is no plugin with that key.");
+
+        if (!PluginHelpers.IsDataOnly(PluginHelpers.ReadManifest(folder)))
+            throw new ArgumentException(
+                $"{pluginKey} has code: its files are its author's to change. Work on this hotel, or on a theme made here.",
+                nameof(pluginKey)
+            );
+
+        return folder;
+    }
+
+    public Task ReloadAsync(string pluginKey, CancellationToken ct) =>
+        manager.ReloadAsync(pluginKey, ct);
+
+    public async Task<ImmutableArray<HotelPatch>> PatchesAsync(
+        string pluginKey,
+        CancellationToken ct
+    ) => [.. await ReadAsync(EditableFolderOf(pluginKey), ct).ConfigureAwait(false)];
+
+    public async Task<HotelPatch> SavePatchAsync(
+        string pluginKey,
+        HotelPatch patch,
+        CancellationToken ct
+    )
     {
         var problems = TemplatePatchSchema.Problems(patch.Template.Trim(), patch.Ops);
 
@@ -115,6 +143,7 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         };
 
         await ChangeAsync(
+                pluginKey,
                 list =>
                 {
                     var at = list.FindIndex(x => x.Id == saved.Id);
@@ -133,8 +162,8 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         return saved;
     }
 
-    public Task<bool> RemovePatchAsync(string id, CancellationToken ct) =>
-        ChangeAsync(list => list.RemoveAll(x => x.Id == id) > 0, ct);
+    public Task<bool> RemovePatchAsync(string pluginKey, string id, CancellationToken ct) =>
+        ChangeAsync(pluginKey, list => list.RemoveAll(x => x.Id == id) > 0, ct);
 
     public async Task<string> SaveFileAsync(string path, Stream content, CancellationToken ct)
     {
@@ -230,6 +259,18 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         if (FolderOf(pluginKey) is not { } folder)
             return null;
 
+        return await ServedAsync(folder, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The window patches the <c>wwwroot/template-patches.json</c> in <paramref name="folder"/> gives
+    /// clients, in the file's order; none without the file.
+    /// </summary>
+    private static async Task<ImmutableArray<PluginTemplatePatch>> ServedAsync(
+        string folder,
+        CancellationToken ct
+    )
+    {
         var path = Path.Combine(folder, WWWROOT, TEMPLATE_PATCHES);
 
         if (!File.Exists(path))
@@ -252,7 +293,7 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         {
             throw new ArgumentException(
                 $"{TEMPLATE_PATCHES} isn't JSON. {ex.Message}",
-                nameof(pluginKey),
+                nameof(folder),
                 ex
             );
         }
@@ -516,7 +557,7 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
 
         if (string.Equals(pluginKey, IHotelDataPlugin.KEY, StringComparison.OrdinalIgnoreCase))
             files[$"{WWWROOT}/{TEMPLATE_PATCHES}"] = Served(
-                await ReadAsync(ct).ConfigureAwait(false)
+                await ReadAsync(Folder, ct).ConfigureAwait(false)
             );
 
         if (host.GetService<IPluginStyles>() is { } styles)
@@ -632,37 +673,46 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
     }
 
     /// <summary>
-    /// Changes the patch list, writes it and the file clients load, and loads the hotel's plugin
+    /// Changes the plugin's patch list, writes it and the file clients load, and loads the plugin
     /// again; answers what <paramref name="change"/> did (false: nothing was written).
     /// </summary>
-    private async Task<bool> ChangeAsync(Func<List<HotelPatch>, bool> change, CancellationToken ct)
+    private async Task<bool> ChangeAsync(
+        string pluginKey,
+        Func<List<HotelPatch>, bool> change,
+        CancellationToken ct
+    )
     {
+        var folder = EditableFolderOf(pluginKey);
+
         await _changes.WaitAsync(ct).ConfigureAwait(false);
 
         try
         {
-            var list = await ReadAsync(ct).ConfigureAwait(false);
+            var list = await ReadAsync(folder, ct).ConfigureAwait(false);
 
             if (!change(list))
                 return false;
 
-            Ensure();
+            if (pluginKey == IHotelDataPlugin.KEY)
+                Ensure();
+            else
+                Directory.CreateDirectory(Path.Combine(folder, WWWROOT));
 
             await File.WriteAllBytesAsync(
-                    Path.Combine(Folder, PATCHES),
+                    Path.Combine(folder, PATCHES),
                     JsonSerializer.SerializeToUtf8Bytes(new { patches = list }, JSON),
                     ct
                 )
                 .ConfigureAwait(false);
             await File.WriteAllBytesAsync(
-                    Path.Combine(Folder, WWWROOT, TEMPLATE_PATCHES),
+                    Path.Combine(folder, WWWROOT, TEMPLATE_PATCHES),
                     Served(list),
                     ct
                 )
                 .ConfigureAwait(false);
 
             // Its patch file's address is by hash: loaded again, clients are given the new one.
-            await manager.ReloadAsync(IHotelDataPlugin.KEY, ct).ConfigureAwait(false);
+            await manager.ReloadAsync(pluginKey, ct).ConfigureAwait(false);
 
             return true;
         }
@@ -693,16 +743,41 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
             JSON
         );
 
-    private async Task<List<HotelPatch>> ReadAsync(CancellationToken ct)
+    /// <summary>
+    /// The patches staff keep in <paramref name="folder"/>'s <c>patches.json</c>; a theme with none yet
+    /// (its patches written by hand) has those of its file for clients, each named by its window and
+    /// numbered in the file's order.
+    /// </summary>
+    private async Task<List<HotelPatch>> ReadAsync(string folder, CancellationToken ct)
     {
-        var path = Path.Combine(Folder, PATCHES);
+        var path = Path.Combine(folder, PATCHES);
 
-        if (!File.Exists(path))
+        if (File.Exists(path))
+        {
+            var file = await File.ReadAllBytesAsync(path, ct).ConfigureAwait(false);
+
+            return JsonSerializer.Deserialize<PatchFile>(file, JSON)?.Patches ?? [];
+        }
+
+        if (string.Equals(folder, Folder, StringComparison.OrdinalIgnoreCase))
             return [];
 
-        var file = await File.ReadAllBytesAsync(path, ct).ConfigureAwait(false);
+        var served = await ServedAsync(folder, ct).ConfigureAwait(false);
 
-        return JsonSerializer.Deserialize<PatchFile>(file, JSON)?.Patches ?? [];
+        return
+        [
+            .. served.Select(
+                (x, at) =>
+                    new HotelPatch(
+                        (at + 1).ToString(CultureInfo.InvariantCulture),
+                        x.Template,
+                        x.Template,
+                        x.Order,
+                        x.Ops,
+                        false
+                    )
+            ),
+        ];
     }
 
     /// <summary>Makes the hotel's plugin's folder when there is none; true when it did.</summary>

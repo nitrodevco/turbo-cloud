@@ -182,6 +182,7 @@ public sealed class DataPluginTests : IDisposable
 
         var bad = () =>
             patches.SavePatchAsync(
+                IHotelDataPlugin.KEY,
                 Patch(
                     "Bad",
                     """[ { "element": "help_button", "set": { "colour": 1 }, "remove": true } ]"""
@@ -193,6 +194,7 @@ public sealed class DataPluginTests : IDisposable
             .WithMessage("*one of set, remove, insert, move, wrap, bind or arrange*");
 
         var green = await patches.SavePatchAsync(
+            IHotelDataPlugin.KEY,
             Patch(
                 "Green help",
                 """[ { "element": "help_button", "set": { "color": 4281244476 } } ]"""
@@ -200,6 +202,7 @@ public sealed class DataPluginTests : IDisposable
             Ct
         );
         await patches.SavePatchAsync(
+            IHotelDataPlugin.KEY,
             Patch("Hidden beta", """[ { "element": "beta_sign", "remove": true } ]""") with
             {
                 Disabled = true,
@@ -230,13 +233,13 @@ public sealed class DataPluginTests : IDisposable
             .GetArrayLength()
             .Should()
             .Be(1, "the disabled patch is kept, not sent");
-        (await patches.PatchesAsync(Ct))
+        (await patches.PatchesAsync(IHotelDataPlugin.KEY, Ct))
             .Select(x => x.Name)
             .Should()
             .Equal("Green help", "Hidden beta");
 
-        (await patches.RemovePatchAsync(green.Id, Ct)).Should().BeTrue();
-        (await patches.PatchesAsync(Ct)).Should().ContainSingle();
+        (await patches.RemovePatchAsync(IHotelDataPlugin.KEY, green.Id, Ct)).Should().BeTrue();
+        (await patches.PatchesAsync(IHotelDataPlugin.KEY, Ct)).Should().ContainSingle();
     }
 
     /// <summary>
@@ -250,6 +253,7 @@ public sealed class DataPluginTests : IDisposable
         var hotel = Hotel();
 
         await hotel.HotelPlugin.SavePatchAsync(
+            IHotelDataPlugin.KEY,
             Patch("Green help", """[ { "element": "help_button", "set": { "color": 1 } } ]"""),
             Ct
         );
@@ -257,6 +261,7 @@ public sealed class DataPluginTests : IDisposable
         var saving = System.Diagnostics.Stopwatch.StartNew();
 
         await hotel.HotelPlugin.SavePatchAsync(
+            IHotelDataPlugin.KEY,
             Patch("Hidden beta", """[ { "element": "beta_sign", "remove": true } ]"""),
             Ct
         );
@@ -325,6 +330,7 @@ public sealed class DataPluginTests : IDisposable
         var patches = Hotel().HotelPlugin;
 
         await patches.SavePatchAsync(
+            IHotelDataPlugin.KEY,
             Patch(
                 "Catalogue",
                 """[ { "element": "", "set": { "color": 4288688176, "position": { "x": 84, "y": 153 } } } ]"""
@@ -335,6 +341,7 @@ public sealed class DataPluginTests : IDisposable
             Ct
         );
         await patches.SavePatchAsync(
+            IHotelDataPlugin.KEY,
             Patch("Wired", """[ { "element": "", "set": { "color": 4282019493 } } ]""") with
             {
                 Template = "wired-setup",
@@ -344,12 +351,13 @@ public sealed class DataPluginTests : IDisposable
 
         var bad = () =>
             patches.SavePatchAsync(
+                IHotelDataPlugin.KEY,
                 Patch("Bad", """[ { "element": "", "set": { "position": [ 84, 153 ] } } ]"""),
                 Ct
             );
         await bad.Should().ThrowAsync<ArgumentException>().WithMessage("*first opens*");
 
-        (await patches.PatchesAsync(Ct))
+        (await patches.PatchesAsync(IHotelDataPlugin.KEY, Ct))
             .Select(x => x.Template)
             .Should()
             .Equal("habbo-catalog-com/catalog_ubuntu_with_tabs", "wired-setup");
@@ -365,6 +373,7 @@ public sealed class DataPluginTests : IDisposable
 
         var refused = () =>
             patches.SavePatchAsync(
+                IHotelDataPlugin.KEY,
                 Patch(
                     "Tab icons",
                     """
@@ -380,6 +389,7 @@ public sealed class DataPluginTests : IDisposable
             .And.Contain("colour, which is no binding field");
 
         await patches.SavePatchAsync(
+            IHotelDataPlugin.KEY,
             Patch(
                 "Tab icons",
                 """
@@ -418,6 +428,7 @@ public sealed class DataPluginTests : IDisposable
 
         var refused = () =>
             patches.SavePatchAsync(
+                IHotelDataPlugin.KEY,
                 Patch(
                     "Tab icons",
                     """
@@ -430,7 +441,7 @@ public sealed class DataPluginTests : IDisposable
         (await refused.Should().ThrowAsync<ArgumentException>())
             .Which.Message.Should()
             .Contain("puts a placeholder inside another (${text.tabicon.${item.index}})");
-        (await patches.PatchesAsync(Ct)).Should().BeEmpty();
+        (await patches.PatchesAsync(IHotelDataPlugin.KEY, Ct)).Should().BeEmpty();
     }
 
     // The formula reader is recursive: a formula nested thousands deep, saved from the panel, would
@@ -453,12 +464,12 @@ public sealed class DataPluginTests : IDisposable
             new[] { new { element = "layoutContainer", arrange = new { y = formula } } }
         );
 
-        var refused = () => patches.SavePatchAsync(Patch("Header", ops), Ct);
+        var refused = () => patches.SavePatchAsync(IHotelDataPlugin.KEY, Patch("Header", ops), Ct);
 
         (await refused.Should().ThrowAsync<ArgumentException>())
             .Which.Message.Should()
             .Contain(reason);
-        (await patches.PatchesAsync(Ct)).Should().BeEmpty();
+        (await patches.PatchesAsync(IHotelDataPlugin.KEY, Ct)).Should().BeEmpty();
     }
 
     // A theme's post-layout hook as data (nitro-next templatePatchArrange.ts, templateArrangeProblems):
@@ -471,6 +482,7 @@ public sealed class DataPluginTests : IDisposable
 
         var refused = () =>
             patches.SavePatchAsync(
+                IHotelDataPlugin.KEY,
                 Patch(
                     "Header",
                     """
@@ -486,6 +498,7 @@ public sealed class DataPluginTests : IDisposable
             .And.Contain("top, which it does not set");
 
         await patches.SavePatchAsync(
+            IHotelDataPlugin.KEY,
             Patch(
                 "Header",
                 """
@@ -499,7 +512,7 @@ public sealed class DataPluginTests : IDisposable
             Ct
         );
 
-        (await patches.PatchesAsync(Ct)).Should().ContainSingle();
+        (await patches.PatchesAsync(IHotelDataPlugin.KEY, Ct)).Should().ContainSingle();
     }
 
     // The client wraps since r58 (nitro-next templatePatch.ts, `wrap`): the panel refused it as no op.
@@ -511,6 +524,7 @@ public sealed class DataPluginTests : IDisposable
 
         var refused = () =>
             patches.SavePatchAsync(
+                IHotelDataPlugin.KEY,
                 Patch(
                     "Panes",
                     """
@@ -528,6 +542,7 @@ public sealed class DataPluginTests : IDisposable
             );
 
         var saved = await patches.SavePatchAsync(
+            IHotelDataPlugin.KEY,
             Patch(
                 "Panes",
                 """
@@ -665,6 +680,7 @@ public sealed class DataPluginTests : IDisposable
 
         // Loaded with no change, it gives clients nothing: they draw exactly as without it.
         await hotel.HotelPlugin.SavePatchAsync(
+            IHotelDataPlugin.KEY,
             Patch("Hidden beta", """[ { "element": "beta_sign", "remove": true } ]"""),
             Ct
         );
@@ -869,6 +885,7 @@ public sealed class DataPluginTests : IDisposable
         const string BUTTON = "habbo-window-manager-com/theme-habbo-button-0-button-default";
 
         await hotel.Styles.SetOverlaysAsync(
+            IHotelDataPlugin.KEY,
             folder,
             new Dictionary<string, string?>
             {
@@ -893,6 +910,7 @@ public sealed class DataPluginTests : IDisposable
 
         var wrong = () =>
             hotel.Styles.SetOverlaysAsync(
+                IHotelDataPlugin.KEY,
                 folder,
                 new Dictionary<string, string?>
                 {
@@ -912,6 +930,7 @@ public sealed class DataPluginTests : IDisposable
             .Contain(FRAME, "a refused set writes nothing");
 
         await hotel.Styles.SetOverlaysAsync(
+            IHotelDataPlugin.KEY,
             folder,
             new Dictionary<string, string?> { [FRAME] = null, [BUTTON] = null },
             STAFF,
@@ -951,7 +970,14 @@ public sealed class DataPluginTests : IDisposable
             .Value.Should()
             .BeEmpty("a font is no image");
 
-        await hotel.Styles.SetFontAsync(font.Family, font.Url, STAFF, Ct);
+        await hotel.Styles.SetFontAsync(
+            IHotelDataPlugin.KEY,
+            Path.Combine(_folder, "hotel"),
+            font.Family,
+            font.Url,
+            STAFF,
+            Ct
+        );
 
         (await HotelValueAsync(hotel, ExternalVariablesFile.TEXT_FONTS))
             .Should()
@@ -969,7 +995,14 @@ public sealed class DataPluginTests : IDisposable
         (await hotel.HotelPlugin.RemoveFontAsync(IHotelDataPlugin.KEY, font.Path, Ct))
             .Should()
             .BeTrue();
-        await hotel.Styles.SetFontAsync(font.Family, null, STAFF, Ct);
+        await hotel.Styles.SetFontAsync(
+            IHotelDataPlugin.KEY,
+            Path.Combine(_folder, "hotel"),
+            font.Family,
+            null,
+            STAFF,
+            Ct
+        );
 
         (await HotelValueAsync(hotel, ExternalVariablesFile.TEXT_FONTS)).Should().BeNull();
     }
@@ -982,6 +1015,7 @@ public sealed class DataPluginTests : IDisposable
         var folder = hotel.HotelPlugin.FolderOf(IHotelDataPlugin.KEY)!;
 
         await hotel.HotelPlugin.SavePatchAsync(
+            IHotelDataPlugin.KEY,
             Patch("Hidden beta", """[ { "element": "beta_sign", "remove": true } ]"""),
             Ct
         );
@@ -1166,6 +1200,165 @@ public sealed class DataPluginTests : IDisposable
         added.Files.Should().ContainKey("chat_bubble_base").WhoseValue.Should().Equal(1, 2, 3);
     }
 
+    /// <summary>
+    /// A theme made in the panel (Appearance &gt; Themes, New theme) is a data plugin of its own, and
+    /// while staff work on it their edits land in its files, not the hotel's: a patch in its
+    /// template-patches.json, a style in its theme.json, a skin in its external variables by its own
+    /// path; its package carries them.
+    /// </summary>
+    [Fact]
+    public async Task A_theme_made_in_the_panel_takes_staff_s_edits_in_its_own_files()
+    {
+        var hotel = Hotel();
+        var folder = Path.Combine(_folder, "nightly");
+
+        await hotel.Manager.LoadAllAsync(ct: Ct);
+
+        var theme = await hotel.Themes.CreateAsync(
+            new ThemeCreateRequest("nightly", "Nightly", null, null, null),
+            Ct
+        );
+
+        theme.Should().Be(new PluginTheme("nightly", "habbo"));
+        PluginHelpers.ReadManifest(folder).AssemblyFile.Should().BeNull();
+        hotel.Manager.FolderOf("nightly").Should().Be(folder);
+
+        await hotel.HotelPlugin.SavePatchAsync(
+            "nightly",
+            Patch("Green help", """[ { "element": "help_button", "set": { "color": 1 } } ]"""),
+            Ct
+        );
+        await hotel.Styles.SetDefaultAsync("nightly", folder, "catalog.color", "#b0452c", Ct);
+
+        var tab = await hotel.HotelPlugin.SaveImageAsync(
+            "nightly",
+            "tab0.png",
+            new MemoryStream([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0]),
+            Ct
+        );
+        var overlays = await hotel.Styles.SetOverlaysAsync(
+            "nightly",
+            folder,
+            new Dictionary<string, string?>
+            {
+                ["habbo-catalog-com/tab0"] = $"/gamedata/plugins/nightly/{tab.Path}?v=1",
+            },
+            STAFF,
+            Ct
+        );
+        await hotel.HotelPlugin.ReloadAsync("nightly", Ct);
+
+        overlays
+            .Should()
+            .Equal(
+                new Dictionary<string, string> { ["habbo-catalog-com/tab0"] = "styles/tab0.png" }
+            );
+        File.ReadAllText(Path.Combine(folder, "wwwroot", PluginGamedataSeeds.TEMPLATE_PATCHES_FILE))
+            .Should()
+            .Contain("help_button");
+        JsonDocument
+            .Parse(File.ReadAllText(Path.Combine(folder, ThemeStyles.FILE)))
+            .RootElement.GetProperty("styles")
+            .GetProperty("catalog.color")
+            .GetProperty("default")
+            .GetString()
+            .Should()
+            .Be("#b0452c");
+        Directory.Exists(Path.Combine(_folder, IHotelDataPlugin.KEY)).Should().BeFalse();
+        (await HotelValueAsync(hotel, ExternalVariablesFile.FRAME_OVERRIDES)).Should().BeNull();
+
+        // Clients get them as the theme's own parts while it is loaded.
+        Part(hotel, ExternalVariablesFile.FRAME_OVERRIDES)
+            .GetProperty("catalog")
+            .GetProperty("color")
+            .GetString()
+            .Should()
+            .Be("#b0452c");
+        Part(hotel, ExternalVariablesFile.ASSET_OVERLAYS)
+            .GetProperty("habbo-catalog-com/tab0")
+            .GetString()
+            .Should()
+            .StartWith("/gamedata/plugins/nightly/styles/tab0.png?v=");
+
+        var zip = await hotel.HotelPlugin.ExportAsync(
+            "nightly",
+            new PluginExportRequest("nightly", "Nightly", "1.0.0", null),
+            Ct
+        );
+        using var archive = new ZipArchive(new MemoryStream(zip!));
+
+        archive
+            .Entries.Select(x => x.FullName)
+            .Should()
+            .Contain([
+                "theme.json",
+                "gamedata/external_variables.json",
+                "wwwroot/template-patches.json",
+                "wwwroot/styles/tab0.png",
+            ])
+            .And.NotContain("patches.json");
+    }
+
+    /// <summary>
+    /// A copy of a theme (Duplicate) is the theme as this hotel has it under a new key: the hotel's
+    /// copied keeps its patches by name (those turned off too) and its style changes as defaults. A key
+    /// in use and a parent that is no theme are refused, and nothing is left behind.
+    /// </summary>
+    [Fact]
+    public async Task A_copy_of_the_hotel_s_theme_keeps_its_patches_by_name_under_its_new_key()
+    {
+        var hotel = Hotel();
+        var hotelFolder = hotel.HotelPlugin.FolderOf(IHotelDataPlugin.KEY)!;
+
+        await hotel.HotelPlugin.SavePatchAsync(
+            IHotelDataPlugin.KEY,
+            Patch("Hidden beta", """[ { "element": "beta_sign", "remove": true } ]"""),
+            Ct
+        );
+        await hotel.HotelPlugin.SavePatchAsync(
+            IHotelDataPlugin.KEY,
+            Patch("Off one", """[ { "element": "help_button", "remove": true } ]""") with
+            {
+                Disabled = true,
+            },
+            Ct
+        );
+        await hotel.Styles.SetAsync(
+            IHotelDataPlugin.KEY,
+            hotelFolder,
+            "catalog.color",
+            "#123456",
+            STAFF,
+            Ct
+        );
+
+        var copy = await hotel.Themes.CreateAsync(
+            new ThemeCreateRequest("ours", "Ours", null, IHotelDataPlugin.KEY, null),
+            Ct
+        );
+
+        copy.Should().Be(new PluginTheme("ours", "habbo"));
+        (await hotel.HotelPlugin.PatchesAsync("ours", Ct))
+            .Select(x => (x.Name, x.Disabled))
+            .Should()
+            .Equal(("Hidden beta", false), ("Off one", true));
+        (await hotel.Styles.ListAsync("ours", Path.Combine(_folder, "ours"), Ct))
+            .Single(x => x.Property.Name == "catalog.color")
+            .Property.Default.Should()
+            .Be("#123456");
+
+        var taken = () =>
+            hotel.Themes.CreateAsync(new ThemeCreateRequest("ours", "Again", null, null, null), Ct);
+        await taken.Should().ThrowAsync<ArgumentException>().WithMessage("*already*");
+        var noParent = () =>
+            hotel.Themes.CreateAsync(
+                new ThemeCreateRequest("lost", "Lost", "nothere", null, null),
+                Ct
+            );
+        await noParent.Should().ThrowAsync<ArgumentException>().WithMessage("*no theme*");
+        Directory.Exists(Path.Combine(_folder, "lost")).Should().BeFalse();
+    }
+
     private static HotelPatch Patch(string name, string ops) =>
         new(
             string.Empty,
@@ -1208,7 +1401,8 @@ public sealed class DataPluginTests : IDisposable
         GamedataVariableService Variables,
         GamedataTextService Texts,
         IPluginStyles Styles,
-        HotelDataPlugin HotelPlugin
+        HotelDataPlugin HotelPlugin,
+        ThemeAuthoring Themes
     );
 
     /// <summary>A hotel's plugin manager over the test's plugins folder, with the gamedata services data plugins reach.</summary>
@@ -1279,7 +1473,8 @@ public sealed class DataPluginTests : IDisposable
             variables,
             texts,
             host.GetRequiredService<IPluginStyles>(),
-            hotelPlugin
+            hotelPlugin,
+            new ThemeAuthoring(manager, hotelPlugin, host)
         );
     }
 }

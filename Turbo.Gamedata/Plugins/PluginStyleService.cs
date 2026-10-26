@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -30,6 +32,16 @@ internal sealed partial class PluginStyleService(
     private const int MAX_OVERLAYS = 1000;
 
     private const int MAX_URL = 2048;
+
+    private const string WWWROOT = "wwwroot";
+
+    private static readonly JsonDocumentOptions READ = new()
+    {
+        AllowTrailingCommas = true,
+        CommentHandling = JsonCommentHandling.Skip,
+    };
+
+    private static readonly JsonSerializerOptions WRITE = new() { WriteIndented = true };
 
     public async Task<ImmutableArray<PluginStyle>> ListAsync(
         string pluginKey,
@@ -118,12 +130,23 @@ internal sealed partial class PluginStyleService(
     }
 
     public async Task<ImmutableDictionary<string, string>> SetOverlaysAsync(
+        string pluginKey,
         string folder,
         IReadOnlyDictionary<string, string?> overlays,
         PlayerId actor,
         CancellationToken ct
     )
     {
+        var own = pluginKey != IHotelDataPlugin.KEY;
+
+        // A theme's files name its own images by their path in its wwwroot, as its author writes them.
+        if (own)
+            overlays = overlays.ToDictionary(
+                x => x.Key,
+                x => x.Value is null ? null : OwnPath(pluginKey, x.Value),
+                StringComparer.Ordinal
+            );
+
         var problems = new List<string>();
 
         if (overlays.Count == 0)
@@ -136,15 +159,24 @@ internal sealed partial class PluginStyleService(
         {
             if (!OverlayKeyPattern().IsMatch(key))
                 problems.Add($"{key} is no bitmap: <library>/<asset>.");
-            else if (url is not null && (url.Length > MAX_URL || !ThemeStyles.IsUrl(url)))
+            else if (
+                url is not null
+                && (
+                    url.Length > MAX_URL
+                    || !(ThemeStyles.IsUrl(url) || (own && IsOwnFile(folder, url)))
+                )
+            )
                 problems.Add($"{key}: {url} is no address (/a/path on the hotel, or https://...).");
         }
 
         if (problems.Count > 0)
             throw new ArgumentException(string.Join(" ", problems), nameof(overlays));
 
+        if (own)
+            return await SetOwnOverlaysAsync(pluginKey, folder, overlays, ct).ConfigureAwait(false);
+
         // The hotel theme's image styles by the bitmap each stands in for: those go through the style.
-        var styled = Read(IHotelDataPlugin.KEY, folder)
+        var styled = Read(pluginKey, folder)
             .Where(x => x is { Type: ThemeStyleType.Image, Overlay: not null })
             .GroupBy(x => x.Overlay!, StringComparer.Ordinal)
             .ToDictionary(x => x.Key, x => x.First(), StringComparer.Ordinal);
@@ -187,19 +219,55 @@ internal sealed partial class PluginStyleService(
             .ToImmutableDictionary(x => x.Key, x => x.Value!.ToString(), StringComparer.Ordinal);
     }
 
-    public async Task SetFontAsync(string family, string? url, PlayerId actor, CancellationToken ct)
+    public async Task SetFontAsync(
+        string pluginKey,
+        string folder,
+        string family,
+        string? url,
+        PlayerId actor,
+        CancellationToken ct
+    )
     {
+        var own = pluginKey != IHotelDataPlugin.KEY;
+
+        if (own && url is not null)
+            url = OwnPath(pluginKey, url);
+
         if (!FamilyPattern().IsMatch(family))
             throw new ArgumentException(
                 $"\"{family}\" is no font family: letters, digits, '-', '_' and spaces.",
                 nameof(family)
             );
 
-        if (url is not null && (url.Length > MAX_URL || !ThemeStyles.IsUrl(url)))
+        if (
+            url is not null
+            && (
+                url.Length > MAX_URL || !(ThemeStyles.IsUrl(url) || (own && IsOwnFile(folder, url)))
+            )
+        )
             throw new ArgumentException(
                 $"{url} is no address (/a/path on the hotel, or https://...).",
                 nameof(url)
             );
+
+        if (own)
+        {
+            await ChangeVariablesAsync(
+                    folder,
+                    ExternalVariablesFile.TEXT_FONTS,
+                    entries =>
+                    {
+                        if (url is null)
+                            entries.Remove(family);
+                        else
+                            entries[family] = url;
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            return;
+        }
 
         var fonts = await HotelAsync(ExternalVariablesFile.TEXT_FONTS, ct).ConfigureAwait(false);
 
@@ -209,6 +277,217 @@ internal sealed partial class PluginStyleService(
             return;
 
         await SaveAsync(ExternalVariablesFile.TEXT_FONTS, fonts, actor, ct).ConfigureAwait(false);
+    }
+
+    public async Task<PluginStyle> SetDefaultAsync(
+        string pluginKey,
+        string folder,
+        string name,
+        string? value,
+        CancellationToken ct
+    )
+    {
+        var property =
+            Find(pluginKey, folder, name)
+            ?? throw new ArgumentException($"The theme has no style {name}.", nameof(name));
+
+        if (value is not null)
+        {
+            value = OwnPath(pluginKey, value.Trim());
+
+            // Checked as clients would be given it: an image is a file of its wwwroot or an address.
+            ThemeStyles.ClientValue(property, value, path => IsOwnFile(folder, path) ? path : null);
+        }
+
+        await ChangeThemeAsync(
+                folder,
+                styles =>
+                {
+                    if (styles[name] is not JsonObject declared)
+                        styles[name] = declared = [];
+
+                    if (value is null)
+                        declared.Remove("default");
+                    else
+                        declared["default"] = value;
+
+                    if (declared.Count == 0)
+                        styles.Remove(name);
+                },
+                ct
+            )
+            .ConfigureAwait(false);
+
+        var hotel = await HotelAsync(ExternalVariablesFile.TEMPLATE_STYLES, ct)
+            .ConfigureAwait(false);
+
+        return Of(pluginKey, Find(pluginKey, folder, name)!, hotel);
+    }
+
+    /// <summary>
+    /// A theme's skin set, into its own files: a bitmap an image style of its chain stands in for
+    /// becomes that style's default in its <c>theme.json</c>, the rest its entries of
+    /// <c>asset.overlays</c> in its <c>gamedata/external_variables.json</c>. Answers those entries after.
+    /// </summary>
+    private async Task<ImmutableDictionary<string, string>> SetOwnOverlaysAsync(
+        string pluginKey,
+        string folder,
+        IReadOnlyDictionary<string, string?> overlays,
+        CancellationToken ct
+    )
+    {
+        var styled = Read(pluginKey, folder)
+            .Where(x => x is { Type: ThemeStyleType.Image, Overlay: not null })
+            .GroupBy(x => x.Overlay!, StringComparer.Ordinal)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.Ordinal);
+        var defaults = overlays.Where(x => styled.ContainsKey(x.Key)).ToList();
+
+        if (defaults.Count > 0)
+            await ChangeThemeAsync(
+                    folder,
+                    styles =>
+                    {
+                        foreach (var (key, url) in defaults)
+                        {
+                            var name = styled[key].Name;
+
+                            if (styles[name] is not JsonObject declared)
+                                styles[name] = declared = [];
+
+                            if (url is null)
+                                declared.Remove("default");
+                            else
+                                declared["default"] = url;
+
+                            if (declared.Count == 0)
+                                styles.Remove(name);
+                        }
+                    },
+                    ct
+                )
+                .ConfigureAwait(false);
+
+        return await ChangeVariablesAsync(
+                folder,
+                ExternalVariablesFile.ASSET_OVERLAYS,
+                entries =>
+                {
+                    foreach (var (key, url) in overlays)
+                        if (url is null)
+                            entries.Remove(key);
+                        else
+                            entries[key] = url;
+                },
+                ct
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Changes the <c>styles</c> of the theme's <c>theme.json</c> in <paramref name="folder"/>
+    /// (made, extending the base theme, when there is none) and writes it back.
+    /// </summary>
+    private static async Task ChangeThemeAsync(
+        string folder,
+        Action<JsonObject> change,
+        CancellationToken ct
+    )
+    {
+        var path = Path.Combine(folder, ThemeStyles.FILE);
+        var root = File.Exists(path)
+            ? JsonNode.Parse(
+                await File.ReadAllTextAsync(path, ct).ConfigureAwait(false),
+                documentOptions: READ
+            ) as JsonObject
+                ?? throw new ArgumentException($"{ThemeStyles.FILE} is no object.", nameof(folder))
+            : new JsonObject { ["extends"] = ThemeStyles.BASE };
+
+        if (root["styles"] is not JsonObject styles)
+            root["styles"] = styles = [];
+
+        change(styles);
+        await File.WriteAllTextAsync(path, root.ToJsonString(WRITE), ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Changes the entries of one merged variable in the theme's <c>gamedata/external_variables.json</c>
+    /// in <paramref name="folder"/> (made when there is none) and writes it back; answers its entries
+    /// after (the variable goes with the last).
+    /// </summary>
+    private static async Task<ImmutableDictionary<string, string>> ChangeVariablesAsync(
+        string folder,
+        string variable,
+        Action<Dictionary<string, string>> change,
+        CancellationToken ct
+    )
+    {
+        var path = Path.Combine(
+            folder,
+            PluginGamedataSeeds.FOLDER,
+            PluginGamedataSeeds.VARIABLES_FILE
+        );
+        var root = File.Exists(path)
+            ? JsonNode.Parse(
+                await File.ReadAllTextAsync(path, ct).ConfigureAwait(false),
+                documentOptions: READ
+            ) as JsonObject
+                ?? throw new ArgumentException(
+                    $"{PluginGamedataSeeds.VARIABLES_FILE} is no object.",
+                    nameof(folder)
+                )
+            : [];
+        var entries = ThemeStyles
+            .Entries(root[variable]?.ToJsonString())
+            .Where(x => x.Value is JsonValue value && value.TryGetValue<string>(out _))
+            .ToDictionary(x => x.Key, x => x.Value!.GetValue<string>(), StringComparer.Ordinal);
+
+        change(entries);
+
+        if (entries.Count == 0)
+            root.Remove(variable);
+        else
+            root[variable] = new JsonObject(
+                entries
+                    .OrderBy(x => x.Key, StringComparer.Ordinal)
+                    .Select(x => KeyValuePair.Create(x.Key, (JsonNode?)JsonValue.Create(x.Value)))
+            );
+
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllTextAsync(path, root.ToJsonString(WRITE), ct).ConfigureAwait(false);
+
+        return entries.ToImmutableDictionary(StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// A value naming one of the theme's own served files by its address
+    /// (<c>/gamedata/plugins/&lt;key&gt;/styles/a.png?v=...</c>, as an upload answers) as its path in
+    /// its wwwroot (<c>styles/a.png</c>), as its files name it wherever it is installed; any other as it is.
+    /// </summary>
+    private static string OwnPath(string pluginKey, string value)
+    {
+        var prefix = $"/gamedata/plugins/{pluginKey}/";
+        var at = value.IndexOf(prefix, StringComparison.Ordinal);
+
+        return at < 0 ? value : Uri.UnescapeDataString(value[(at + prefix.Length)..].Split('?')[0]);
+    }
+
+    /// <summary>Whether <paramref name="path"/> is a file of the plugin's wwwroot in <paramref name="folder"/>.</summary>
+    private static bool IsOwnFile(string folder, string path)
+    {
+        if (
+            path.Length == 0
+            || path.StartsWith('/')
+            || path.Contains("://", StringComparison.Ordinal)
+        )
+            return false;
+
+        var root = Path.GetFullPath(Path.Combine(folder, WWWROOT));
+        var full = Path.GetFullPath(Path.Combine(root, path));
+
+        return full.StartsWith(
+                root + Path.DirectorySeparatorChar,
+                StringComparison.OrdinalIgnoreCase
+            ) && File.Exists(full);
     }
 
     private ImmutableArray<ThemeStyleProperty> Read(string pluginKey, string folder) =>

@@ -69,18 +69,44 @@ public interface IHotelDataPlugin
     /// <summary>The folder of a plugin the server knows of; null for none.</summary>
     public string? FolderOf(string pluginKey);
 
-    /// <summary>The patches staff made, disabled ones too, in the order they apply.</summary>
-    public Task<ImmutableArray<HotelPatch>> PatchesAsync(CancellationToken ct);
+    /// <summary>
+    /// The patches staff made in the plugin <paramref name="pluginKey"/> (the hotel's own, or a data
+    /// theme staff work on), disabled ones too, in the order they apply. A theme whose patches were
+    /// written by hand (no <c>patches.json</c> yet) lists those of its <c>wwwroot/template-patches.json</c>,
+    /// each named by its window. Throws <see cref="System.ArgumentException"/> for a plugin staff
+    /// can't edit (<see cref="EditableFolderOf"/>).
+    /// </summary>
+    public Task<ImmutableArray<HotelPatch>> PatchesAsync(string pluginKey, CancellationToken ct);
 
     /// <summary>
-    /// Adds the patch, or replaces the one with its id, and loads the hotel's plugin again so clients
-    /// are given it as they next load. Throws <see cref="System.ArgumentException"/> listing what is
-    /// wrong with a patch that isn't one (<c>docs/template-patches.md</c>, Operations).
+    /// Adds the patch to the plugin <paramref name="pluginKey"/>, or replaces the one with its id, and
+    /// loads that plugin again so clients are given it as they next load. Throws
+    /// <see cref="System.ArgumentException"/> listing what is wrong with a patch that isn't one
+    /// (<c>docs/template-patches.md</c>, Operations), or for a plugin staff can't edit.
     /// </summary>
-    public Task<HotelPatch> SavePatchAsync(HotelPatch patch, CancellationToken ct);
+    public Task<HotelPatch> SavePatchAsync(
+        string pluginKey,
+        HotelPatch patch,
+        CancellationToken ct
+    );
 
-    /// <summary>Takes the patch away; false when there is none with the id.</summary>
-    public Task<bool> RemovePatchAsync(string id, CancellationToken ct);
+    /// <summary>Takes the patch away from the plugin; false when there is none with the id.</summary>
+    public Task<bool> RemovePatchAsync(string pluginKey, string id, CancellationToken ct);
+
+    /// <summary>
+    /// The folder staff's edits to the plugin <paramref name="pluginKey"/> are written into (where they
+    /// land, XenForo's development mode): the hotel's own plugin's, made when there is none, or a data
+    /// plugin's (no code: a code plugin's files are its author's). Throws
+    /// <see cref="System.ArgumentException"/> for a plugin with code and
+    /// <see cref="System.Collections.Generic.KeyNotFoundException"/> for no plugin with the key.
+    /// </summary>
+    public string EditableFolderOf(string pluginKey);
+
+    /// <summary>
+    /// Loads the plugin again from its folder after staff changed its files, so clients are given
+    /// them as they next load.
+    /// </summary>
+    public Task ReloadAsync(string pluginKey, CancellationToken ct);
 
     /// <summary>
     /// The window patches the plugin's <c>wwwroot/template-patches.json</c> gives clients, in the
