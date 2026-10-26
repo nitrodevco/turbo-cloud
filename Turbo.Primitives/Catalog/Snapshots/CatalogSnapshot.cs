@@ -59,8 +59,9 @@ public sealed record CatalogSnapshot
     /// <summary>
     /// The featured items a page is sent with at <paramref name="now"/>: none unless its layout
     /// draws them, and of those only the ones that have not ended, each counting down to its
-    /// end. The client keeps the items of the last page that brought any, so every other page
-    /// sends none and leaves them be.
+    /// end, and <see cref="CatalogFrontPageItemSnapshot.NEVER_EXPIRES"/> for one that never ends.
+    /// The client keeps the items of the last page that brought any, so every other page sends
+    /// none and leaves them be.
     /// </summary>
     public ImmutableArray<CatalogFrontPageItemSnapshot> FrontPageItemsFor(
         CatalogPageSnapshot page,
@@ -76,7 +77,12 @@ public sealed record CatalogSnapshot
         {
             if (item.ExpiresAt is not { } ends)
             {
-                items.Add(item with { ExpiresInSeconds = 0 });
+                items.Add(
+                    item with
+                    {
+                        ExpiresInSeconds = CatalogFrontPageItemSnapshot.NEVER_EXPIRES,
+                    }
+                );
 
                 continue;
             }

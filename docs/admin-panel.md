@@ -656,8 +656,8 @@ your own for links:
 **Featured items.** A `frontpage4` or `frontpage_featured` page shows the featured items: up to
 four, the first big and the rest beside it. Each has a promo image (a path under the client's
 `image.library.url`), a title, what clicking it opens (a page by its link key, an offer, or a
-product code), and an optional end time, which the client counts down to; once it has passed the
-item is no longer sent. They're edited on the page's **Featured** tab, dragged into order, and go
+product code), and an optional end time; once it has passed the item is no longer sent (the client
+shows no countdown, as in Habbo). They're edited on the page's **Featured** tab, dragged into order, and go
 live on publish. Other pages are sent none, and the client keeps the ones it was last sent.
 
 What other things depend on is protected:
@@ -762,8 +762,9 @@ stays and those that go. `GET /api/catalog/audit/duplicate-pages`,
 `POST /api/catalog/pages/{id}/merge/preview` (changes nothing) and
 `POST /api/catalog/pages/{id}/merge` (`{ pageIds, priorityPageId }`; the page kept when null).
 
-**Front page.** **Make a front page** adds a `frontpage4` tab, first among the tabs, with the
-voucher box's line, and opens its featured items. **Feature** on an offer puts it among the
+**Front page.** **Make a front page** adds a `frontpage4` tab named `front_page`, first among the
+tabs, set up as Habbo's: the shop banner header, icon 213 and the voucher box's line, and opens its
+featured items. Its first text and second image (the teaser) are sent but the layout draws neither. **Feature** on an offer puts it among the
 featured items (four at most); give it a promo image there.
 
 **Generate.** A whole catalog from the hotel's own furniture, pets, effects and songs. Its tabs, in
