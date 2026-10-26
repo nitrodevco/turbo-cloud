@@ -14,7 +14,7 @@ public sealed class HabboAchievementPack : IAchievementPack
 
     public string Key => KEY;
 
-    public int Version => 6;
+    public int Version => 7;
 
     /// <summary>The hand-mapped records (1001-1018), then every other published record at 10000 plus its API id.</summary>
     public ImmutableArray<AchievementIdRange> IdRanges { get; } =
@@ -27,6 +27,7 @@ public sealed class HabboAchievementPack : IAchievementPack
     [
         .. AchievementDefaults.Definitions,
         .. AchievementDefaults.Crackables,
+        .. AchievementDefaults.RoomGames,
         .. AchievementDefaults.Unhooked,
     ];
 }

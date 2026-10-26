@@ -36,8 +36,9 @@ public class AchievementDefaultsTests
 
         Assert.Equal(18, definitions.Length);
         Assert.Equal(expectedPrefixes.Keys.Order(), definitions.Select(x => x.Key).Order());
-        // the 18 hotel sources, the two crackable furni record, and the placeholder nothing records
-        Assert.Equal(21, CoreAchievementSources.All.Length);
+        // the 18 hotel sources, the two crackable furni record, the Banzai tiles locked, the room
+        // game points, and the placeholder nothing records
+        Assert.Equal(23, CoreAchievementSources.All.Length);
         Assert.Contains(CoreAchievementSources.All, x => x.Key == AchievementSources.UNHOOKED);
 
         foreach (var definition in definitions)
