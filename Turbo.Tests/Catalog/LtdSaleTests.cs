@@ -11,6 +11,7 @@ using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
+using Turbo.Primitives.Catalog.Events;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
@@ -37,6 +38,7 @@ public sealed class LtdSaleTests : IDisposable
     private const int SIZE = 5;
 
     private readonly CatalogFixture _catalog = new();
+    private readonly TestEventBus _bus = new();
     private readonly ConcurrentQueue<(object? Player, IComposer Composer)> _sent = new();
     private readonly ConcurrentQueue<int> _serials = new();
     private Func<object?, CancellationToken, Task>? _timer;
@@ -94,6 +96,28 @@ public sealed class LtdSaleTests : IDisposable
             .BeEquivalentTo([(7, LtdRaffleResultType.Lost), (8, LtdRaffleResultType.Lost)]);
         _serials.Should().BeEmpty();
         _catalog.Fakes.Log.Of("TryDebitAsync").Should().BeEmpty();
+    }
+
+    // HC Payday counted no limited edition a member bought (user report 2026-10-26): the sale
+    // never said a catalogue purchase had completed. The club centre says HC members get credits
+    // back from "catalog purchases" (hccenter.special.info); that an LTD is one is inference.
+    [Fact]
+    [Trait("evidence", "inferred")]
+    public async Task EverySale_IsACompletedCataloguePurchaseAtTheOffersPrice()
+    {
+        var (grain, _) = await SeriesAsync(raffled: false);
+
+        _bus.Record<PurchaseCompletedEvent>();
+
+        await grain.EnterRaffleAsync(7, Ct);
+        await grain.EnterRaffleAsync(8, Ct);
+        await _timer!(_timerState, _timerToken!.Token);
+        await _bus.WhenPublishedAsync<PurchaseCompletedEvent>(2);
+
+        _bus.Of<PurchaseCompletedEvent>()
+            .Select(x => (x.PlayerId.Value, x.OfferId, x.CostCredits, x.Units))
+            .Should()
+            .BeEquivalentTo([(7, SOLD, 5, 1), (8, SOLD, 5, 1)]);
     }
 
     [Fact]
@@ -257,6 +281,7 @@ public sealed class LtdSaleTests : IDisposable
             SERIES
         );
         Set(grain, "_catalogService", fakes.Create<ICatalogService>());
+        Set(grain, "_events", _bus.System);
         Set(grain, "_config", Unweighted());
         await ((Grain)grain).OnActivateAsync(Ct);
 

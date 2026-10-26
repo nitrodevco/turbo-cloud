@@ -169,7 +169,7 @@ public sealed class EventRoomPolicy(IOptionsMonitor<EventSettings> settings) : I
 
 | Event | Raised |
 | --- | --- |
-| `PurchaseCompletedEvent` (`Turbo.Primitives.Catalog.Events`) | a catalogue offer was paid for and handed over: buyer, offer and product code, units given, what was paid in each currency, the receiver of a gift; for a room ad, `RoomAd` (the room event as it now runs) and `RoomAdExtended` |
+| `PurchaseCompletedEvent` (`Turbo.Primitives.Catalog.Events`) | a catalogue offer was paid for and handed over (a limited edition when its sale or raffle win is charged): buyer, offer and product code, units given, what was paid in each currency, the receiver of a gift; for a room ad, `RoomAd` (the room event as it now runs) and `RoomAdExtended` |
 | `PlayerLoggedInEvent` (`Turbo.Primitives.Players.Events`) | a player's login ticket was taken and the connection is theirs: every login, one replacing an earlier connection included; `RemoteAddress` |
 | `PlayerLoginFailedEvent` (`Turbo.Primitives.Players.Events`) | a login was turned away: `Failure` (`InvalidTicket`, `Banned`, `Maintenance`, `RefusedByPolicy` with the policy's `Reason`), whose ticket it was (null for an unknown one), `RemoteAddress` |
 | `PlayerRegisteredEvent` (`Turbo.Primitives.Players.Events`) | a new player account was saved (the site's registration, the panel's): `Source`, `RemoteAddress` |
