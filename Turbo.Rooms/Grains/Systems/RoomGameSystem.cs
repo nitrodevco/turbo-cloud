@@ -378,6 +378,23 @@ public sealed partial class RoomGameSystem(RoomGrain roomGrain)
         UpdateGameFurniAsync(RoomGameChange.Furni, ct);
 
     /// <summary>
+    /// Sends them on the next 500 ms beat of the room's clock instead: the tiles a kicked puck
+    /// passed changed together on the beat, not with each of its moves (official client capture
+    /// 2026-10-26, session 012541 t 1546.6-1547.6: [T7,5=3 T8,5=4] at 1547.06, T9,5=3 at 1547.54).
+    /// </summary>
+    public void SendGameFurniOnBeat()
+    {
+        if (TimerSystem.IsPending(FURNI_TIMER_KEY))
+            return;
+
+        TimerSystem.ScheduleAt(
+            FURNI_TIMER_KEY,
+            (NowMs() / BEAT_MS + 1) * BEAT_MS,
+            SendGameFurniAsync
+        );
+    }
+
+    /// <summary>
     /// Hands the room's highscore boards the teams that played: each team's score and the names
     /// of its players, and how long the game ran.
     /// </summary>

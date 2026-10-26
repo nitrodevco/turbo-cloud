@@ -26,10 +26,11 @@ public sealed partial class RoomGameSystem
     /// <summary>The beats of a finish: the tiles' last flash came on the 12th (3/3).</summary>
     public const int END_BEATS = 12;
 
-    private const int END_BEAT_MS = 500;
+    private const int BEAT_MS = 500;
 
-    // The game is no furni; its finish keeps a timer key no room object has.
+    // The game is no furni; its timers keep keys no room object has.
     private static readonly RoomObjectId FINISH_TIMER_KEY = int.MinValue + 1;
+    private static readonly RoomObjectId FURNI_TIMER_KEY = int.MinValue + 2;
 
     /// <summary>
     /// The achievements a game hands its players at the end, by the kind of team they played in:
@@ -78,7 +79,7 @@ public sealed partial class RoomGameSystem
         WinningTeam = FindWinner();
         _playedSeconds = (int)Math.Max(0, Math.Round((UtcNow - _startedAt).TotalSeconds));
 
-        TimerSystem.Schedule(FINISH_TIMER_KEY, END_BEAT_MS, OnEndBeatAsync);
+        TimerSystem.Schedule(FINISH_TIMER_KEY, BEAT_MS, OnEndBeatAsync);
     }
 
     private async Task OnEndBeatAsync(CancellationToken ct)
@@ -97,7 +98,7 @@ public sealed partial class RoomGameSystem
         await UpdateGameFurniAsync(RoomGameChange.EndBeat, ct);
 
         if (EndBeat < END_BEATS)
-            TimerSystem.Schedule(FINISH_TIMER_KEY, END_BEAT_MS, OnEndBeatAsync);
+            TimerSystem.Schedule(FINISH_TIMER_KEY, BEAT_MS, OnEndBeatAsync);
     }
 
     /// <summary>

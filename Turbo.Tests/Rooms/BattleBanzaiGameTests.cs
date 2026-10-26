@@ -135,6 +135,7 @@ public sealed class BattleBanzaiGameTests
             .. new (string Name, string Logic)[]
             {
                 ("bb_patch1", FurnitureBattleBanzaiTileLogic.LOGIC_NAME),
+                ("bb_puck", FurnitureBattleBanzaiPuckLogic.LOGIC_NAME),
                 ("bb_gate_r", FurnitureTeamGateLogic.LOGIC_NAME),
                 ("bb_gate_y", FurnitureTeamGateLogic.LOGIC_NAME),
                 ("es_gate_b", FurnitureTeamGateLogic.LOGIC_NAME),
@@ -151,7 +152,7 @@ public sealed class BattleBanzaiGameTests
         FurnitureGameTimerLogic.CLASSNAMES.Should().Contain("bb_counter");
     }
 
-    // results! (red) on 6,4 four times: 3, 4, 5 = locked with SCORE_R=1 in the same
+    // The red player on 6,4 four times: 3, 4, 5 = locked with SCORE_R=1 in the same
     // ObjectsDataUpdate, then nothing; a locked tile of another team never changed (official
     // client capture 2026-10-26, session 012541 t 947.5-975.5, 2/2 teams; t 1069.0-1104.0, 4/4).
     [Fact]
@@ -250,7 +251,7 @@ public sealed class BattleBanzaiGameTests
             );
     }
 
-    // results! (red) on the green gate: GATE_R 1 -> 0, effect 0, not counted green; the next gate
+    // The red player on the green gate: GATE_R 1 -> 0, effect 0, not counted green; the next gate
     // step joined (official client capture 2026-10-26, session 012541 t 1369.6-1409.0: 2/2
     // leave only, 2/2 join).
     [Fact]
@@ -274,7 +275,7 @@ public sealed class BattleBanzaiGameTests
         avatar.EffectId.Should().Be(34);
     }
 
-    // While a game ran, Hutch. sent onto either gate from next to it did not move at all (official
+    // While a game ran, a player sent onto either gate from next to it did not move at all (official
     // client capture 2026-10-26, session 012541 t 1147-1196; 4/4).
     [Fact]
     public async Task Nobody_can_step_on_a_gate_while_a_game_runs()
@@ -295,7 +296,7 @@ public sealed class BattleBanzaiGameTests
         Game.GetTeam((RoomObjectId)PLAYER).Should().Be(GameTeamType.Green);
     }
 
-    // G3 (60 s, green 9 : red 0): Hutch. (green) waved ~0.5 s after the 0, the grey tiles went
+    // G3 (60 s, green 9 : red 0): the green player waved ~0.5 s after the 0, the grey tiles went
     // dark a beat later, the green locked tiles flashed 0 / 8 ten times ending lit, red's and the
     // unlocked shades kept, no AvatarEffect, scoreboards kept; achievements at the end: the
     // player record +seconds (+60), tiles locked, GameAuthorExperience to the owner and
@@ -379,6 +380,54 @@ public sealed class BattleBanzaiGameTests
                 (100 + SECOND, AchievementSources.ROOM_GAME_POINTS, "battleballplayer", 60L),
                 (1, AchievementSources.ROOM_GAME_POINTS, "gameauthorexperience", 120L),
             ]);
+    }
+
+    // Kick 3: the red player stepped west onto the puck at 5,5 by the wall at 4,5; it came straight
+    // back east 6,5 .. 10,5, an ObjectUpdate a tile, each field tile one red step (6,5 red-locked
+    // kept), sent on the 500 ms beats, the puck's state never changed (official client capture
+    // 2026-10-26, session 012541 t 1546.6-1547.6; 3/3 kicks bounced or went on the same way).
+    [Fact]
+    public async Task A_kicked_puck_goes_the_way_its_kicker_walks_back_off_a_wall_and_colours_the_tiles_it_passes()
+    {
+        var red = _room.Enter(PLAYER, 1, 2);
+        var puck = _room.AddFloorItem(
+            60,
+            0,
+            2,
+            FurnitureBattleBanzaiPuckLogic.LOGIC_NAME,
+            className: FurnitureBattleBanzaiPuckLogic.CLASSNAME,
+            totalStates: 5,
+            createLogic: (s, c) => new FurnitureBattleBanzaiPuckLogic(s, c)
+        );
+        AddTile(30, 2, 2);
+        AddTile(31, 3, 2);
+        await Game.JoinTeamAsync(
+            (RoomObjectId)PLAYER,
+            GameTeamType.Red,
+            WiredTeamType.BattleBanzai,
+            Ct
+        );
+        await Game.StartGameAsync(Ct);
+        var before = Updates().Count;
+
+        await WalkToAsync(red, 0, 2);
+
+        List<int> path = [];
+
+        for (var move = 0; move < 10; move++)
+        {
+            await _room.Harness.Module<RoomTimerSystem>().ProcessTimersAsync(long.MaxValue / 2, Ct);
+            path.Add(puck.X);
+        }
+
+        path.Distinct().Should().Equal(1, 2, 3, 4, 5);
+        (puck.X, puck.Y).Should().Be((5, 2));
+        (StateOf(30), StateOf(31), StateOf(60)).Should().Be(("3", "3", "0"));
+        UpdateLines()
+            .Skip(before)
+            .SelectMany(x => x.Split(' '))
+            .Should()
+            .BeEquivalentTo("30=3", "31=3");
     }
 
     // UseFurniture counter 2 while stopped: 30 -> 60 -> 120 -> 180 -> 300 -> 600 -> 30; after a

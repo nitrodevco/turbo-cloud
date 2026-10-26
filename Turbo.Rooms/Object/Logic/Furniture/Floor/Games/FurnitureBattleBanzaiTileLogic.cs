@@ -133,10 +133,21 @@ public class FurnitureBattleBanzaiTileLogic(
     {
         await base.OnWalkOnAsync(ctx, ct);
 
+        await StepAsync(ctx.ObjectId, ct);
+
+        await GameSystem.SendGameFurniAsync(ct);
+    }
+
+    /// <summary>
+    /// A step of <paramref name="avatarId"/>'s team on the tile, by their foot or by the puck they
+    /// kicked; the change waits for the game's next update.
+    /// </summary>
+    public async Task StepAsync(RoomObjectId avatarId, CancellationToken ct)
+    {
         if (!GameSystem.IsGameRunning || IsLocked)
             return;
 
-        var team = GameSystem.GetTeam(ctx.ObjectId);
+        var team = GameSystem.GetTeam(avatarId);
 
         if (team == GameTeamType.None)
             return;
@@ -144,9 +155,7 @@ public class FurnitureBattleBanzaiTileLogic(
         await ColourAsync(Colour == team ? GetState() + 1 : StateOf(team, 0));
 
         if (IsLocked)
-            await OnLockedAsync(team, ctx.ObjectId, ct);
-
-        await GameSystem.SendGameFurniAsync(ct);
+            await OnLockedAsync(team, avatarId, ct);
     }
 
     private async Task ColourAsync(int state)
