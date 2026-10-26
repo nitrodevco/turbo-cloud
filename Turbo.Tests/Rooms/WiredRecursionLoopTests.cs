@@ -43,11 +43,7 @@ public sealed class WiredRecursionLoopTests
     {
         _room.Enter(AVATAR, 1, 1);
 
-        // Heavy marking reads real CPU time, which a loaded test machine can push past the
-        // threshold for 100 runs; it is not what these loops are about.
-        _room.Harness.Room.UseWiredConfig(
-            new WiredConfig { MaxRoomLogEntries = 10_000, HeavyBusyMsPerWindow = 0 }
-        );
+        _room.Harness.Room.UseWiredConfig(new WiredConfig { MaxRoomLogEntries = 10_000 });
     }
 
     // trigger.20.X2: Furni State Is Changed on the lamp + Toggle Furni State on the lamp in one

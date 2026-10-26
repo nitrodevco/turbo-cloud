@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -97,7 +96,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     private readonly Dictionary<int, int> _visitsByStackId = [];
     private long _visitWindowStartMs = long.MinValue;
 
-    // The wall clock the execution time limits read.
+    // The wall clock the execution time limits and the heavy budget read: the room's clock.
     private Func<long> _wallClockMs = roomGrain.NowMs;
 
     /// <param name="dormant">
@@ -286,7 +285,6 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         }
 
         var execution = new WiredExecution(now, _wallClockMs());
-        var startedTicks = Stopwatch.GetTimestamp();
 
         _execution = execution;
 
@@ -318,9 +316,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
             // Only executions count as the room's wired time: loading boxes and building stacks,
             // which a room does once when it wakes, is not.
-            _busyTicksInWindow += Stopwatch.GetTimestamp() - startedTicks;
+            var tookMs = _wallClockMs() - execution.StartedAtWallMs;
 
-            KillIfOverrun(execution);
+            _busyMsInWindow += tookMs;
+
+            KillIfOverrun(execution, tookMs);
         }
     }
 
