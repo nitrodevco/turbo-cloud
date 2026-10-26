@@ -654,6 +654,34 @@ public sealed class PluginOwnedGamedataTests : IDisposable
         await _manager.UnloadAllAsync(Ct);
     }
 
+    [Fact]
+    public async Task A_plugins_font_names_a_file_of_its_wwwroot_and_clients_get_its_address()
+    {
+        WriteTheme(
+            """{ "text.fonts": { "Pixel": "styles/pixel.woff2", "Gone": "styles/gone.woff2" } }""",
+            string.Empty
+        );
+
+        var styles = Path.Combine(_folder, "theme", "wwwroot", "styles");
+
+        Directory.CreateDirectory(styles);
+        File.WriteAllBytes(Path.Combine(styles, "pixel.woff2"), "wOF2"u8.ToArray());
+
+        await _manager.LoadAllAsync(ct: Ct);
+
+        var sent = (await SentVariablesAsync())[ExternalVariablesFile.TEXT_FONTS]!.AsObject();
+
+        sent.Select(x => x.Key)
+            .Should()
+            .Equal(["Pixel"], "a font whose file is not there is left out");
+        sent["Pixel"]!
+            .GetValue<string>()
+            .Should()
+            .MatchRegex(@"^/gamedata/plugins/theme/styles/pixel\.woff2\?v=[0-9a-f]{16}$");
+
+        await _manager.UnloadAllAsync(Ct);
+    }
+
     // A theme's loading screen named its pictures by the absolute /gamedata/plugins/<key>/... address (a
     // path of its wwwroot reached no file), unlike its overlays.
     [Fact]

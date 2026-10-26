@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,11 +21,16 @@ namespace Turbo.Gamedata.Plugins;
 /// <c>frame.overrides</c>, ...), written through the variables service as the panel's edits are. The
 /// theme a style file extends is found among the server's plugins (<see cref="IHotelDataPlugin"/>).
 /// </summary>
-internal sealed class PluginStyleService(
+internal sealed partial class PluginStyleService(
     IGamedataVariableService variables,
     IServiceProvider? host = null
 ) : IPluginStyles
 {
+    /// <summary>The bitmaps one skin set replaces at most: the theme sheet has about 600.</summary>
+    private const int MAX_OVERLAYS = 1000;
+
+    private const int MAX_URL = 2048;
+
     public async Task<ImmutableArray<PluginStyle>> ListAsync(
         string pluginKey,
         string folder,
@@ -111,6 +117,100 @@ internal sealed class PluginStyleService(
         return Of(pluginKey, property, styles);
     }
 
+    public async Task<ImmutableDictionary<string, string>> SetOverlaysAsync(
+        string folder,
+        IReadOnlyDictionary<string, string?> overlays,
+        PlayerId actor,
+        CancellationToken ct
+    )
+    {
+        var problems = new List<string>();
+
+        if (overlays.Count == 0)
+            problems.Add("Name at least one bitmap.");
+
+        if (overlays.Count > MAX_OVERLAYS)
+            problems.Add($"At most {MAX_OVERLAYS} bitmaps at once.");
+
+        foreach (var (key, url) in overlays)
+        {
+            if (!OverlayKeyPattern().IsMatch(key))
+                problems.Add($"{key} is no bitmap: <library>/<asset>.");
+            else if (url is not null && (url.Length > MAX_URL || !ThemeStyles.IsUrl(url)))
+                problems.Add($"{key}: {url} is no address (/a/path on the hotel, or https://...).");
+        }
+
+        if (problems.Count > 0)
+            throw new ArgumentException(string.Join(" ", problems), nameof(overlays));
+
+        // The hotel theme's image styles by the bitmap each stands in for: those go through the style.
+        var styled = Read(IHotelDataPlugin.KEY, folder)
+            .Where(x => x is { Type: ThemeStyleType.Image, Overlay: not null })
+            .GroupBy(x => x.Overlay!, StringComparer.Ordinal)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.Ordinal);
+        var styles = await HotelAsync(ExternalVariablesFile.TEMPLATE_STYLES, ct)
+            .ConfigureAwait(false);
+        var entries = await HotelAsync(ExternalVariablesFile.ASSET_OVERLAYS, ct)
+            .ConfigureAwait(false);
+        var stylesChanged = false;
+
+        foreach (var (key, url) in overlays)
+        {
+            if (styled.TryGetValue(key, out var property))
+            {
+                var entry = ThemeStyles.EntryOf(IHotelDataPlugin.KEY, property.Name);
+
+                if (url is null)
+                    stylesChanged |= styles.Remove(entry);
+                else
+                {
+                    styles[entry] = ThemeStyles.ClientValue(property, url, _ => null);
+                    stylesChanged = true;
+                }
+            }
+
+            if (url is null)
+                entries.Remove(key);
+            else
+                entries[key] = JsonValue.Create(url);
+        }
+
+        if (stylesChanged)
+            await SaveAsync(ExternalVariablesFile.TEMPLATE_STYLES, styles, actor, ct)
+                .ConfigureAwait(false);
+
+        await SaveAsync(ExternalVariablesFile.ASSET_OVERLAYS, entries, actor, ct)
+            .ConfigureAwait(false);
+
+        return entries
+            .Where(x => x.Value is JsonValue)
+            .ToImmutableDictionary(x => x.Key, x => x.Value!.ToString(), StringComparer.Ordinal);
+    }
+
+    public async Task SetFontAsync(string family, string? url, PlayerId actor, CancellationToken ct)
+    {
+        if (!FamilyPattern().IsMatch(family))
+            throw new ArgumentException(
+                $"\"{family}\" is no font family: letters, digits, '-', '_' and spaces.",
+                nameof(family)
+            );
+
+        if (url is not null && (url.Length > MAX_URL || !ThemeStyles.IsUrl(url)))
+            throw new ArgumentException(
+                $"{url} is no address (/a/path on the hotel, or https://...).",
+                nameof(url)
+            );
+
+        var fonts = await HotelAsync(ExternalVariablesFile.TEXT_FONTS, ct).ConfigureAwait(false);
+
+        if (url is not null)
+            fonts[family] = JsonValue.Create(url);
+        else if (!fonts.Remove(family))
+            return;
+
+        await SaveAsync(ExternalVariablesFile.TEXT_FONTS, fonts, actor, ct).ConfigureAwait(false);
+    }
+
     private ImmutableArray<ThemeStyleProperty> Read(string pluginKey, string folder) =>
         ThemeStyles.Read(
             pluginKey,
@@ -160,4 +260,10 @@ internal sealed class PluginStyleService(
 
         await variables.SaveAsync(key, value.ToJsonString(), actor, ct).ConfigureAwait(false);
     }
+
+    [GeneratedRegex(@"^[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+$")]
+    private static partial Regex OverlayKeyPattern();
+
+    [GeneratedRegex(@"^[A-Za-z0-9_\-][A-Za-z0-9_\- ]{0,63}$")]
+    private static partial Regex FamilyPattern();
 }

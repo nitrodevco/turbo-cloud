@@ -497,8 +497,9 @@ internal static class ThemeStyles
         return node is JsonValue value && value.TryGetValue<string>(out var text) ? text : json;
     }
 
-    private static bool IsUrl(string value) =>
-        value.StartsWith('/')
+    /// <summary>Whether <paramref name="value"/> is an address: <c>/a/path</c> on the hotel, or <c>http(s)://...</c>.</summary>
+    internal static bool IsUrl(string value) =>
+        !value.StartsWith("//", StringComparison.Ordinal) && value.StartsWith('/')
         || value.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
         || value.StartsWith("http://", StringComparison.OrdinalIgnoreCase);
 

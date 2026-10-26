@@ -39,7 +39,8 @@ internal sealed partial class PluginAdministration(
     /// <summary>
     /// What a data plugin's files may be (<see cref="PluginPackage"/>): data, never a page or a
     /// script a browser would run from the address the plugin's files are served at. No
-    /// extension (a <c>LICENSE</c>) is served as a download.
+    /// extension (a <c>LICENSE</c>) is served as a download. A font is data too: a browser loads it
+    /// as a face (a theme's <c>text.fonts</c>), never runs it.
     /// </summary>
     private static readonly FrozenSet<string> DATA_FILES = new[]
     {
@@ -52,6 +53,10 @@ internal sealed partial class PluginAdministration(
         ".jpg",
         ".jpeg",
         ".webp",
+        ".woff2",
+        ".woff",
+        ".ttf",
+        ".otf",
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The first segments core's nodes and meta keys use: never a plugin's, whatever its key.</summary>

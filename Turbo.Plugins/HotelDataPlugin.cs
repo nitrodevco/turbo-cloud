@@ -36,6 +36,8 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
 
     private static readonly string[] IMAGES = [".png", ".gif", ".jpg", ".jpeg", ".webp"];
 
+    private static readonly string[] FONTS = [".woff2", ".woff", ".ttf", ".otf"];
+
     private static readonly JsonSerializerOptions JSON = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
@@ -198,6 +200,28 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         return Task.FromResult<ImmutableArray<PluginImage>?>(images);
     }
 
+    public Task<ImmutableArray<PluginFont>?> FontsAsync(string pluginKey, CancellationToken ct)
+    {
+        if (FolderOf(pluginKey) is not { } folder)
+            return Task.FromResult<ImmutableArray<PluginFont>?>(null);
+
+        var styles = Path.Combine(folder, WWWROOT, STYLES);
+
+        if (!Directory.Exists(styles))
+            return Task.FromResult<ImmutableArray<PluginFont>?>([]);
+
+        var fonts = Directory
+            .EnumerateFiles(styles, "*", SearchOption.AllDirectories)
+            .Select(x => new FileInfo(x))
+            .Where(x => FONTS.Contains(x.Extension.ToLowerInvariant()))
+            .Select(x => Font(pluginKey, folder, x))
+            .Where(x => !x.Path.Split('/').Any(part => part.StartsWith('.')))
+            .OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase)
+            .ToImmutableArray();
+
+        return Task.FromResult<ImmutableArray<PluginFont>?>(fonts);
+    }
+
     public async Task<ImmutableArray<PluginTemplatePatch>?> TemplatePatchesAsync(
         string pluginKey,
         CancellationToken ct
@@ -270,6 +294,47 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         CancellationToken ct
     )
     {
+        var (folder, file) = await SaveStyleFileAsync(
+                pluginKey,
+                name,
+                content,
+                IMAGES,
+                "An image",
+                ct
+            )
+            .ConfigureAwait(false);
+
+        return Image(pluginKey, folder, file);
+    }
+
+    public async Task<PluginFont> SaveFontAsync(
+        string pluginKey,
+        string name,
+        Stream content,
+        CancellationToken ct
+    )
+    {
+        var (folder, file) = await SaveStyleFileAsync(pluginKey, name, content, FONTS, "A font", ct)
+            .ConfigureAwait(false);
+
+        return Font(pluginKey, folder, file);
+    }
+
+    /// <summary>
+    /// Keeps a file staff uploaded in the plugin's <c>wwwroot/styles/</c> as <paramref name="name"/>
+    /// (one there by that name is replaced), once its content is checked to be of the name's type
+    /// (<see cref="IsStyleFile"/>): one of <paramref name="types"/>, which <paramref name="kind"/>
+    /// names in a refusal.
+    /// </summary>
+    private async Task<(string Folder, FileInfo File)> SaveStyleFileAsync(
+        string pluginKey,
+        string name,
+        Stream content,
+        string[] types,
+        string kind,
+        CancellationToken ct
+    )
+    {
         var file = Path.GetFileName(name.Replace('\\', '/').Trim());
         var extension = Path.GetExtension(file).ToLowerInvariant();
 
@@ -279,15 +344,15 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
                 nameof(name)
             );
 
-        if (!IMAGES.Contains(extension))
-            throw new ArgumentException($"An image is {string.Join(", ", IMAGES)}.", nameof(name));
+        if (!types.Contains(extension))
+            throw new ArgumentException($"{kind} is {string.Join(", ", types)}.", nameof(name));
 
         using var memory = new MemoryStream();
         await content.CopyToAsync(memory, ct).ConfigureAwait(false);
 
-        if (!IsImage(memory.GetBuffer().AsSpan(0, (int)memory.Length), extension))
+        if (!IsStyleFile(memory.GetBuffer().AsSpan(0, (int)memory.Length), extension))
             throw new ArgumentException(
-                $"{file} is not a {extension.TrimStart('.').ToUpperInvariant()} image.",
+                $"{file} is not a {extension.TrimStart('.').ToUpperInvariant()} file.",
                 nameof(content)
             );
 
@@ -309,7 +374,7 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
             if (created || (hotel && manager.FolderOf(IHotelDataPlugin.KEY) is null))
                 await manager.ReloadAsync(IHotelDataPlugin.KEY, ct).ConfigureAwait(false);
 
-            return Image(pluginKey, folder, new FileInfo(path));
+            return (folder, new FileInfo(path));
         }
         finally
         {
@@ -317,7 +382,18 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         }
     }
 
-    public async Task<bool> RemoveImageAsync(string pluginKey, string path, CancellationToken ct)
+    public Task<bool> RemoveImageAsync(string pluginKey, string path, CancellationToken ct) =>
+        RemoveStyleFileAsync(pluginKey, path, IMAGES, ct);
+
+    public Task<bool> RemoveFontAsync(string pluginKey, string path, CancellationToken ct) =>
+        RemoveStyleFileAsync(pluginKey, path, FONTS, ct);
+
+    private async Task<bool> RemoveStyleFileAsync(
+        string pluginKey,
+        string path,
+        string[] types,
+        CancellationToken ct
+    )
     {
         if (FolderOf(pluginKey) is not { } folder)
             return false;
@@ -327,7 +403,7 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
 
         if (
             !full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-            || !IMAGES.Contains(Path.GetExtension(full).ToLowerInvariant())
+            || !types.Contains(Path.GetExtension(full).ToLowerInvariant())
             || !File.Exists(full)
         )
             return false;
@@ -359,10 +435,32 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         );
     }
 
-    /// <summary>Whether <paramref name="bytes"/> start as an image of <paramref name="extension"/>'s type does.</summary>
-    private static bool IsImage(ReadOnlySpan<byte> bytes, string extension) =>
+    private PluginFont Font(string pluginKey, string folder, FileInfo file)
+    {
+        var image = Image(pluginKey, folder, file);
+
+        return new PluginFont(
+            image.Path,
+            image.Url,
+            Path.GetFileNameWithoutExtension(file.Name),
+            image.Bytes,
+            image.Modified
+        );
+    }
+
+    /// <summary>
+    /// Whether <paramref name="bytes"/> start as a file of <paramref name="extension"/>'s type does:
+    /// an image, or a font (an <c>.otf</c> may hold TrueType outlines, as OpenType allows).
+    /// </summary>
+    private static bool IsStyleFile(ReadOnlySpan<byte> bytes, string extension) =>
         extension switch
         {
+            ".woff2" => bytes.StartsWith("wOF2"u8),
+            ".woff" => bytes.StartsWith("wOFF"u8),
+            ".ttf" => bytes.StartsWith((ReadOnlySpan<byte>)[0x00, 0x01, 0x00, 0x00])
+                || bytes.StartsWith("true"u8),
+            ".otf" => bytes.StartsWith("OTTO"u8)
+                || bytes.StartsWith((ReadOnlySpan<byte>)[0x00, 0x01, 0x00, 0x00]),
             ".png" => bytes.StartsWith(
                 (ReadOnlySpan<byte>)[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
             ),

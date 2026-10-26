@@ -784,6 +784,126 @@ public sealed class DataPluginTests : IDisposable
         (await hotel.HotelPlugin.ImagesAsync(IHotelDataPlugin.KEY, Ct))!.Value.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Windows &amp; skins, "Upload a skin set": many bitmaps replaced in one change. The base theme's
+    /// frame art goes through its style (the Theme tab shows it changed), the rest are the hotel's
+    /// asset.overlays entries; one wrong entry refuses the whole set and nothing is written; null
+    /// gives each bitmap back.
+    /// </summary>
+    [Fact]
+    public async Task A_skin_set_replaces_many_bitmaps_at_once_and_one_wrong_entry_changes_nothing()
+    {
+        var hotel = Hotel();
+        var folder = hotel.HotelPlugin.FolderOf(IHotelDataPlugin.KEY)!;
+        const string FRAME = "habbo-window-manager-com/theme-habbo-frame-3-frame-3-default";
+        const string BUTTON = "habbo-window-manager-com/theme-habbo-button-0-button-default";
+
+        await hotel.Styles.SetOverlaysAsync(
+            folder,
+            new Dictionary<string, string?>
+            {
+                [FRAME] = "/gamedata/plugins/hotel/styles/frame.png?v=1",
+                [BUTTON] = "/gamedata/plugins/hotel/styles/button.png?v=2",
+            },
+            STAFF,
+            Ct
+        );
+
+        (await HotelValueAsync(hotel, ExternalVariablesFile.ASSET_OVERLAYS))
+            .Should()
+            .Be(
+                $$"""{"{{BUTTON}}":"/gamedata/plugins/hotel/styles/button.png?v=2","{{FRAME}}":"/gamedata/plugins/hotel/styles/frame.png?v=1"}"""
+            );
+        (await hotel.Styles.ListAsync(IHotelDataPlugin.KEY, folder, Ct))
+            .Single(x => x.Property.Name == "window.frame")
+            .Should()
+            .Match<PluginStyle>(x =>
+                x.Changed && x.Value == "/gamedata/plugins/hotel/styles/frame.png?v=1"
+            );
+
+        var wrong = () =>
+            hotel.Styles.SetOverlaysAsync(
+                folder,
+                new Dictionary<string, string?>
+                {
+                    [FRAME] = null,
+                    ["no-library"] = "/x.png",
+                    [BUTTON] = "javascript:alert(1)",
+                },
+                STAFF,
+                Ct
+            );
+        await wrong
+            .Should()
+            .ThrowAsync<ArgumentException>()
+            .WithMessage("no-library is no bitmap*javascript:alert(1) is no address*");
+        (await HotelValueAsync(hotel, ExternalVariablesFile.ASSET_OVERLAYS))
+            .Should()
+            .Contain(FRAME, "a refused set writes nothing");
+
+        await hotel.Styles.SetOverlaysAsync(
+            folder,
+            new Dictionary<string, string?> { [FRAME] = null, [BUTTON] = null },
+            STAFF,
+            Ct
+        );
+
+        (await HotelValueAsync(hotel, ExternalVariablesFile.ASSET_OVERLAYS)).Should().BeNull();
+        (await HotelValueAsync(hotel, ExternalVariablesFile.TEMPLATE_STYLES)).Should().BeNull();
+    }
+
+    /// <summary>
+    /// The Theme tab's Fonts: a font file is kept in the plugin's <c>wwwroot/styles/</c> and given to
+    /// clients as the family its name says (the hotel's text.fonts entry), so a font style names it;
+    /// content that is not the font its name says is refused; removing it takes the family away.
+    /// </summary>
+    [Fact]
+    public async Task A_font_uploaded_for_a_plugin_is_given_to_clients_as_its_family()
+    {
+        var hotel = Hotel();
+
+        var font = await hotel.HotelPlugin.SaveFontAsync(
+            IHotelDataPlugin.KEY,
+            "volter-pixel.woff2",
+            new MemoryStream("wOF2\0\u0001\0\0"u8.ToArray()),
+            Ct
+        );
+
+        font.Path.Should().Be("styles/volter-pixel.woff2");
+        font.Family.Should().Be("volter-pixel");
+        font.Url.Should().StartWith("/gamedata/plugins/hotel/styles/volter-pixel.woff2?v=");
+        (await hotel.HotelPlugin.FontsAsync(IHotelDataPlugin.KEY, Ct))!
+            .Value.Should()
+            .ContainSingle()
+            .Which.Family.Should()
+            .Be("volter-pixel");
+        (await hotel.HotelPlugin.ImagesAsync(IHotelDataPlugin.KEY, Ct))!
+            .Value.Should()
+            .BeEmpty("a font is no image");
+
+        await hotel.Styles.SetFontAsync(font.Family, font.Url, STAFF, Ct);
+
+        (await HotelValueAsync(hotel, ExternalVariablesFile.TEXT_FONTS))
+            .Should()
+            .Be($$"""{"volter-pixel":"{{font.Url}}"}""");
+
+        var notFont = () =>
+            hotel.HotelPlugin.SaveFontAsync(
+                IHotelDataPlugin.KEY,
+                "x.ttf",
+                new MemoryStream("<html>"u8.ToArray()),
+                Ct
+            );
+        await notFont.Should().ThrowAsync<ArgumentException>().WithMessage("*not a TTF*");
+
+        (await hotel.HotelPlugin.RemoveFontAsync(IHotelDataPlugin.KEY, font.Path, Ct))
+            .Should()
+            .BeTrue();
+        await hotel.Styles.SetFontAsync(font.Family, null, STAFF, Ct);
+
+        (await HotelValueAsync(hotel, ExternalVariablesFile.TEXT_FONTS)).Should().BeNull();
+    }
+
     /// <summary>Make a plugin of the hotel's own: its base theme changes become a theme.json that extends it.</summary>
     [Fact]
     public async Task The_hotel_s_base_theme_changes_are_packaged_as_a_theme_that_extends_it()
