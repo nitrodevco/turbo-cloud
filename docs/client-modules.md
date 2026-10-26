@@ -166,7 +166,7 @@ binds that did not load, `<element>:<url>`), `patch.conflict` or `patch.applied`
 owner none of whose ops applied sends none).
 It is never answered. The server keeps
 each distinct line per plugin in memory, counted by player and bounded (100 plugins, 50 lines each,
-texts cut to 300 characters), lists it under the plugin's `GET /api/plugins/{key}/contributions`,
+subject and reason cut to 300 characters, the message to 1000), lists it under the plugin's `GET /api/plugins/{key}/contributions`,
 and logs a refused module, an unmatched or an ineffective patch once per line and quarter hour, naming what to change:
 
 ```
