@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Turbo.Events.Registry;
 using Turbo.Pipeline;
+using Turbo.Primitives.Events;
 using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Events.Extensions;
@@ -13,6 +14,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<EnvelopeInvokerFactory<EventContext>>();
         services.AddSingleton<EventRegistry>();
         services.AddSingleton<EventSystem>();
+        services.AddSingleton<IEventPublisher>(sp => sp.GetRequiredService<EventSystem>());
 
         return services;
     }

@@ -187,6 +187,8 @@ event's own id, for a handler that must act once (a reward, a call to another se
 the namespaces they always had (`Turbo.Events.Registry`, `Turbo.Pipeline.Attributes`). They were in
 `Turbo.Events.dll` and `Turbo.Pipeline.dll`, which forward them to `Turbo.Primitives` for one
 release, so a plugin built against those still loads; drop the two references when you next build.
+A plugin publishes its own events (a plugin notice, `docs/plugin-notices.md`) through
+`IEventPublisher` (`Turbo.Primitives.Events`), taken from the host services.
 
 ### Addresses
 

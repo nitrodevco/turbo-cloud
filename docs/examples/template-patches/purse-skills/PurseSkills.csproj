@@ -28,11 +28,11 @@
       Include="..\..\..\..\Turbo.Primitives\Turbo.Primitives.csproj"
       Private="false"
     />
-    <ProjectReference Include="..\..\..\..\Turbo.Messages\Turbo.Messages.csproj" Private="false" />
   </ItemGroup>
   <!--
-    Turbo.Messages brings the host assemblies it uses (Turbo.Pipeline, Turbo.Runtime...) along; a
-    copy beside the plugin would be a second, incompatible copy of the host's types. Keep them out.
+    A project reference brings the host assemblies it uses along (Turbo.Contracts brings
+    Turbo.Primitives); a copy beside the plugin would be a second, incompatible copy of the host's
+    types. Keep them out.
   -->
   <Target Name="KeepHostAssembliesOut" AfterTargets="ResolveAssemblyReferences">
     <ItemGroup>

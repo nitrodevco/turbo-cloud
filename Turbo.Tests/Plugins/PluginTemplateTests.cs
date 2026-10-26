@@ -299,7 +299,85 @@ public sealed class PluginTemplateTests : IDisposable
     /// which every plugin with a handler referenced (docs/extensions.md, "Public means contract").
     /// </summary>
     [Fact]
-    public void An_event_handler_builds_against_only_the_server_assemblies_the_template_references()
+    public void An_event_handler_builds_against_only_the_server_assemblies_the_template_references() =>
+        ErrorsAgainstTheTemplateReferences(
+                """
+                using System;
+                using System.Threading;
+                using System.Threading.Tasks;
+                using Turbo.Events.Registry;
+                using Turbo.Pipeline.Attributes;
+                using Turbo.Primitives.Rooms.Events;
+
+                public sealed class EnteredHandler : IEventHandler<RoomEnteredEvent>
+                {
+                    public ValueTask HandleAsync(RoomEnteredEvent evt, EventContext ctx, CancellationToken ct) =>
+                        ValueTask.CompletedTask;
+                }
+
+                [Order(-1)]
+                public sealed class EnteredBehavior : IEventBehavior<RoomEnteredEvent>
+                {
+                    public ValueTask InvokeAsync(RoomEnteredEvent evt, EventContext ctx, Func<ValueTask> next, CancellationToken ct) =>
+                        next();
+                }
+                """
+            )
+            .Should()
+            .BeEmpty();
+
+    /// <summary>
+    /// A packet handler and its middleware, which answers through its <c>MessageContext</c> and
+    /// publishes a plugin notice, builds against the template's references alone: the handler
+    /// contracts are in <c>Turbo.Primitives</c> (they were in <c>Turbo.Messages</c>) and the host's
+    /// event system is reached through <c>IEventPublisher</c> (it was <c>EventSystem</c>, in
+    /// <c>Turbo.Events</c>).
+    /// </summary>
+    [Fact]
+    public void A_packet_handler_that_publishes_builds_against_only_the_server_assemblies_the_template_references() =>
+        ErrorsAgainstTheTemplateReferences(
+                """
+                using System;
+                using System.Threading;
+                using System.Threading.Tasks;
+                using Turbo.Messages.Registry;
+                using Turbo.Pipeline.Attributes;
+                using Turbo.Primitives.Events;
+                using Turbo.Primitives.Networking;
+                using Turbo.Primitives.Plugins.Events;
+
+                public sealed record PingMessage : IMessageEvent;
+
+                public sealed record PongMessage : IComposer;
+
+                public sealed class PingHandler(IEventPublisher events) : IMessageHandler<PingMessage>
+                {
+                    public async ValueTask HandleAsync(PingMessage message, MessageContext ctx, CancellationToken ct)
+                    {
+                        await ctx.SendComposerAsync(new PongMessage(), ct);
+                        await events.PublishAsync(
+                            new PluginNoticeEvent { Source = "skills", Topic = "ping", Title = $"Ping from {ctx.PlayerId}" },
+                            ct
+                        );
+                    }
+                }
+
+                [Order(-1)]
+                public sealed class PingBehavior : IMessageBehavior<PingMessage>
+                {
+                    public ValueTask InvokeAsync(PingMessage message, MessageContext ctx, Func<ValueTask> next, CancellationToken ct) =>
+                        next();
+                }
+                """
+            )
+            .Should()
+            .BeEmpty();
+
+    /// <summary>
+    /// The errors compiling <paramref name="source"/> as a plugin gives against the server
+    /// assemblies the template's project references and the shared frameworks alone.
+    /// </summary>
+    private static List<string> ErrorsAgainstTheTemplateReferences(string source)
     {
         var server = XDocument
             .Load(Path.Combine(Template, "server", "Skills.csproj"))
@@ -323,27 +401,7 @@ public sealed class PluginTemplateTests : IDisposable
             "Skills",
             [
                 Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(
-                    """
-                    using System;
-                    using System.Threading;
-                    using System.Threading.Tasks;
-                    using Turbo.Events.Registry;
-                    using Turbo.Pipeline.Attributes;
-                    using Turbo.Primitives.Rooms.Events;
-
-                    public sealed class EnteredHandler : IEventHandler<RoomEnteredEvent>
-                    {
-                        public ValueTask HandleAsync(RoomEnteredEvent evt, EventContext ctx, CancellationToken ct) =>
-                            ValueTask.CompletedTask;
-                    }
-
-                    [Order(-1)]
-                    public sealed class EnteredBehavior : IEventBehavior<RoomEnteredEvent>
-                    {
-                        public ValueTask InvokeAsync(RoomEnteredEvent evt, EventContext ctx, Func<ValueTask> next, CancellationToken ct) =>
-                            next();
-                    }
-                    """,
+                    source,
                     cancellationToken: Ct
                 ),
             ],
@@ -356,12 +414,14 @@ public sealed class PluginTemplateTests : IDisposable
         );
 
         shared.Should().NotBeEmpty();
-        compilation
-            .GetDiagnostics(Ct)
-            .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
-            .Select(d => d.ToString())
-            .Should()
-            .BeEmpty();
+
+        return
+        [
+            .. compilation
+                .GetDiagnostics(Ct)
+                .Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
+                .Select(d => d.ToString()),
+        ];
     }
 
     /// <summary>

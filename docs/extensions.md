@@ -133,7 +133,7 @@ turn. The asset movement outbox already has these semantics; the new tier genera
 than inventing a second mechanism.
 
 The first post-commit events are on the event bus: `DomainEvent` (an `EventId` for idempotency and
-`OccurredAtUtc`) published by `EventSystem.PublishCommitted` once the change is saved, on the thread
+`OccurredAtUtc`) published by `IEventPublisher.PublishCommitted` once the change is saved, on the thread
 pool and not awaited, never for a refused action (save the two that tell of a refusal); a plugin's
 `IEventHandler<T>` hears them. `PurchaseCompletedEvent` (room ads included), `PlayerLoggedInEvent`,
 `PlayerLoginFailedEvent`, `PlayerRegisteredEvent`, `PlayerRegistrationFailedEvent`,
@@ -304,7 +304,10 @@ links a Discord account it has proven to an existing player through `IHotel.Play
   `Turbo.Contracts` or `Turbo.Primitives` under its full name, and its old assembly forwards it
   (`[TypeForwardedTo]`) for one release, so a plugin built against the old one still loads
   (`IEventHandler<T>` and what a handler needs, from `Turbo.Events` and `Turbo.Pipeline`:
-  `PluginEventContractTests`).
+  `PluginEventContractTests`). `IMessageHandler<T>`, `IMessageBehavior<T>` and `MessageContext`
+  are in `Turbo.Primitives` too (they were in `Turbo.Messages`). A service an extension needs from
+  an implementation project gets a contract it implements, registered beside it (`IEventPublisher`
+  for `EventSystem`).
 - **Compatibility checks**: example plugins are compiled and loaded by the test suite
   (`HelloExamplePluginTests`); every new primitive gets an example there. Template patch reports name
   targets a new client release removed, so a release can be checked against installed plugins
