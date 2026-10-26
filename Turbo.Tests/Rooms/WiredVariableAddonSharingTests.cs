@@ -329,6 +329,86 @@ public sealed class WiredVariableAddonSharingTests
     }
 
     /// <summary>
+    /// The shop's room unloads once nobody is in it; the importing room, loaded after that, asks a
+    /// shop grain that has not read its furni yet. Bug (journey wired-import-categories, run with
+    /// the shop unloaded): it answered with no variable, so the reference listed "linked" without
+    /// its value or the Level Up System's subvariables until someone pressed Synchronize again.
+    /// What the last Synchronize took is kept with the Share box and is read from there.
+    /// </summary>
+    [Fact]
+    public async Task A_reference_loaded_while_the_shop_is_unloaded_still_gets_the_shared_addons()
+    {
+        var shop = new RoomLoads();
+
+        shop.AddFloorItem(COINS, 6, 6, "wf_var_room");
+        shop.AddFloorItem(LEVEL_UP, 6, 6, "wf_xtra_var_lvlup_system");
+        shop.AddFloorItem(SHARE, 6, 6, "wf_xtra_var_share");
+
+        var loaded = UseAsShop(await shop.LoadAsync(Ct));
+
+        (await loaded.SaveAsync<UpdateAddonMessage>(LEVEL_UP, intParams: [255, 1, 100, 50]))
+            .Should()
+            .BeTrue();
+        (await loaded.SaveAsync<UpdateAddonMessage>(SHARE, intParams: [0, 1, 0])).Should().BeTrue();
+        (
+            await loaded.SaveAsync<UpdateVariableMessage>(
+                COINS,
+                intParams: [(int)WiredAvailabilityType.Shared],
+                stringParam: "coins"
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        var coins = (WiredVariableRoom)loaded.FloorItem(COINS).Logic;
+        await coins.LoadWiredAsync(Ct);
+        var coinsId = coins.GetVarSnapshot().VariableId;
+        (
+            await coins.SetValueAsync(
+                loaded.Harness.Fakes.Create<IWiredExecutionContext>(),
+                new WiredVariableKey(coinsId, WiredVariableTargetType.Global, 0),
+                new WiredVariableValue(250)
+            )
+        )
+            .Should()
+            .BeTrue();
+        (
+            await loaded.Harness.Room.SynchronizeSharedWiredAddonsAsync(
+                ActionContext.CreateForSystem(1),
+                SHARE,
+                Ct
+            )
+        )
+            .Should()
+            .BeTrue();
+
+        var reference = await AddReferenceAsync(imported: [0, 1, 0], sourceId: coinsId);
+        await TickAsync(_other);
+        OtherVariable("linked.current_level").Should().NotBeNull("the shop was loaded");
+
+        await shop.UnloadAsync(Ct);
+        UseAsShop(shop.Activate());
+        await reference.LoadWiredAsync(Ct);
+        await TickAsync(_other);
+
+        var level = OtherVariable("linked.current_level");
+
+        level.Should().NotBeNull();
+        level!
+            .TryGetValue(
+                new WiredVariableKey(
+                    level.GetVarSnapshot().VariableId,
+                    WiredVariableTargetType.Global,
+                    0
+                ),
+                out var value
+            )
+            .Should()
+            .BeTrue();
+        ((int)value).Should().Be(3);
+    }
+
+    /// <summary>
     /// A Level Up System on the reference's own stack goes before the imported one, as an own
     /// text connector does: its table (linear, 50 XP a level: 250 -> 6) is the one that counts,
     /// and the subvariable is there once.
@@ -513,9 +593,24 @@ public sealed class WiredVariableAddonSharingTests
             Ct
         );
 
+    /// <summary>Room 1 is <paramref name="shop"/> from now on, for both rooms.</summary>
+    private WiredRoom UseAsShop(WiredRoom shop)
+    {
+        foreach (var room in new[] { shop, _other })
+        {
+            room.Harness.Fakes.Instances[(typeof(IRoomGrain), (object)1L)] = shop.Harness.Room;
+            room.Harness.Fakes.Instances[(typeof(IRoomGrain), (object)2L)] = _other.Harness.Room;
+            room.Harness.Fakes.Handlers["GetActiveRoomIdsAsync"] = _ =>
+                Task.FromResult(ImmutableArray.Create((RoomId)1, (RoomId)2));
+        }
+
+        return shop;
+    }
+
     private async Task<WiredVariableReference> AddReferenceAsync(
         int[]? imported,
-        int source = COINS
+        int source = COINS,
+        WiredVariableId? sourceId = null
     )
     {
         var reference = _other.AddBox<WiredVariableReference>(REFERENCE, 3, 3, "wf_var_reference");
@@ -536,9 +631,12 @@ public sealed class WiredVariableAddonSharingTests
                 stringParam: "linked",
                 variableIds:
                 [
-                    ((FurnitureWiredVariableLogic)_shop.FloorItem(source).Logic)
-                        .GetVarSnapshot()
-                        .VariableId.ToString(),
+                    (
+                        sourceId
+                        ?? ((FurnitureWiredVariableLogic)_shop.FloorItem(source).Logic)
+                            .GetVarSnapshot()
+                            .VariableId
+                    ).ToString(),
                 ]
             )
         )
