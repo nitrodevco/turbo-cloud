@@ -108,4 +108,19 @@ public interface IGamedataFurnitureService
         PlayerId player,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Gives definitions a logic: <paramref name="logic"/> to each of <paramref name="ids"/>, or,
+    /// without a logic, each its matching one (<see cref="Snapshots.FurnitureListItem.MatchingLogic"/>);
+    /// without ids, every definition tagged <see cref="Enums.FurnitureTag.LogicMismatch"/> its
+    /// matching one. One change set, which rolls back as a whole; null when nothing changed.
+    /// Throws <see cref="System.ArgumentException"/> for a logic the server does not have, or a
+    /// logic without ids.
+    /// </summary>
+    public Task<GamedataChangeSetSnapshot?> SetLogicAsync(
+        IReadOnlyCollection<int>? ids,
+        string? logic,
+        PlayerId player,
+        CancellationToken ct
+    );
 }

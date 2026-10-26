@@ -27,6 +27,10 @@ internal static class FurnitureRecords
     public const string CLASS_NAME_KEY = "classname";
     public const string LOGIC_KEY = "logic";
 
+    /// <summary>Whether it is the plain logic every floor or wall item gets without one of its own.</summary>
+    public static bool IsDefaultLogic(string logic) =>
+        logic is DEFAULT_FLOOR_LOGIC or DEFAULT_WALL_LOGIC;
+
     /// <summary>
     /// The logic a new definition of Habbo's item gets: the one the server registers under its
     /// classname (the six WIRED Links boxes of 2026-10, <c>wf_link</c> and the rest, each have

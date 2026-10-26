@@ -135,6 +135,7 @@ internal sealed class GamedataEndpoints(
         group.MapPut("/furniture/{id:int}", UpdateDefinitionAsync);
         group.MapGet("/furniture/habbo-values", HabboValuesPreviewAsync);
         group.MapPost("/furniture/habbo-values", TakeHabboValuesAsync);
+        group.MapPost("/furniture/logic", SetLogicAsync);
         group.MapPost("/files/{file}/build", RebuildAsync);
         group.MapPut("/files/{file}/key", SetFileKeyAsync);
         group.MapGet("/texts/import", TextPreviewAsync);
@@ -479,6 +480,28 @@ internal sealed class GamedataEndpoints(
         {
             var changeSet = await furniture
                 .TakeHabboValuesAsync(request.Fields ?? [], AdminIdentity.Of(http).PlayerId, ct)
+                .ConfigureAwait(false);
+
+            return Results.Ok(new { changeSet });
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
+
+    private async Task<IResult> SetLogicAsync(
+        FurnitureLogicRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        var logic = string.IsNullOrWhiteSpace(request.Logic) ? null : request.Logic.Trim();
+
+        try
+        {
+            var changeSet = await furniture
+                .SetLogicAsync(request.Ids, logic, AdminIdentity.Of(http).PlayerId, ct)
                 .ConfigureAwait(false);
 
             return Results.Ok(new { changeSet });

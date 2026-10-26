@@ -9,11 +9,13 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Database.Entities.Gamedata;
 using Turbo.Gamedata.Assets;
 using Turbo.Gamedata.Habbo;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
+using Turbo.Primitives.Rooms.Providers;
 
 namespace Turbo.Gamedata.Furniture;
 
@@ -25,14 +27,15 @@ namespace Turbo.Gamedata.Furniture;
 /// Working it out reads every definition and every item Habbo's release has, so it is kept and
 /// worked out again only once something it is made from has changed: a definition (every change
 /// the gamedata makes is a change set; others add or remove rows), a bundle, an asset file read,
-/// Habbo's release, or a catalog published.
+/// Habbo's release, a catalog published, or the logics the server registers.
 /// </para>
 /// </summary>
 internal sealed class FurnitureStatusIndex(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     HabboReleaseItems habboItems,
     HabboFurnitureFiles furnitureFiles,
-    FurnitureOfferCatalog offers
+    FurnitureOfferCatalog offers,
+    IRoomObjectLogicProvider logics
 )
 {
     private readonly SemaphoreSlim _building = new(1, 1);
@@ -46,7 +49,7 @@ internal sealed class FurnitureStatusIndex(
 
         var stamps = await offers.GetAsync(ct).ConfigureAwait(false);
         var latest = await habboItems.GetLatestAsync(ct).ConfigureAwait(false);
-        var key = await KeyAsync(dbCtx, stamps, latest, ct).ConfigureAwait(false);
+        var key = await KeyAsync(dbCtx, stamps, latest, logics.Version, ct).ConfigureAwait(false);
 
         if (_built is { } built && built.Key == key)
             return built.Items;
@@ -113,6 +116,8 @@ internal sealed class FurnitureStatusIndex(
         var files = await furnitureFiles.LoadAsync(ct).ConfigureAwait(false);
         var habboRevisions = AssetRevisions(latest);
         var hasPosters = bundles.Values.Any(x => x.HasFile && FurnitureAssetNames.IsPoster(x.Name));
+        var registered = logics.LogicTypes.ToHashSet(StringComparer.Ordinal);
+        var clientLogics = ClientLogics(files);
 
         return
         [
@@ -141,6 +146,13 @@ internal sealed class FurnitureStatusIndex(
                     var bundle = bundles.GetValueOrDefault(asset) is { HasFile: true } kept
                         ? kept
                         : null;
+                    var matching = MatchingLogic(
+                        definition,
+                        clientLogics.GetValueOrDefault(
+                            HabboFurnitureFiles.AssetName(definition.Name)
+                        ),
+                        registered
+                    );
 
                     return new FurnitureListItem
                     {
@@ -155,6 +167,8 @@ internal sealed class FurnitureStatusIndex(
                         BundleRevision = bundle?.Revision,
                         BundleSize = bundle?.Size,
                         BundleSource = bundle?.Source,
+                        Logic = definition.Logic,
+                        MatchingLogic = matching,
                         Tags = TagsOf(
                             definition,
                             habbo,
@@ -162,7 +176,8 @@ internal sealed class FurnitureStatusIndex(
                             bundles.GetValueOrDefault(asset),
                             habboRevisions.TryGetValue(asset, out var revision) ? revision : null,
                             asset == FurnitureAssetNames.POSTER && hasPosters,
-                            stamps.Sold.Contains(definition.Id)
+                            stamps.Sold.Contains(definition.Id),
+                            IsMismatch(definition.Logic, matching, registered)
                         ),
                     };
                 })
@@ -182,7 +197,8 @@ internal sealed class FurnitureStatusIndex(
         Bundle? bundle,
         string? habboRevision,
         bool drawnFromPosters,
-        bool sold
+        bool sold,
+        bool logicMismatch
     )
     {
         var tags = ImmutableArray.CreateBuilder<FurnitureTag>();
@@ -228,8 +244,57 @@ internal sealed class FurnitureStatusIndex(
         if (!sold)
             tags.Add(FurnitureTag.NotSold);
 
+        if (logicMismatch)
+            tags.Add(FurnitureTag.LogicMismatch);
+
         return tags.ToImmutable();
     }
+
+    /// <summary>
+    /// The logic the server has for a definition as a new one would get it: registered under its
+    /// classname, else the one its asset file's client logic names; null when that is the default.
+    /// </summary>
+    public static string? MatchingLogic(
+        FurnitureDefinitionEntity definition,
+        string? clientLogic,
+        IReadOnlySet<string> registered
+    )
+    {
+        var logic = FurnitureDrafts.LogicOf(
+            definition.ProductType,
+            definition.Name,
+            clientLogic,
+            registered
+        );
+
+        return FurnitureRecords.IsDefaultLogic(logic) ? null : logic;
+    }
+
+    /// <summary>
+    /// Whether a definition runs the default (or a logic the server does not have) where the
+    /// server has one for it. A registered logic staff chose over the matching one is their call.
+    /// </summary>
+    public static bool IsMismatch(
+        string logic,
+        string? matching,
+        IReadOnlySet<string> registered
+    ) =>
+        matching is not null
+        && logic != matching
+        && (FurnitureRecords.IsDefaultLogic(logic) || !registered.Contains(logic));
+
+    /// <summary>The client logic each asset's newest read file names, by asset.</summary>
+    private static Dictionary<string, string> ClientLogics(
+        IReadOnlyDictionary<(string Asset, int Revision), HabboFurnitureAssetEntity> files
+    ) =>
+        files
+            .Values.Where(x => x.Error is null && !string.IsNullOrEmpty(x.LogicType))
+            .GroupBy(x => x.AssetName, StringComparer.Ordinal)
+            .ToDictionary(
+                g => g.Key,
+                g => g.MaxBy(x => x.Revision)!.LogicType!,
+                StringComparer.Ordinal
+            );
 
     /// <summary>
     /// The revision Habbo's newest release names for each asset: the highest of the classnames
@@ -264,6 +329,7 @@ internal sealed class FurnitureStatusIndex(
         TurboDbContext dbCtx,
         FurnitureOfferCatalog.Stamps stamps,
         HabboReleaseItems.Loaded? latest,
+        int logicsVersion,
         CancellationToken ct
     )
     {
@@ -283,7 +349,8 @@ internal sealed class FurnitureStatusIndex(
             await bundles.MaxAsync(x => (DateTime?)x.UpdatedAt, ct).ConfigureAwait(false),
             await dbCtx.HabboFurnitureAssets.AsNoTracking().CountAsync(ct).ConfigureAwait(false),
             latest?.Release.Id,
-            stamps
+            stamps,
+            logicsVersion
         );
     }
 
@@ -304,7 +371,8 @@ internal sealed class FurnitureStatusIndex(
         DateTime? BundleUpdated,
         int AssetFiles,
         int? Release,
-        FurnitureOfferCatalog.Stamps Stamps
+        FurnitureOfferCatalog.Stamps Stamps,
+        int Logics
     );
 
     private sealed record Built(Key Key, List<FurnitureListItem> Items);

@@ -43,18 +43,23 @@ internal static class FurnitureDrafts
         string className,
         FurnitureAssetInfo info,
         IReadOnlySet<string> logics
+    ) => LogicOf(type, className, info.Logic, logics);
+
+    /// <summary>As the other, from the client logic its asset file names (<c>furniture_*</c>).</summary>
+    public static string LogicOf(
+        ProductType type,
+        string className,
+        string? clientLogic,
+        IReadOnlySet<string> logics
     )
     {
         var logic = FurnitureRecords.LogicFor(type, className, logics);
 
-        if (
-            logic
-            is not (FurnitureRecords.DEFAULT_FLOOR_LOGIC or FurnitureRecords.DEFAULT_WALL_LOGIC)
-        )
+        if (!FurnitureRecords.IsDefaultLogic(logic))
             return logic;
 
         if (
-            info.Logic is { } client
+            clientLogic is { } client
             && client.StartsWith(CLIENT_LOGIC_PREFIX, StringComparison.Ordinal)
             && logics.Contains(client[CLIENT_LOGIC_PREFIX.Length..])
         )

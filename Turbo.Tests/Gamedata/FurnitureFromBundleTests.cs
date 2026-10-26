@@ -96,7 +96,13 @@ public sealed class FurnitureFromBundleTests : IDisposable
             offers,
             habboItems,
             furnitureFiles,
-            new FurnitureStatusIndex(_db, habboItems, furnitureFiles, offers),
+            new FurnitureStatusIndex(
+                _db,
+                habboItems,
+                furnitureFiles,
+                offers,
+                _fakes.Create<IRoomObjectLogicProvider>()
+            ),
             writes,
             _fakes.Create<IRoomObjectLogicProvider>(),
             _folder.Store,
