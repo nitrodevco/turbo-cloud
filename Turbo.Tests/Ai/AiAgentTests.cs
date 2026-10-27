@@ -127,7 +127,7 @@ public sealed class AiAgentTests
         paused.Pending!.Tool.Should().Be("give_credits");
         give.Given.Should().BeEmpty();
         var (id, request) = _ai.Approvals.Requests.Single();
-        request.Nodes.Should().Equal("test.give");
+        request.Node.Should().Be(PermissionNodes.Approvals.DECIDE);
         request.RequestedFor.Should().Be(staff.Id);
 
         await _ai.Approvals.ApproveAsync(id);

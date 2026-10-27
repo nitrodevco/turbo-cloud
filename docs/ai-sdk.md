@@ -231,8 +231,9 @@ own agents both use it.
   problem (`find_room was not run. The argument "name" is required...`) and corrects them.
 - A tool's `McpToolResult.Error("...")` goes back to the model as an error it reads and acts on; a
   tool that throws answers "failed on the server" and is logged with the plugin's key.
-- A tool that is not `ReadOnly` and not marked `Destructive => false` waits on an
-  [approval](#approvals). Mark a tool that only adds (sends a whisper, opens a ticket)
+- A tool that is not `ReadOnly` and not marked `Destructive => false`, or one marked
+  `RequiresApproval`, waits on an [approval](#approvals). A tool marked `DevelopmentOnly` is offered
+  to agents on a development server only, as over MCP. Mark a tool that only adds (sends a whisper, opens a ticket)
   `Destructive => false`; leave one that takes, bans, kicks or deletes as it is.
 
 ## Structured output
@@ -337,23 +338,27 @@ anything is sent.
 ## Approvals
 
 An agent never runs a tool that changes things on a model's say-so alone. When the model calls a tool
-that is not read-only and not `Destructive => false`, the run asks a staff member's approval and
-stops with `AwaitingApproval`; `Pending` names the tool and its arguments. The approval request says
-which plugin, agent and tool, the call's arguments, and the tool's nodes (an approver must hold one).
+that is not read-only and not `Destructive => false` (or one marked `RequiresApproval`), its
+arguments are checked (ones that don't fit go back to the model; nobody is asked about them), and the
+run asks the hotel's approvals (`docs/approvals.md`) and stops with `AwaitingApproval`; `Pending`
+names the tool, its arguments and the request's id. The request, of kind `ai.tool`, is the plugin's,
+asked by the agent for the player it acts for (who can't approve it themself); its summary names the
+plugin, the tool and the arguments; an approver holds the tool's `ApprovalNode`
+(`approvals.decide` by default). It shows in the panel's Approvals inbox like any other.
 
-Once it is decided, the run goes on by itself: the tool runs if it was approved, the model is told if
-it was not (with the approver's note), and the agent's `ResumedAsync(resumed, ct)` is called with
-the answer (`resumed.Response`), the player it was for (`resumed.Player`) and the conversation's
-owner (`resumed.Participant`), to whisper to the player or post to the room. The agent is built for
-it from the plugin's services, so a resumable agent's constructor takes only services (one that
-can't be built is logged and its run waits). A plugin that was not running then can go on
-later with `ai.ResumeAsync(agent, call)`. A new prompt on the conversation before it is decided answers
-the waiting call as not run.
+Once it is decided, the run goes on by itself: approved, the tool runs (its nodes asked again) and the
+agent's answer is the approval's result; denied or expired, the model is told (with the approver's
+note). The agent's `ResumedAsync(resumed, ct)` is then called with the answer (`resumed.Response`),
+the player it was for (`resumed.Player`) and the conversation's owner (`resumed.Participant`), to
+whisper to the player or post to the room. The agent is built for it from the plugin's services, so a
+resumable agent's constructor takes only services (one that can't be built is logged and its run
+waits). An approved run goes on during the approver's request: the panel shows its answer. A plugin
+that was not running then goes on later with `ai.ResumeAsync(agent, call)`. A new prompt on the
+conversation before it is decided answers the waiting call as not run.
 
-The SDK asks for approvals through `IAiApprovals` (`Turbo.Ai.Approvals`); what answers it calls
-`AiHost.DecidedAsync(approvalId, decision)` when one is decided. Until the hotel's approvals answer
-it (`NoApprovals`, the default), the hotel takes none: such a tool is answered "needs a staff
-member's approval, and this hotel takes none" and never runs.
+The SDK asks through `IAiApprovals` (`Turbo.Ai.Approvals`): `HotelAiApprovals` on a server, and
+`NoApprovals` on a host without approvals, which takes none (such a tool is answered "needs a staff
+member's approval, and this hotel takes none" and never runs).
 
 ## Player text
 
@@ -436,7 +441,8 @@ sums it by plugin, provider and model.
 - `Turbo.Primitives`: `Plugins.IAiOverview` (the panel's view).
 - `Turbo.Ai` (new): `AiModule` (`Turbo:Ai`, `AiConfig`), `AiRuntime` (the loop), `AiProviders`
   (failover, usage), the `anthropic` and `openai-compatible` drivers (`IAiDriver`), `AiHost` (each
-  plugin's `IAi`, resuming approved runs), `IAiApprovals`, `IAiStore` (database and memory).
+  plugin's `IAi`, resuming approved runs), `IAiApprovals` with `HotelAiApprovals`, the `ai.tool`
+  approval handler and the denial listener, `IAiStore` (database and memory).
 - `Turbo.Database`: `ai_conversations`, `ai_usage` (migration `AddAiConversationsAndUsage`).
 - `Turbo.Plugins`: `IPluginAiHost`; a plugin's container is given its `IAi`, and a plugin declaring
   AI is live for resumed runs while it runs.

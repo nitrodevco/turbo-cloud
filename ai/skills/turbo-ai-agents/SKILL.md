@@ -154,7 +154,8 @@ then `review.Output` (null unless `review.Ok`). One-shot without a class: `ai.As
   turbo-mcp-tools). The same class serves staff's assistants over MCP. Bad arguments go back to the
   model as sentences; the tool never sees them.
 - **Tools that change things wait on approval**: a tool not `ReadOnly` and not
-  `Destructive => false` stops the run with `AwaitingApproval`; once staff decide, the run goes on
+  `Destructive => false` (or marked `RequiresApproval`) stops the run with `AwaitingApproval` and
+  asks the hotel's approvals (an `ai.tool` request in the panel's inbox); once staff decide, the run goes on
   and the agent's `ResumedAsync(resumed, ct)` gets the answer and who it was for (override it to
   tell the player; such an agent's constructor takes only services).
   Mark a tool that only adds (a whisper, a ticket) `Destructive => false`.

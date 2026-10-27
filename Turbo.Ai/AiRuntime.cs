@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Ai.Approvals;
@@ -34,7 +35,8 @@ public sealed class AiRuntime(
     IAiPermissions permissions,
     AiRateLimits limits,
     TimeProvider clock,
-    ILogger<AiRuntime> logger
+    ILogger<AiRuntime> logger,
+    IHostEnvironment? environment = null
 )
 {
     /// <summary>The tool an agent with an output type answers through.</summary>
@@ -49,6 +51,7 @@ public sealed class AiRuntime(
     private readonly IAiPermissions _permissions = permissions;
     private readonly TimeProvider _clock = clock;
     private readonly ILogger<AiRuntime> _logger = logger;
+    private readonly bool _development = environment?.IsDevelopment() == true;
 
     public AiConfig Config => config.CurrentValue;
 
@@ -586,6 +589,10 @@ public sealed class AiRuntime(
 
             foreach (var tool in _agent.Tools)
             {
+                // A tool for a plugin's author exists only on a development server, for agents too.
+                if (tool.DevelopmentOnly && !_rt._development)
+                    continue;
+
                 var definition = McpToolDefinition.Create(tool, _plugin.Key);
 
                 if (definition.Name == RESPOND && _agent.OutputType is not null)
@@ -690,8 +697,16 @@ public sealed class AiRuntime(
 
                 var decided = i == 0 ? decision : null;
 
-                if (tool.Destructive && decided is null)
+                if ((tool.Destructive || tool.RequiresApproval) && decided is null)
                 {
+                    // Arguments that don't fit go back to the model; a staff member is never asked about them.
+                    if (tool.CheckArguments(call.Arguments, out _) is { } invalid)
+                    {
+                        results.Add(Result(call, invalid.Status, string.Join("\n", invalid.Text)));
+
+                        continue;
+                    }
+
                     if (!_rt._approvals.Enabled)
                     {
                         results.Add(
@@ -830,9 +845,13 @@ public sealed class AiRuntime(
                         _plugin.Key,
                         _agent.Name,
                         first.Name,
-                        $"{_plugin.Name}'s assistant wants to use {tool.Title}",
-                        $"{tool.Name} {first.Arguments.GetRawText()}",
-                        tool.Nodes,
+                        $"{_plugin.Name}'s assistant wants to use {tool.Title}: {first.Arguments.GetRawText()}",
+                        // Checked before it waits (RunCallsAsync): the arguments as the tool reads them.
+                        tool.CheckArguments(first.Arguments, out var input)
+                            is null
+                            ? tool.WriteArguments(input!)
+                            : first.Arguments,
+                        tool.Tool.ApprovalNode,
                         _payer,
                         _record.Id
                     ),

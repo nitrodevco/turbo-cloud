@@ -138,7 +138,10 @@ public sealed class PluginAiTests : IAsyncLifetime
 
         staff.Should().HaveBeenWhispered("AwaitingApproval desk_alert");
         _hotel.Notify.Alerts.Should().BeEmpty("nothing runs before a staff member approves");
-        _hotel.Ai.Approvals.Requests.Single().Request.Nodes.Should().Equal("plugin.desk.alert");
+        _hotel
+            .Ai.Approvals.Requests.Single()
+            .Request.Summary.Should()
+            .StartWith("Desk's assistant wants to use desk_alert");
 
         await _hotel.Ai.Approvals.ApproveAsync();
 

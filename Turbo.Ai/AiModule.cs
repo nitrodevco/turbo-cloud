@@ -6,6 +6,7 @@ using Turbo.Ai.Approvals;
 using Turbo.Ai.Configuration;
 using Turbo.Ai.Drivers;
 using Turbo.Ai.Storage;
+using Turbo.Contracts.Approvals;
 using Turbo.Contracts.Plugins;
 using Turbo.Plugins;
 using Turbo.Primitives.Plugins;
@@ -36,7 +37,9 @@ public sealed class AiModule : IHostPluginModule
         services.AddSingleton<IAiDriver, AnthropicDriver>();
         services.AddSingleton<IAiDriver, OpenAiCompatibleDriver>();
         services.TryAddSingleton<IAiStore, DbAiStore>();
-        services.TryAddSingleton<IAiApprovals, NoApprovals>();
+        // The hotel's approvals (docs/approvals.md): an agent's tool that changes things waits on one.
+        services.TryAddSingleton<IAiApprovals, HotelAiApprovals>();
+        services.AddSingleton<IApprovalHandler, AiToolApprovalHandler>();
         services.TryAddSingleton<IAiPermissions, HotelAiPermissions>();
         services.AddSingleton<AiRateLimits>();
         services.AddSingleton<AiProviders>();
