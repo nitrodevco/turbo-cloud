@@ -1,0 +1,15 @@
+{
+    "name": "turbo-docs-site",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "client-docs": "node scripts/client-docs.mjs",
+        "dev": "node scripts/client-docs.mjs && vitepress dev",
+        "build": "node scripts/client-docs.mjs && vitepress build",
+        "preview": "vitepress preview"
+    },
+    "devDependencies": {
+        "vitepress": "1.6.4",
+        "vue": "3.5.22"
+    }
+}

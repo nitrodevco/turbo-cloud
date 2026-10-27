@@ -1,0 +1,43 @@
+name: Docs
+
+# Builds the documentation site (docs-site/) from docs/ on every pull request that touches either.
+# A dead link between pages, or a sidebar entry for a page that does not exist, fails the build.
+on:
+  pull_request:
+    paths:
+      - "docs/**"
+      - "docs-site/**"
+      - ".github/workflows/docs.yml"
+      - ".github/workflows/docs-pages.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: docs-site
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: docs-site
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Build
+        run: npm run build

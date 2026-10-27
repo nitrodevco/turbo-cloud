@@ -1,0 +1,42 @@
+:root {
+    --vp-c-brand-1: #1e7295;
+    --vp-c-brand-2: #2a87ad;
+    --vp-c-brand-3: #3a9cc4;
+}
+
+.dark {
+    --vp-c-brand-1: #5cb8dd;
+    --vp-c-brand-2: #44a6cf;
+    --vp-c-brand-3: #2a87ad;
+}
+
+.page-source {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.page-source button,
+.page-source a {
+    padding: 2px 10px;
+    border: 1px solid var(--vp-c-divider);
+    border-radius: 6px;
+    color: var(--vp-c-text-2);
+    text-decoration: none;
+}
+
+.page-source button:hover,
+.page-source a:hover {
+    color: var(--vp-c-brand-1);
+    border-color: var(--vp-c-brand-1);
+}
+
+/* Each page opens with its table of contents for GitHub readers; where the outline beside the page
+   shows the same, the list is left out. */
+@media (min-width: 1280px) {
+    .vp-doc h1 + ul {
+        display: none;
+    }
+}
