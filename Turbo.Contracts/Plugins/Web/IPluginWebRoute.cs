@@ -5,7 +5,9 @@ namespace Turbo.Contracts.Plugins.Web;
 
 /// <summary>
 /// A player-facing HTTP route of a plugin, served on the hotel's public web host at
-/// <c>/api/plugins/&lt;key&gt;/&lt;pattern&gt;</c>. A public class implementing it is found in the
+/// <c>/api/plugins/&lt;key&gt;/&lt;pattern&gt;</c> (a pattern starting <c>.well-known/&lt;name&gt;</c> is
+/// also served at <c>/.well-known/&lt;name&gt;/api/plugins/&lt;key&gt;/&lt;rest&gt;</c>, where RFC 8414
+/// and RFC 9728 look for a document about an address with a path). A public class implementing it is found in the
 /// plugin's assembly as the plugin loads, built with the plugin's services and then the host's,
 /// served once the plugin has started, and answers 404 from the moment the plugin unloads.
 /// <para>
@@ -38,6 +40,15 @@ public interface IPluginWebRoute
     /// never reads them cannot leak a player's session.
     /// </summary>
     bool CredentialHeaders => false;
+
+    /// <summary>
+    /// Whether a page of any site may call it from a browser (CORS <c>*</c>, never with
+    /// credentials): for a route that signs nobody in by the site's cookie, such as an OAuth
+    /// server's discovery documents and token endpoint, or an API taking a bearer token of its own.
+    /// Only for an <see cref="Anonymous"/> route, and the host never signs a call to it in by the
+    /// site's session cookie, so another site's page can't act as the player whose browser it is.
+    /// </summary>
+    bool AnyOrigin => false;
 
     Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct);
 }

@@ -650,6 +650,374 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
         state.Error.Should().Contain("anonymous");
     }
 
+    [Fact]
+    public async Task A_page_runs_no_script_and_its_form_reaches_the_route_which_may_redirect()
+    {
+        PluginBuilder.Write(_folder, "auth", AUTH);
+        await StartAsync();
+        using var http = NoRedirects();
+        var (session, _) = await _sessions!.StartAsync(PLAYER, Ct);
+
+        var page = await http.GetAsync("/api/plugins/auth/consent", Ct);
+
+        page.StatusCode.Should().Be(HttpStatusCode.OK);
+        page.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
+        (await page.Content.ReadAsStringAsync(Ct)).Should().Contain("<form");
+        page.Headers.GetValues("Referrer-Policy").Should().Equal("same-origin");
+        page.Headers.GetValues("Content-Security-Policy")
+            .Single()
+            .Should()
+            .Contain("default-src 'none'")
+            .And.Contain("frame-ancestors 'none'");
+
+        using var post = new HttpRequestMessage(HttpMethod.Post, "/api/plugins/auth/consent")
+        {
+            Content = new FormUrlEncodedContent(
+                new Dictionary<string, string> { ["choice"] = "allow", ["state"] = "a b&c" }
+            ),
+        };
+
+        post.Headers.Add("Cookie", $"turbo_session={session}");
+        post.Headers.Add("Origin", SITE);
+
+        var redirect = await http.SendAsync(post, Ct);
+
+        redirect.StatusCode.Should().Be(HttpStatusCode.Found);
+        redirect
+            .Headers.Location!.OriginalString.Should()
+            .Be($"https://client.test/cb?player={PLAYER}&choice=allow&state=a%20b%26c");
+    }
+
+    [Fact]
+    public async Task A_route_any_site_may_call_answers_any_origin_and_is_never_signed_in_by_the_cookie()
+    {
+        PluginBuilder.Write(_folder, "auth", AUTH);
+        await StartAsync();
+        var (session, _) = await _sessions!.StartAsync(PLAYER, Ct);
+        using var preflight = new HttpRequestMessage(
+            HttpMethod.Options,
+            "/api/plugins/auth/oauth/token"
+        );
+
+        preflight.Headers.Add("Origin", "https://elsewhere.test");
+        preflight.Headers.Add("Access-Control-Request-Method", "POST");
+        preflight.Headers.Add("Access-Control-Request-Headers", "mcp-protocol-version");
+
+        var allowed = await _http!.SendAsync(preflight, Ct);
+
+        allowed.Headers.GetValues("Access-Control-Allow-Origin").Should().Equal("*");
+        allowed
+            .Headers.GetValues("Access-Control-Allow-Headers")
+            .Should()
+            .Equal("mcp-protocol-version");
+
+        using var token = new HttpRequestMessage(HttpMethod.Post, "/api/plugins/auth/oauth/token")
+        {
+            Content = new FormUrlEncodedContent(
+                new Dictionary<string, string> { ["grant_type"] = "authorization_code" }
+            ),
+        };
+
+        token.Headers.Add("Origin", "https://elsewhere.test");
+        token.Headers.Add("Cookie", $"turbo_session={session}");
+
+        var answer = await _http.SendAsync(token, Ct);
+        var json = JsonDocument.Parse(await answer.Content.ReadAsStringAsync(Ct)).RootElement;
+
+        answer.StatusCode.Should().Be(HttpStatusCode.OK);
+        answer.Headers.GetValues("Access-Control-Allow-Origin").Should().Equal("*");
+        answer.Headers.CacheControl!.NoStore.Should().BeTrue();
+        json.GetProperty("grant").GetString().Should().Be("authorization_code");
+        json.GetProperty("player")
+            .ValueKind.Should()
+            .Be(JsonValueKind.Null, "another site's page must not act as the browser's player");
+
+        // The site's own routes still refuse another site's page.
+        (
+            await SendRawAsync(
+                HttpMethod.Post,
+                "consent",
+                "{}",
+                null,
+                "https://elsewhere.test",
+                "auth"
+            )
+        )
+            .Status.Should()
+            .Be(403);
+    }
+
+    [Theory]
+    [InlineData("shared")]
+    [InlineData("overlap/exact")]
+    public async Task Origin_policy_uses_the_selected_endpoint_before_authenticating_a_cookie(
+        string path
+    )
+    {
+        await StartAsync();
+        using var live = OriginPolicyRoutes();
+        var (session, _) = await _sessions!.StartAsync(PLAYER, Ct);
+        using var blocked = new HttpRequestMessage(HttpMethod.Post, $"/api/plugins/origins/{path}")
+        {
+            Content = new FormUrlEncodedContent(
+                new Dictionary<string, string> { ["action"] = "change" }
+            ),
+        };
+        blocked.Headers.Add("Origin", "https://untrusted.example.com");
+        blocked.Headers.Add("Cookie", $"turbo_session={session}");
+
+        var refused = await _http!.SendAsync(blocked, Ct);
+
+        refused.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        refused.Headers.Contains("Access-Control-Allow-Origin").Should().BeFalse();
+        using var allowed = new HttpRequestMessage(HttpMethod.Post, $"/api/plugins/origins/{path}");
+        allowed.Headers.Add("Origin", SITE);
+        allowed.Headers.Add("Cookie", $"turbo_session={session}");
+        var answer = await _http.SendAsync(allowed, Ct);
+        answer.StatusCode.Should().Be(HttpStatusCode.OK);
+        JsonDocument
+            .Parse(await answer.Content.ReadAsStringAsync(Ct))
+            .RootElement.GetProperty("player")
+            .GetInt32()
+            .Should()
+            .Be(PLAYER);
+    }
+
+    [Theory]
+    [InlineData("shared")]
+    [InlineData("overlap/exact")]
+    public async Task Origin_policy_preflight_uses_the_requested_method_and_first_matching_endpoint(
+        string path
+    )
+    {
+        await StartAsync();
+        using var live = OriginPolicyRoutes();
+        using var blocked = new HttpRequestMessage(
+            HttpMethod.Options,
+            $"/api/plugins/origins/{path}"
+        );
+        blocked.Headers.Add("Origin", "https://untrusted.example.com");
+        blocked.Headers.Add("Access-Control-Request-Method", "POST");
+        blocked.Headers.Add("Access-Control-Request-Headers", "x-untrusted");
+
+        var refused = await _http!.SendAsync(blocked, Ct);
+
+        refused.Headers.Contains("Access-Control-Allow-Origin").Should().BeFalse();
+        refused.Headers.Contains("Access-Control-Allow-Methods").Should().BeFalse();
+        using var allowed = new HttpRequestMessage(
+            HttpMethod.Options,
+            "/api/plugins/origins/shared"
+        );
+        allowed.Headers.Add("Origin", "https://untrusted.example.com");
+        allowed.Headers.Add("Access-Control-Request-Method", "GET");
+        var answer = await _http.SendAsync(allowed, Ct);
+        answer.Headers.GetValues("Access-Control-Allow-Origin").Should().Equal("*");
+        answer.Headers.GetValues("Access-Control-Allow-Methods").Should().Equal("GET");
+    }
+
+    private IDisposable OriginPolicyRoutes()
+    {
+        var sharedPost = new OriginPolicyRoute("POST", "shared", false);
+        var sharedGet = new OriginPolicyRoute("GET", "shared", true);
+        var exactPost = new OriginPolicyRoute("POST", "overlap/exact", false);
+        var templatePost = new OriginPolicyRoute("POST", "overlap/{name}", true);
+        return _routes.Live(
+            "origins",
+            [
+                new("origins", "POST", "shared", false, [], sharedPost),
+                new("origins", "GET", "shared", true, [], sharedGet),
+                new("origins", "POST", "overlap/exact", false, [], exactPost),
+                new("origins", "POST", "overlap/{name}", true, [], templatePost),
+            ]
+        );
+    }
+
+    private sealed class OriginPolicyRoute(string method, string pattern, bool anyOrigin)
+        : IPluginWebRoute
+    {
+        public string Method => method;
+        public string Pattern => pattern;
+        public bool Anonymous => anyOrigin;
+        public bool AnyOrigin => anyOrigin;
+
+        public Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct) =>
+            Task.FromResult(PluginWebResult.Ok(new { player = request.PlayerId }));
+    }
+
+    [Fact]
+    public async Task A_plugins_well_known_documents_are_served_on_the_sites_root_too()
+    {
+        PluginBuilder.Write(_folder, "auth", AUTH);
+        await StartAsync();
+
+        var root = await _http!.GetStringAsync(
+            "/.well-known/oauth-authorization-server/api/plugins/auth",
+            Ct
+        );
+        var resource = await _http.GetStringAsync(
+            "/.well-known/oauth-protected-resource/api/plugins/auth/mcp",
+            Ct
+        );
+
+        root.Should()
+            .Be(
+                await _http.GetStringAsync(
+                    "/api/plugins/auth/.well-known/oauth-authorization-server",
+                    Ct
+                )
+            )
+            .And.Contain("\"issuer\"");
+        resource.Should().Contain("\"resource\"");
+        (await _http.GetAsync("/.well-known/oauth-authorization-server/api/plugins/board", Ct))
+            .StatusCode.Should()
+            .Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task A_header_a_route_may_not_set_or_a_redirect_off_the_web_fails_the_call_and_is_logged()
+    {
+        PluginBuilder.Write(_folder, "auth", AUTH);
+        await StartAsync();
+
+        (await SendRawAsync(HttpMethod.Get, "cookie", null, null, key: "auth"))
+            .Status.Should()
+            .Be(500);
+        (await SendRawAsync(HttpMethod.Get, "script", null, null, key: "auth"))
+            .Status.Should()
+            .Be(500);
+        _log.AtLeast(LogLevel.Error)
+            .Select(x => x.Message)
+            .Should()
+            .Contain(x => x.Contains("Set-Cookie"))
+            .And.Contain(x => x.Contains("javascript:"));
+    }
+
+    [Fact]
+    public async Task A_route_any_site_may_call_that_is_not_anonymous_is_refused_at_load()
+    {
+        var state = await LoadAsync(
+            "bad",
+            Route("bad", "POST", "token", anonymous: false, attribute: string.Empty)
+                .Replace(
+                    "public Task<PluginWebResult> HandleAsync",
+                    "public bool AnyOrigin => true; public Task<PluginWebResult> HandleAsync"
+                )
+        );
+
+        state.State.Should().Be(PluginStateType.Failed);
+        state.Error.Should().Contain("lets any site call it but is not anonymous");
+    }
+
+    private HttpClient NoRedirects() =>
+        new(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false })
+        {
+            BaseAddress = new Uri($"http://127.0.0.1:{_port}"),
+        };
+
+    private const string AUTH = """
+        using System;
+        using System.Collections.Generic;
+        using System.Threading;
+        using System.Threading.Tasks;
+        using Microsoft.Extensions.DependencyInjection;
+        using Turbo.Contracts.Plugins;
+        using Turbo.Contracts.Plugins.Exports;
+        using Turbo.Contracts.Plugins.Web;
+
+        namespace Auth;
+
+        public sealed class AuthPlugin : ITurboPlugin
+        {
+            public string Key => "auth";
+            public string Version => "1.0.0";
+            public void ConfigureServices(IServiceCollection services, PluginManifest manifest) { }
+            public Task StartAsync(IServiceProvider services, CancellationToken ct) => Task.CompletedTask;
+            public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
+            public Task BindExportsAsync(IExportBinder binder, IServiceProvider services) => Task.CompletedTask;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+
+        public sealed class ConsentPage : IPluginWebRoute
+        {
+            public string Method => "GET";
+            public string Pattern => "consent";
+            public bool Anonymous => true;
+
+            public Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct) =>
+                Task.FromResult(PluginWebResult.Html("<form method=\"post\"><button>Allow</button></form>"));
+        }
+
+        public sealed class ConsentAnswer : IPluginWebRoute
+        {
+            public string Method => "POST";
+            public string Pattern => "consent";
+            public bool Anonymous => true;
+
+            public Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct) =>
+                Task.FromResult(PluginWebResult.Redirect(
+                    $"https://client.test/cb?player={request.PlayerId}&choice={request.Form["choice"]}&state={Uri.EscapeDataString(request.Form["state"])}"));
+        }
+
+        public sealed class TokenRoute : IPluginWebRoute
+        {
+            public string Method => "POST";
+            public string Pattern => "oauth/token";
+            public bool Anonymous => true;
+            public bool AnyOrigin => true;
+
+            public Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct) =>
+                Task.FromResult(PluginWebResult.Ok(new { grant = request.Form["grant_type"], player = request.PlayerId }) with
+                {
+                    Headers = new Dictionary<string, string> { ["Cache-Control"] = "no-store" },
+                });
+        }
+
+        public sealed class ServerMetadata : IPluginWebRoute
+        {
+            public string Method => "GET";
+            public string Pattern => ".well-known/oauth-authorization-server";
+            public bool Anonymous => true;
+            public bool AnyOrigin => true;
+
+            public Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct) =>
+                Task.FromResult(PluginWebResult.Ok(new { issuer = "https://example.com/api/plugins/auth" }));
+        }
+
+        public sealed class ResourceMetadata : IPluginWebRoute
+        {
+            public string Method => "GET";
+            public string Pattern => ".well-known/oauth-protected-resource/mcp";
+            public bool Anonymous => true;
+            public bool AnyOrigin => true;
+
+            public Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct) =>
+                Task.FromResult(PluginWebResult.Ok(new { resource = "https://example.com/api/plugins/auth/mcp" }));
+        }
+
+        public sealed class CookieRoute : IPluginWebRoute
+        {
+            public string Method => "GET";
+            public string Pattern => "cookie";
+            public bool Anonymous => true;
+
+            public Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct) =>
+                Task.FromResult(PluginWebResult.Ok(new { }) with
+                {
+                    Headers = new Dictionary<string, string> { ["Set-Cookie"] = "turbo_session=stolen" },
+                });
+        }
+
+        public sealed class ScriptRoute : IPluginWebRoute
+        {
+            public string Method => "GET";
+            public string Pattern => "script";
+            public bool Anonymous => true;
+
+            public Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct) =>
+                Task.FromResult(PluginWebResult.Redirect("javascript:alert(1)"));
+        }
+        """;
+
     private static string Route(
         string key,
         string method,

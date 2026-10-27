@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.RateLimiting;
@@ -9,6 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
@@ -82,6 +84,33 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
         api.MapMethods("/plugins/{key}/{**path}", ["OPTIONS"], Preflight);
     }
 
+    /// <summary>
+    /// <c>/.well-known/&lt;name&gt;/api/plugins/&lt;key&gt;/&lt;rest&gt;</c> answers as the plugin's
+    /// <c>.well-known/&lt;name&gt;/&lt;rest&gt;</c>: where OAuth clients look for the metadata of an
+    /// address with a path (RFC 8414 section 3.1, RFC 9728 section 3.1), on the site's root.
+    /// </summary>
+    public void MapWellKnown(IEndpointRouteBuilder root)
+    {
+        if (!_config.Enabled)
+            return;
+
+        root.MapMethods(
+            "/.well-known/{name}/api/plugins/{key}/{**path}",
+            ["GET"],
+            (string name, string key, string? path, HttpContext http, CancellationToken ct) =>
+                CallAsync(key, WellKnown(name, path), http, ct)
+        );
+        root.MapMethods(
+            "/.well-known/{name}/api/plugins/{key}/{**path}",
+            ["OPTIONS"],
+            (string name, string key, string? path, HttpContext http) =>
+                Preflight(key, WellKnown(name, path), http)
+        );
+    }
+
+    private static string WellKnown(string name, string? path) =>
+        string.IsNullOrEmpty(path) ? $".well-known/{name}" : $".well-known/{name}/{path}";
+
     /// <summary>The origins of the hotel's site and client, and the ones it adds.</summary>
     private static HashSet<string> AllowedOrigins(WebConfig web)
     {
@@ -136,21 +165,43 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
 
     private IResult Preflight(string key, string? path, HttpContext http)
     {
-        if (!AllowOrigin(http) || http.Request.Headers.Origin.Count == 0)
+        path ??= string.Empty;
+
+        var method = http.Request.Headers.AccessControlRequestMethod.ToString();
+        if (_routes.IsReloading(key) || _routes.Match(key, method, path, out _) is not { } endpoint)
             return Results.NoContent();
 
-        var methods = _routes.MethodsAt(key, path ?? string.Empty);
+        var anyOrigin = endpoint.Route.AnyOrigin;
 
-        if (methods.Count == 0)
+        if (
+            http.Request.Headers.Origin.Count == 0
+            || !(anyOrigin ? AnyOrigin(http) : AllowOrigin(http))
+        )
             return Results.NoContent();
 
         var headers = http.Response.Headers;
 
-        headers.AccessControlAllowMethods = string.Join(", ", methods);
-        headers.AccessControlAllowHeaders = "Authorization, Content-Type";
+        headers.AccessControlAllowMethods = endpoint.Method;
+        // A route any site may call takes the headers its callers send (an MCP client's
+        // MCP-Protocol-Version): no cookie goes with them, so none signs anyone in.
+        headers.AccessControlAllowHeaders =
+            anyOrigin && http.Request.Headers.AccessControlRequestHeaders.Count > 0
+                ? http.Request.Headers.AccessControlRequestHeaders.ToString()
+                : "Authorization, Content-Type";
         headers.AccessControlMaxAge = "600";
 
         return Results.NoContent();
+    }
+
+    /// <summary>Lets any site's page read the answer, without credentials.</summary>
+    private static bool AnyOrigin(HttpContext http)
+    {
+        var headers = http.Response.Headers;
+
+        headers.AccessControlAllowOrigin = "*";
+        headers.AccessControlExposeHeaders = "Retry-After, WWW-Authenticate";
+
+        return true;
     }
 
     private async Task<IResult> CallAsync(
@@ -164,12 +215,6 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
         var address = http.Connection.RemoteIpAddress?.ToString() ?? string.Empty;
 
         path ??= string.Empty;
-
-        if (!AllowOrigin(http) && method != "GET")
-            return Error(
-                StatusCodes.Status403Forbidden,
-                "This site may not call the hotel's plugins."
-            );
 
         if (Limited(http, _perAddress, address) is { } addressLimited)
             return addressLimited;
@@ -187,7 +232,16 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
         if (_routes.Match(key, method, path, out var route) is not { } endpoint)
             return Error(StatusCodes.Status404NotFound, "There is nothing here.");
 
-        var (player, signedOut) = await CallerAsync(http, ct).ConfigureAwait(false);
+        // Policy belongs to the exact route selected for this method, including when
+        // another method or a later matching pattern allows public cross-origin calls.
+        var anyOrigin = endpoint.Route.AnyOrigin;
+        if (!(anyOrigin ? AnyOrigin(http) : AllowOrigin(http)) && method != "GET")
+            return Error(
+                StatusCodes.Status403Forbidden,
+                "This site may not call the hotel's plugins."
+            );
+
+        var (player, signedOut) = await CallerAsync(http, anyOrigin, ct).ConfigureAwait(false);
 
         // An anonymous route that reads the credentials itself (a webhook checking its provider's
         // bearer token) is handed a token that is not a player's as it came: the call is
@@ -208,7 +262,7 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
                 return playerLimited;
         }
 
-        var (body, raw, problem) = await ReadBodyAsync(http, ct).ConfigureAwait(false);
+        var (body, form, raw, problem) = await ReadBodyAsync(http, ct).ConfigureAwait(false);
 
         if (problem is not null)
             return problem;
@@ -235,6 +289,7 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
         {
             Headers = HeadersFor(http, endpoint.Route.CredentialHeaders),
             RawBody = raw,
+            Form = form,
         };
 
         PluginWebResult result;
@@ -266,13 +321,63 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
             return Error(StatusCodes.Status500InternalServerError, "Something went wrong.");
         }
 
+        foreach (var (name, value) in result.Headers)
+        {
+            var location = string.Equals(name, "Location", StringComparison.OrdinalIgnoreCase);
+
+            if (!PluginWebResult.HEADERS.Contains(name) || (location && !IsRedirect(value)))
+            {
+                _logger.LogError(
+                    "The plugin {Key} answered {Method} /{Path} with the header {Header}: {Value}, which a route may not set",
+                    key,
+                    method,
+                    path,
+                    name,
+                    value
+                );
+
+                return Error(StatusCodes.Status500InternalServerError, "Something went wrong.");
+            }
+
+            http.Response.Headers[name] = value;
+        }
+
         if (result.Error is { } error)
             return Error(result.Status, error);
 
-        return result.Status == StatusCodes.Status204NoContent
-            ? Results.NoContent()
+        if (result.Page is { } page)
+        {
+            var headers = http.Response.Headers;
+
+            // A plugin's page runs no script, loads nothing from elsewhere and no other site
+            // frames it: what it can do is its form.
+            headers.ContentSecurityPolicy =
+                "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'";
+            headers.XContentTypeOptions = "nosniff";
+            // Preserve the Origin on same-origin HTML form posts; no-referrer turns it into
+            // "null" in browsers, which our origin guard correctly refuses. External
+            // redirects still receive no referrer (including OAuth consent tickets).
+            headers["Referrer-Policy"] = "same-origin";
+
+            return Results.Content(page, "text/html; charset=utf-8", statusCode: result.Status);
+        }
+
+        return result.Status is StatusCodes.Status204NoContent or StatusCodes.Status302Found
+            ? Results.StatusCode(result.Status)
             : Results.Json(result.Value, statusCode: result.Status);
     }
+
+    /// <summary>An absolute http(s) address, or a path on the hotel (not <c>//</c>, which leaves it).</summary>
+    private static bool IsRedirect(string url) =>
+        (
+            url.StartsWith('/')
+            && !url.StartsWith("//", StringComparison.Ordinal)
+            && !url.Contains('\\')
+        )
+        || (
+            Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp)
+        );
 
     /// <summary>
     /// The player calling: the client's token, else the site's session. <c>SignedOut</c> when a
@@ -280,6 +385,7 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
     /// </summary>
     private async Task<(PlayerId? Player, bool SignedOut)> CallerAsync(
         HttpContext http,
+        bool anyOrigin,
         CancellationToken ct
     )
     {
@@ -289,6 +395,10 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
             return _tokens.Find(authorization["Bearer ".Length..].Trim()) is { } player
                 ? (player, false)
                 : (null, true);
+
+        // Any site's page may call the route: the browser's cookie must not sign it in.
+        if (anyOrigin)
+            return (null, false);
 
         return (
             await _sessions
@@ -347,11 +457,12 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
     }
 
     /// <summary>
-    /// The JSON body, if any, and its bytes as sent; an answer instead when it is too large or
-    /// not JSON.
+    /// The JSON body or the form, if any, and its bytes as sent; an answer instead when it is too
+    /// large or neither.
     /// </summary>
     private async Task<(
         JsonElement? Body,
+        IReadOnlyDictionary<string, string> Form,
         ReadOnlyMemory<byte> Raw,
         IResult? Problem
     )> ReadBodyAsync(HttpContext http, CancellationToken ct)
@@ -361,9 +472,10 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
             StatusCodes.Status413PayloadTooLarge,
             $"That is more than the {cap} bytes the hotel takes."
         );
+        var none = new Dictionary<string, string>();
 
         if (http.Request.ContentLength > cap)
-            return (null, default, tooLarge);
+            return (null, none, default, tooLarge);
 
         using var buffer = new MemoryStream();
         var chunk = new byte[16 * 1024];
@@ -372,28 +484,43 @@ internal sealed class PluginWebEndpoints : IAsyncDisposable
         while ((read = await http.Request.Body.ReadAsync(chunk, ct).ConfigureAwait(false)) > 0)
         {
             if (buffer.Length + read > cap)
-                return (null, default, tooLarge);
+                return (null, none, default, tooLarge);
 
             await buffer.WriteAsync(chunk.AsMemory(0, read), ct).ConfigureAwait(false);
         }
 
         if (buffer.Length == 0)
-            return (null, default, null);
+            return (null, none, default, null);
 
         var raw = buffer.ToArray();
+
+        if (http.Request.HasFormContentType)
+            return (
+                null,
+                QueryHelpers
+                    .ParseQuery(Encoding.UTF8.GetString(raw))
+                    .ToDictionary(
+                        x => x.Key,
+                        x => string.Join(',', x.Value.Select(v => v ?? string.Empty)),
+                        StringComparer.Ordinal
+                    ),
+                raw,
+                null
+            );
 
         try
         {
             using var document = JsonDocument.Parse(raw);
 
-            return (document.RootElement.Clone(), raw, null);
+            return (document.RootElement.Clone(), none, raw, null);
         }
         catch (JsonException)
         {
             return (
                 null,
+                none,
                 default,
-                Error(StatusCodes.Status400BadRequest, "The request body is not JSON.")
+                Error(StatusCodes.Status400BadRequest, "The request body is not JSON or a form.")
             );
         }
     }

@@ -6,8 +6,9 @@ namespace Turbo.Contracts.Plugins.Web;
 
 /// <summary>
 /// A call to a plugin's web route (<see cref="IPluginWebRoute"/>): its route values (from the
-/// pattern), its query, its JSON body (null without one), the player making it (null on an
-/// anonymous route when nobody is signed in) and the address it came from.
+/// pattern), its query, its JSON body (null without one) or its form (<see cref="Form"/>), the
+/// player making it (null on an anonymous route when nobody is signed in) and the address it came
+/// from.
 /// </summary>
 public sealed record PluginWebRequest(
     string Method,
@@ -33,4 +34,12 @@ public sealed record PluginWebRequest(
     /// out over: <see cref="Body"/> is the same bytes parsed, and parsing does not keep them.
     /// </summary>
     public ReadOnlyMemory<byte> RawBody { get; init; }
+
+    /// <summary>
+    /// A form's fields (a body sent as <c>application/x-www-form-urlencoded</c>: an HTML form, an
+    /// OAuth token request), a field sent more than once joined with <c>","</c>; empty for any
+    /// other body, and <see cref="Body"/> is null for a form.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Form { get; init; } =
+        new Dictionary<string, string>();
 }
