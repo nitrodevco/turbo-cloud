@@ -11,6 +11,9 @@
         "test": "node tools/dev.mjs test",
         "make": "node tools/make.mjs",
         "clean-sample": "node tools/clean-sample.mjs",
+        "ai": "node tools/ai.mjs install",
+        "ai:update": "node tools/ai.mjs update",
+        "ai:rule": "node tools/ai.mjs rule",
         "typecheck": "tsc -p client/tsconfig.json"
     },
     "devDependencies": {

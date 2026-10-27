@@ -6,7 +6,11 @@
                     against, which a server running on the runtime alone does not have;
       generators/   the source generators pinned with the server (Turbo.Plugins/Compilation/PluginGenerators.cs);
       Turbo.Plugin.props   what a plugin's own project imports to build as the server compiles it
-                    (the policy analyzer, Turbo.Plugins.Policy.dll, is beside the server's assemblies).
+                    (the policy analyzer, Turbo.Plugins.Policy.dll, is beside the server's assemblies);
+      ai/           the AI kit for plugin authors, guidelines and skills (docs/turbo-boost.md), so a
+                    plugin's `npm run ai` installs the ones of the server it builds against;
+      docs/         this server's guides (docs/**/*.md), which the kit points to and the MCP
+                    plugin's search_docs searches.
     Imported by the projects that run plugins: Turbo.Main and Turbo.Tests.
   -->
   <Target Name="TurboPluginSdkFiles" DependsOnTargets="ResolveReferences">
@@ -32,6 +36,19 @@
       <_TurboPluginSdkFile
         Include="$(MSBuildThisFileDirectory)Turbo.Plugin.props"
         SdkPath="plugin-sdk/Turbo.Plugin.props"
+      />
+      <_TurboPluginAiFile Include="$(MSBuildThisFileDirectory)../../ai/**/*.md" />
+      <_TurboPluginSdkFile
+        Include="@(_TurboPluginAiFile)"
+        SdkPath="plugin-sdk/ai/%(RecursiveDir)%(Filename)%(Extension)"
+      />
+      <_TurboPluginDoc
+        Include="$(MSBuildThisFileDirectory)../../docs/**/*.md"
+        Exclude="$(MSBuildThisFileDirectory)../../docs/**/bin/**;$(MSBuildThisFileDirectory)../../docs/**/obj/**;$(MSBuildThisFileDirectory)../../docs/**/node_modules/**"
+      />
+      <_TurboPluginSdkFile
+        Include="@(_TurboPluginDoc)"
+        SdkPath="plugin-sdk/docs/%(RecursiveDir)%(Filename)%(Extension)"
       />
     </ItemGroup>
   </Target>

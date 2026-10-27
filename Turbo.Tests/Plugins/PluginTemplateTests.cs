@@ -621,6 +621,92 @@ public sealed class PluginTemplateTests : IDisposable
     }
 
     /// <summary>
+    /// <c>npm run ai</c> (docs/turbo-boost.md) owns one block of CLAUDE.md and AGENTS.md, one entry
+    /// of .mcp.json and the skill folders it installed, from the server's kit and the plugin's
+    /// dependencies': run again, it replaces those and never what the author wrote around them.
+    /// </summary>
+    [Fact]
+    public async Task Ai_writes_its_block_skills_and_mcp_entry_and_keeps_what_the_author_wrote()
+    {
+        var source = Path.Combine(_folder, "source");
+        var economy = Path.Combine(_folder, "economy");
+        var claude = Path.Combine(source, "CLAUDE.md");
+
+        CopyTemplate(source);
+        Directory.CreateDirectory(Path.Combine(economy, "ai", "skills", "econ-pay"));
+        File.WriteAllText(
+            Path.Combine(economy, "manifest.json"),
+            """{"Name":"Economy","Key":"econ","Version":"1.0.0"}"""
+        );
+        File.WriteAllText(
+            Path.Combine(economy, "ai", "guidelines.md"),
+            "Pay through `IEconomy.PayAsync`.\n"
+        );
+        File.WriteAllText(
+            Path.Combine(economy, "ai", "skills", "econ-pay", "SKILL.md"),
+            "---\nname: econ-pay\ndescription: Pay players through the economy plugin.\n---\n"
+        );
+        File.WriteAllText(
+            Path.Combine(source, "manifest.json"),
+            File.ReadAllText(Path.Combine(source, "manifest.json"))
+                .Replace("\"Dependencies\": []", "\"Dependencies\": [\"econ\"]")
+        );
+        File.WriteAllText(claude, "# Notes\n\nKeep this.\n");
+        File.WriteAllText(
+            Path.Combine(source, ".mcp.json"),
+            """{"mcpServers":{"mine":{"command":"x"}}}"""
+        );
+        Directory.CreateDirectory(Path.Combine(source, ".claude", "skills", "mine"));
+
+        (await NodeAsync(source, "tools/ai.mjs install", AppContext.BaseDirectory))
+            .Exit.Should()
+            .Be(0);
+
+        var first = File.ReadAllText(claude);
+        first.Should().StartWith("# Notes\n\nKeep this.\n\n<turbo-boost>");
+        first.Should().Contain("## Turbo plugin development").And.Contain("#### Economy (`econ`)");
+        File.ReadAllText(Path.Combine(source, "AGENTS.md")).Should().Contain("<turbo-boost>");
+        Directory
+            .EnumerateDirectories(Path.Combine(source, ".claude", "skills"))
+            .Select(Path.GetFileName)
+            .Should()
+            .Contain(["turbo-plugin-basics", "turbo-mcp-tools", "econ-pay", "mine"]);
+        File.Exists(Path.Combine(source, ".agents", "skills", "econ-pay", "SKILL.md"))
+            .Should()
+            .BeTrue();
+        var mcp = JsonDocument
+            .Parse(File.ReadAllText(Path.Combine(source, ".mcp.json")))
+            .RootElement.GetProperty("mcpServers");
+        mcp.TryGetProperty("mine", out _).Should().BeTrue();
+        mcp.GetProperty("turbo")
+            .GetProperty("url")
+            .GetString()
+            .Should()
+            .EndWith("/api/plugins/mcp/mcp");
+
+        // The author writes after the block; the dependency drops its skill.
+        File.AppendAllText(claude, "\nAfter the block.\n");
+        Directory.Delete(Path.Combine(economy, "ai", "skills"), recursive: true);
+
+        (await NodeAsync(source, "tools/ai.mjs update", AppContext.BaseDirectory))
+            .Exit.Should()
+            .Be(0);
+
+        var second = File.ReadAllText(claude);
+        second
+            .Should()
+            .StartWith("# Notes\n\nKeep this.\n\n<turbo-boost>")
+            .And.EndWith("</turbo-boost>\n\nAfter the block.\n");
+        second.Split("<turbo-boost>").Should().HaveCount(2, "one block");
+        Directory
+            .EnumerateDirectories(Path.Combine(source, ".claude", "skills"))
+            .Select(Path.GetFileName)
+            .Should()
+            .Contain("mine", "it was never the kit's")
+            .And.NotContain("econ-pay", "the last run installed it and this one did not");
+    }
+
+    /// <summary>
     /// <c>npm run clean-sample</c> takes the template's sample out (stranger test S1 deleted 11 files
     /// by hand): the plugin left loads with what <c>npm run make</c> adds and nothing of the sample.
     /// </summary>
