@@ -22,6 +22,17 @@ can notice (internals, core's own behaviour, tests) has no entry.
 
 ## 2026-10-27
 
+### MCP tools for development servers only
+
+- **What**: an MCP tool that overrides `DevelopmentOnly => true` is registered only when the
+  server's host environment is `Development`; on any other server it is not listed and not
+  callable, whatever nodes a staff member holds. `IMcpTool` has the new member.
+- **Who**: plugins with MCP tools for their authors (a server's log, its tables).
+- **Breaks plugins**: no. A plugin implementing `IMcpTool` itself rather than deriving from
+  `McpTool<TInput>` adds the member.
+- **Action**: none; mark such tools `DevelopmentOnly` (`docs/plugin-mcp-tools.md`).
+- [turbo-cloud#478](https://github.com/nitrodevco/turbo-cloud/pull/478)
+
 ### Turbo Boost: Cursor, Copilot and Junie; conventions; an MCP tool recipe; the Inspector
 
 - **What**: `npm run ai` asks which agents to set up (or `--agents claude,codex,cursor,copilot,junie|all`)
