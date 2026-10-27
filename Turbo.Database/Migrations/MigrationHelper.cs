@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Turbo.Contracts.Plugins;
+using Turbo.Database.Context;
 using Turbo.Database.Delegates;
 
 namespace Turbo.Database.Migrations;
@@ -22,6 +23,19 @@ public static class MigrationHelper
         where TContext : DbContext
     {
         using var db = sp.GetRequiredService<TContext>();
+
+        // A test host's database (Turbo.Testing) gets the tables of the context's model.
+        if (
+            (sp.GetRequiredService<IHostServices>() as IServiceProvider)?.GetService(
+                typeof(PluginTestDatabase)
+            )
+            is PluginTestDatabase test
+        )
+        {
+            await test.CreateAsync(db, ct).ConfigureAwait(false);
+
+            return;
+        }
 
         var migrator = sp.GetRequiredService<IHostServices>()
             .GetRequiredService<DatabaseMigrator>();

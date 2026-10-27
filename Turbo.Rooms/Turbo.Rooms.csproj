@@ -18,5 +18,6 @@
     <ProjectReference Include="..\Turbo.Commands\Turbo.Commands.csproj" />
     <ProjectReference Include="..\Turbo.Catalog\Turbo.Catalog.csproj" />
     <InternalsVisibleTo Include="Turbo.Tests" />
+    <InternalsVisibleTo Include="Turbo.Testing" />
   </ItemGroup>
 </Project>

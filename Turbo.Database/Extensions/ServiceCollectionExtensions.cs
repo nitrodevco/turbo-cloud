@@ -247,6 +247,17 @@ public static class ServiceCollectionExtensions
         var prefix = sp.GetRequiredService<TablePrefixProvider>();
         var host = sp.GetRequiredService<IHostServices>();
 
+        // A test host's database (Turbo.Testing): none on a server.
+        if (
+            (host as IServiceProvider)?.GetService(typeof(PluginTestDatabase))
+            is PluginTestDatabase test
+        )
+        {
+            test.Configure(options, prefix());
+
+            return;
+        }
+
         options.UseInternalServiceProvider(
             sp.GetRequiredService<PluginEntityFrameworkServices>().Services
         );

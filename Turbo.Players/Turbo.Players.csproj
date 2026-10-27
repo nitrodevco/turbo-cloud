@@ -15,5 +15,6 @@
     <ProjectReference Include="..\Turbo.Messages\Turbo.Messages.csproj" />
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
     <InternalsVisibleTo Include="Turbo.Tests" />
+    <InternalsVisibleTo Include="Turbo.Testing" />
   </ItemGroup>
 </Project>
