@@ -113,7 +113,8 @@ A plugin declares its use, with what for, in its `manifest.json`:
 "ai": { "purpose": "Answers players' questions about the hotel's rooms and events." }
 ```
 
-The hotel's owner allows it by adding its key to `Turbo:Ai:Plugins`. The panel's
+The hotel's owner allows it by adding its key to `Turbo:Ai:Plugins`. The plugin's inspector lists
+its purpose as an `ai` contribution. The panel's
 `GET /api/plugins/ai` (staff with `admin.plugins.view`) lists the plugins declaring AI with their
 purpose and whether each is allowed, the providers (whether each has a key and can be asked, never the
 key) and the usage. Until both are so, `IAi.Availability` says why (`NotDeclared`, `NotAllowed`,

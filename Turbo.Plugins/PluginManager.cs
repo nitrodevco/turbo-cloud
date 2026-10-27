@@ -883,10 +883,13 @@ public sealed class PluginManager(
 
             // A run of its agents that waited on an approval resumes with its services while it runs.
             if (m.Ai is not null && host.GetService<IPluginAiHost>() is { } ai)
+            {
+                contributions.Add(PluginContributionKinds.AI, m.Ai.Purpose);
                 disposables.Insert(
                     0,
                     ai.Live(m, asm.Assembly, new CompositeServiceProvider(sp, _hostForPlugins))
                 );
+            }
 
             if (host.GetService<IReplaceableServices>() is { } replaceable)
                 foreach (var (type, implementation) in replacements)

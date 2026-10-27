@@ -70,6 +70,9 @@ public static class PluginContributionKinds
 
     /// <summary>What carries out approved requests of a kind (<c>docs/approvals.md</c>): the kind, the class.</summary>
     public const string APPROVAL_HANDLER = "approval-handler";
+
+    /// <summary>It asks language models (<c>docs/ai-sdk.md</c>): what for, from its manifest's <c>"ai"</c>.</summary>
+    public const string AI = "ai";
     public const string ADMIN_PAGE = "admin-page";
     public const string ADMIN_ENDPOINT = "admin-endpoint";
     public const string DATABASE = "database";
