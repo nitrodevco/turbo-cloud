@@ -36,6 +36,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPluginWebRoutes>(sp => sp.GetRequiredService<PluginWebRoutes>());
         services.AddSingleton<McpTools>();
         services.AddSingleton<IMcpTools>(sp => sp.GetRequiredService<McpTools>());
+        services.AddSingleton<IMcpResources>(sp => sp.GetRequiredService<McpTools>());
+        services.AddSingleton<IMcpPrompts>(sp => sp.GetRequiredService<McpTools>());
         services.AddSingleton<ApprovalHandlers>();
         services.AddSingleton<HotelApprovals>();
         services.AddSingleton<IApprovals>(sp => sp.GetRequiredService<HotelApprovals>());

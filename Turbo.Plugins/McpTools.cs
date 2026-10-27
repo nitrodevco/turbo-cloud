@@ -18,23 +18,50 @@ using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Plugins;
 
-/// <summary>
-/// The MCP tools of the live plugins (<see cref="IMcpTools"/>). A plugin's tools are found in its
-/// assembly as it loads (<see cref="Build"/>), listed once it has started, and taken away as it
-/// starts to stop. Who may call a tool is asked of the hotel's permissions on every call.
-/// </summary>
-internal sealed class McpTools(IServiceProvider host, ILogger<McpTools> logger) : IMcpTools
+/// <summary>What one plugin brings to MCP: its tools, resources and prompts.</summary>
+internal sealed record McpContributions(
+    ImmutableArray<McpToolDefinition> Tools,
+    ImmutableArray<McpResourceDefinition> Resources,
+    ImmutableArray<McpPromptDefinition> Prompts
+)
 {
-    private readonly ConcurrentDictionary<string, ImmutableArray<McpToolDefinition>> _live = new(
+    public static McpContributions None { get; } = new([], [], []);
+
+    public bool IsEmpty => Tools.IsEmpty && Resources.IsEmpty && Prompts.IsEmpty;
+}
+
+/// <summary>
+/// The MCP tools, resources and prompts of the live plugins (<see cref="IMcpTools"/>,
+/// <see cref="IMcpResources"/>, <see cref="IMcpPrompts"/>). A plugin's are found in its assembly as
+/// it loads (<see cref="Build"/>), listed once it has started, and taken away as it starts to stop.
+/// Who may call, read or get each is asked of the hotel's permissions every time.
+/// </summary>
+internal sealed class McpTools(IServiceProvider host, ILogger<McpTools> logger)
+    : IMcpTools,
+        IMcpResources,
+        IMcpPrompts
+{
+    private readonly ConcurrentDictionary<string, McpContributions> _live = new(
         StringComparer.OrdinalIgnoreCase
     );
 
     public ImmutableArray<McpToolDefinition> All =>
-        [
-            .. _live
-                .OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
-                .SelectMany(x => x.Value.OrderBy(t => t.Name, StringComparer.Ordinal)),
-        ];
+        [.. Ordered.SelectMany(x => x.Tools.OrderBy(t => t.Name, StringComparer.Ordinal))];
+
+    ImmutableArray<McpResourceDefinition> IMcpResources.All => Resources;
+
+    ImmutableArray<McpPromptDefinition> IMcpPrompts.All => Prompts;
+
+    /// <summary>Every live resource and template, by plugin key then name.</summary>
+    public ImmutableArray<McpResourceDefinition> Resources =>
+        [.. Ordered.SelectMany(x => x.Resources.OrderBy(t => t.Name, StringComparer.Ordinal))];
+
+    /// <summary>Every live prompt, by plugin key then name.</summary>
+    public ImmutableArray<McpPromptDefinition> Prompts =>
+        [.. Ordered.SelectMany(x => x.Prompts.OrderBy(t => t.Name, StringComparer.Ordinal))];
+
+    private IEnumerable<McpContributions> Ordered =>
+        _live.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase).Select(x => x.Value);
 
     public async Task<ImmutableArray<McpToolDefinition>> AvailableToAsync(
         McpCaller caller,
@@ -46,6 +73,34 @@ internal sealed class McpTools(IServiceProvider host, ILogger<McpTools> logger) 
         foreach (var tool in All)
             if (await tool.IsAvailableToAsync(caller, Holds(caller), ct).ConfigureAwait(false))
                 available.Add(tool);
+
+        return available.ToImmutable();
+    }
+
+    async Task<ImmutableArray<McpResourceDefinition>> IMcpResources.AvailableToAsync(
+        McpCaller caller,
+        CancellationToken ct
+    )
+    {
+        var available = ImmutableArray.CreateBuilder<McpResourceDefinition>();
+
+        foreach (var resource in Resources)
+            if (await resource.IsAvailableToAsync(caller, Holds(caller), ct).ConfigureAwait(false))
+                available.Add(resource);
+
+        return available.ToImmutable();
+    }
+
+    async Task<ImmutableArray<McpPromptDefinition>> IMcpPrompts.AvailableToAsync(
+        McpCaller caller,
+        CancellationToken ct
+    )
+    {
+        var available = ImmutableArray.CreateBuilder<McpPromptDefinition>();
+
+        foreach (var prompt in Prompts)
+            if (await prompt.IsAvailableToAsync(caller, Holds(caller), ct).ConfigureAwait(false))
+                available.Add(prompt);
 
         return available.ToImmutable();
     }
@@ -87,6 +142,85 @@ internal sealed class McpTools(IServiceProvider host, ILogger<McpTools> logger) 
             );
 
             return McpToolCallResult.Failed(tool.Name);
+        }
+    }
+
+    public async Task<McpResourceReadResult> ReadAsync(
+        string uri,
+        McpCaller caller,
+        CancellationToken ct
+    )
+    {
+        var holds = Holds(caller);
+        var all = Resources;
+
+        // Its own address first, then the first template that makes it.
+        if (
+            (
+                all.FirstOrDefault(x => !x.IsTemplate && x.Matches(uri))
+                ?? all.FirstOrDefault(x => x.IsTemplate && x.Matches(uri))
+            )
+                is not { } resource
+            || !await resource.IsAvailableToAsync(caller, holds, ct).ConfigureAwait(false)
+        )
+            return McpResourceReadResult.NotFound(uri);
+
+        try
+        {
+            return await resource
+                .ReadAsync(uri, new McpToolContext(caller, holds), ct)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+            when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            logger.LogError(
+                ex,
+                "The plugin {Key}'s MCP resource {Resource} failed reading {Uri} for player {Player}",
+                resource.Owner,
+                resource.Name,
+                uri,
+                caller.Player.Value
+            );
+
+            return McpResourceReadResult.Failed(uri);
+        }
+    }
+
+    public async Task<McpPromptGetResult> GetAsync(
+        string name,
+        IReadOnlyDictionary<string, string>? arguments,
+        McpCaller caller,
+        CancellationToken ct
+    )
+    {
+        var holds = Holds(caller);
+
+        if (
+            Prompts.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.Ordinal))
+                is not { } prompt
+            || !await prompt.IsAvailableToAsync(caller, holds, ct).ConfigureAwait(false)
+        )
+            return McpPromptGetResult.Unavailable(name);
+
+        try
+        {
+            return await prompt
+                .GetAsync(arguments, new McpToolContext(caller, holds), ct)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+            when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            logger.LogError(
+                ex,
+                "The plugin {Key}'s MCP prompt {Prompt} failed for player {Player}",
+                prompt.Owner,
+                prompt.Name,
+                caller.Player.Value
+            );
+
+            return McpPromptGetResult.Failed(prompt.Name);
         }
     }
 
@@ -168,32 +302,89 @@ internal sealed class McpTools(IServiceProvider host, ILogger<McpTools> logger) 
     }
 
     /// <summary>
-    /// The tools <paramref name="asm"/> declares (public <see cref="IMcpTool"/>s), each built with
-    /// <paramref name="services"/>. Throws <see cref="InvalidOperationException"/> for a tool MCP
-    /// can't offer (<see cref="McpToolDefinition.Create"/>), a name used twice in the plugin, or a
-    /// name another live plugin's tool has. A tool for development servers only
-    /// (<see cref="IMcpTool.DevelopmentOnly"/>) is left out on any other.
+    /// The tools, resources and prompts <paramref name="asm"/> declares (public
+    /// <see cref="IMcpTool"/>s, <see cref="IMcpResource"/>s and <see cref="IMcpPrompt"/>s), each
+    /// built with <paramref name="services"/>. Throws <see cref="InvalidOperationException"/> for
+    /// one MCP can't offer (<see cref="McpToolDefinition.Create"/> and its siblings), a name (a
+    /// resource's address) used twice in the plugin, or one another live plugin has. One for
+    /// development servers only (<see cref="IMcpTool.DevelopmentOnly"/>) is left out on any other.
     /// </summary>
-    public ImmutableArray<McpToolDefinition> Build(
-        string key,
-        Assembly asm,
-        IServiceProvider services
+    public McpContributions Build(string key, Assembly asm, IServiceProvider services)
+    {
+        var development = host.GetService<IHostEnvironment>()?.IsDevelopment() == true;
+        var others = _live
+            .Where(x => !string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var tools = Scan<IMcpTool, McpToolDefinition>(
+            new(key, asm, services, development, "tool"),
+            x => x.Name,
+            x => x.DevelopmentOnly,
+            x => McpToolDefinition.Create(x, key),
+            x => x.Name,
+            name => others.FirstOrDefault(x => x.Value.Tools.Any(t => t.Name == name)).Key,
+            (name, other) =>
+                $"has the name of the plugin {other}'s: an assistant calls a tool by name, so each is one plugin's. Name it {key}_{name}."
+        );
+        var resources = Scan<IMcpResource, McpResourceDefinition>(
+            new(key, asm, services, development, "resource"),
+            x => x.Name,
+            x => x.DevelopmentOnly,
+            x => McpResourceDefinition.Create(x, key),
+            x => x.Uri,
+            uri => others.FirstOrDefault(x => x.Value.Resources.Any(t => t.Uri == uri)).Key,
+            (_, other) =>
+                $"has the address of the plugin {other}'s: an assistant reads a resource by its address, so each is one plugin's."
+        );
+        var prompts = Scan<IMcpPrompt, McpPromptDefinition>(
+            new(key, asm, services, development, "prompt"),
+            x => x.Name,
+            x => x.DevelopmentOnly,
+            x => McpPromptDefinition.Create(x, key),
+            x => x.Name,
+            name => others.FirstOrDefault(x => x.Value.Prompts.Any(t => t.Name == name)).Key,
+            (name, other) =>
+                $"has the name of the plugin {other}'s: an assistant gets a prompt by name, so each is one plugin's. Name it {key}_{name}."
+        );
+
+        return new McpContributions(tools, resources, prompts);
+    }
+
+    /// <summary>Lists the plugin's tools, resources and prompts; disposing the result takes them away.</summary>
+    public IDisposable Live(string key, McpContributions contributions)
+    {
+        _live[key] = contributions;
+
+        return new Removal(this, key, contributions);
+    }
+
+    /// <summary>The plugin is reloading, stopping, turned off, failed or gone: it has none.</summary>
+    public void Off(string key) => _live.TryRemove(key, out _);
+
+    private ImmutableArray<TDefinition> Scan<TContract, TDefinition>(
+        ScanOf of,
+        Func<TContract, string> nameOf,
+        Func<TContract, bool> developmentOnly,
+        Func<TContract, TDefinition> create,
+        Func<TDefinition, string> identity,
+        Func<string, string?> takenBy,
+        Func<string, string, string> taken
     )
     {
-        var tools = new List<McpToolDefinition>();
-        var development = host.GetService<IHostEnvironment>()?.IsDevelopment() == true;
+        var found = new List<TDefinition>();
 
-        foreach (var concrete in AssemblyExplorer.FindAssignees(asm, typeof(IMcpTool)))
+        foreach (var concrete in AssemblyExplorer.FindAssignees(of.Assembly, typeof(TContract)))
         {
-            var instance = (IMcpTool)ActivatorUtilities.CreateInstance(services, concrete);
-            McpToolDefinition tool;
+            var instance = (TContract)ActivatorUtilities.CreateInstance(of.Services, concrete);
+            TDefinition definition;
 
-            if (instance.DevelopmentOnly && !development)
+            if (developmentOnly(instance) && !of.Development)
             {
                 logger.LogDebug(
-                    "The plugin {Key}'s MCP tool {Tool} is for development servers only: not registered",
-                    key,
-                    instance.Name
+                    "The plugin {Key}'s MCP {Kind} {Name} is for development servers only: not registered",
+                    of.Key,
+                    of.Kind,
+                    nameOf(instance)
                 );
 
                 continue;
@@ -201,45 +392,32 @@ internal sealed class McpTools(IServiceProvider host, ILogger<McpTools> logger) 
 
             try
             {
-                tool = McpToolDefinition.Create(instance, key);
+                definition = create(instance);
             }
             catch (InvalidOperationException ex)
             {
-                throw new InvalidOperationException($"The plugin {key}: {ex.Message}", ex);
+                throw new InvalidOperationException($"The plugin {of.Key}: {ex.Message}", ex);
             }
 
-            if (tools.Any(x => x.Name == tool.Name))
+            var id = identity(definition);
+
+            if (found.Any(x => identity(x) == id))
                 throw new InvalidOperationException(
-                    $"The plugin {key} has two MCP tools named {tool.Name}."
+                    of.Kind == "resource"
+                        ? $"The plugin {of.Key} has two MCP resources at {id}."
+                        : $"The plugin {of.Key} has two MCP {of.Kind}s named {id}."
                 );
 
-            if (
-                _live.FirstOrDefault(x =>
-                    !string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)
-                    && x.Value.Any(t => t.Name == tool.Name)
-                ) is
-                { Key: { } other }
-            )
+            if (takenBy(id) is { } other)
                 throw new InvalidOperationException(
-                    $"The plugin {key}'s MCP tool {tool.Name} has the name of the plugin {other}'s: an assistant calls a tool by name, so each is one plugin's. Name it {key}_{tool.Name}."
+                    $"The plugin {of.Key}'s MCP {of.Kind} {id} {taken(id, other)}"
                 );
 
-            tools.Add(tool);
+            found.Add(definition);
         }
 
-        return [.. tools];
+        return [.. found];
     }
-
-    /// <summary>Lists the plugin's tools; disposing the result takes them away.</summary>
-    public IDisposable Live(string key, ImmutableArray<McpToolDefinition> tools)
-    {
-        _live[key] = tools;
-
-        return new Removal(this, key, tools);
-    }
-
-    /// <summary>The plugin is reloading, stopping, turned off, failed or gone: it has no tools.</summary>
-    public void Off(string key) => _live.TryRemove(key, out _);
 
     private Func<string, CancellationToken, Task<bool>> Holds(McpCaller caller)
     {
@@ -248,16 +426,21 @@ internal sealed class McpTools(IServiceProvider host, ILogger<McpTools> logger) 
         return (node, ct) => hotel.Players.HasPermissionAsync(caller.Player, node, ct);
     }
 
-    private sealed class Removal(
-        McpTools owner,
-        string key,
-        ImmutableArray<McpToolDefinition> tools
-    ) : IDisposable
+    private sealed record ScanOf(
+        string Key,
+        Assembly Assembly,
+        IServiceProvider Services,
+        bool Development,
+        string Kind
+    );
+
+    private sealed class Removal(McpTools owner, string key, McpContributions contributions)
+        : IDisposable
     {
         public void Dispose()
         {
             // Only the version it listed: a newer one may already have replaced it.
-            if (owner._live.TryGetValue(key, out var live) && live == tools)
+            if (owner._live.TryGetValue(key, out var live) && ReferenceEquals(live, contributions))
                 owner._live.TryRemove(key, out _);
         }
     }

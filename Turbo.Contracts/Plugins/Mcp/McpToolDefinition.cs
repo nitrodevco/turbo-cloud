@@ -126,9 +126,9 @@ public sealed class McpToolDefinition
             );
 
         var json = Options();
-        var input = Schema(json, tool.InputType, name, "input");
+        var input = Schema(json, tool.InputType, $"The MCP tool {name}", "input");
         var output = tool.OutputType is { } outputType
-            ? Schema(json, outputType, name, "output")
+            ? Schema(json, outputType, $"The MCP tool {name}", "output")
             : null;
 
         return new McpToolDefinition(tool, owner, nodes, json, input, output);
@@ -232,7 +232,10 @@ public sealed class McpToolDefinition
             );
 
         if (result.Value is null)
-            return new McpToolCallResult(McpToolCallStatus.Ok, [result.Message ?? string.Empty]);
+            return new McpToolCallResult(McpToolCallStatus.Ok, [result.Message ?? string.Empty])
+            {
+                Links = result.Links,
+            };
 
         if (Tool.OutputType is { } expected && !expected.IsInstanceOfType(result.Value))
             throw new InvalidOperationException(
@@ -261,7 +264,10 @@ public sealed class McpToolDefinition
 
         text.Add(raw);
 
-        return new McpToolCallResult(McpToolCallStatus.Ok, text.ToImmutable(), structured);
+        return new McpToolCallResult(McpToolCallStatus.Ok, text.ToImmutable(), structured)
+        {
+            Links = result.Links,
+        };
     }
 
     /// <summary>
@@ -269,7 +275,7 @@ public sealed class McpToolDefinition
     /// numbers, a non-nullable property never null, no property the type does not have. One per
     /// tool, so what it learns of a plugin's types goes with the plugin.
     /// </summary>
-    private static JsonSerializerOptions Options()
+    internal static JsonSerializerOptions Options()
     {
         var json = new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {
@@ -286,10 +292,10 @@ public sealed class McpToolDefinition
         return json;
     }
 
-    private static JsonObject Schema(
+    internal static JsonObject Schema(
         JsonSerializerOptions json,
         Type type,
-        string tool,
+        string what,
         string which
     )
     {
@@ -304,7 +310,7 @@ public sealed class McpToolDefinition
 
         if (node is not JsonObject schema || Types(schema) is not ["object"])
             throw new InvalidOperationException(
-                $"The MCP tool {tool}'s {which} type {type.Name} is not an object: give it a record or class whose properties are its {(which == "input" ? "arguments" : "fields")}."
+                $"{what}'s {which} type {type.Name} is not an object: give it a record or class whose properties are its {(which == "output" ? "fields" : "arguments")}."
             );
 
         return schema;
@@ -392,7 +398,12 @@ public sealed class McpToolDefinition
         return schema;
     }
 
-    private static void Check(JsonElement value, JsonNode? node, string path, List<string> problems)
+    internal static void Check(
+        JsonElement value,
+        JsonNode? node,
+        string path,
+        List<string> problems
+    )
     {
         if (node is not JsonObject schema || schema.ContainsKey("$ref"))
             return;
@@ -540,7 +551,7 @@ public sealed class McpToolDefinition
         }
     }
 
-    private static List<string> Types(JsonObject? schema) =>
+    internal static List<string> Types(JsonObject? schema) =>
         schema?["type"] switch
         {
             JsonArray many => [.. many.Select(x => x!.GetValue<string>())],

@@ -789,14 +789,15 @@ public sealed class PluginManager(
                 )
                 : [];
 
-            // Its MCP tools are built (and a bad one refused) before it starts, and listed once it has.
+            // Its MCP tools, resources and prompts are built (and a bad one refused) before it
+            // starts, and listed once it has.
             var mcp = Mcp is { } tools
                 ? tools.Build(
                     m.Key,
                     asm.Assembly,
                     new CompositeServiceProvider(sp, _hostForPlugins)
                 )
-                : [];
+                : McpContributions.None;
 
             // Its approval handlers are built (and a kind another owner has refused) before it
             // starts, and carry out approved requests once it has.
@@ -875,7 +876,7 @@ public sealed class PluginManager(
             if (web.Length > 0 && WebRoutes is { } webRoutes)
                 disposables.Insert(0, webRoutes.Live(m.Key, web));
 
-            if (mcp.Length > 0 && Mcp is { } mcpTools)
+            if (!mcp.IsEmpty && Mcp is { } mcpTools)
                 disposables.Insert(0, mcpTools.Live(m.Key, mcp));
 
             if (approvalHandlers.Length > 0 && ApprovalHandlers is { } liveHandlers)
@@ -1451,7 +1452,7 @@ public sealed class PluginManager(
 
     /// <summary>
     /// Notes what the load built besides the assembly scan's registrations: its databases,
-    /// settings, admin nodes, pages and endpoints, web routes, MCP tools and the template patches its
+    /// settings, admin nodes, pages and endpoints, web routes, MCP tools, resources and prompts and the template patches its
     /// <c>wwwroot/template-patches.json</c> declares.
     /// </summary>
     private void NoteContributions(
@@ -1461,7 +1462,7 @@ public sealed class PluginManager(
         List<Type> settings,
         PluginAdminRoutes.Table? admin,
         ImmutableArray<PluginWebEndpoint> web,
-        ImmutableArray<McpToolDefinition> mcp
+        McpContributions mcp
     )
     {
         foreach (var context in contexts)
@@ -1497,11 +1498,25 @@ public sealed class PluginManager(
                 endpoint.Anonymous ? "anonymous" : string.Join(", ", endpoint.Nodes)
             );
 
-        foreach (var tool in mcp)
+        foreach (var tool in mcp.Tools)
             log.Add(
                 PluginContributionKinds.MCP_TOOL,
                 tool.Name,
-                $"{(tool.ReadOnly ? "read-only" : "changes")}; {string.Join(", ", tool.Nodes)}"
+                $"{(tool.ReadOnly ? "read-only" : "changes")}{(tool.RequiresApproval ? ", needs approval" : string.Empty)}; {string.Join(", ", tool.Nodes)}"
+            );
+
+        foreach (var resource in mcp.Resources)
+            log.Add(
+                PluginContributionKinds.MCP_RESOURCE,
+                resource.Uri,
+                $"{resource.Name}; {string.Join(", ", resource.Nodes)}"
+            );
+
+        foreach (var prompt in mcp.Prompts)
+            log.Add(
+                PluginContributionKinds.MCP_PROMPT,
+                prompt.Name,
+                string.Join(", ", prompt.Nodes)
             );
 
         foreach (var (template, ops) in PluginHelpers.ReadTemplatePatches(folder, _logger))

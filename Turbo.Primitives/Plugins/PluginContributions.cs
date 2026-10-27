@@ -68,6 +68,12 @@ public static class PluginContributionKinds
     /// <summary>A tool assistants call over MCP (<c>docs/plugin-mcp-tools.md</c>): its name, read-only or not and its nodes.</summary>
     public const string MCP_TOOL = "mcp-tool";
 
+    /// <summary>A resource assistants read over MCP: its address (a URI or URI template), name and nodes.</summary>
+    public const string MCP_RESOURCE = "mcp-resource";
+
+    /// <summary>A prompt assistants get over MCP: its name and nodes.</summary>
+    public const string MCP_PROMPT = "mcp-prompt";
+
     /// <summary>What carries out approved requests of a kind (<c>docs/approvals.md</c>): the kind, the class.</summary>
     public const string APPROVAL_HANDLER = "approval-handler";
 
