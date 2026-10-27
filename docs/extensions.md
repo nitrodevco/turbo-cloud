@@ -47,7 +47,7 @@ What already works (each with its guide):
 | Games | `IRoomGame`, `IGameAccessPolicy` | `plugin-games.md` |
 | Permissions | `IPermissionNodeSource`, `[RequiresPermission]` | `permissions.md` |
 | Admin pages | `IPluginAdmin` (schema-driven, no code in the panel) | `admin-panel.md` |
-| Client code | `wwwroot/<key>.js`, client `ClientModuleApi` v1 | `client-modules.md` |
+| Client code | `client/src/index.tsx`, built by the server; client `ClientModuleApi` v1 | `client-modules.md` |
 | Install, update, rollback, uninstall with data choice | `IPluginAdministration`, `IPluginDataOwner` | `admin-panel.md` |
 
 ## 2. What is wrong with it today
@@ -416,7 +416,7 @@ noted.
    template"); `PluginTemplateTests` keeps it building against the server. Named messages and
    `npm run make` are in it (step 10).
 10. **Conventions over boilerplate**: a `TurboPlugin` base that reads key and version from the
-    manifest, registers `wwwroot/<key>.js` and `[PluginSettings]` classes by itself and gives
+    manifest, builds and registers `client/src/index.tsx` and `[PluginSettings]` classes by itself and gives
     plugin databases their design-time factory; an assembly without a plugin class loads as one.
     `npm run make <kind> <name>` in the scaffold writes a command, message, furni logic, listener,
     setting, web route, window, template patch or migration in the shape the scan finds. Done

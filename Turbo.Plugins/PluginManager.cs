@@ -22,6 +22,7 @@ using Turbo.Contracts.Plugins.Web;
 using Turbo.Database.Context;
 using Turbo.Database.Migrations;
 using Turbo.Logging.Extensions;
+using Turbo.Plugins.ClientBuild;
 using Turbo.Plugins.Configuration;
 using Turbo.Plugins.Exceptions;
 using Turbo.Plugins.Exports;
@@ -47,6 +48,11 @@ public sealed class PluginManager(
     private readonly ExportRegistry _exports = new();
     private readonly PluginConfig _config = config.Value;
     private readonly ILogger _logger = logger;
+
+    // Plugins' client modules, built from their sources and kept beside the plugins.
+    private readonly PluginClientBuilder _clientBuilder = new(
+        Path.Combine(config.Value.PluginFolderPath, PluginClientBuilder.CACHE_FOLDER)
+    );
 
     // The host's services behind a plugin's own: never asked for the plugin's types.
     private readonly IServiceProvider _hostForPlugins = new PluginHostServiceProvider(host);
@@ -671,7 +677,7 @@ public sealed class PluginManager(
         _contributions[m.Key] = contributions;
 
         var clientModules = host.GetService<IClientModuleDirectory>() is { } directory
-            ? new PluginClientModules(directory, m, folder, contributions)
+            ? new PluginClientModules(directory, m, folder, _clientBuilder, contributions)
             : null;
         var (sp, contexts, settings, replaces) = CreatePluginServiceProvider(
             inst,
@@ -738,6 +744,18 @@ public sealed class PluginManager(
             // Its files are served, and its own variables and texts sent, while it is loaded.
             clientModules?.ServeFiles();
 
+            // Its client module is built from its sources before it starts; one that does not
+            // build fails the load. A data plugin runs no code, in the client either.
+            if (
+                !PluginHelpers.IsDataOnly(m)
+                && clientModules?.BuildConventionalModule() is { Reused: false } build
+            )
+                _logger.LogInformation(
+                    "Plugin {Key}'s client module built in {Ms} ms",
+                    m.Key,
+                    build.Milliseconds
+                );
+
             if (await SeedGamedataAsync(m, folder, ct).ConfigureAwait(false) is { } loaded)
                 disposables.Add(loaded);
 
@@ -750,12 +768,9 @@ public sealed class PluginManager(
                     service.GetType().FullName ?? service.GetType().Name
                 );
 
-            // Its wwwroot/<key>.js is its client module, unless it registered one itself; a data
-            // plugin runs no code, in the client either.
-            if (
-                !PluginHelpers.IsDataOnly(m)
-                && clientModules?.RegisterConventionalModule() is { } module
-            )
+            // The module built from its client/src/index.tsx is its client module, unless it
+            // registered one itself.
+            if (clientModules?.RegisterConventionalModule() is { } module)
                 _logger.LogInformation(
                     "Plugin {Key} runs the client module {Module}",
                     m.Key,

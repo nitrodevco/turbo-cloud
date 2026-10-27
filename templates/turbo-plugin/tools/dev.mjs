@@ -1,16 +1,19 @@
 /**
  * The plugin's one build script, run through npm (`npm run dev`, `build`, `package`, `test`):
  *
- *   dev      builds both halves into dist/<key>/ and keeps it current: a changed .cs rebuilds the
- *            server half (the hotel reloads the plugin), a changed client file rebundles the module
- *            (the hotel sends clients its new version, which they run without a page reload).
+ *   dev      builds the server half and copies the client's sources into dist/<key>/ and keeps it
+ *            current: a changed .cs rebuilds the server half (the hotel reloads the plugin), a
+ *            changed client file is copied (the hotel builds the module again and sends clients its
+ *            new version, which they run without a page reload).
  *   build    the same once, then stops.
  *   package  a Release build in dist/<key>/ and dist/<key>-<version>.zip, the package the admin
  *            panel's plugin upload takes.
  *   test     the server tests (dotnet test) and the client tests (node --test).
  *
  * dist/<key>/ is the plugin folder a hotel loads: name it once in the hotel's
- * Turbo:Plugin:DevPluginPaths and run the server in Development.
+ * Turbo:Plugin:DevPluginPaths and run the server in Development. The client module is built by the
+ * hotel, from client/src/ as it is (turbo-cloud docs/client-modules.md): a package holds no built
+ * JavaScript, and the module's build errors are in the server log and the panel's plugin list.
  */
 import { spawn } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, watch, writeFileSync } from 'node:fs';
@@ -45,9 +48,9 @@ const run = (command, args, options = {}) => new Promise((resolve) => {
     child.on('close', code => resolve({ ok: code === 0, output }));
 });
 
-/** The client's packages, installed the first time (the SDK comes from the path in package.json). */
+/** The client's packages for its types and tests, installed the first time (the SDK comes from the path in package.json). */
 const ensurePackages = async () => {
-    if (existsSync(path.join(root, 'node_modules', 'esbuild'))) return;
+    if (existsSync(path.join(root, 'node_modules', '@nitrodevco', 'client-module-sdk'))) return;
 
     log('setup', 'npm install');
 
@@ -88,18 +91,12 @@ const buildServer = async () => {
     return true;
 };
 
-const clientOptions = async () => {
-    const { clientModuleBuildOptions } = await import('@nitrodevco/client-module-sdk/build');
+/** The client module's sources, as the hotel builds them: client/src/ copied whole (a deleted file goes too). */
+const copyClient = () => {
+    const to = path.join(dist, 'client', 'src');
 
-    return clientModuleBuildOptions({ entry: path.join(root, 'client', 'src', 'index.tsx'), outfile: path.join(dist, 'wwwroot', `${key}.js`), minify: release });
-};
-
-const buildClient = async () => {
-    const esbuild = await import('esbuild');
-    const start = performance.now();
-
-    await esbuild.build(await clientOptions());
-    log('client', `built in ${since(start)}`);
+    rmSync(to, { recursive: true, force: true });
+    cpSync(path.join(root, 'client', 'src'), to, { recursive: true });
 };
 
 /** A zip of dist/<key>/ with manifest.json at its root (stored deflated, no dependencies). */
@@ -198,32 +195,12 @@ const debounced = (task, ms = 150) => {
 };
 
 const dev = async () => {
-    const esbuild = await import('esbuild');
-    let clientStart = performance.now();
-    const options = await clientOptions();
-    const context = await esbuild.context({
-        ...options,
-        plugins: [ ...options.plugins, {
-            name: 'plugin-reload',
-            setup(build) {
-                build.onStart(() => {
-                    clientStart = performance.now();
-                });
-                build.onEnd((result) => {
-                    if (result.errors.length) {
-                        log('client', `build failed: ${result.errors.map(error => error.text).join('; ')}`);
-
-                        return;
-                    }
-
-                    writeManifest();
-                    log('client', `built in ${since(clientStart)}; the hotel sends clients the new module`);
-                });
-            },
-        } ],
+    const recopyClient = debounced(async () => {
+        copyClient();
+        log('client', 'copied; the hotel builds the module and sends clients its new version');
     });
 
-    await context.watch();
+    watch(path.join(root, 'client', 'src'), { recursive: true }, recopyClient);
 
     const rebuildServer = debounced(async () => {
         if (await buildServer()) writeManifest();
@@ -275,7 +252,9 @@ const main = async () => {
     mkdirSync(dist, { recursive: true });
     copyFiles();
 
-    const [ server ] = await Promise.all([ buildServer(), buildClient() ]);
+    copyClient();
+
+    const server = await buildServer();
 
     writeManifest();
 

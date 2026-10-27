@@ -1,6 +1,6 @@
 /**
- * The plugin's client module: built by `npm run dev` / `npm run build` into one file,
- * `wwwroot/skills.js`, which the server lists for every client that runs modules.
+ * The plugin's client module: the hotel builds it from client/src into one file, `skills.js`,
+ * which the server lists for every client that runs modules.
  *
  * - a window of its own (`SkillsWindow`), opened from a toolbar icon and the `skills/open` link;
  * - the plugin's messages, read and sent by name (`skill.ts`);

@@ -29,7 +29,7 @@ public sealed class SkillsPlugin : TurboPlugin
 - **Settings**: a class marked `[PluginSettings("Skills")]` is bound to that section
   (`IOptions<T>`, `IOptionsMonitor<T>`) and listed on the panel's Settings page; a class the plugin
   binds itself is left as it binds it.
-- **Client module**: `wwwroot/<key>.js` is registered as its module (`docs/client-modules.md`).
+- **Client module**: `client/src/index.tsx` (or `index.ts`) is built into its module and registered (`docs/client-modules.md`).
 - **Tables**: a `PluginDbContextBase<T>` in its assembly is registered and migrated as it loads
   (`docs/database.md`, "A plugin's tables").
 - **No class at all**: an assembly without one loads as a `TurboPlugin` with nothing of its own;

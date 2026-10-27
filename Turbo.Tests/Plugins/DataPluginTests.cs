@@ -75,7 +75,7 @@ public sealed class DataPluginTests : IDisposable
     public async Task A_theme_with_no_assembly_loads_and_gives_clients_its_patches_and_styles()
     {
         WriteTheme("mytheme");
-        // A data plugin runs no code: its wwwroot/<key>.js is a file, not its module.
+        // A data plugin runs no code: a wwwroot/<key>.js is not its module.
         File.WriteAllText(Path.Combine(_folder, "mytheme", "wwwroot", "mytheme.js"), "export {}");
 
         var hotel = Hotel();

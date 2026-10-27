@@ -16,7 +16,6 @@
         "@nitrodevco/client-module-sdk": "file:../nitro-next/packages/client-module-sdk",
         "@types/node": "^22.0.0",
         "@types/react": "^19.2.0",
-        "esbuild": "^0.28.2",
         "typescript": "^5.9.3"
     }
 }

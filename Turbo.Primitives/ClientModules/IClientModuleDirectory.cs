@@ -30,9 +30,10 @@ public interface IClientModuleDirectory
     IDisposable AddFiles(string key, string root);
 
     /// <summary>
-    /// The full path of a file a plugin serves, <paramref name="path"/> under its <c>wwwroot/</c>;
-    /// null when no module or files are served under the key, the path leaves the folder, names a hidden file or folder,
-    /// or there is no such file.
+    /// The full path of a file a plugin serves: its built module under the module's name, or
+    /// <paramref name="path"/> under its <c>wwwroot/</c>; null when no module or files are served
+    /// under the key, the path leaves the folder, names a hidden file or folder or a JavaScript
+    /// file, or there is no such file.
     /// </summary>
     string? FindFile(string key, string path);
 

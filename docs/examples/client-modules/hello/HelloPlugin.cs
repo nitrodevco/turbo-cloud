@@ -12,8 +12,9 @@ using Turbo.Primitives.Plugins.Messages;
 namespace Hello;
 
 /// <summary>
-/// The smallest plugin with a client module: it declares <c>wwwroot/hello.js</c>, which a client
-/// that speaks <c>client.modules</c> loads and runs, and its icon <c>wwwroot/hello.png</c>. Its texts and its bar's
+/// The smallest plugin with a client module: it declares <c>client/src/index.ts</c>, which the
+/// server builds and a client that speaks <c>client.modules</c> loads and runs, and its icon
+/// <c>wwwroot/hello.png</c>. Its texts and its bar's
 /// colour and width come with it in <c>gamedata/</c>, given to the hotel as it loads. Its window's
 /// button sends <see cref="Wave"/>, a named message, and the plugin answers with <see cref="Waved"/>
 /// (<see cref="WaveHandler"/>). See <c>docs/client-modules.md</c> and <c>docs/plugin-messages.md</c>.
@@ -33,7 +34,7 @@ public sealed class HelloPlugin : ITurboPlugin
         _module = services
             .GetRequiredService<IHostServices>()
             .GetRequiredService<IClientModuleRegistry>()
-            .Register(Key, "hello.js");
+            .Register(Key, "client/src/index.ts");
 
         return Task.CompletedTask;
     }

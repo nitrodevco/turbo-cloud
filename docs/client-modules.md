@@ -1,7 +1,8 @@
 # Client modules
 
 A plugin can bring code that runs in the client: a **client module**, a JavaScript ES module the
-client loads and runs beside its own. Server code stays in the plugin's assembly; the module adds
+client loads and runs beside its own. The plugin brings its TypeScript source and the server builds
+the module from it (§1, "How the server builds a module"): a plugin brings no built JavaScript. Server code stays in the plugin's assembly; the module adds
 what the player sees (a toolbar icon, a window, a drawing over an avatar) and talks to the plugin
 through the plugin's named messages (`docs/plugin-messages.md`) or its own packets (`docs/plugin-packets.md`). A hotel turns a feature on or off by
 installing or removing one plugin: its server half and its client half come and go together.
@@ -15,26 +16,28 @@ them (the Flash client, any other port) is never told of one and works as before
 plugins/hello/
   manifest.json
   Hello.dll
-  wwwroot/            what clients may load: the module and the files it loads (icons, images)
-    hello.js
+  client/src/         the module's TypeScript, which the server builds into hello.js
+    index.ts
+  wwwroot/            the files the module loads (icons, images, data); no JavaScript
     hello.png
   gamedata/           optional: what the plugin brings of the client's gamedata (§5)
     external_texts.txt
     external_variables.json
 ```
 
-A plugin's `wwwroot/<key>.js` is its module: the host registers it as the plugin starts, unless
-the plugin registered one itself, and takes it away as it stops. Nothing to write; the template's
-plugin and a plugin with no plugin class at all (`docs/plugin-loading.md`) rely on that. A plugin
-whose module has another name, or that decides as it starts whether to run one, registers it
-through the registry its host services give it:
+A plugin's `client/src/index.tsx` (or `index.ts`) is its module's entry: the server builds the
+module as the plugin loads, before it starts, registers it unless the plugin registered one itself,
+and takes it away as it stops. Nothing to write; the template's plugin and a plugin with no plugin
+class at all (`docs/plugin-loading.md`) rely on that. A plugin whose entry has another name, or
+that decides as it starts whether to run one, registers it through the registry its host services
+give it:
 
 ```csharp
 public Task StartAsync(IServiceProvider services, CancellationToken ct)
 {
     _module = services.GetRequiredService<IHostServices>()
         .GetRequiredService<IClientModuleRegistry>()
-        .Register(Key, "hello.js");
+        .Register(Key, "client/src/index.ts");
 
     return Task.CompletedTask;
 }
@@ -47,24 +50,68 @@ public Task StopAsync(CancellationToken ct)
 }
 ```
 
-- `Register(key, relativePath)`: `key` is the plugin's own key (another is refused), and
-  `relativePath` the entry file under `wwwroot/`. A path outside `wwwroot/`, a hidden file or folder
-  (`.env`, `.git/`) or a file that is not there is refused (`ArgumentException`).
+- `Register(key, entry)`: `key` is the plugin's own key (another is refused), and `entry` a `.ts`
+  or `.tsx` file under `client/src/`. Anything else (a path outside it, a `.js` file, a file that is
+  not there) is refused (`ArgumentException`). The module is built before `Register` returns, from
+  the cache when its sources are unchanged; one that does not build throws, and the plugin fails.
 - One module per plugin; a second `Register` while the first is live is refused
-  (`InvalidOperationException`). The module is one file: nitro-next runs the checked bytes, so it
-  cannot import files beside it; it bundles its code and loads its images and data from
-  `wwwroot/` by address (§3, §4).
+  (`InvalidOperationException`). The module is one file, served as `<key>.js`: nitro-next runs the
+  checked bytes, so it cannot import files beside it; the build bundles its sources and it loads its
+  images and data from `wwwroot/` by address (§3, §4).
 - Disposing the handle takes the module away. Unloading, reloading, turning off or uninstalling the
   plugin takes it away too, whether or not the plugin disposed it.
 - Only a plugin can register: the registry in the host's own container has no folder to serve from
   and refuses.
 
 `docs/examples/client-modules/hello` is a complete plugin: `HelloPlugin.cs`, its `manifest.json`,
-`wwwroot/hello.js` (a toolbar icon, a me menu entry and the `hello/open` link opening a window, and
+`client/src/index.ts` (a toolbar icon, a me menu entry and the `hello/open` link opening a window, and
 a small bar over the player's own avatar), its icon `wwwroot/hello.png`, and the texts and variables (the bar's colour and width) it brings. `Turbo.Tests` (`HelloExamplePluginTests`) builds and loads it
 as a hotel would, so it keeps working as the server changes. Build it with
 `dotnet build docs/examples/client-modules/hello/Hello.csproj` and copy `bin/Debug/net10.0/` to
-`plugins/hello/`, or name that folder in `Turbo:Plugin:DevPluginPaths`.
+`plugins/hello/`, or name that folder in `Turbo:Plugin:DevPluginPaths`, with its `client/src/` beside it.
+
+### How the server builds a module
+
+The server builds a plugin's module with esbuild, as nitro-next's SDK bundler preset
+(`clientModuleBuildOptions` in `@nitrodevco/client-module-sdk/build`) does: the entry and what it
+imports bundled into one ES module (`es2022`, JSX with the client's React, `process.env.NODE_ENV`
+`"development"`), **not minified, with its source map inline**, so what a client runs reads as
+the plugin's source and the browser's tools show the `.ts` files. The server needs no Node: it runs
+esbuild's standalone binary, which ships beside it (`esbuild/esbuild` or `esbuild.exe`): building or
+publishing `Turbo.Main` fetches the pinned version (`Turbo.Plugins/ClientBuild/ClientBuild.targets`)
+for its platform (`-r <rid>` for another) from the npm registry, checks its SHA-512 and unpacks
+it. A server without it fails each plugin with a client module, naming the path and how to get it.
+
+What a module may import:
+
+| Import | Is |
+| --- | --- |
+| `./skill`, `./made/index` | its own `.ts` and `.tsx` files (and `.json` data) under `client/src/` |
+| `@nitrodevco/client-module-sdk`, `.../theme` | the SDK, which the server ships (a copy of nitro-next's runtime files, `Turbo.Plugins/ClientBuild/sdk/`) |
+| `react`, `react/jsx-runtime`, `zustand` | the client's own, read as the module runs (the SDK's preset does the same) |
+
+Anything else fails the build: a package (`lodash`, `react-dom`, a `node_modules` the plugin brings:
+none is read), a `.js` file (prebuilt or minified code), a file outside `client/src/`, a `data:` or
+`https:` import. The plugin's own `tsconfig.json` is not read (its `paths` cannot point a package at
+a file); type-check with it as you like (`npm run typecheck` in the template). Types are only taken
+out, never checked, by the server.
+
+A module that does not build fails the plugin (`Failed` in the panel's plugin list and the log),
+with each error where it is, esbuild's line and column (from 0):
+
+```
+The client module of skills did not build:
+client/src/index.tsx:3:22: "lodash" is not built into a client module: a module is its own sources under client/src/, @nitrodevco/client-module-sdk and the client's react, zustand; no other package is bundled.
+client/src/SkillsWindow.tsx:14:10: Unexpected ";"
+```
+
+Builds are kept beside the plugins in `<plugins>/.client-builds/<key>/<hash>/<key>.js`, by a hash
+of every file under `client/src/`, the SDK, esbuild's version and the options: a plugin that loads
+again unchanged (a restart, a reload, a server-half change) is not built again. Measured on the
+template's module (five files, 34 KB built): about 90-140 ms to build, 1-3 ms from the cache. A file
+under `client/src/` is a code file for hot reload: saving one loads the plugin again, which builds
+the module and sends clients its new version. The build before is kept while it may still be
+served; older ones are deleted.
 
 ### Start from the template
 
@@ -80,11 +127,12 @@ dotnet new turbo-plugin -n Skills --key skills --turbo <turbo-cloud> --nitro <ni
 cd Skills && npm run dev
 ```
 
-`npm run dev` builds both halves into `dist/skills/` and keeps it current; name that folder once in
-`Turbo:Plugin:DevPluginPaths` and run the server in Development. A saved `.cs` file is rebuilt and
-the plugin reloaded; a saved client file is rebundled and the plugin reloaded, so clients are sent
-the module's new address and run it without a page reload (measured: about 2.5-3 s from saving a
-server line, 1.5 s from saving a client line, to the change in a player's open client).
+`npm run dev` builds the server half and copies `client/src/` into `dist/skills/` and keeps it
+current; name that folder once in `Turbo:Plugin:DevPluginPaths` and run the server in Development.
+A saved `.cs` file is rebuilt and the plugin reloaded; a saved client file is copied and the plugin
+reloaded, which builds the module again, so clients are sent its new address and run it without a
+page reload (measured before the server built modules: about 2.5-3 s from saving a server line,
+1.5 s from saving a client line, to the change in a player's open client).
 `npm run package` makes the zip the panel's plugin upload takes. The server half builds against a
 server's own assemblies (`TurboBin`, by default the checkout's `Turbo.Main/bin/Debug/net10.0`),
 never copied beside the plugin. `Turbo.Tests` (`PluginTemplateTests`) compiles and loads the
@@ -183,8 +231,9 @@ whose variables name its files (`asset.bundles.templates.overrides` pointing at 
 libraries) needs no module, and clients are sent none for it. Under `/gamedata/`, so the reverse
 proxy that already passes the gamedata on passes the modules too.
 
-- GET only. A path outside `wwwroot/`, a hidden file or folder, an unknown key or a missing file is
-  a 404. A plugin that unloads (turned off, uninstalled, reloading) is not served any more.
+- GET only. A path outside `wwwroot/`, a hidden file or folder, a JavaScript file (`.js`, `.mjs`,
+  `.cjs`: the module the server built, at `<key>.js`, is the only code served), an unknown key or a
+  missing file is a 404. A plugin that unloads (turned off, uninstalled, reloading) is not served any more.
 - `Access-Control-Allow-Origin: *`, as for every gamedata file: they are what every player's client
   downloads, never anything private. Do not put secrets in `wwwroot/`.
 - Asked for with `?v=` matching the start of the file's own hash (the address the list gives), it is
@@ -193,9 +242,9 @@ proxy that already passes the gamedata on passes the modules too.
   unchanged. Those files are therefore always current, and a new version's entry has a new address.
 - The content type follows the extension (`.js`/`.mjs` as `text/javascript`, `.json`, `.css`,
   images, fonts).
-- A file changed in `wwwroot/` is served as it is now at once, but clients are sent the entry's new
-  hash and address at the plugin's next load: reload it from the panel, or in development touch its
-  `manifest.json` or assembly so hot reload does.
+- A file changed in `wwwroot/` is served as it is now at once. The module is built again at the
+  plugin's next load, which a changed file under `client/src/` starts by itself in development (hot
+  reload); clients are then sent its new hash and address.
 
 A hotel with the gamedata host off (`Turbo:Gamedata:Enabled` false) and no `PublicUrl` gets a
 warning in the log as a module registers: its clients could not load it.
@@ -310,16 +359,24 @@ plugin is turned off).
   leaving out the own values of a plugin that is not loaded.
 - `Turbo.Plugins`: `PluginClientModules`, the registry bound to one plugin's folder, key and version,
   given through its `IHostServices` and disposed when it unloads, which serves its `wwwroot/` from the
-  load; the seeding before a plugin starts, and the handle that sends its own while it is loaded.
+  load and builds its module from `client/src/` before it starts (`PluginClientBuilder`, with the
+  esbuild and SDK `ClientBuild/ClientBuild.targets` puts beside the server); the seeding before a
+  plugin starts, and the handle that sends its own while it is loaded.
 - `Turbo.Revisions`: header 30009 in `Revision20260909`.
 
 ## 7. Tests
 
+- `ClientModuleBuildTests`: a plugin's TypeScript is built into one module on the client's own
+  React, not minified, source map inline, a prebuilt `wwwroot/<key>.js` beside it ignored; a package
+  (a `node_modules` in the plugin's folder too), a `.js` file and a syntax error each fail the plugin
+  at their `file:line:column`; an unchanged module comes from the cache and a changed one is built
+  again; a saved client source reloads the plugin with its module built again; without esbuild the
+  error says how to get it.
 - `ClientModuleTests`: a plugin's module is listed with its hash and address and sent to everyone
-  online, and taken away when the plugin unloads without disposing it; the public address; paths
-  outside `wwwroot/`, hidden files, another plugin's key, a second module and core's registry are
+  online, and taken away when the plugin unloads without disposing it; the public address; an entry
+  outside `client/src/` or prebuilt, another plugin's key, a second module and core's registry are
   refused; the gamedata host serves the files to any site, immutable by hash, revalidated otherwise,
-  404 for anything else, GET only; a client that does not ask is sent nothing; the wire layout; a
+  404 for anything else (a `.js` in `wwwroot/` too), GET only; a client that does not ask is sent nothing; the wire layout; a
   plugin without a module has its `wwwroot/` served while it is loaded, and no module listed.
 - `PluginGamedataSeedTests`: loading adds what the hotel lacks once and keeps the hotel's own; the
   uninstall dry run lists, and deleting the data removes, only what is still as the plugin gave it.
@@ -328,7 +385,8 @@ plugin is turned off).
   start) and the hotel's changes always; its own follow a new version's values and staff's stay; a
   key already at the plugin's value becomes its own.
 - `HelloExamplePluginTests`: the example in `docs/examples/client-modules/hello` builds, loads, lists
-  its module and its icon, and gives the hotel its texts and variables.
+  its module (built from its `client/src/index.ts`) and its icon, and gives the hotel its texts and
+  variables. `PluginTemplateTests` loads the template with its module built from its `client/src/`.
 
 ## 8. Open
 

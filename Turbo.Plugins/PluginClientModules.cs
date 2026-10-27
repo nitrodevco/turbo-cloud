@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Turbo.Contracts.Plugins;
+using Turbo.Plugins.ClientBuild;
 using Turbo.Primitives.ClientModules;
 using Turbo.Primitives.Plugins;
 
@@ -9,7 +10,8 @@ namespace Turbo.Plugins;
 
 /// <summary>
 /// The client module registry as one plugin reaches it (<see cref="IClientModuleRegistry"/>): its
-/// module is served from its own folder's <c>wwwroot/</c>, at its manifest's version. What it
+/// module is built by the server from its folder's <c>client/src/</c> (<see cref="PluginClientBuilder"/>)
+/// and served as <c>&lt;key&gt;.js</c> beside its <c>wwwroot/</c>, at its manifest's version. What it
 /// registered and did not take away itself is taken away when it unloads. Its <c>wwwroot/</c> is
 /// served from the load (<see cref="ServeFiles"/>), module or not, for the files its own variables
 /// name (a theme's template libraries), until it unloads.
@@ -18,6 +20,7 @@ internal sealed class PluginClientModules(
     IClientModuleDirectory directory,
     PluginManifest manifest,
     string folder,
+    PluginClientBuilder builder,
     PluginContributionLog? contributions = null
 ) : IClientModuleRegistry, IDisposable
 {
@@ -26,6 +29,7 @@ internal sealed class PluginClientModules(
 
     private readonly List<IDisposable> _registrations = [];
     private bool _registered;
+    private (string Entry, PluginClientBuild Build)? _conventional;
 
     /// <summary>Serves its <c>wwwroot/</c>, when it has one, until it unloads.</summary>
     public void ServeFiles()
@@ -41,7 +45,24 @@ internal sealed class PluginClientModules(
             _registrations.Add(registration);
     }
 
-    public IDisposable Register(string key, string relativePath)
+    /// <summary>
+    /// Builds its module from <c>client/src/index.tsx</c> (or <c>index.ts</c>) when it has one,
+    /// before the plugin starts: a module that does not build fails the load. Answers the build, or
+    /// null for a plugin with no client sources.
+    /// </summary>
+    public PluginClientBuild? BuildConventionalModule()
+    {
+        if (PluginClientBuilder.ConventionalEntry(folder) is not { } entry)
+            return null;
+
+        var build = builder.Build(manifest.Key, folder, entry);
+
+        _conventional = (entry, build);
+
+        return build;
+    }
+
+    public IDisposable Register(string key, string entry)
     {
         if (!string.Equals(key, manifest.Key, StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException(
@@ -49,12 +70,18 @@ internal sealed class PluginClientModules(
                 nameof(key)
             );
 
+        return Add(entry, builder.Build(manifest.Key, folder, entry));
+    }
+
+    private IDisposable Add(string entry, PluginClientBuild build)
+    {
         var registration = directory.Add(
             new ClientModuleSource(
                 manifest.Key,
                 manifest.Version,
                 Path.Combine(folder, WWWROOT),
-                relativePath
+                $"{manifest.Key}.js",
+                build.File
             )
         );
 
@@ -64,27 +91,26 @@ internal sealed class PluginClientModules(
             _registered = true;
         }
 
-        contributions?.Add(PluginContributionKinds.CLIENT_MODULE, relativePath, manifest.Version);
+        contributions?.Add(PluginContributionKinds.CLIENT_MODULE, entry, manifest.Version);
 
         return registration;
     }
 
     /// <summary>
-    /// Registers <c>wwwroot/&lt;key&gt;.js</c> as the plugin's module when it is there and the
-    /// plugin registered none itself (a <c>TurboPlugin</c>, or a plugin with no class); answers
-    /// the file registered, or null.
+    /// Registers the module <see cref="BuildConventionalModule"/> built when the plugin registered
+    /// none itself (a <c>TurboPlugin</c>, or a plugin with no class); answers its entry, or null.
     /// </summary>
     public string? RegisterConventionalModule()
     {
-        var file = $"{manifest.Key}.js";
-
         lock (_registrations)
-            if (_registered || !File.Exists(Path.Combine(folder, WWWROOT, file)))
+            if (_registered || _conventional is null)
                 return null;
 
-        Register(manifest.Key, file);
+        var (entry, build) = _conventional.Value;
 
-        return file;
+        Add(entry, build);
+
+        return entry;
     }
 
     public void Dispose()

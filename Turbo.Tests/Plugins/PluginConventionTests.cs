@@ -9,7 +9,7 @@ namespace Turbo.Tests.Plugins;
 
 /// <summary>
 /// A plugin needs no plugin class: an assembly without one loads, its pieces are found by the
-/// scan, its <c>wwwroot/&lt;key&gt;.js</c> is its client module and its
+/// scan, its <c>client/src/index.tsx</c> is built into its client module and its
 /// <c>[PluginSettings]</c> classes are bound and listed, as a <c>TurboPlugin</c>'s are.
 /// </summary>
 public sealed class PluginConventionTests : IDisposable
@@ -35,9 +35,9 @@ public sealed class PluginConventionTests : IDisposable
     public async Task An_assembly_with_no_plugin_class_loads_with_its_command_module_and_settings()
     {
         PluginBuilder.Write(_folder, "rates", SOURCE);
-        Directory.CreateDirectory(Path.Combine(_folder, "rates", "wwwroot"));
+        Directory.CreateDirectory(Path.Combine(_folder, "rates", "client", "src"));
         await File.WriteAllTextAsync(
-            Path.Combine(_folder, "rates", "wwwroot", "rates.js"),
+            Path.Combine(_folder, "rates", "client", "src", "index.ts"),
             "export default { activate() {} };",
             Ct
         );

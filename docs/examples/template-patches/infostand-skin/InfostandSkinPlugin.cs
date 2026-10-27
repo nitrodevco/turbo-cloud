@@ -11,7 +11,7 @@ namespace InfostandSkin;
 /// <summary>
 /// A skin that changes windows three ways, with no server logic of its own:
 /// <list type="bullet">
-/// <item>its client module (<c>wwwroot/skin.js</c>) skins the user infostand by the user it shows -
+/// <item>its client module (<c>client/src/index.ts</c>) skins the user infostand by the user it shows -
 /// the window's context, an override binding, a move, layout params and a post-layout hook;</item>
 /// <item>its <c>gamedata/external_variables.json</c> recolours the wired setup window, which is drawn
 /// without a template (<c>frame.overrides</c>), and replaces the default window frame's art with
@@ -35,7 +35,7 @@ public sealed class InfostandSkinPlugin : ITurboPlugin
         _module = services
             .GetRequiredService<IHostServices>()
             .GetRequiredService<IClientModuleRegistry>()
-            .Register(Key, "skin.js");
+            .Register(Key, "client/src/index.ts");
 
         return Task.CompletedTask;
     }

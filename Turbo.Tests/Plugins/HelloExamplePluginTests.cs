@@ -64,7 +64,7 @@ public sealed class HelloExamplePluginTests : IDisposable
             await File.ReadAllTextAsync(Path.Combine(example, "HelloPlugin.cs"), Ct)
         );
 
-        foreach (var sub in new[] { "wwwroot", "gamedata" })
+        foreach (var sub in new[] { "wwwroot", "gamedata", "client/src" })
         foreach (var file in Directory.EnumerateFiles(Path.Combine(example, sub)))
         {
             Directory.CreateDirectory(Path.Combine(_folder, key, sub));
@@ -127,7 +127,9 @@ public sealed class HelloExamplePluginTests : IDisposable
         var module = registry.Modules.Should().ContainSingle().Which;
         module.Key.Should().Be("hello");
         module.Url.Should().StartWith("/gamedata/plugins/hello/hello.js?v=");
-        registry.FindFile("hello", "hello.js").Should().NotBeNull();
+        File.ReadAllText(registry.FindFile("hello", "hello.js")!)
+            .Should()
+            .Contain("hello.wave", "the server built the module from the example's source");
 
         registry
             .FindFile("hello", "hello.png")

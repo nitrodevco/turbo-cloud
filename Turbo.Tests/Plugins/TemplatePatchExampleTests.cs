@@ -260,7 +260,7 @@ public sealed class TemplatePatchExampleTests : IDisposable
             await File.ReadAllTextAsync(Path.Combine(example, source), Ct)
         );
 
-        foreach (var part in new[] { "wwwroot", PluginGamedataSeeds.FOLDER })
+        foreach (var part in new[] { "wwwroot", PluginGamedataSeeds.FOLDER, "client/src" })
         {
             if (!Directory.Exists(Path.Combine(example, part)))
                 continue;

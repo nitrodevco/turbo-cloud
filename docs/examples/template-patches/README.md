@@ -17,7 +17,7 @@ the framework.
   (`docs/plugin-web-routes.md`): `GET /api/plugins/skills/top`, the hotel's best players, for
   anyone, and `GET /api/plugins/skills/me` for the signed-in player; the window shows the best level
   through `api.http.get('top')`.
-- `infostand-skin/`: a skin. Its client module (`wwwroot/skin.js`) changes the user infostand by
+- `infostand-skin/`: a skin. Its client module (`client/src/index.ts`, built by the server) changes the user infostand by
   the user it shows (the window's context): it tints the border, moves the motto up under the name
   keeping its name, pins the avatar (`set.params`), colours the name over the infostand's own code
   (`bind` with `override`) and makes the border taller after the window's own layout code
