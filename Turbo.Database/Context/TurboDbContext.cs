@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Achievements;
 using Turbo.Database.Entities.Admin;
+using Turbo.Database.Entities.Ai;
 using Turbo.Database.Entities.Approvals;
 using Turbo.Database.Entities.Assets;
 using Turbo.Database.Entities.Badges;
@@ -317,6 +318,9 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<ApprovalEntity> Approvals { get; init; }
 
     public DbSet<FurnitureGrantReceiptEntity> FurnitureGrantReceipts { get; init; }
+
+    public DbSet<AiConversationEntity> AiConversations { get; init; }
+    public DbSet<AiUsageEntity> AiUsage { get; init; }
 
     protected override void OnModelCreating(ModelBuilder mb)
     {

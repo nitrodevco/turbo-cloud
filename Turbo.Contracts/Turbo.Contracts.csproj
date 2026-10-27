@@ -9,6 +9,8 @@
   <ItemGroup>
     <!-- TurboPlugin takes its manifest from the plugin host. -->
     <InternalsVisibleTo Include="Turbo.Plugins" />
+    <!-- A run that waited on an approval names its conversation's owner again. -->
+    <InternalsVisibleTo Include="Turbo.Ai" />
     <!-- The hotel API (Hotel/) speaks in the primitives' ids, messages and composers. -->
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
   </ItemGroup>

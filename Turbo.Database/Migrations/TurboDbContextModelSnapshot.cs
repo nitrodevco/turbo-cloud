@@ -355,6 +355,147 @@ namespace Turbo.Database.Migrations
                     b.ToTable("admin_sessions");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Ai.AiConversationEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Agent")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("agent");
+
+                    b.Property<string>("AgentType")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("agent_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Messages")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("messages");
+
+                    b.Property<string>("Participant")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("participant");
+
+                    b.Property<string>("Pending")
+                        .HasColumnType("longtext")
+                        .HasColumnName("pending");
+
+                    b.Property<string>("PendingApprovalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("pending_approval_id");
+
+                    b.Property<string>("PluginKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("plugin_key");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PendingApprovalId");
+
+                    b.HasIndex("PluginKey", "Agent", "Participant", "UpdatedAt");
+
+                    b.ToTable("ai_conversations");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Ai.AiUsageEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Agent")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("agent");
+
+                    b.Property<long?>("ConversationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<decimal>("Cost")
+                        .HasColumnType("decimal(18,6)")
+                        .HasColumnName("cost");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("int")
+                        .HasColumnName("duration_ms");
+
+                    b.Property<int>("InputTokens")
+                        .HasColumnType("int")
+                        .HasColumnName("input_tokens");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("model");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("outcome");
+
+                    b.Property<int>("OutputTokens")
+                        .HasColumnType("int")
+                        .HasColumnName("output_tokens");
+
+                    b.Property<int?>("PlayerId")
+                        .HasColumnType("int")
+                        .HasColumnName("player_id");
+
+                    b.Property<string>("PluginKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("plugin_key");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("provider");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("PlayerId", "CreatedAt");
+
+                    b.HasIndex("PluginKey", "CreatedAt");
+
+                    b.ToTable("ai_usage");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Approvals.ApprovalEntity", b =>
                 {
                     b.Property<int>("Id")
