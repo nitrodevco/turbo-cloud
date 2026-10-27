@@ -203,6 +203,9 @@ rights in both rooms. Core checks the pair and the room itself; your logic canno
 a full room and the entry policies still decide, and unlike a teleporter's arrival the room's
 arrival policies still place the player. A forward anywhere else is a plain entry.
 
+`docs/examples/room-window` uses all of it: a window pair that shows the room behind it and lets a
+player walk through it onto the tile they click there.
+
 ### Messages from your own code
 
 A packet handler, command or task reaches its furni logic through the room:

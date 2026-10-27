@@ -1,0 +1,9 @@
+{
+    "Name": "Room window",
+    "Key": "roomwindow",
+    "Version": "1.0.0",
+    "Author": "Turbo",
+    "Sources": ["server/*.cs"],
+    "Dependencies": [],
+    "ApiVersion": 1
+}
