@@ -45,6 +45,14 @@ public interface IMcpTool
     /// <summary>The node an approver of a call must hold; <c>approvals.decide</c> by default.</summary>
     string ApprovalNode { get; }
 
+    /// <summary>
+    /// It exists only on a development server (the host's environment is <c>Development</c>, as
+    /// for plugin hot reload): a tool for a plugin's author that shows what a live hotel keeps to
+    /// itself, raw log lines say. On any other server it is not registered at all, whatever
+    /// nodes a staff member holds.
+    /// </summary>
+    bool DevelopmentOnly { get; }
+
     /// <summary>The arguments' type: a record or class, its properties the arguments.</summary>
     Type InputType { get; }
 
@@ -81,6 +89,8 @@ public abstract class McpTool<TInput> : IMcpTool
     public virtual bool RequiresApproval => false;
 
     public virtual string ApprovalNode => PermissionNodes.Approvals.DECIDE;
+
+    public virtual bool DevelopmentOnly => false;
 
     public Type InputType => typeof(TInput);
 

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Commands;
@@ -49,7 +50,8 @@ internal sealed class PluginTestHost
 {
     private readonly Fakes _fakes;
 
-    public PluginTestHost(SqliteDb db, Fakes fakes)
+    /// <param name="environment">The host's environment (<c>Development</c>, <c>Production</c>); none by default.</param>
+    public PluginTestHost(SqliteDb db, Fakes fakes, string? environment = null)
     {
         _fakes = fakes;
 
@@ -87,7 +89,7 @@ internal sealed class PluginTestHost
             NullLogger<ScheduledTaskHost>.Instance
         );
         Reports = new ClientExtensionReports(ReportsLog, TimeProvider.System);
-        Services = new ServiceCollection()
+        var services = new ServiceCollection()
             .AddSingleton<IHotel>(Hotel)
             .AddSingleton<IPluginStopping>(Schedules)
             .AddSingleton<IClientExtensionReports>(Reports)
@@ -121,8 +123,17 @@ internal sealed class PluginTestHost
                     Modules,
                     NullLogger<PluginGamedataSeeds>.Instance
                 )
-            )
-            .BuildServiceProvider();
+            );
+
+        if (environment is not null)
+            services.AddSingleton<IHostEnvironment>(
+                new Microsoft.Extensions.Hosting.Internal.HostingEnvironment
+                {
+                    EnvironmentName = environment,
+                }
+            );
+
+        Services = services.BuildServiceProvider();
         Processors =
         [
             new PluginMessageFeatureProcessor(

@@ -141,6 +141,51 @@ public sealed class McpToolTests : IDisposable
         host.Mcp.All.Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData("Production", false)]
+    [InlineData("Development", true)]
+    public async Task A_tool_for_development_servers_is_registered_only_on_one(
+        string? environment,
+        bool registered
+    )
+    {
+        var host = new PluginTestHost(_db, _fakes, environment);
+        await LoadAsync(
+            host,
+            (
+                "desk",
+                DESK
+                    + """
+
+                    [RequiresPermission("plugin.desk.lookup")]
+                    public sealed class LogTool : McpTool<McpNoInput>
+                    {
+                        public override string Name => "server_log";
+                        public override string Description => "The server's log lines.";
+                        public override bool ReadOnly => true;
+                        public override bool DevelopmentOnly => true;
+
+                        public override Task<McpToolResult> HandleAsync(McpNoInput input, McpToolContext ctx, CancellationToken ct) =>
+                            Task.FromResult(McpToolResult.Text("lines"));
+                    }
+                    """
+            )
+        );
+
+        // Staff holding every node: what a live server leaves out, no node brings back.
+        var staff = host.Hotel.Players.Add("Staff");
+        staff.Permissions.Add("*");
+
+        host.Mcp.All.Any(x => x.Name == "server_log").Should().Be(registered);
+        (await host.Mcp.AvailableToAsync(new McpCaller(staff), Ct))
+            .Any(x => x.Name == "server_log")
+            .Should()
+            .Be(registered);
+        (await host.Mcp.CallAsync("server_log", null, new McpCaller(staff), Ct))
+            .Status.Should()
+            .Be(registered ? McpToolCallStatus.Ok : McpToolCallStatus.Unavailable);
+    }
+
     [Fact]
     public async Task A_caller_is_offered_only_tools_it_holds_a_node_of_and_read_only_access_only_read_only_ones()
     {

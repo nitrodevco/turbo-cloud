@@ -84,6 +84,11 @@ public sealed class FindPlayerTool(IHotel hotel) : McpTool<FindPlayerInput, Find
   MCP the call answers `PendingApproval` with the request's id, and the tool runs, for the caller,
   when a staff member holding **`ApprovalNode`** (`approvals.decide` by default) approves it in the
   panel (`docs/approvals.md`). Not for a read-only tool.
+- **`DevelopmentOnly`** (`false` by default): the tool exists only on a development server, one
+  whose host environment is `Development` (as plugin hot reload needs). On any other server it is
+  not registered at all: not listed, not callable, whatever nodes a staff member holds. For tools
+  a plugin's author uses on their own hotel that show what a live hotel keeps to itself (raw log
+  lines, its tables' columns).
 - **`[RequiresPermission]`** (`Turbo.Primitives.Players.Permissions`) is required: the staff
   member the assistant acts as must hold one of its nodes. A tool without one fails the plugin's
   load. Declare the node with an `IPermissionNodeSource` or `IPluginAdmin`'s `Node`, and give each

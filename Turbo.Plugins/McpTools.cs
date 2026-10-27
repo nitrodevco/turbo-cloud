@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Turbo.Contracts.Approvals;
 using Turbo.Contracts.Hotel;
@@ -170,7 +171,8 @@ internal sealed class McpTools(IServiceProvider host, ILogger<McpTools> logger) 
     /// The tools <paramref name="asm"/> declares (public <see cref="IMcpTool"/>s), each built with
     /// <paramref name="services"/>. Throws <see cref="InvalidOperationException"/> for a tool MCP
     /// can't offer (<see cref="McpToolDefinition.Create"/>), a name used twice in the plugin, or a
-    /// name another live plugin's tool has.
+    /// name another live plugin's tool has. A tool for development servers only
+    /// (<see cref="IMcpTool.DevelopmentOnly"/>) is left out on any other.
     /// </summary>
     public ImmutableArray<McpToolDefinition> Build(
         string key,
@@ -179,11 +181,23 @@ internal sealed class McpTools(IServiceProvider host, ILogger<McpTools> logger) 
     )
     {
         var tools = new List<McpToolDefinition>();
+        var development = host.GetService<IHostEnvironment>()?.IsDevelopment() == true;
 
         foreach (var concrete in AssemblyExplorer.FindAssignees(asm, typeof(IMcpTool)))
         {
             var instance = (IMcpTool)ActivatorUtilities.CreateInstance(services, concrete);
             McpToolDefinition tool;
+
+            if (instance.DevelopmentOnly && !development)
+            {
+                logger.LogDebug(
+                    "The plugin {Key}'s MCP tool {Tool} is for development servers only: not registered",
+                    key,
+                    instance.Name
+                );
+
+                continue;
+            }
 
             try
             {
