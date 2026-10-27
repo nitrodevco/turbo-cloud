@@ -152,8 +152,8 @@ own by default.
   theme's `extends`). Saving writes the hotel's entry; **Preview** reloads the embedded client, which
   reads the new values as it starts. An uploaded image is kept in the hotel's own data plugin
   (below), so updating the theme keeps it; **Pick an uploaded image** uses one from its Images.
-  A style with no default says "Habbo's own". Every appearance save says who has it: the players
-  online get it at their next load, anyone logging in has it now.
+  A style with no default says "Habbo's own". Every appearance save says who has it: "saved - live
+  for N players now", the players online whose look it is part of (Live reload, below).
 - **Appearance > Images** (a theme picker, the hotel's by default): the images in its `wwwroot/styles/` (the hotel's:
   `plugins/hotel/wwwroot/styles/`). Upload a PNG, GIF, JPEG or WebP (at most 2 MB, checked by its
   content; one of the same name is replaced) and copy its **Path** (`styles/tab0.png`: what a patch's
@@ -334,12 +334,43 @@ nothing of it is a setting, it is the hotel's data (`gamedata_themes`, `player_t
 - **Preview as this theme** opens the client page with `?theme=<key>`: honoured for that load for a
   player who may have the theme.
 
+## Live reload
+
+A change to the look a player draws reaches their client as it is saved, with no reload: a theme's
+or a data plugin's style values, patches, images, overlays and fonts (saved in the panel, or a data
+plugin's file changed on disk, below), the hotel's own entries of them, the hotel's texts, and who
+gets which theme (status, the default, an audience). Not Habbo's: a Turbo feature, over a Turbo named
+message.
+
+- Every such change ends in the client's variables or texts being built again; a moment later
+  (200 ms, a burst is one) the server works out each online player's theme again and its **look**:
+  the merged variables of its chain (`templates.patches`, `templates.styles`, `asset.overlays`,
+  `frame.overrides`, `text.styles.overrides`, `text.fonts`, `loading.screen`,
+  `asset.bundles.templates.overrides`) and the hotel's texts address (`gamedata.urls.externalTexts`),
+  named by a **revision** (a hash of them).
+- A player whose look's revision is not the one their client draws - the one it was given before it
+  connected (`/gamedata/theme`), the last one sent, or else the default's as of the last time - is
+  sent `turbo.theme.changed { theme, revision, url }` (`docs/plugin-messages.md`). Everyone else is
+  sent nothing: a change to a theme reaches only the players whose chain has it; a change to the
+  hotel's texts or a plugin that is no theme reaches everyone.
+- The client reads `url` (`GET /gamedata/theme/live/<revision>`: `{ theme, variables }`, the same
+  for good, so cached for good; the newest 64 looks are kept) and draws what changed over what is
+  open (nitro-next `docs/template-patches.md`, "Live reload"); its room session is untouched.
+- **Saving** in the panel then asks `GET /api/plugins/themes/live` (`admin.plugins.view`), which sends
+  a change not sent yet and answers `{ players, online, at }`: the players the last change was sent
+  to, of those online. That is the save line's "live for N players now".
+- **A data plugin's files on disk** (a plugin with no `AssemblyFile`, in the plugins folder or
+  `Turbo:Plugin:DevPluginPaths`, with their subfolders): a change to any file that is no code file
+  reloads that plugin, `Turbo:Plugin:DebounceMs` after the last of a burst, and so reaches the players
+  drawing it.
+- Each silo sends its own players the changes made on it.
+
 ## Not yet
 
-- Switching theme reloads the client: its theme's variables are read as it starts.
-- Clients read styles and patch files as they start: a change reaches a player at their next load
-  (the preview reloads its client for that reason).
-- A data plugin's files are not watched: change one by hand and **Reload** it on the Plugins page.
+- Switching theme in the client's settings reloads the client.
+- A template library a theme swaps whole (`asset.bundles.templates.overrides`) and the loading
+  screen reach a player at their next load: live reload sends them, the client reads them as it starts.
+- Changes made on another silo reach the players on this one at their next load.
 - Working on a theme, **Appearance > Texts** and **Chat bubbles** still save the hotel's own (a
   plugin's texts reach clients only for keys the hotel has none of), and Windows & skins shows the
   hotel's skin replacements.
