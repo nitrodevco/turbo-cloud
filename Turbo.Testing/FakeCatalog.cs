@@ -58,6 +58,10 @@ public sealed class FakeCatalog : IHotelCatalog
     public IReadOnlyList<HotelOffer> Offers(int pageId) =>
         [.. _live.Where(x => x.PageId == pageId)];
 
+    /// <summary>Every live offer of the furni: a fake catalog's pages are all shown to everyone.</summary>
+    public IReadOnlyList<HotelOffer> OffersOf(int definitionId) =>
+        [.. _live.Where(x => x.FurnitureDefinitionId == definitionId).OrderBy(x => x.Id)];
+
     public Task<IReadOnlyDictionary<int, int>> CirculationAsync(
         IReadOnlyCollection<int> definitionIds,
         CancellationToken ct

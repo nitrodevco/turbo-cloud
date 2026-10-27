@@ -56,7 +56,7 @@ public sealed class HotelApiTests : IDisposable
             ),
         ];
 
-        areas.Should().HaveCount(10);
+        areas.Should().HaveCount(11);
 
         var unmarked = areas
             .SelectMany(area => area.GetMethods().Select(m => $"{area.Name}.{m.Name}"))

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
@@ -28,6 +29,11 @@ public partial interface IRoomGrain
     );
     public Task<RoomFloorItemSnapshot?> GetFloorItemSnapshotByIdAsync(
         RoomObjectId itemId,
+        CancellationToken ct
+    );
+
+    /// <summary>Every floor item a player in the room can see, in no order.</summary>
+    public Task<ImmutableArray<RoomFloorItemSnapshot>> GetFloorItemSnapshotsAsync(
         CancellationToken ct
     );
 }

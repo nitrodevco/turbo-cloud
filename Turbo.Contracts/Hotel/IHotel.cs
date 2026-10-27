@@ -3,7 +3,7 @@ using System;
 namespace Turbo.Contracts.Hotel;
 
 /// <summary>
-/// The running hotel as a plugin uses it: its players, rooms, wallets, inventories, catalog,
+/// The running hotel as a plugin uses it: its players, rooms, bots, wallets, inventories, catalog,
 /// notices, navigator, wired events, open or closed state and clock, without a grain, a session or a table. Take it by constructor in any plugin
 /// class (a command, a handler, a route, a service of the plugin's own) and test against
 /// <c>Turbo.Testing.FakeHotel</c>, which keeps the same rules in memory (<c>docs/hotel-api.md</c>).
@@ -14,6 +14,9 @@ public interface IHotel
     IHotelPlayers Players { get; }
 
     IHotelRooms Rooms { get; }
+
+    /// <summary>The bots placed in rooms, told what to say and do.</summary>
+    IHotelBots Bots { get; }
 
     IHotelWallet Wallet { get; }
 

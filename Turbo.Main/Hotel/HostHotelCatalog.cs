@@ -43,6 +43,46 @@ internal sealed class HostHotelCatalog(
         ];
     }
 
+    public IReadOnlyList<HotelOffer> OffersOf(int definitionId)
+    {
+        var current = catalog.Current;
+
+        return
+        [
+            .. current
+                .OffersById.Values.Where(x => IsForEveryone(current, x.PageId))
+                .Select(ToOffer)
+                .Where(x => x.FurnitureDefinitionId == definitionId)
+                .OrderBy(x => x.Id),
+        ];
+    }
+
+    /// <summary>A page every player sees: it and every page above it shown, none asking a rank or a node.</summary>
+    private static bool IsForEveryone(CatalogSnapshot catalog, int pageId)
+    {
+        for (var depth = 0; depth < 32; depth++)
+        {
+            // The root holds the tabs and is never shown itself.
+            if (pageId == catalog.RootPageId)
+                return true;
+
+            if (
+                !catalog.PagesById.TryGetValue(pageId, out var page)
+                || !page.Visible
+                || page.MinRank > 1
+                || page.RequiredNode is not null
+            )
+                return false;
+
+            if (page.ParentId == page.Id)
+                return true;
+
+            pageId = page.ParentId;
+        }
+
+        return false;
+    }
+
     public async Task<IReadOnlyDictionary<int, int>> CirculationAsync(
         IReadOnlyCollection<int> definitionIds,
         CancellationToken ct

@@ -556,6 +556,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   3E94AE57: GetControllersAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Snapshots.Settings.RoomControllerSnapshot>?>
   5AD06F1D: GetEntryViewAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.RoomEntryViewSnapshot>
   5BFE3953: GetFloorItemSnapshotByIdAsync(Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomFloorItemSnapshot?>
+  6DE3AB99: GetFloorItemSnapshotsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomFloorItemSnapshot>>
   63A051C8: GetGuildAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Guilds.Snapshots.GuildSummarySnapshot?>
   5F29CE08: GetIsGroupRoomAsync(System.Threading.CancellationToken) -> Task<bool>
   B11177E9: GetIsRoomMutedAsync(System.Threading.CancellationToken) -> Task<bool>
@@ -564,6 +565,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   565213AB: GetItemSnapshotByIdAsync(Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot?>
   2F89C06F: GetMapSnapshotAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Mapping.RoomMapSnapshot>
   210B1547: GetOccupiedTilesAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Snapshots.Mapping.RoomTilePositionSnapshot>>
+  7F48015F: GetPlacedBotsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Bots.Snapshots.BotSnapshot>>
   92BF3A69: GetRaidProtectionSettingsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Settings.RaidProtectionSettingsSnapshot?>
   F20AC600: GetRoomFilterWordsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<string>?>
   978D5192: GetRoomPopulationAsync(System.Threading.CancellationToken) -> Task<int>
@@ -608,6 +610,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   4C608C6E: OnGuildDeletedAsync(System.Threading.CancellationToken) -> Task
   B3FAD6D2: OnSharedWiredVariableAddonsChangedAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, System.Threading.CancellationToken) -> Task
   0B198770: OnSharedWiredVariableChangedAsync(Turbo.Primitives.Rooms.RoomId, Turbo.Primitives.Rooms.Wired.Variable.WiredVariableId, Turbo.Primitives.Rooms.Snapshots.Wired.Variables.SharedWiredVariableChange, System.Threading.CancellationToken) -> Task
+  6A78629F: OrderBotAsync(int, Turbo.Primitives.Bots.BotOrder, System.Threading.CancellationToken) -> Task<bool>
   25E77423: PassHandItemAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   8133AFC8: PassHandItemToPetAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   67C120C8: PickupBotAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>

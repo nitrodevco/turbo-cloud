@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -103,4 +105,14 @@ public sealed partial class RoomGrain
                 ? floorItem.GetSnapshot()
                 : null
         );
+
+    public Task<ImmutableArray<RoomFloorItemSnapshot>> GetFloorItemSnapshotsAsync(
+        CancellationToken ct
+    ) =>
+        Task.FromResult<ImmutableArray<RoomFloorItemSnapshot>>([
+            .. _state
+                .ItemsById.Values.OfType<IRoomFloorItem>()
+                .Where(x => !x.IsInvisible)
+                .Select(x => x.GetSnapshot()),
+        ]);
 }

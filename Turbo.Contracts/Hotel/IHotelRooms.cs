@@ -21,6 +21,9 @@ public sealed record HotelRoom(
     bool IsPublic
 );
 
+/// <summary>A floor furni standing in a room: its item id, its definition (<see cref="IHotelInventory.Furniture"/>) and its tile.</summary>
+public sealed record HotelRoomFurni(int ItemId, int DefinitionId, int X, int Y);
+
 /// <summary>
 /// The hotel's rooms: what they are, who is in them, and speaking to them. A send to a room no
 /// one is in does nothing and does not load the room for it.
@@ -38,6 +41,13 @@ public interface IHotelRooms
     /// <summary>The players in the room now.</summary>
     [HotelCall(HotelCallContext.NotFromItsGrain)]
     Task<IReadOnlyList<PlayerId>> PlayersAsync(RoomId room, CancellationToken ct);
+
+    /// <summary>
+    /// The floor furni a player in the room can see now; none when no one is in it (the room is
+    /// not loaded for it).
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<IReadOnlyList<HotelRoomFurni>> FurniAsync(RoomId room, CancellationToken ct);
 
     /// <summary>A plugin message to everyone in the room; false when no one is in it.</summary>
     [HotelCall(HotelCallContext.NotFromItsGrain)]
