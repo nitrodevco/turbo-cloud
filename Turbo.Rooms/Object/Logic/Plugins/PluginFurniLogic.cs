@@ -14,6 +14,7 @@ using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Wired;
@@ -21,6 +22,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Watching;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Object.Logic.Plugins;
@@ -29,13 +31,16 @@ namespace Turbo.Rooms.Object.Logic.Plugins;
 /// A plugin's <see cref="FurniLogic"/> run as a floor furni logic of core's: each hook runs after
 /// core's own (a walk-on still reaches wired), and a use the plugin does not handle does what the
 /// furni does by default. Its walks are core's walk-to-use machinery
-/// (<see cref="FurnitureWalkToUseLogic"/>), with the plugin's callback as the arrival.
+/// (<see cref="FurnitureWalkToUseLogic"/>), with the plugin's callback as the arrival. Its watches
+/// are <paramref name="plugin"/>'s, through <paramref name="leases"/>.
 /// </summary>
 internal sealed class PluginFurniLogic(
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx,
     FurniLogic logic,
-    bool linkedPair
+    bool linkedPair,
+    string plugin = "",
+    IPluginRoomLeases? leases = null
 ) : FurnitureWalkToUseLogic(stuffDataFactory, ctx), IFurniContext
 {
     // Steps shown (ShowStepAsync) and when their mv comes off again, by avatar: one avatar tick
@@ -71,6 +76,9 @@ internal sealed class PluginFurniLogic(
             section,
             Logger
         );
+
+    public string? ReadExtraDataJson(string section) =>
+        ReadExtraData<System.Text.Json.Nodes.JsonNode>(section)?.ToJsonString();
 
     public int PairedItemId => ReadExtraData<RoomLinkerData>(RoomLinkerData.SECTION)?.ItemId ?? 0;
 
@@ -173,13 +181,8 @@ internal sealed class PluginFurniLogic(
         if (!TryGetAvatar(user, out var avatar) || avatar is not IRoomPlayer player || room <= 0)
             return false;
 
-        // A linked pair's half sending someone to the room its other half stands in passes that
-        // room's door as a teleporter does: both halves were placed by someone with rights in both
-        // rooms. Checked here, never taken from the plugin. Any other forward is a plain entry.
-        var throughPair =
-            linkedPair
-            && PairedItemId is > 0 and var partnerId
-            && await FurniModule.GetRoomIdOfItemAsync(partnerId, ct) == room;
+        // Any forward but a linked pair's into its other half's room is a plain entry.
+        var throughPair = await LeadsThroughPairAsync(room, ct);
 
         // Told, not awaited: this runs in the room turn. Never a teleport's entry: the other
         // room's arrival policies place them, and its bans, capacity and entry policies decide.
@@ -206,6 +209,56 @@ internal sealed class PluginFurniLogic(
 
         return true;
     }
+
+    public async Task<bool> WatchRoomAsync(
+        RoomUser user,
+        RoomId room,
+        IPluginMessage envelope,
+        TimeSpan lease,
+        CancellationToken ct
+    )
+    {
+        if (
+            leases is null
+            || !TryGetAvatar(user, out var avatar)
+            || avatar is not IRoomPlayer player
+            || room <= 0
+            || room == Room
+        )
+            return false;
+
+        var throughPair = await LeadsThroughPairAsync(room, ct);
+
+        // Told, not awaited: this runs in the room turn, and the watch asks the other room.
+        leases
+            .WatchAsync(
+                plugin,
+                player.PlayerId,
+                room,
+                PluginMessageComposer.For(envelope),
+                lease,
+                throughPair,
+                CancellationToken.None
+            )
+            .LogAndForget(
+                Logger,
+                "let player {PlayerId} watch room {RoomId} for a plugin furni",
+                player.PlayerId,
+                room
+            );
+
+        return true;
+    }
+
+    /// <summary>
+    /// A linked pair's half sending someone to, or letting them watch, the room its other half
+    /// stands in passes that room's door as a teleporter does: both halves were placed by someone
+    /// with rights in both rooms. Checked here, never taken from the plugin.
+    /// </summary>
+    private async Task<bool> LeadsThroughPairAsync(RoomId room, CancellationToken ct) =>
+        linkedPair
+        && PairedItemId is > 0 and var partnerId
+        && await FurniModule.GetRoomIdOfItemAsync(partnerId, ct) == room;
 
     /// <summary>
     /// Hands the plugin a message for this furni; the reply says whether it took it. A logic that

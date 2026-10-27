@@ -9,6 +9,7 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Watching;
 
 namespace Turbo.Testing;
 
@@ -38,6 +39,12 @@ public sealed class FakeRoom
 
     public ISet<PlayerId> Players { get; } = new HashSet<PlayerId>();
 
+    /// <summary>Players banned from it: they cannot watch it.</summary>
+    public ISet<PlayerId> Banned { get; } = new HashSet<PlayerId>();
+
+    /// <summary>A doorbell or a password keeps visitors out: they cannot watch it either.</summary>
+    public bool DoorClosed { get; set; }
+
     public static implicit operator RoomId(FakeRoom room) => room.Id;
 
     public override string ToString() => $"{Name} ({Id})";
@@ -51,6 +58,8 @@ public sealed class FakeRooms : IHotelRooms
     private readonly List<(RoomId Room, object Message)> _sent = [];
     private readonly List<(RoomId Room, PlayerId Player, string Text)> _whispers = [];
     private readonly List<(RoomId Room, int ItemId, FurniLogicMessage Message)> _furniMessages = [];
+    private readonly Dictionary<(RoomId Room, string Holder), DateTimeOffset> _holds = [];
+    private readonly Dictionary<(PlayerId Player, RoomId Room), FakeWatch> _watches = [];
 
     internal FakeRooms(FakeHotel hotel) => _hotel = hotel;
 
@@ -155,6 +164,137 @@ public sealed class FakeRooms : IHotelRooms
 
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// The running hotel's rules in memory: a lease within <see cref="RoomWatchLimits.Clamp"/>, at
+    /// most <see cref="RoomWatchLimits.MAX_ROOMS_PER_PLUGIN"/> rooms (a fake hotel is one plugin's),
+    /// and the lease runs out by the hotel's clock.
+    /// </summary>
+    public Task<RoomHoldOutcome> HoldAsync(
+        RoomId room,
+        string holder,
+        TimeSpan lease,
+        CancellationToken ct
+    )
+    {
+        if (Find(room) is not { } r)
+            return Task.FromResult(RoomHoldOutcome.Failed);
+
+        if (!IsHeldByPlugin(room) && HeldRooms().Count >= RoomWatchLimits.MAX_ROOMS_PER_PLUGIN)
+            return Task.FromResult(RoomHoldOutcome.PluginFull);
+
+        r.Loaded = true;
+        _holds[(room, holder)] = Now + RoomWatchLimits.Clamp(lease);
+
+        return Task.FromResult(RoomHoldOutcome.Held);
+    }
+
+    public Task<bool> ReleaseAsync(RoomId room, string holder, CancellationToken ct) =>
+        Task.FromResult(_holds.Remove((room, holder)));
+
+    /// <summary>
+    /// The running hotel's rules in memory: an online player not in the room, not banned from it
+    /// and not kept out by its door (<see cref="FakeRoom.DoorClosed"/>), at most
+    /// <see cref="RoomWatchLimits.MAX_WATCHES_PER_PLAYER"/> rooms, until the lease runs out.
+    /// </summary>
+    public Task<RoomWatchOutcome> WatchAsync(
+        PlayerId player,
+        RoomId room,
+        IPluginMessage envelope,
+        TimeSpan lease,
+        CancellationToken ct
+    )
+    {
+        DropExpired();
+
+        if (!_hotel.Players.IsOnline(player))
+            return Task.FromResult(RoomWatchOutcome.NotOnline);
+
+        if (Find(room) is not { } r)
+            return Task.FromResult(RoomWatchOutcome.NotHeld);
+
+        if (r.Players.Contains(player))
+            return Task.FromResult(RoomWatchOutcome.InThatRoom);
+
+        var renewing = _watches.ContainsKey((player, room));
+
+        if (!renewing && Watching(player).Count >= RoomWatchLimits.MAX_WATCHES_PER_PLAYER)
+            return Task.FromResult(RoomWatchOutcome.TooManyWatches);
+
+        RoomWatchOutcome? refused =
+            r.Banned.Contains(player) ? RoomWatchOutcome.Banned
+            : r.DoorClosed ? RoomWatchOutcome.DoorClosed
+            : null;
+
+        if (refused is { } outcome)
+        {
+            _watches.Remove((player, room));
+
+            return Task.FromResult(outcome);
+        }
+
+        if (!IsHeldByPlugin(room) && HeldRooms().Count >= RoomWatchLimits.MAX_ROOMS_PER_PLUGIN)
+            return Task.FromResult(RoomWatchOutcome.NotHeld);
+
+        r.Loaded = true;
+        _watches[(player, room)] = new FakeWatch(envelope, Now + RoomWatchLimits.Clamp(lease));
+
+        return Task.FromResult(RoomWatchOutcome.Watching);
+    }
+
+    public Task<bool> UnwatchAsync(PlayerId player, RoomId room, CancellationToken ct) =>
+        Task.FromResult(_watches.Remove((player, room)));
+
+    /// <summary>Whether a hold or a watch keeps the room loaded now.</summary>
+    public bool IsHeld(RoomId room)
+    {
+        DropExpired();
+
+        return IsHeldByPlugin(room);
+    }
+
+    /// <summary>The rooms the player watches now.</summary>
+    public IReadOnlyList<RoomId> Watching(PlayerId player)
+    {
+        DropExpired();
+
+        return [.. _watches.Keys.Where(x => x.Player == player).Select(x => x.Room).Order()];
+    }
+
+    /// <summary>The envelope the player's watch of the room wraps its packets in, or null.</summary>
+    public IPluginMessage? WatchEnvelope(PlayerId player, RoomId room)
+    {
+        DropExpired();
+
+        return _watches.TryGetValue((player, room), out var watch) ? watch.Envelope : null;
+    }
+
+    private DateTimeOffset Now => _hotel.Clock.GetUtcNow();
+
+    private bool IsHeldByPlugin(RoomId room) =>
+        _holds.Keys.Any(x => x.Room == room) || _watches.Keys.Any(x => x.Room == room);
+
+    private HashSet<RoomId> HeldRooms()
+    {
+        DropExpired();
+
+        return [.. _holds.Keys.Select(x => x.Room), .. _watches.Keys.Select(x => x.Room)];
+    }
+
+    private void DropExpired()
+    {
+        var now = Now;
+
+        foreach (var (key, until) in _holds.ToList())
+            if (until <= now)
+                _holds.Remove(key);
+
+        foreach (var (key, watch) in _watches.ToList())
+            if (watch.Until <= now)
+                _watches.Remove(key);
+    }
+
+    private sealed record FakeWatch(IPluginMessage Envelope, DateTimeOffset Until);
 
     /// <summary>What was sent to everyone in the room, in order.</summary>
     public IReadOnlyList<object> SentTo(RoomId room) =>

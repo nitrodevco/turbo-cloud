@@ -459,10 +459,14 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
     /// pets, bots, avatars, rollers, variable fx and wired's periodic triggers and ticks at the
     /// avatar pace. Wired events, scheduled wired actions, item timers and persistence still
     /// run, because they change what is saved. A player walking in wakes it
-    /// (<see cref="WakeTick"/>).
+    /// (<see cref="WakeTick"/>), and a held room (a plugin drawing it elsewhere, a player
+    /// watching it) is never dormant.
     /// </summary>
     private bool IsDormant() =>
-        _state.AvatarsByPlayerId.Count == 0 && !PetModule.AnyWalking() && !BotModule.AnyWalking();
+        _state.AvatarsByPlayerId.Count == 0
+        && !PetModule.AnyWalking()
+        && !BotModule.AnyWalking()
+        && !IsHeld(NowMs());
 
     private void RearmTickTimer()
     {
@@ -516,15 +520,25 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
         }
     }
 
-    public void DeactivateRoom() => DeactivateOnIdle();
+    /// <summary>The directory unloading a room no one is in; a held room stays.</summary>
+    public void DeactivateRoom()
+    {
+        if (IsHeld(NowMs()))
+            return;
+
+        DeactivateOnIdle();
+    }
 
     /// <summary>
     /// Unloads the room once nobody has been in it for <see cref="EMPTY_ROOM_UNLOAD_MS"/>,
-    /// as Habbo's does, rather than at the directory's next check.
+    /// as Habbo's does, rather than at the directory's next check. A hold counts as someone in
+    /// it: the count starts when the last hold ends.
     /// </summary>
     private void UnloadIfLeftEmpty(long now)
     {
-        if (_state.AvatarsByPlayerId.Count > 0)
+        DropExpiredHolds(now);
+
+        if (_state.AvatarsByPlayerId.Count > 0 || _state.Holds.Count > 0)
         {
             _emptySinceMs = -1;
 

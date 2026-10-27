@@ -40,6 +40,12 @@ internal sealed class RoomLiveState
     public List<IRoomBot> Bots { get; } = [];
     public Dictionary<PlayerId, string> OwnerNamesById { get; } = [];
 
+    /// <summary>
+    /// Plugins' holds and watchers' holds on the room, each until when (room time, ms): while one
+    /// runs the room neither unloads nor goes dormant (<c>RoomGrain.HoldAsync</c>).
+    /// </summary>
+    public Dictionary<RoomHoldKey, long> Holds { get; } = [];
+
     public RoomModelSnapshot? Model { get; internal set; } = null;
     public Altitude[] TileHeights { get; internal set; } = [];
     public short[] TileEncodedHeights { get; internal set; } = [];

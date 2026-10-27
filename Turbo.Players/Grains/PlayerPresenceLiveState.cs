@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using Orleans.Streams;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -35,7 +37,22 @@ internal sealed class PlayerPresenceLiveState
     public DateTime PendingEntrySetAtUtc { get; set; }
     public DateTime ActiveRoomSinceUtc { get; set; } = DateTime.UtcNow;
 
+    /// <summary>The rooms the player watches for a plugin, besides the one they are in.</summary>
+    public Dictionary<RoomId, WatchedRoom> Watches { get; } = [];
+
     /// <summary>Composers waiting for the session, in the order they were sent.</summary>
     public Queue<IComposer> OutgoingQueue { get; } = new();
     public bool IsProcessingQueue { get; set; }
+}
+
+/// <summary>
+/// A room the player watches: for which plugin, in which envelope, until when, and the stream
+/// subscription that brings its packets.
+/// </summary>
+internal sealed class WatchedRoom
+{
+    public required string Plugin { get; init; }
+    public required PluginMessageComposer Envelope { get; set; }
+    public required DateTime ExpiresAtUtc { get; set; }
+    public StreamSubscriptionHandle<RoomOutboundSnapshot>? Subscription { get; set; }
 }

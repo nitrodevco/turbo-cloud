@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -13,19 +14,29 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Watching;
 
 namespace Turbo.Main.Hotel;
 
 /// <summary>
 /// <see cref="IHotelRooms"/> over the rooms' table (read only), the navigator's public list, the
-/// room directory (who is where, without loading a room) and the room grains.
+/// room directory (who is where, without loading a room) and the room grains. Holds and watches
+/// go through <see cref="IPluginRoomLeases"/> as <see cref="Plugin"/>'s: each plugin's container
+/// is given its own copy (<see cref="ForPlugin"/>).
 /// </summary>
 internal sealed class HostHotelRooms(
     IDbContextFactory<TurboDbContext> database,
     IGrainFactory grains,
-    INavigatorService navigator
+    INavigatorService navigator,
+    IPluginRoomLeases leases
 ) : IHotelRooms
 {
+    /// <summary>The plugin whose holds and watches these are; empty for the host's own.</summary>
+    internal string Plugin { get; private init; } = string.Empty;
+
+    internal HostHotelRooms ForPlugin(string pluginKey) =>
+        new(database, grains, navigator, leases) { Plugin = pluginKey };
+
     public async Task<HotelRoom?> GetAsync(RoomId room, CancellationToken ct)
     {
         var db = await database.CreateDbContextAsync(ct).ConfigureAwait(false);
@@ -115,4 +126,34 @@ internal sealed class HostHotelRooms(
 
     public Task LoadAsync(RoomId room, CancellationToken ct) =>
         grains.GetRoomGrain(room).EnsureRoomActiveAsync(ct);
+
+    public Task<RoomHoldOutcome> HoldAsync(
+        RoomId room,
+        string holder,
+        TimeSpan lease,
+        CancellationToken ct
+    ) => leases.HoldAsync(Plugin, room, holder, lease, ct);
+
+    public Task<bool> ReleaseAsync(RoomId room, string holder, CancellationToken ct) =>
+        leases.ReleaseAsync(Plugin, room, holder, ct);
+
+    public Task<RoomWatchOutcome> WatchAsync(
+        PlayerId player,
+        RoomId room,
+        IPluginMessage envelope,
+        TimeSpan lease,
+        CancellationToken ct
+    ) =>
+        leases.WatchAsync(
+            Plugin,
+            player,
+            room,
+            PluginMessageComposer.For(envelope),
+            lease,
+            throughLinkedPair: false,
+            ct
+        );
+
+    public Task<bool> UnwatchAsync(PlayerId player, RoomId room, CancellationToken ct) =>
+        leases.UnwatchAsync(Plugin, player, room, ct);
 }

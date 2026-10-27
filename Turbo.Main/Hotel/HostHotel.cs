@@ -2,6 +2,8 @@ using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Turbo.Contracts.Hotel;
+using Turbo.Plugins;
+using Turbo.Primitives.Rooms.Watching;
 
 namespace Turbo.Main.Hotel;
 
@@ -17,7 +19,7 @@ internal sealed class HostHotel(
     IHotelWired wired,
     IHotelStatus status,
     TimeProvider clock
-) : IHotel
+) : IHotel, IPluginBoundHotel
 {
     public IHotelPlayers Players { get; } = players;
 
@@ -38,6 +40,20 @@ internal sealed class HostHotel(
     public IHotelStatus Status { get; } = status;
 
     public TimeProvider Clock { get; } = clock;
+
+    public IHotel ForPlugin(string pluginKey) =>
+        new HostHotel(
+            Players,
+            Rooms is HostHotelRooms rooms ? rooms.ForPlugin(pluginKey) : Rooms,
+            Wallet,
+            Inventory,
+            Catalog,
+            Notify,
+            Navigator,
+            Wired,
+            Status,
+            Clock
+        );
 }
 
 public static class HotelServiceCollectionExtensions
@@ -60,6 +76,15 @@ public static class HotelServiceCollectionExtensions
         services.TryAddSingleton<IHotelNavigator, HostHotelNavigator>();
         services.TryAddSingleton<IHotelWired, HostHotelWired>();
         services.TryAddSingleton<IHotelStatus, HostHotelStatus>();
+        services.TryAddSingleton<PluginRoomLeases>();
+        services.TryAddSingleton<IPluginRoomLeases>(sp =>
+            sp.GetRequiredService<PluginRoomLeases>()
+        );
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IPluginStopping, PluginRoomLeases>(sp =>
+                sp.GetRequiredService<PluginRoomLeases>()
+            )
+        );
         services.TryAddSingleton<IHotel, HostHotel>();
 
         return services;

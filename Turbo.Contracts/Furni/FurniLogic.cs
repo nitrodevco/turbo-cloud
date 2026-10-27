@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Turbo.Contracts.Rooms;
 using Turbo.Contracts.Wired;
 using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -108,6 +109,12 @@ public interface IFurniContext
         where T : class;
 
     /// <summary>
+    /// One section of the furni's extra data (its own, else its definition's) as its JSON text,
+    /// whatever its shape (a number, a string, a list, an object); null when it has none.
+    /// </summary>
+    string? ReadExtraDataJson(string section);
+
+    /// <summary>
     /// The other half of a linked pair (a teleporter's, or a <see cref="FurniLogicAttribute.LinkedPair"/>
     /// furni's): the item its <c>room_linker</c> extra data names; 0 when it names none.
     /// </summary>
@@ -165,6 +172,23 @@ public interface IFurniContext
         RoomUser user,
         RoomId room,
         RoomEntryExtension? extension,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Lets the player watch <paramref name="room"/> from this one, as
+    /// <c>IHotel.Rooms.WatchAsync</c> does (each of its packets inside
+    /// <paramref name="envelope"/>, a hold on it, the same limits and ends), for this plugin. The
+    /// door is the forward's (<see cref="ForwardToRoomAsync"/>): a
+    /// <see cref="FurniLogicAttribute.LinkedPair"/> furni watching the room its other half stands
+    /// in passes it, checked by core; bans still apply. Asked, not awaited: this runs in the
+    /// room's turn. False when the user is not a player in this room.
+    /// </summary>
+    Task<bool> WatchRoomAsync(
+        RoomUser user,
+        RoomId room,
+        IPluginMessage envelope,
+        TimeSpan lease,
         CancellationToken ct
     );
 }

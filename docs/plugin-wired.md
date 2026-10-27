@@ -143,6 +143,7 @@ definition's. The context (`IFurniContext`) has the room, the furni itself, the 
 | Member | What it does |
 | --- | --- |
 | `ReadExtraData<T>(section)` | one section of the furni's extra data as JSON (its own, else its definition's); null when none |
+| `ReadExtraDataJson(section)` | the same section as its JSON text, whatever its shape (a number, a list, an object); null when none |
 | `PairedItemId` | the other half of a linked pair (its `room_linker` section); 0 when none |
 | `GetRoomOfItemAsync(itemId)` | the room an item stands in; null in an inventory |
 | `ObjectExtra`, `SetObjectExtraAsync(n)` | the number the client gets with the furni; setting it shows the furni again. Kept while the room is loaded: set it in `OnAttachedAsync` if it must last |
@@ -150,6 +151,7 @@ definition's. The context (`IFurniContext`) has the room, the furni itself, the 
 | `StopWalkingAsync(user)`, `SetRotationAsync(user, rotation)` | stop the user where it stands; turn it, body and head |
 | `ShowStepAsync(user, tile)` | shows one step to a tile (the `mv` status, facing it) without moving the user; the tile may be off the map. Shown once |
 | `ForwardToRoomAsync(user, room, extension)` | sends a player to another room with your own data (`RoomEntryExtension(key, payload)`) for that room's arrival policies (`IRoomArrivalPolicy`, `docs/plugin-policies.md`). A plain entry: bans, the door (doorbell, password), a full room and the entry policies all decide. A linked pair's half sending them to the room its other half stands in passes the door, as a teleporter does (see Linked pairs) |
+| `WatchRoomAsync(user, room, envelope, lease)` | lets a player watch another room from here: its packets inside your envelope message, for your plugin (`docs/plugin-room-watch.md`). The door rule is the forward's: a linked pair's half watching the room its other half stands in passes it. Asked, not awaited |
 
 `RoomUser` stays a read-only view: every action is on the context, and each answers false when the
 user has left the room.

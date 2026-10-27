@@ -63,7 +63,7 @@ Every member carries `[HotelCall(...)]`, and its guide is this table. The rule t
 | Context | Means | Members |
 | --- | --- | --- |
 | `Anywhere` | in memory; fine inside any turn | `Players.OnlineIds`, `Wallet.CurrencyExists`, `Inventory.FindFurniture`/`Furniture`, `Catalog.Offers`, `Clock` |
-| `NotFromItsGrain` | asks the grain of the player or room it is given; never await it inside that grain's own turn (a room's listener or command awaiting its own room waits on itself) | sends, whispers, room players, current room, club, permissions, wallet changes and balances, furni grants, badges, alerts and notifications, wired events |
+| `NotFromItsGrain` | asks the grain of the player or room it is given; never await it inside that grain's own turn (a room's listener or command awaiting its own room waits on itself) | sends, whispers, room players, current room, club, permissions, wallet changes and balances, furni grants, badges, alerts and notifications, wired events, room holds and watches |
 | `OffGrain` | reads the database (or waits on other plugins); never inside a room's turn (listener, command, furni logic): copy what you need out of the turn and read it after | player and room reads, search, toplists, public rooms, circulation, catalog edits and publish, staff notices |
 
 ## The areas
@@ -71,7 +71,7 @@ Every member carries `[HotelCall(...)]`, and its guide is this table. The rule t
 | Area | Members |
 | --- | --- |
 | `Players` | `GetAsync(id)`, `FindAsync(name)` (any case), `NamesAsync(ids)`, `SearchAsync(prefix, take)` (at most 50), `OnlineIds()`, `CurrentRoomAsync(id)`, `ClubAsync(id)` (active, streak days), `OnlineTimeAsync(id)` (time online in all and in the session running now; the total is saved as a session goes, every `Turbo:Players:AchievementOnlineIntervalSeconds`, and counts from the version that added it), `RespectsAsync(id)` (respects received from players, the infostand's figure, and given to players; pets' not counted), `HasPermissionAsync(id, node)`, `TopByAsync(stat, take, skip)` (respects, achievement score or a currency's balance; at most 100; system accounts never ranked), `CountAsync(activeSince)` (logged in since then or online now; all with null; system accounts not counted), `RecentAsync(activeSince, take, skip)` (the same players, last login first, at most 100, each with their look and whether online), `FindByIdentityAsync(provider, id)`, `LinkIdentityAsync(id, identity, replace)` and `UnlinkIdentityAsync(id, provider)` (see below), `SendAsync(id, message or composer)` (false when offline) |
-| `Rooms` | `GetAsync(id)` (name, owner, owner's name, on the public list), `PublicIdsAsync()`, `PlayersAsync(id)`, `SendAsync(id, message or composer)` and `WhisperAsync(id, player, text)` (false, and the room not loaded, when no one is in it), `InvokeFurniLogicAsync(id, itemId, message)` (a message to your own furni logic there, `docs/plugin-wired.md`), `LoadAsync(id)` |
+| `Rooms` | `GetAsync(id)` (name, owner, owner's name, on the public list), `PublicIdsAsync()`, `PlayersAsync(id)`, `SendAsync(id, message or composer)` and `WhisperAsync(id, player, text)` (false, and the room not loaded, when no one is in it), `InvokeFurniLogicAsync(id, itemId, message)` (a message to your own furni logic there, `docs/plugin-wired.md`), `LoadAsync(id)`, `HoldAsync(id, holder, lease)` and `ReleaseAsync(id, holder)` (keep a room no one is in loaded and awake), `WatchAsync(player, id, envelope, lease)` and `UnwatchAsync(player, id)` (send a player another room's packets inside your message); holds and watches are your plugin's, end on their own and when it unloads (`docs/plugin-room-watch.md`) |
 | `Wallet` | `CurrencyExists(name)`, `BalanceAsync`, `CreditAsync` and `DebitAsync(player, currency, amount, reference, cause)` |
 | `Inventory` | `FindFurniture(name)`, `Furniture(id)`, `GrantFurnitureAsync(player, definition, cause)`, `GrantFurnitureAsync(player, definition, reference, cause)` (once per reference: `Granted`, `AlreadyGranted`, `Refused`), `HasBadgeAsync`, `GiveBadgeAsync` (false when they had it) |
 | `Catalog` | `Offers(page)` (the live catalog), `CirculationAsync(definitions)` (held by players, system accounts left out), `MoveOfferAsync`, `SetPageExpiryAsync`, `PublishAsync` (the panel's catalog editor, with its checks and history) |
@@ -139,7 +139,9 @@ plugin does:
   `Catalog.Publishes`, `Wired.Fired`, `Navigator.Public.All` / `.Category(key)` (a room in a shown
   category is on `Rooms.PublicIdsAsync`, as on a hotel);
 - assert: `Wallet.AssertCredited/AssertDebited/AssertUntouched`, `Players.AssertSent<T>/AssertNothingSent`,
-  `Rooms.AssertSent<T>/AssertWhispered`, `Inventory.AssertGranted/AssertHasBadge`,
+  `Rooms.AssertSent<T>/AssertWhispered`, `Rooms.IsHeld(room)`, `Rooms.Watching(player)`,
+  `Rooms.WatchEnvelope(player, room)` (a `FakeRoom`'s `Banned` and `DoorClosed` keep a watcher
+  out), `Inventory.AssertGranted/AssertHasBadge`,
   `Notify.AssertAlerted/AssertNotAlerted`, `Wired.AssertFired<TEvent>/AssertNothingFired`. A failure throws `HotelAssertionException` with what
   happened instead, so it works in any test framework.
 
@@ -152,7 +154,10 @@ project references it from `$(TurboBin)` (the template's does).
 names in any case, search, toplists without system accounts, rooms no one is in, grants and
 circulation, grants under a reference, badges, sends to offline players) run twice: `FakeHotelContractTests` on `FakeHotel`,
 `HostHotelContractTests` on the host's implementation over a database and the real wallet,
-inventory and badge grains. A rule changed in one and not the other fails one of them.
+inventory and badge grains. A rule changed in one and not the other fails one of them. Holds and
+watches live in the room and presence grains, which that host world fakes: their rules are tested
+on the grains (`RoomHoldTests`, `PresenceRoomWatchTests`, `PluginRoomLeaseTests`) and on the fake
+(`FakeRoomWatchTests`), both from the same `RoomWatchLimits`.
 
 ## Adding to it
 

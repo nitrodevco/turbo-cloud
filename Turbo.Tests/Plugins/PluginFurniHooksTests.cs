@@ -1,5 +1,7 @@
 using System.Reflection;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Turbo.Contracts.Plugins;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
@@ -7,9 +9,11 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Watching;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Plugins;
+using Turbo.Runtime;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -189,23 +193,7 @@ public sealed class PluginFurniHooksTests : IDisposable
         bool passesDoor
     )
     {
-        var db = new InMemoryDb();
-
-        await using (var dbCtx = await db.CreateDbContextAsync(Ct))
-        {
-            dbCtx.Furnitures.Add(
-                new Turbo.Database.Entities.Furniture.FurnitureEntity
-                {
-                    Id = PARTNER,
-                    PlayerEntityId = ALICE_PLAYER,
-                    FurnitureDefinitionEntityId = 1,
-                    RoomEntityId = partnerRoom,
-                }
-            );
-            await dbCtx.SaveChangesAsync(Ct);
-        }
-
-        _room.Harness.Room.UseDatabase(db);
+        await PlacePartnerAsync(partnerRoom);
         _room.Enter(ALICE, 2, 7, "alice");
         var portal = await PlacePortalAsync(logicKey);
         portal.ExtraData.UpdateSection(
@@ -221,6 +209,58 @@ public sealed class PluginFurniHooksTests : IDisposable
         entry.ThroughLinkedPair.Should().Be(passesDoor);
         entry.PassesDoor.Should().Be(passesDoor);
         entry.Method.Should().Be(RoomEntryMethodType.Default, "never a teleporter's arrival");
+    }
+
+    /// <summary>
+    /// A furni lets a player watch the room its other half stands in for its own plugin, each of
+    /// that room's packets inside the plugin's envelope: the door rule is the forward's, checked
+    /// by core (only a linked pair into its partner's room passes it).
+    /// </summary>
+    [Theory]
+    [InlineData("plugin_portal", 77, true)]
+    [InlineData("plugin_portal", 78, false)]
+    [InlineData("plugin_door", 77, false)]
+    public async Task A_furni_lets_a_player_watch_a_room_as_its_plugin_passing_the_door_only_through_its_pair(
+        string logicKey,
+        int partnerRoom,
+        bool passesDoor
+    )
+    {
+        await PlacePartnerAsync(partnerRoom);
+        _room.Enter(ALICE, 2, 7, "alice");
+        var portal = await PlacePortalAsync(logicKey);
+        portal.ExtraData.UpdateSection(
+            RoomLinkerData.SECTION,
+            new RoomLinkerData { ItemId = PARTNER }
+        );
+
+        (await InvokeAsync(PORTAL, "watch", FAR_ROOM.Value, logicKey)).IsHandled.Should().BeTrue();
+
+        var watch = _room
+            .Harness.Fakes.Log.Of(nameof(IPluginRoomLeases.WatchAsync))
+            .Should()
+            .ContainSingle()
+            .Subject.Args;
+        watch[0].Should().Be("portals", "the plugin the furni's logic is");
+        watch[1].Should().Be((Turbo.Primitives.Players.PlayerId)ALICE_PLAYER);
+        watch[2].Should().Be(FAR_ROOM);
+        ((Turbo.Primitives.Plugins.Messages.PluginMessageComposer)watch[3]!)
+            .Name.Should()
+            .Be("portals.room");
+        watch[5].Should().Be(passesDoor);
+    }
+
+    [Fact]
+    public async Task A_furni_reads_a_section_of_its_extra_data_whatever_its_shape()
+    {
+        _room.Enter(ALICE, 2, 7, "alice");
+        var portal = await PlacePortalAsync();
+        portal.ExtraData.UpdateSection("portal_rooms", new[] { 77, 78 });
+
+        (await InvokeAsync(PORTAL, "section")).Payload.Should().Be("[77,78]");
+
+        portal.ExtraData.UpdateSection("portal_rooms", 77);
+        (await InvokeAsync(PORTAL, "section")).Payload.Should().Be("77");
     }
 
     [Fact]
@@ -251,13 +291,48 @@ public sealed class PluginFurniHooksTests : IDisposable
             Ct
         );
 
+    // The portal's other half, in the room the database says.
+    private async Task PlacePartnerAsync(int partnerRoom)
+    {
+        var db = new InMemoryDb();
+
+        await using (var dbCtx = await db.CreateDbContextAsync(Ct))
+        {
+            dbCtx.Furnitures.Add(
+                new Turbo.Database.Entities.Furniture.FurnitureEntity
+                {
+                    Id = PARTNER,
+                    PlayerEntityId = ALICE_PLAYER,
+                    FurnitureDefinitionEntityId = 1,
+                    RoomEntityId = partnerRoom,
+                }
+            );
+            await dbCtx.SaveChangesAsync(Ct);
+        }
+
+        _room.Harness.Room.UseDatabase(db);
+    }
+
     private IEnumerable<FakeCall> Forwards() => _room.Harness.Fakes.Log.Of("ForwardToRoomAsync");
 
     private async Task<IRoomFloorItem> PlacePortalAsync(string logicKey = "plugin_portal")
     {
+        // The plugin's own services name it, as a loaded plugin's do.
+        var manifest = new ServiceCollection()
+            .AddSingleton(
+                new PluginManifest
+                {
+                    Name = "Portals",
+                    Key = "portals",
+                    Version = "1.0.0",
+                    Author = "test",
+                }
+            )
+            .BuildServiceProvider();
+
         _plugin = await new PluginLogicFeatureProcessor(_room.Harness.LogicProvider).ProcessAsync(
             Plugin(),
-            _room.Harness.Services,
+            new CompositeServiceProvider(manifest, _room.Harness.Services),
             Ct
         );
 
@@ -296,6 +371,7 @@ public sealed class PluginFurniHooksTests : IDisposable
         using Turbo.Contracts.Furni;
         using Turbo.Contracts.Rooms;
         using Turbo.Primitives.Furniture;
+        using Turbo.Primitives.Plugins.Messages;
         using Turbo.Primitives.Rooms;
         using Turbo.Primitives.Rooms.Enums;
         using Turbo.Primitives.Rooms.Snapshots;
@@ -303,6 +379,9 @@ public sealed class PluginFurniHooksTests : IDisposable
         namespace Portals;
 
         public sealed record Command(string Do, int Value);
+
+        [PluginMessage("portals.room")]
+        public sealed record PortalRoom(int RoomId) : IPluginMessage;
 
         [FurniLogic("plugin_portal", LinkedPair = true)]
         public sealed class Portal : PortalBase;
@@ -350,6 +429,11 @@ public sealed class PluginFurniHooksTests : IDisposable
                         return await ctx.SetRotationAsync(sender!, (Rotation)command.Value, ct) ? FurniLogicReply.Handled() : FurniLogicReply.NotHandled;
                     case "forward":
                         return await ctx.ForwardToRoomAsync(sender!, new RoomId(command.Value), null, ct) ? FurniLogicReply.Handled() : FurniLogicReply.NotHandled;
+                    case "watch":
+                        return await ctx.WatchRoomAsync(sender!, new RoomId(command.Value), new PortalRoom(command.Value), TimeSpan.FromMinutes(1), ct)
+                            ? FurniLogicReply.Handled() : FurniLogicReply.NotHandled;
+                    case "section":
+                        return FurniLogicReply.Handled(ctx.ReadExtraDataJson("portal_rooms"));
                     case "walk_nowhere":
                         var walking = await ctx.WalkToAsync(sender!, [new(-5, -5), new(40, 40)], (_, _) => throw new InvalidOperationException("never"), ct);
                         return FurniLogicReply.Handled(walking ? "true" : "false");

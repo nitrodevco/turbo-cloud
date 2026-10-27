@@ -74,6 +74,9 @@ internal sealed partial class PlayerPresenceGrain
         await ClearActiveRoomAsync(ct);
         await ClearPendingRoomAsync(ct);
 
+        // A room the player watched they now get as anyone in it does, not twice.
+        await EndWatchAsync(roomId, releaseHold: true);
+
         // Admission has succeeded. The distinct visit, the directory, the room stream and the
         // player's summary do not depend on each other, so they are asked together; all of them
         // are in place before the room makes the avatar. The owner comes from the room that
