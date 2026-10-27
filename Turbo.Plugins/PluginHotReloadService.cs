@@ -1,15 +1,25 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Plugins.Configuration;
+using Turbo.Plugins.Exceptions;
 
 namespace Turbo.Plugins;
 
+/// <summary>
+/// Reloads plugins as their files change on disk: a code file (<see cref="PluginHelpers.IsCodeFile"/>)
+/// loads what changed (<see cref="PluginManager.LoadChangedAsync"/>); any other file of a data plugin
+/// (<see cref="PluginHelpers.IsDataOnly"/>: its theme, patches, images, texts) reloads that plugin
+/// (<see cref="PluginManager.ReloadAsync"/>), so a theme author's edit in their editor reaches the
+/// players drawing it with no reload of theirs (live reload, <c>docs/plugin-data.md</c>). A burst of
+/// changes is one reload, <see cref="PluginConfig.DebounceMs"/> after the last.
+/// </summary>
 public sealed class PluginHotReloadService(
     PluginManager pluginManager,
     IOptions<PluginConfig> config,
@@ -25,6 +35,8 @@ public sealed class PluginHotReloadService(
     private readonly List<FileSystemWatcher> _watchers = [];
 
     private Timer? _debounceTimer;
+    private Timer? _dataTimer;
+    private readonly HashSet<string> _pendingData = new(StringComparer.OrdinalIgnoreCase);
     private bool _pendingReload;
     private string? _lastPath;
     private int _shutdownStarted;
@@ -38,10 +50,18 @@ public sealed class PluginHotReloadService(
             Timeout.Infinite
         );
 
+        _dataTimer = new Timer(
+            _ => _ = Task.Run(ProcessDataReloadAsync, _cts.Token),
+            state: null,
+            Timeout.Infinite,
+            Timeout.Infinite
+        );
+
         WatchDirectory(_config.PluginFolderPath, includeSubdirectories: true);
 
+        // A dev plugin's data files are in its folders (wwwroot/, gamedata/).
         foreach (var devPath in _config.DevPluginPaths)
-            WatchDirectory(Path.GetFullPath(devPath), includeSubdirectories: false);
+            WatchDirectory(Path.GetFullPath(devPath), includeSubdirectories: true);
 
         _logger.LogInformation("Plugin hot reload is enabled.");
 
@@ -95,7 +115,11 @@ public sealed class PluginHotReloadService(
             return;
 
         if (!ShouldReactToPath(e.FullPath))
+        {
+            QueueDataReload(e.FullPath);
+
             return;
+        }
 
         QueueDebouncedReload(e.FullPath, e.ChangeType.ToString());
     }
@@ -106,7 +130,11 @@ public sealed class PluginHotReloadService(
             return;
 
         if (!ShouldReactToPath(e.FullPath) && !ShouldReactToPath(e.OldFullPath))
+        {
+            QueueDataReload(e.FullPath);
+
             return;
+        }
 
         QueueDebouncedReload(e.FullPath, "Renamed");
     }
@@ -130,6 +158,114 @@ public sealed class PluginHotReloadService(
             changeType,
             fullPath
         );
+    }
+
+    /// <summary>
+    /// The folder of the plugin a file that is no code file belongs to, when it is a data plugin's:
+    /// a dev plugin's folder (<see cref="PluginConfig.DevPluginPaths"/>) or a folder of
+    /// <see cref="PluginConfig.PluginFolderPath"/>, whose manifest names no assembly. Null for a
+    /// file of the plugins folder itself, of a plugin with code, or of a folder with no manifest.
+    /// </summary>
+    public static string? DataPluginFolderOf(
+        string path,
+        string pluginFolderPath,
+        IEnumerable<string> devPluginPaths
+    )
+    {
+        var full = Path.GetFullPath(path);
+        string? folder = null;
+
+        foreach (var dev in devPluginPaths.Select(Path.GetFullPath))
+            if (IsUnder(full, dev))
+                folder = dev;
+
+        if (folder is null && IsUnder(full, Path.GetFullPath(pluginFolderPath)))
+        {
+            var relative = Path.GetRelativePath(Path.GetFullPath(pluginFolderPath), full);
+            var first = relative.Split(
+                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                2
+            );
+
+            if (first.Length == 2)
+                folder = Path.Combine(Path.GetFullPath(pluginFolderPath), first[0]);
+        }
+
+        if (folder is null || !File.Exists(Path.Combine(folder, "manifest.json")))
+            return null;
+
+        try
+        {
+            return PluginHelpers.IsDataOnly(PluginHelpers.ReadManifest(folder)) ? folder : null;
+        }
+        catch (Exception ex)
+            when (ex is PluginManifestException or IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    private static bool IsUnder(string path, string folder) =>
+        path.StartsWith(
+            Path.TrimEndingDirectorySeparator(folder) + Path.DirectorySeparatorChar,
+            StringComparison.OrdinalIgnoreCase
+        );
+
+    private void QueueDataReload(string fullPath)
+    {
+        string? folder;
+
+        try
+        {
+            folder = DataPluginFolderOf(fullPath, _config.PluginFolderPath, _config.DevPluginPaths);
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException)
+        {
+            return;
+        }
+
+        if (folder is null)
+            return;
+
+        lock (_stateLock)
+        {
+            _pendingData.Add(folder);
+            _dataTimer?.Change(Math.Max(100, _config.DebounceMs), Timeout.Infinite);
+        }
+    }
+
+    /// <summary>Reloads each data plugin whose files changed, one after another; one that fails is logged.</summary>
+    private async Task ProcessDataReloadAsync()
+    {
+        if (_cts.IsCancellationRequested)
+            return;
+
+        List<string> folders;
+
+        lock (_stateLock)
+        {
+            folders = [.. _pendingData];
+            _pendingData.Clear();
+        }
+
+        foreach (var folder in folders)
+        {
+            try
+            {
+                var key = PluginHelpers.ReadManifest(folder).Key;
+
+                await _pluginManager.ReloadAsync(key, _cts.Token).ConfigureAwait(false);
+                _logger.LogInformation("Data plugin {Key} reloaded: its files changed", key);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Reloading the data plugin in {Folder} failed", folder);
+            }
+        }
     }
 
     private async Task ProcessReloadAsync()
@@ -221,6 +357,8 @@ public sealed class PluginHotReloadService(
         DisposeWatchers();
         _debounceTimer?.Dispose();
         _debounceTimer = null;
+        _dataTimer?.Dispose();
+        _dataTimer = null;
         _cts.Cancel();
     }
 }
