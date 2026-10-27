@@ -11,9 +11,12 @@ AI coding agents (Claude Code, Codex, Copilot, Cursor) work well on Turbo when t
 rules a human contributor follows. The repository carries those rules as files an agent reads,
 and this documentation is published in forms an agent can read too.
 
-> [!NOTE]
-> A kit that sets an agent up for plugin work in one step is being built. This page will describe
-> it when it lands; until then, the files below are the way in.
+For plugin work, start with [Turbo Boost](turbo-boost.md), the AI kit the server ships: in a plugin
+made from the template, `npm run ai` writes the plugin guideline into its `CLAUDE.md` and
+`AGENTS.md`, installs one Agent Skill per kind of plugin code (furni logic, wired boxes, policies,
+messages, client modules, tests...), and connects the assistant to your dev hotel's tools
+(`search_docs`, `plugin_errors`, `server_log`). Run `npm run ai:update` after you update the server.
+The rest of this page is for work on Turbo itself.
 
 ## Context Files
 

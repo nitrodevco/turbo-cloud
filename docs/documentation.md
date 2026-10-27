@@ -6,6 +6,7 @@
     - [Installation](installation.md)
     - [Configuration](configuration.md)
     - [Agentic Development](ai.md)
+    - [Turbo Boost](turbo-boost.md)
     - [Directory Structure](structure.md)
     - [Deployment](deployment.md)
     - [Behind Cloudflare](cloudflare.md)
