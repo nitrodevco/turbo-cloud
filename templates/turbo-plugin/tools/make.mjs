@@ -316,7 +316,7 @@ public sealed class ${type} : FurniLogic
         var text = await ctx.FormatTextAsync(ctx.Text, ct);
 
         foreach (var user in ctx.RoomUsers)
-            await ctx.ShowMessageAsync(user, text, onlyForThem: true, ct);
+            await ctx.SayAsync(user, text, RoomSpeech.Whisper, ct);
 
         return ctx.RoomUsers.Count > 0;
     }`,
@@ -356,6 +356,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Contracts.Rooms;
 using Turbo.Contracts.Wired;
 using Turbo.Primitives.Rooms.Enums.Wired;
 

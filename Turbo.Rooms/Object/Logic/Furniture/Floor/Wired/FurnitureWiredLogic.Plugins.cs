@@ -102,35 +102,14 @@ public abstract partial class FurnitureWiredLogic
             () =>
                 [.. State.ItemsById.Values.OfType<IRoomFloorItem>().Select(PluginRoomViews.Furni)],
             execution,
-            ShowPluginMessageAsync
+            SayForPluginAsync
         );
     }
 
-    private async Task ShowPluginMessageAsync(
+    private Task<bool> SayForPluginAsync(
         RoomUser user,
         string text,
-        bool onlyForThem,
+        RoomSpeech speech,
         CancellationToken ct
-    )
-    {
-        if (
-            user.Kind == RoomUserKind.Pet
-            || !AvatarModule.TryGetAvatar(user.Index, out var avatar)
-            || text.Length == 0
-        )
-            return;
-
-        // A whisper is a player's: a bot has no one to show it to but the whole room.
-        var onlyFor = avatar as IRoomPlayer;
-
-        if (onlyForThem && onlyFor is null)
-            return;
-
-        await ChatSystem.SayAsAvatarAsync(
-            avatar,
-            text,
-            new AvatarSpeech { OnlyFor = onlyForThem ? onlyFor : null },
-            ct
-        );
-    }
+    ) => PluginRoomTurn.SayAsync(AvatarModule, ChatSystem, user, text, speech, ct);
 }

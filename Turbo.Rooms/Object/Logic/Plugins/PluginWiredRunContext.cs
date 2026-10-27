@@ -25,33 +25,23 @@ internal interface IPluginWiredHost
 internal static class PluginRoomViews
 {
     public static RoomUser User(IRoomAvatar avatar) =>
-        avatar switch
-        {
-            IRoomPlayer player => new RoomUser(
-                avatar.ObjectId.Value,
-                RoomUserKind.Player,
-                player.PlayerId,
-                avatar.Name,
-                avatar.X,
-                avatar.Y
-            ),
-            IRoomPet => new RoomUser(
-                avatar.ObjectId.Value,
-                RoomUserKind.Pet,
-                null,
-                avatar.Name,
-                avatar.X,
-                avatar.Y
-            ),
-            _ => new RoomUser(
-                avatar.ObjectId.Value,
-                RoomUserKind.Bot,
-                null,
-                avatar.Name,
-                avatar.X,
-                avatar.Y
-            ),
-        };
+        new(
+            avatar.ObjectId.Value,
+            avatar switch
+            {
+                IRoomPlayer => RoomUserKind.Player,
+                IRoomPet => RoomUserKind.Pet,
+                _ => RoomUserKind.Bot,
+            },
+            (avatar as IRoomPlayer)?.PlayerId,
+            avatar.Name,
+            avatar.X,
+            avatar.Y,
+            avatar.Rotation,
+            avatar.IsWalking,
+            avatar.IsIdle,
+            avatar.EffectId
+        );
 
     public static RoomFurni Furni(IRoomFloorItem item) =>
         new(
@@ -60,7 +50,9 @@ internal static class PluginRoomViews
             item.X,
             item.Y,
             item.Z.Value,
-            item.Logic.GetState()
+            item.Logic.GetState(),
+            item.Rotation,
+            item.Definition
         );
 }
 
@@ -89,7 +81,7 @@ internal sealed class PluginWiredRunContext(
     Func<IReadOnlyList<RoomUser>> roomUsers,
     Func<IReadOnlyList<RoomFurni>> roomFurni,
     IWiredExecutionContext? execution,
-    Func<RoomUser, string, bool, CancellationToken, Task> showMessage
+    Func<RoomUser, string, RoomSpeech, CancellationToken, Task<bool>> say
 ) : IWiredEffectContext
 {
     private IReadOnlyList<RoomUser>? _roomUsers;
@@ -114,10 +106,10 @@ internal sealed class PluginWiredRunContext(
     public Task<string> FormatTextAsync(string text, CancellationToken ct) =>
         execution is null ? Task.FromResult(text) : execution.FormatTextAsync(text, ct);
 
-    public Task ShowMessageAsync(
+    public Task<bool> SayAsync(
         RoomUser user,
         string text,
-        bool onlyForThem,
+        RoomSpeech speech,
         CancellationToken ct
-    ) => showMessage(user, text, onlyForThem, ct);
+    ) => say(user, text, speech, ct);
 }

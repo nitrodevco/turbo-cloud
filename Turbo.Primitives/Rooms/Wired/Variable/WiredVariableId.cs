@@ -1,6 +1,9 @@
 using System;
+using System.Buffers.Binary;
 using System.Globalization;
+using System.IO.Hashing;
 using Orleans;
+using Turbo.Primitives.Rooms.Enums.Wired;
 
 namespace Turbo.Primitives.Rooms.Wired.Variable;
 
@@ -15,11 +18,39 @@ public readonly record struct WiredVariableId(ulong Value) : IComparable<WiredVa
     private const ulong TAG_MASK = 0xFFFF_0000_0000_0000;
     private const ulong NUMBER_MASK = 0x0000_0000_FFFF_FFFF;
 
+    // A box's variable: the database source in the bits above its 48-bit hash.
+    private const ulong DATABASE_SOURCE =
+        (ulong)((int)WiredVariableIdSourceType.Database & 0b1_1111) << 48;
+
     /// <summary>Habbo's id "-<paramref name="number"/>" of a built-in (@) variable.</summary>
     public static WiredVariableId BuiltIn(int number) => new(BUILT_IN_TAG | (uint)number);
 
     /// <summary>Habbo's id "~<paramref name="number"/>" of a smart (~) variable.</summary>
     public static WiredVariableId Smart(int number) => new(SMART_TAG | (uint)number);
+
+    /// <summary>
+    /// The id of the variable a wired box makes (a variable box's), from the box's furni id: what
+    /// its saves and the room's variables name it by, the same on every server. A tool copying a
+    /// room whose furni get new ids renames the variables by it.
+    /// </summary>
+    public static WiredVariableId OfBox(int boxId) => new(DATABASE_SOURCE | HashBoxId48(boxId));
+
+    /// <summary>The id of the <paramref name="subIndex"/>-th variable a box derives (an add-on's), distinct from the box's own.</summary>
+    public static WiredVariableId OfBox(int boxId, int subIndex) =>
+        new(DATABASE_SOURCE | HashBoxId48(unchecked(boxId * 397) ^ (subIndex + 1) * 7919));
+
+    private static ulong HashBoxId48(int boxId)
+    {
+        var hasher = new XxHash64();
+
+        Span<byte> buf = stackalloc byte[4];
+
+        BinaryPrimitives.WriteInt32BigEndian(buf, boxId);
+
+        hasher.Append(buf);
+
+        return hasher.GetCurrentHashAsUInt64() & 0x0000_FFFF_FFFF_FFFFUL;
+    }
 
     public override string ToString() =>
         (Value & TAG_MASK) switch

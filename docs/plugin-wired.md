@@ -29,6 +29,7 @@ The examples in `docs/examples/wired` are compiled, placed, saved and fired by
 ### "Whisper to everyone in the room" (an effect)
 
 ```csharp
+using Turbo.Contracts.Rooms;
 using Turbo.Contracts.Wired;
 using Turbo.Primitives.Rooms.Enums.Wired;
 
@@ -39,9 +40,15 @@ public sealed class WhisperRoomEffect : WiredEffect
     public override WiredActionType Editor => WiredActionType.CHAT;
 
     public override IReadOnlyList<WiredParam> Params =>
-        [WiredParam.Range(0, 1, 0), WiredParam.Range(0, 1000, 0), WiredParam.Range(-1, 2, -1)];
+        [
+            WiredParam.Range(0, 1, 0),
+            WiredParam.OneOf(202, 34, 200, 201, 202, 210 /* ...the editor's styles */),
+            WiredParam.Range(-1, 2, -1),
+        ];
 
     public override int? TextMaxLength => 400;
+
+    public override bool UsesTextPlaceholders => true;   // the editor lists the stack's placeholders
 
     public override async Task<bool> ExecuteAsync(IWiredEffectContext ctx, CancellationToken ct)
     {
@@ -49,11 +56,18 @@ public sealed class WhisperRoomEffect : WiredEffect
             return false;
 
         var text = await ctx.FormatTextAsync(ctx.Text, ct);   // the stack's placeholders
+        var speech = new RoomSpeech
+        {
+            OnlyForThem = true,
+            StyleId = ctx.Param(1),
+            BubbleWidth = ctx.Param(2) < 0 ? null : ctx.Param(2),
+        };
+        var whispered = false;
 
         foreach (var user in ctx.RoomUsers)
-            await ctx.ShowMessageAsync(user, text, onlyForThem: true, ct);
+            whispered |= await ctx.SayAsync(user, text, speech, ct);
 
-        return ctx.RoomUsers.Count > 0;
+        return whispered;
     }
 }
 ```
@@ -107,7 +121,10 @@ is picked up by the next event.
 
 The context (`IWiredRunContext`) has the box as saved (`Text`, `Param(i)`, `PickedFurni`), the
 room, the selected `Users` and `Furni`, and everyone and everything in the room (`RoomUsers`,
-`RoomFurni`, read when asked). An effect's context adds `FormatTextAsync` and `ShowMessageAsync`.
+`RoomFurni`, read when asked). An effect's context adds `FormatTextAsync` and `SayAsync(user, text,
+speech)` (a bubble over the user: the whole room's, or a whisper only that player sees, in the
+`RoomSpeech` style and width). A box whose text takes placeholders says `UsesTextPlaceholders`, and
+its editor lists them as Show Message's does.
 It runs in the room's turn: never await the hotel API on this same room from a box (the room would
 wait on itself); a player's wallet or inventory is another grain and is fine.
 
@@ -134,11 +151,15 @@ public sealed class ButtonLogic : FurniLogic
 }
 ```
 
-Hooks: `OnAttachedAsync` (placed, room loaded, plugin reloaded), `OnUseAsync`, `OnWalkOnAsync`,
-`OnWalkOffAsync`, `OnMessageAsync` (below). Each runs after core's own (a walk-on still fires core's
-walk-on triggers); everything else (walking, stacking, sitting, rolling) is the furniture
-definition's. The context (`IFurniContext`) has the room, the furni itself, the room's users,
-`SetStateAsync` and `FireWiredAsync` (from inside the room; `IHotel.Wired` is for outside it), and:
+Hooks: `OnAttachedAsync` (placed, room loaded, plugin reloaded), `OnDetachedAsync` (picked up,
+room unloading), `OnUseAsync`, `OnWalkOnAsync`, `OnWalkOffAsync`, `OnMessageAsync` (below). Each
+runs after core's own (a walk-on still fires core's walk-on triggers). Two properties override the
+definition: `UsagePolicy` (who may use it: `Everybody` for a machine every visitor plays) and
+`Walkable` (true for a tile the logic acts on as it is stepped on); everything else (stacking,
+sitting, rolling) is the furniture definition's. The context (`IFurniContext`) is the room in its
+turn (`IRoomTurn`, below) and the furni itself (`Self`: its position, rotation, state and
+definition, custom params included), with `SetStateAsync` and `FireWiredAsync` (from inside the
+room; `IHotel.Wired` is for outside it), and:
 
 | Member | What it does |
 | --- | --- |
@@ -148,10 +169,23 @@ definition's. The context (`IFurniContext`) has the room, the furni itself, the 
 | `GetRoomOfItemAsync(itemId)` | the room an item stands in; null in an inventory |
 | `ObjectExtra`, `SetObjectExtraAsync(n)` | the number the client gets with the furni; setting it shows the furni again. Kept while the room is loaded: set it in `OnAttachedAsync` if it must last |
 | `WalkToAsync(user, tiles, onArrived)` | walks the user to the nearest tile it can reach and runs `onArrived` once it stands there, in the room's turn (core's walk-to-use machinery: at once when it stands still on the nearest; forgotten if the user walks elsewhere or takes too long). False when no tile is reachable |
-| `StopWalkingAsync(user)`, `SetRotationAsync(user, rotation)` | stop the user where it stands; turn it, body and head |
+| `WalkToInOrderAsync(user, tiles, onArrived)` | the same with the tiles tried in the order given, best first (in front of a machine, else beside it), not nearest first |
+| `TileInFront`, `TilesBeside(user)`, `StandsBeside(user)` | the tile the furni faces; the tiles touching it the user may stand on, nearest to the user first; whether the user stands still on one |
+| `Schedule(delay, run)`, `CancelSchedule()` | runs `run` once, `delay` later by the room's clock, in the room's turn (a spin's result, a rest's end, a game's next second); one per furni, a later call replaces it; never after the furni is picked up or its room unloads |
 | `ShowStepAsync(user, tile)` | shows one step to a tile (the `mv` status, facing it) without moving the user; the tile may be off the map. Shown once |
 | `ForwardToRoomAsync(user, room, extension)` | sends a player to another room with your own data (`RoomEntryExtension(key, payload)`) for that room's arrival policies (`IRoomArrivalPolicy`, `docs/plugin-policies.md`). A plain entry: bans, the door (doorbell, password), a full room and the entry policies all decide. A linked pair's half sending them to the room its other half stands in passes the door, as a teleporter does (see Linked pairs) |
 | `WatchRoomAsync(user, room, envelope, lease)` | lets a player watch another room from here: its packets inside your envelope message, for your plugin (`docs/plugin-room-watch.md`). The door rule is the forward's: a linked pair's half watching the room its other half stands in passes it. Asked, not awaited |
+
+What any code in the room's turn can do (`IRoomTurn`, which the furni context is):
+
+| Member | What it does |
+| --- | --- |
+| `RoomUsers`, `Map` | everyone in the room (with where they stand and face, walking, idle, their effect); the floor: `IsFloor`, `IsFree` (no furni, nobody), `CanStand(user, tile)`, `FurniAt(tile)` lowest first |
+| `SayAsync(user, text, speech)` | a bubble over a player or bot, as `RoomSpeech` says: shouted, a whisper only that player sees, its style and width. Filtered, not chat (no flood check, commands or chat log) |
+| `SetEffectAsync(user, effect)` | puts an effect on the user; 0 takes it off |
+| `StopWalkingAsync(user)`, `SetRotationAsync(user, rotation)` | stop the user where it stands; turn it, body and head |
+| `SetBotFigureAsync(bot, figure)`, `SetBotFollowingAsync(bot, target)` | dress a bot; have it follow a user (null stops it) |
+| `PlaceTemporaryFurniAsync(definition, tile, rotation)`, `RemoveTemporaryFurniAsync(id)` | a furni that is never saved and goes when removed or the room unloads, owned by the furni's owner; the definition may name another logic (`definition with { LogicName = ... }`) |
 
 `RoomUser` stays a read-only view: every action is on the context, and each answers false when the
 user has left the room.

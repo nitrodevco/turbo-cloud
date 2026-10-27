@@ -9,18 +9,6 @@ namespace Turbo.Rooms.Wired.Variables;
 
 public static class WiredVariableIdBuilder
 {
-    public static WiredVariableId CreateFromBoxId(int boxId) =>
-        new(
-            ((ulong)((int)WiredVariableIdSourceType.Database & 0b1_1111) << 48) | HashBoxId48(boxId)
-        );
-
-    /// <summary>An id for the n-th derived variable of a box, distinct from the box own id.</summary>
-    public static WiredVariableId CreateFromBoxId(int boxId, int subIndex) =>
-        new(
-            ((ulong)((int)WiredVariableIdSourceType.Database & 0b1_1111) << 48)
-                | HashBoxId48(unchecked(boxId * 397) ^ (subIndex + 1) * 7919)
-        );
-
     public static WiredVariableId CreateInternalOrdered(
         WiredVariableTargetType targetType,
         string name,
@@ -74,19 +62,6 @@ public static class WiredVariableIdBuilder
         WriteString(ref hasher, name);
 
         return (ushort)(hasher.GetCurrentHashAsUInt64() & 0xFFFF);
-    }
-
-    private static ulong HashBoxId48(int boxId)
-    {
-        var hasher = new XxHash64();
-
-        Span<byte> buf = stackalloc byte[4];
-
-        BinaryPrimitives.WriteInt32BigEndian(buf, boxId);
-
-        hasher.Append(buf);
-
-        return hasher.GetCurrentHashAsUInt64() & 0x0000_FFFF_FFFF_FFFFUL;
     }
 
     private static void WriteByte(ref XxHash64 hasher, byte value)

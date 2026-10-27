@@ -78,8 +78,21 @@ author, before you install it, as you would any server code.
 | **Rejected**: `server/bin/X.dll is a .dll file` | remove the file: the server compiles the sources itself (a package or a dev folder holds no build output) |
 | **Rejected**: `The manifest's Sources glob "../x" leaves the plugin's folder` | name files inside the plugin's folder |
 | **Failed**: `server/X.cs(42,9): CS0103 The name 'y' does not exist ...` | fix the code; `npm run check` shows the same errors locally |
-| **Failed**: `CS0234 The type or namespace name 'Rooms' does not exist in the namespace 'Turbo'` | the plugin uses the server's internals: use the contracts (`Turbo.Contracts`, `Turbo.Primitives`) instead |
+| **Failed**: `CS0234 The type or namespace name 'Rooms' does not exist in the namespace 'Turbo'` | the plugin uses the server's internals: use the contracts (`Turbo.Contracts`, `Turbo.Primitives`) instead (below) |
 | **Failed** with an exception | it compiled and threw as it started: the log has the stack trace with the plugin's file and line |
+
+### From the server's internals to the contracts
+
+| A plugin that used | Uses |
+| --- | --- |
+| a core furni logic (`FurnitureFloorLogic`, `FurnitureWalkToUseLogic`) and its modules | `FurniLogic` and its `IFurniContext` (`docs/plugin-wired.md`, "Furni logic"): walks (`WalkToAsync`, `WalkToInOrderAsync`), `TileInFront`/`TilesBeside`, `Schedule` for a timer or tick, `UsagePolicy`, `Walkable`, `OnDetachedAsync` |
+| the room's chat system (`SayAsAvatarAsync`, `WhisperToPlayerAsync`) | `IRoomTurn.SayAsync` with a `RoomSpeech`; in a command, `ICommandRoom.SayAsync` / `WhisperAsync` |
+| the room's map and furni modules from a command | `ICommandRoom.FloorItemsAt(x, y)` |
+| avatar, bot and temporary furni operations | `IRoomTurn`: `SetEffectAsync`, `SetBotFigureAsync`, `SetBotFollowingAsync`, `PlaceTemporaryFurniAsync`, `RemoveTemporaryFurniAsync` |
+| a core wired box (`WiredActionShowMessage`) | a `WiredEffect` with that editor (`docs/plugin-wired.md`), `UsesTextPlaceholders`, `SayAsync` |
+| the furni custody (`IFurnitureCustody.CreateInRoomAsync`) | `IRoomFurniWriter` (`Turbo.Database.Furniture`): a room's furni in your own unit of work |
+| `WiredVariableIdBuilder.CreateFromBoxId` | `WiredVariableId.OfBox` |
+| an embedded resource or the assembly's folder | `IPluginFiles.OpenRead(path)`: a file of the plugin's own folder |
 
 ## The plugin class
 
@@ -129,7 +142,8 @@ type in `Services`/`ConfigureServices`, `AddSingleton<SkillBook>()` or `AddHoste
 `Host<T>()` factory is needed for a host service):
 
 1. the plugin's own container: what its `ConfigureServices` registered, its `PluginManifest`,
-   `IPluginCatalog`, `IHostServices`, its prefixed `ILogger<T>` and the host's `IConfiguration`;
+   `IPluginFiles` (its own folder's files, read only), `IPluginCatalog`, `IHostServices`, its
+   prefixed `ILogger<T>` and the host's `IConfiguration`;
 2. the host's services, for any type the plugin did not register itself: `IGrainFactory`,
    `ISessionGateway`, `TimeProvider`, `IOptions<T>` of core's settings and the rest, as core's own
    commands and handlers take them.

@@ -54,6 +54,13 @@ public abstract class WiredBox
     /// <summary>How many furni the box may pick; null for the hotel's limit (never more than it).</summary>
     public virtual int? FurniLimit => null;
 
+    /// <summary>
+    /// Whether its text takes the stack's placeholders (<see cref="IWiredEffectContext.FormatTextAsync"/>):
+    /// the editor then lists those the stack's add-ons offer, read again each time it opens, as
+    /// Show Message's does.
+    /// </summary>
+    public virtual bool UsesTextPlaceholders => false;
+
     /// <summary>The official editor code the client opens for this box, of the box's kind.</summary>
     public abstract int EditorCode { get; }
 }
