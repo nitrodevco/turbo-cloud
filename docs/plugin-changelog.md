@@ -22,6 +22,18 @@ can notice (internals, core's own behaviour, tests) has no entry.
 
 ## 2026-10-27
 
+### The documentation has a sidebar and a website
+
+- **What**: `docs/documentation.md` orders every page under a sidebar, and each page opens with a
+  table of contents and an Introduction. New guides: Installation, Configuration, Directory
+  Structure, Deployment, Packet Lifecycle, Grains & Orleans, Errors & Logging, Furni Logic & Room
+  Turns, Testing. `docs-site/` builds them, with nitro-next's guides, into a searchable site with
+  `llms.txt` and a markdown copy of every page.
+- **Who**: everyone reading the plugin guides.
+- **Breaks plugins**: no.
+- **Action**: none; start at `docs/documentation.md`.
+- [turbo-cloud#474](https://github.com/nitrodevco/turbo-cloud/pull/474)
+
 ### A test kit: test a plugin in a hotel that loads it as the server does
 
 - **What**: `Turbo.Testing.TestHotel` loads a plugin from its sources through the server's compiler
