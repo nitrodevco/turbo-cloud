@@ -2,11 +2,14 @@ name: Docs
 
 # Builds the documentation site (docs-site/) from docs/ on every pull request that touches either.
 # A dead link between pages, or a sidebar entry for a page that does not exist, fails the build.
+# The AI kit's skills (ai/) have their TypeScript type-checked against nitro-next's client module SDK.
 on:
   pull_request:
     paths:
       - "docs/**"
       - "docs-site/**"
+      - "ai/**"
+      - "scripts/ai-kit-typecheck.mjs"
       - ".github/workflows/docs.yml"
       - ".github/workflows/docs-pages.yml"
 
@@ -41,3 +44,31 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  skills-typescript:
+    name: skills (TypeScript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nitrodevco/nitro-next
+          ref: pixi-render
+          path: nitro-next
+          sparse-checkout: packages/client-module-sdk
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      # The versions the client module SDK is built with (its package.json).
+      - name: TypeScript and React's types
+        run: npm install --no-save --no-audit --no-fund --prefix "$RUNNER_TEMP/ts" typescript@5.9.3 @types/react@19.2.17
+
+      - name: Type-check the skills' TypeScript
+        run: node scripts/ai-kit-typecheck.mjs nitro-next --node-modules "$RUNNER_TEMP/ts/node_modules"

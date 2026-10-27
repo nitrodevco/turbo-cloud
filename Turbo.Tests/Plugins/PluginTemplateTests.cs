@@ -157,6 +157,7 @@ public sealed class PluginTemplateTests : IDisposable
                 "listener entered",
                 "setting rate --type int --default 5",
                 "route rares/values --anonymous",
+                "mcp-tool OnlinePlayers",
                 "window news",
                 "patch habbo-friend-list-com/friend_list_xml",
                 "migration AddPrizes",
@@ -219,6 +220,7 @@ public sealed class PluginTemplateTests : IDisposable
             .Be("""[["level","int"],["name","string"]]""");
         host.Messages.Messages.Select(x => x.Name).Should().Contain($"{key}.ping");
         host.WebRoutes.MethodsAt(key, "rares/values").Should().Equal("GET");
+        host.Mcp.All.Select(x => x.Name).Should().Contain($"{key}_online_players");
         host.Policies.Registered.Select(x => (x.Kind, x.Policy))
             .Should()
             .BeEquivalentTo([
@@ -663,7 +665,13 @@ public sealed class PluginTemplateTests : IDisposable
         );
         Directory.CreateDirectory(Path.Combine(source, ".claude", "skills", "mine"));
 
-        (await NodeAsync(source, "tools/ai.mjs install", AppContext.BaseDirectory))
+        (
+            await NodeAsync(
+                source,
+                "tools/ai.mjs install --agents claude,codex",
+                AppContext.BaseDirectory
+            )
+        )
             .Exit.Should()
             .Be(0);
 
@@ -709,6 +717,101 @@ public sealed class PluginTemplateTests : IDisposable
             .Should()
             .Contain("mine", "it was never the kit's")
             .And.NotContain("econ-pay", "the last run installed it and this one did not");
+        File.ReadAllText(Path.Combine(source, "AGENTS.md"))
+            .Should()
+            .Contain("<turbo-boost>", "update writes for the agents install was given");
+    }
+
+    /// <summary>
+    /// Run without <c>--agents</c> and not in a terminal, <c>npm run ai</c> sets up the agents whose
+    /// folders the plugin has, each in its own files (Cursor's rule, Copilot's instructions and
+    /// VS Code's MCP config, Codex's TOML, Junie's guidelines), keeping what the author wrote in each.
+    /// </summary>
+    [Fact]
+    public async Task Ai_sets_up_each_agent_the_plugin_uses_in_its_own_files()
+    {
+        var source = Path.Combine(_folder, "source");
+        string In(string path) => Path.Combine(source, path);
+
+        CopyTemplate(source);
+        Directory.CreateDirectory(In(".cursor"));
+        Directory.CreateDirectory(In(".junie"));
+        Directory.CreateDirectory(In(".codex"));
+        Directory.CreateDirectory(In(".vscode"));
+        Directory.CreateDirectory(In(".github"));
+        File.WriteAllText(In(".codex/config.toml"), "[profiles.mine]\nmodel = \"x\"\n");
+        File.WriteAllText(In(".github/copilot-instructions.md"), "Answer in English.\n");
+        File.WriteAllText(
+            In(".vscode/mcp.json"),
+            """{"servers":{"mine":{"command":"x"}},"inputs":[{"type":"promptString","id":"mine"}]}"""
+        );
+
+        for (var run = 0; run < 2; run++)
+            (await NodeAsync(source, "tools/ai.mjs install", AppContext.BaseDirectory))
+                .Exit.Should()
+                .Be(0);
+
+        File.Exists(In("CLAUDE.md")).Should().BeFalse("the plugin has no Claude Code folder");
+        File.ReadAllText(In(".cursor/rules/turbo-boost.mdc"))
+            .Should()
+            .StartWith("---\ndescription: ")
+            .And.Contain("alwaysApply: true\n---\n\n<turbo-boost>")
+            .And.Contain("`.cursor/skills/<name>/SKILL.md`");
+        File.ReadAllText(In(".github/copilot-instructions.md"))
+            .Should()
+            .StartWith("Answer in English.\n\n<turbo-boost>")
+            .And.Contain("`.github/skills/<name>/SKILL.md`");
+        File.ReadAllText(In(".junie/guidelines.md")).Should().StartWith("<turbo-boost>");
+        File.ReadAllText(In("AGENTS.md")).Should().Contain("`.agents/skills/<name>/SKILL.md`");
+
+        foreach (var skills in new[] { ".cursor", ".github", ".junie", ".agents" })
+            File.Exists(In($"{skills}/skills/turbo-plugin-basics/SKILL.md"))
+                .Should()
+                .BeTrue(skills);
+
+        var toml = File.ReadAllText(In(".codex/config.toml"));
+        toml.Should()
+            .StartWith("[profiles.mine]\nmodel = \"x\"\n")
+            .And.Contain("[mcp_servers.turbo]\nurl = \"http://")
+            .And.Contain("bearer_token_env_var = \"TURBO_MCP_TOKEN\"");
+        toml.Split("[mcp_servers.turbo]").Should().HaveCount(2, "run twice, one table");
+
+        var vscode = JsonDocument.Parse(File.ReadAllText(In(".vscode/mcp.json"))).RootElement;
+        vscode.GetProperty("servers").TryGetProperty("mine", out _).Should().BeTrue();
+        vscode
+            .GetProperty("servers")
+            .GetProperty("turbo")
+            .GetProperty("headers")
+            .GetProperty("Authorization")
+            .GetString()
+            .Should()
+            .Be("Bearer ${input:turbo-mcp-token}");
+        vscode
+            .GetProperty("inputs")
+            .EnumerateArray()
+            .Select(x => x.GetProperty("id").GetString())
+            .Should()
+            .Equal("mine", "turbo-mcp-token");
+        JsonDocument
+            .Parse(File.ReadAllText(In(".cursor/mcp.json")))
+            .RootElement.GetProperty("mcpServers")
+            .GetProperty("turbo")
+            .GetProperty("headers")
+            .GetProperty("Authorization")
+            .GetString()
+            .Should()
+            .Be("Bearer ${env:TURBO_MCP_TOKEN}");
+        File.ReadAllText(In(".junie/mcp/mcp.json")).Should().Contain("mcp-remote");
+
+        var (exit, output) = await NodeAsync(
+            source,
+            "tools/ai.mjs install --agents claude,windsurf",
+            AppContext.BaseDirectory
+        );
+        exit.Should().Be(1);
+        output
+            .Should()
+            .Contain("windsurf: an agent is one of claude, codex, cursor, copilot, junie");
     }
 
     /// <summary>

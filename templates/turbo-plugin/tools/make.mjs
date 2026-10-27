@@ -17,6 +17,7 @@
  *                                       a setting in the plugin's [PluginSettings] class
  *   route <path> [--method GET] [--anonymous]
  *                                       a web route at /api/plugins/<key>/<path> (server/Routes)
+ *   mcp-tool <Name>                     a tool for AI assistants on the hotel's MCP server, its node and its test (server/Mcp)
  *   window <name>                       a window, opened by the link <key>/<name> (client/src/made)
  *   patch <library>/<asset>             a template patch on a core window (wwwroot/template-patches.json)
  *   migration <Name>                    the plugin's tables (server/Database) and a migration (dotnet ef)
@@ -655,6 +656,102 @@ ${anonymous ? '\n    public bool Anonymous => true;\n' : ''}
 `);
 
         return [ 'plugin-web-routes.md' ];
+    },
+
+    'mcp-tool'() {
+        if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(name)) fail('An MCP tool is a name of letters, digits and _: npm run make mcp-tool OnlinePlayers');
+
+        const type = `${pascal(name)}Tool`;
+        const tool = `${key}_${constant(name).toLowerCase()}`;
+
+        write(path.join(server, 'Mcp', `${type}.cs`), `
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Turbo.Contracts.Hotel;
+using Turbo.Contracts.Plugins.Mcp;
+using Turbo.Primitives.Players.Permissions;
+
+namespace ${assembly};
+
+public sealed record ${pascal(name)}Input(
+    [Description("How many players to answer.")] [Range(1, 50)] int Take = 10
+);
+
+public sealed record ${pascal(name)}Output(int Online, IReadOnlyList<int> PlayerIds);
+
+/// <summary>
+/// <c>${tool}</c>, for AI assistants through the hotel's MCP server plugin, to staff whose rank
+/// holds <see cref="PERMISSION"/>. Found as the plugin loads.
+/// </summary>
+[RequiresPermission(PERMISSION)]
+public sealed class ${type}(IHotel hotel) : McpTool<${pascal(name)}Input, ${pascal(name)}Output>
+{
+    public const string PERMISSION = "${key}.mcp.${constant(name).toLowerCase()}";
+
+    public override string Name => "${tool}";
+
+    public override string Title => "${pascal(name)}";
+
+    /// <summary>How the assistant picks the tool: what it does, what it answers, when to use it.</summary>
+    public override string Description =>
+        "Counts the players online and answers the ids of the first of them.";
+
+    public override bool ReadOnly => true;
+
+    public override Task<McpToolResult> HandleAsync(
+        ${pascal(name)}Input input,
+        McpToolContext ctx,
+        CancellationToken ct
+    )
+    {
+        var online = hotel.Players.OnlineIds();
+
+        return Task.FromResult(
+            Ok(new ${pascal(name)}Output(online.Count, [.. online.Take(input.Take).Select(x => x.Value)]))
+        );
+    }
+}
+
+/// <summary>Who may call <c>${tool}</c>: a node a hotel grants per rank, to staff.</summary>
+public sealed class ${type}Permission : IPermissionNodeSource
+{
+    public string? Prefix => "${key}";
+
+    public IEnumerable<PermissionNodeDefinition> Nodes =>
+        [new(${type}.PERMISSION, "MCP: ${pascal(name)}")];
+
+    public IEnumerable<PermissionMetaDefinition> MetaKeys => [];
+}
+`);
+
+        test(path.join('Mcp', `${type}Tests.cs`), `
+public sealed class ${type}Tests
+{
+    [Fact]
+    public async Task ${pascal(name)}_answers_staff_who_hold_its_node_and_no_one_else()
+    {
+        var hotel = new FakeHotel();
+        var staff = hotel.Players.Add("Staff");
+        var alice = hotel.Players.Add("Alice", online: true);
+        var tools = new McpToolTester(new ${type}(hotel));
+
+        staff.Permissions.Add(${type}.PERMISSION);
+
+        var answer = (await tools.As(staff).CallAsync("${tool}", new { take = 5 })).AssertOk();
+
+        Assert.Equal([alice.Id.Value], answer.Data<${pascal(name)}Output>().PlayerIds);
+        (await tools.As(staff).CallAsync("${tool}", new { take = 100 })).AssertInvalid("must be at most 50");
+        (await tools.As(alice).CallAsync("${tool}", new { })).AssertUnavailable();
+    }
+}
+`);
+        console.log(`Try it on the dev hotel: npm run mcp:inspect (give your rank ${key}.mcp.${constant(name).toLowerCase()} first).`);
+
+        return [ 'plugin-mcp-tools.md' ];
     },
 
     window() {

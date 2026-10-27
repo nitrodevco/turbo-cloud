@@ -65,25 +65,37 @@ Load the skill before writing that kind of code.
 
 - `npm run make <kind> <name>`: scaffolds one piece in the right folder and shape (`command`,
   `message`, `logic`, `wired`, `listener`, `setting`, `route`, `window`, `patch`, `migration`,
-  `schedule`, `policy`). Prefer it to writing the file from nothing.
+  `schedule`, `policy`, `mcp-tool`). Prefer it to writing the file from nothing.
 - `npm run check`: compiles the server sources exactly as the hotel does (same references, C#,
   TPP rules). Run it after every server change; errors read `server/File.cs(line,col)`.
 - `npm test`: the server tests (`dotnet test`) and the client tests. `npm run typecheck`: the module's types.
 - `npm run dev`: keeps `dist/<key>/` current for a dev hotel, which reloads the plugin on save.
+- `npm run mcp:inspect`: the MCP Inspector on the dev hotel's MCP server, to call a tool by hand.
 - `npm run ai:update`: refreshes this block and the skills from the server the plugin builds against.
   After moving to a newer server, read `plugin-changelog.md` (what changed for plugins) and
   `upgrading.md` before fixing what no longer compiles.
 
 ### Looking things up
 
-The guides of the server this plugin builds against are in `$TurboBin/plugin-sdk/docs/` (the same
-files as turbo-cloud `docs/`). With the hotel's MCP server connected, use its tools before guessing:
+Look a member up before writing code a skill does not show, in this order:
 
-- `search_docs` / `read_doc`: those guides, ranked; read the section it names.
+1. **`search_docs` first.** When the `turbo` MCP server is connected (its tools are listed), call
+   `search_docs` with what you need in words (`schedule a daily task`, `IRoomTurn`, `CommandResult`)
+   and `read_doc` the section it names. It searches the guides and the skills of the server this
+   plugin builds against, ranked, and answers in one call: do not grep the guides while it answers.
+2. **Then the guides folder.** Only when the `turbo` server is not connected (no such tool, or it
+   refuses the token): the same guides are Markdown files in `$TurboBin/plugin-sdk/docs/` (the
+   folder under "This plugin" below); search them for the member's name.
+
+The dev hotel's other tools, when connected:
+
 - `plugin_errors`: the plugin's state on the dev hotel with each compile error, refused call (TPP)
   and client build error by file and line, and the plugin's recent warnings.
+- `client_errors`: what players' clients reported of the plugin's client module (refused, threw, a
+  template patch that matched nothing) and the console errors the client errors plugin recorded.
 - `server_log`: the dev hotel's latest log lines and its last error (with the stack trace).
 - `message_schema`: a plugin message's or a core packet's header and fields.
-- `plugin_tables`: the plugin's tables and columns as the database has them.
+- `plugin_tables`: the plugin's tables and columns as the database has them; `plugin_query` reads
+  its rows (one `SELECT` over the plugin's own tables).
 
 Never invent an API: if a member is not in a skill or a guide, search for it, then `npm run check`.
