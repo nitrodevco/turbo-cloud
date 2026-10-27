@@ -1,5 +1,12 @@
 # Room polls
 
+- [Introduction](#introduction)
+- [What it does](#what-it-does)
+- [Setting one up (data)](#setting-one-up-data)
+- [Evidence](#evidence)
+
+## Introduction
+
 A poll the hotel offers to whoever enters a room: a short offer, then a few questions, then a
 thank-you. The client side is Flash's `PollWidget` (offer `PollOfferDialog`, questions
 `PollContentDialog`); the room's word quiz is a different thing (`IRoomGrain.AnswerWordQuizAsync`)

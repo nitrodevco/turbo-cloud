@@ -1,5 +1,10 @@
 # Reception responses
 
+- [Introduction](#introduction)
+- [Bonus rare](#bonus-rare)
+
+## Introduction
+
 The reception timing handlers resolve the client's date/code schedules against UTC
 and echo the original schedule or timestamp so the client can match the response.
 

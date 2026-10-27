@@ -1,5 +1,17 @@
 # New user flow
 
+- [Introduction](#introduction)
+- [Configuring it](#configuring-it)
+    - [Starter rooms](#starter-rooms)
+    - [New users: the lobby and the journey](#new-users-the-lobby-and-the-journey)
+    - [New user gifts](#new-user-gifts)
+    - [Blocked names](#blocked-names)
+- [How the client is told](#how-the-client-is-told)
+- [Look and name](#look-and-name)
+- [Starter room](#starter-room)
+
+## Introduction
+
 Habbo greets a new account with two full-screen steps before the hotel view: **Choose your
 style** (look and name) and **Choose your room** (a furnished starter room). Turbo runs the same
 flow behind one switch, `Turbo:Onboarding:Enabled` (off by default, on the panel's Settings page).

@@ -1,5 +1,9 @@
 # Turbo Cloud
 
+The documentation starts at [docs/documentation.md](docs/documentation.md), from
+[Installation](docs/installation.md) to writing plugins; `docs-site/` builds it into a website
+([Contribution Guide](docs/contributions.md#building-the-site)).
+
 ## 5-Minute Quickstart
 1. Clone and enter the repo.
 2. Run bootstrap once.

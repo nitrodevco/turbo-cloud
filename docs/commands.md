@@ -1,4 +1,251 @@
-# Chat commands
+# Commands
+
+- [Introduction](#introduction)
+- [Writing a Command](#writing-a-command)
+    - [Generating Commands](#generating-commands)
+- [Arguments](#arguments)
+    - [Optional Arguments](#optional-arguments)
+    - [Validating Arguments](#validating-arguments)
+- [Replies](#replies)
+    - [Confirming a Large Action](#confirming-a-large-action)
+- [Permissions](#permissions)
+    - [Room Rights](#room-rights)
+- [Acting on the Room](#acting-on-the-room)
+- [Operator Commands](#operator-commands)
+    - [Naming Players and Groups of Players](#naming-players-and-groups-of-players)
+- [Names, Aliases and Categories](#names-aliases-and-categories)
+- [Vetoing a Command](#vetoing-a-command)
+- [Design Notes](#design-notes)
+
+## Introduction
+
+A player types `:name args` in room chat and, instead of the line being said, a **command** runs.
+Core ships the commands Habbo's clients already send as chat (`:pickall`, `:kick`) and the
+operator commands staff need (`:ban`, `:alert`, `:give`); everything else, a roleplay's `:hit` or a
+casino's `:roll`, belongs in a plugin.
+
+A command is one class. Core parses the line, binds the arguments to a record you declare, checks
+the player's permission and room rights, runs the command in the room's turn, and turns its result
+into a whisper from the hotel's texts. You write only what the command does.
+
+## Writing a Command
+
+A command is a public class implementing `ICommand<TArgs>` (`Turbo.Primitives.Commands`), with
+`[Command]` naming it and `[RequiresPermission]` naming the node that lets a player use it:
+
+```csharp
+using Turbo.Primitives.Commands;
+using Turbo.Primitives.Players.Permissions;
+
+public sealed record HugArguments(IRoomPlayer Target);
+
+[Command("hug", Description = "Hug someone in the room")]
+[RequiresPermission(FunPermissions.HUG)]
+public sealed class HugCommand : ICommand<HugArguments>
+{
+    public async ValueTask<CommandResult> ExecuteAsync(ICommandContext ctx, HugArguments arguments, CancellationToken ct)
+    {
+        await ctx.Room.SayAsync(ctx.Executor, $"*hugs {arguments.Target.Name}*", shout: false, ct);
+
+        return CommandResult.Ok;
+    }
+}
+```
+
+There is nothing to register. The server finds the class as its plugin loads, and removes it when
+the plugin unloads. It is built once, with the plugin's services, and shared by every player who
+uses it, so it keeps no state of its own: take a service by constructor for that.
+
+> [!NOTE]
+> A command without `[RequiresPermission]` is refused when its plugin loads. Every command says
+> which node lets a player use it, so `:commands` can list exactly what each player may run.
+
+### Generating Commands
+
+In a plugin made from the template:
+
+```shell
+npm run make command hug
+```
+
+writes `server/Commands/HugCommand.cs` and its permission node, `<key>.command.hug`.
+
+## Arguments
+
+The arguments are a record whose primary constructor lists the parameters in order. Core reads the
+line, converts each word, and calls your command only when everything fits; otherwise it replies
+with a usage line built from the record, so a command never indexes into an array of words.
+
+| Parameter type | Takes |
+| --- | --- |
+| `IRoomPlayer` | a player in this room, by name, any case |
+| `string`, `int`, `long`, `bool` | one word |
+| an enum | one word naming a value |
+| `RestOfLine` | everything left on the line, spaces included (last only) |
+| `PlayerTarget` | a player anywhere, or `@room` / `@online` (operator commands) |
+
+Use `NoArguments` as `TArgs` for a command that takes none.
+
+### Optional Arguments
+
+A nullable type or a default value makes a parameter optional:
+
+```csharp
+public sealed record MuteArguments(IRoomPlayer Target, int? Minutes = null);
+```
+
+### Validating Arguments
+
+`[CommandParameter]` adds limits and help that the binder, the client's autocomplete and the
+generated usage all share:
+
+```csharp
+public sealed record RollArguments(
+    [CommandParameter(Description = "how many dice", Minimum = "1", Maximum = "6")] int Dice
+);
+```
+
+`MinLength`, `MaxLength`, `Sensitive` and `Quoted` (a free text that must be written in double
+quotes, so where it ends is never a guess) are there too.
+
+## Replies
+
+A command returns a `CommandResult`, and core turns it into a whisper from the hotel's texts under
+`command.<name>.<status>`, with `%0%`, `%1%`... replaced by the result's parameters:
+
+```csharp
+private const string MUTED = "muted";
+
+public IReadOnlyDictionary<string, string> DefaultTexts { get; } =
+    new Dictionary<string, string> { [MUTED] = "%0% is muted for %1% minutes." };
+
+// ...
+return CommandResult.Done(MUTED, arguments.Target.Name, minutes.ToString());
+```
+
+| Result | Means |
+| --- | --- |
+| `CommandResult.Ok` | done, and nothing to say |
+| `CommandResult.Done(status, params)` | done, with a reply |
+| `CommandResult.Fail(status, params)` | refused or failed, with a reply |
+| `CommandResult.Confirm(status, params)` | not done yet: the player must say `:confirm` first |
+
+`DefaultTexts` is used while the hotel's texts have no `command.<name>.<status>`, so a hotel can
+reword or translate every reply without touching code. A command that throws is caught, logged and
+answered with a whisper; return `Fail` for the failures you expect.
+
+### Confirming a Large Action
+
+A line that reaches enough of the hotel (an alert to everyone online) returns
+`CommandResult.Confirm(...)` with the command's own words for what it would do. Core adds how to go
+ahead, and runs the command for real when the player says `:confirm`.
+
+## Permissions
+
+A plugin declares its nodes with an `IPermissionNodeSource`, found as it loads like everything else.
+A node a player may use without being given it is `GrantedByDefault`, and a hotel takes it away per
+rank with a denial:
+
+```csharp
+public sealed class FunPermissions : IPermissionNodeSource
+{
+    public const string HUG = "fun.command.hug";
+
+    public string? Prefix => "fun";
+
+    public IEnumerable<PermissionNodeDefinition> Nodes =>
+        [new(HUG, "Hug someone with :hug", GrantedByDefault: true)];
+
+    public IEnumerable<PermissionMetaDefinition> MetaKeys => [];
+}
+```
+
+Core's commands use `command.<name>`; a plugin's start with its key, `<key>.command.<name>`. See
+[Permissions](permissions.md).
+
+### Room Rights
+
+`[RequiresRoomLevel(RoomControllerType.Rights)]` also requires a controller level in the room the
+command was typed in (`room.control.any` counts as a moderator). A command with it needs a room, so
+the console cannot run it.
+
+## Acting on the Room
+
+A command runs **inside the room's turn**, so `ctx.Room` (`ICommandRoom`) reads and acts on the room
+directly:
+
+| Member | Does |
+| --- | --- |
+| `Players`, `FindPlayer(name)` | the players in the room |
+| `GetControllerLevelAsync(player)` | a player's rights here |
+| `WhisperAsync(player, text)`, `SayAsync(speaker, text, shout)` | a whisper; a line the room hears (filtered, not chat) |
+| `NoticeAsync(player, lines)` | a scrollable list, for a reply too long for a whisper |
+| `FloorItemsAt(x, y)` | the floor furni on a tile, lowest first |
+| `KickAsync`, `MuteAsync`, `ClearAsync`, `SetRoomMutedAsync` | as the room's own menus do, on the room's own rules |
+
+> [!WARNING]
+> Because a command runs in the room's turn, it must not await a call back into the same room
+> (`hotel.Rooms.SendAsync(ctx.RoomId, ...)`): the room would wait on itself. Use `ctx.Room`.
+> Calls to other grains (a wallet, an inventory) are fine. See [Grains & Orleans](grains.md).
+
+## Operator Commands
+
+A command that acts on the hotel rather than the room it was typed in (name an offline player,
+alert everyone, give currency) implements `IOperatorCommand<TArgs>` instead. It runs **outside** the
+room's turn, so it can await any grain, and it can also be run from the server console:
+
+```csharp
+public sealed record AlertArguments(
+    [Selectors(PermissionNodes.Command.ALERT_MASS)] PlayerTarget Who,
+    RestOfLine Message
+);
+
+[Command("alert", Description = "Send a player a pop-up message", Category = CommandCategories.ANNOUNCEMENTS)]
+[RequiresPermission(PermissionNodes.Command.ALERT)]
+public sealed class AlertCommand(/* services */) : IOperatorCommand<AlertArguments>
+{
+    public ValueTask<CommandResult> ExecuteAsync(IOperatorCommandContext ctx, AlertArguments arguments, CancellationToken ct)
+    {
+        // ...
+    }
+}
+```
+
+`ctx.Executor` is a permission subject (`HasAsync(node)`, `NoticeAsync(lines)`); the console holds
+every node.
+
+### Naming Players and Groups of Players
+
+A `PlayerTarget` parameter keeps the text the operator typed. It may name a player who is offline
+or elsewhere, or a selector: `@room` (everyone in the operator's room) or `@online`. `[Selectors(node)]`
+says which node a selector needs. Resolve it as the command runs with `ctx.ResolveAsync(target)` (one
+player) or `ctx.SelectAsync(target)` (a selector too), and act on many with `ctx.ExecuteBatchAsync`,
+which counts who it reached.
+
+## Names, Aliases and Categories
+
+```csharp
+[Command("give", Description = "Give a player currency", Aliases = ["pay"], Category = "Economy")]
+```
+
+The name is one lowercase word. `Aliases` are extra names declared in code; a hotel may add more in
+its texts (`command.<name>.aliases`) but never rename or remove the declared ones, so a documented
+name always works. `:commands` lists commands under their `Category`. A second registration of a
+name or an alias is refused.
+
+## Vetoing a Command
+
+`CommandExecutingEvent` is raised after a line is bound and before the command runs, and a handler
+may `Cancel()` it. It carries the command's descriptor, so a plugin can read its own attributes on
+its own commands: a roleplay marks some `[UsableWhileDead]` and cancels the others for a player who
+is "dead". `CommandExecutedEvent` follows with the outcome. See
+[Policies & Events](plugin-policies.md#post-commit-events).
+
+## Design Notes
+
+What follows is the design record the command system was built from: the evidence, the decisions
+and their reasons, what core ships, and the guarantees it keeps. Read it to change the command
+system itself.
 
 Design for a command system: a player types `:name args` in room chat and a command runs instead
 of the line being said, and the same commands can run from the server console. Core provides the
@@ -10,12 +257,12 @@ change ships the engine, `:commands`, `:kick`, `:mute` and the `command_logs` ta
 the owner commands (`:pickall` and friends) and a client extension for autocomplete follow. Commands complement a hotel's UI rather than replace it, so core keeps its own
 commands to the minimum.
 
-## 1. Evidence
+### 1. Evidence
 
 The clients show what players and servers already expect. Older emulators show what plugin
 commands need, and what went wrong, not how to build it.
 
-### Turbo today
+#### Turbo today
 
 Every room line goes through `RoomChatSystem.SendChatFromPlayerAsync`:
 
@@ -31,7 +278,7 @@ There is no command system. A plugin can cancel the event and treat the line as 
 then every plugin parses `:` its own way, two plugins can claim the same word, nothing lists what a
 player may use, and each checks permissions by hand.
 
-### The clients
+#### The clients
 
 AS3 (`ChatInputWidgetHandler`) is the behavioral source of truth. The official JavaScript
 client provides implementation guidance; nitro-next handles input in `RoomChatInputView` and
@@ -48,13 +295,13 @@ AIR replaces a second word `x` with the name of the selected avatar, so `:kick x
 `:kick Alice`. Turbo answers `:kick`, `:mute`, `:pickall`, `:pickallbc`, `:ejectall`, `:ejectpets`,
 `:resetscores` and `:mutepets` from the second row; the rest are said out loud.
 
-### Plugin requirements
+#### Plugin requirements
 
 Core owns argument validation, target lookup, permission checks and localized usage replies.
 Plugins own game-specific rules such as cooldowns, distance limits and character state, and can
 veto execution through the command events. Command registration must reject ambiguous names.
 
-## 2. Decisions
+### 2. Decisions
 
 Each question was put to Jev (TypeSafe) with the evidence above. The instruction was to design for
 correctness and plugin authors, treating the older emulators as evidence rather than a model to
@@ -63,7 +310,7 @@ FuseRP and Skylight3, then the whole survey. The rows under *Settled* held acros
 moved each time the evidence grew and ended near an even split; they were decided by the focused
 pass below.
 
-### Settled
+#### Settled
 
 | # | Question | Decision | Jev |
 | --- | --- | --- | --- |
@@ -82,7 +329,7 @@ pass below.
 | 17 | How does a plugin stop a command from its own game state (dead, cuffed)? | **A cancellable pre-execution event carrying the command's descriptor**, so a plugin reads its own attributes on its commands (`[UsableWhileDead]`) and vetoes. Core defines no game-state flags. | 0.98 |
 | 18 | How do commands report back? | **A result, turned into a whisper from hotel texts keys by core**: binding errors, target not found, no room, and the command's own status, so a hotel can translate and reword every reply. | 1.00 |
 
-### Decided in a focused pass
+#### Decided in a focused pass
 
 Four questions stayed near an even split in the broad runs, so each was asked again the way
 TypeSafe recommends:
@@ -104,11 +351,11 @@ stable.
 | 8 | Operators renaming commands | **Names are declared in code; hotel texts may add aliases** (`command.<name>.aliases`) but never rename or remove the declared name, so every documented name keeps working. An added alias that clashes is reported and ignored when the texts reload. What settled it: HabboRP-br forked core to give core's commands Portuguese names beside the English ones (`pickall`/`pegartudo`, `ban`/`banir`, `dc`/`desconectar`), so the need is real today (0.89) and code-only names would force such a fork (0.89). | 0.72–0.78 over 3 runs |
 | 9 | Arguments | **Typed parameters.** Core binds and validates them, resolves names, and replies with generated usage text; the command body never indexes an array. A rest-of-line parameter still gives a command raw text when it wants it. | 0.93; set and equal weights agree |
 
-## 3. Shape
+### 3. Shape
 
 A sketch to review, not an API to hold anyone to.
 
-### Declaring a command
+#### Declaring a command
 
 A command is a class in core or a plugin assembly. A feature processor finds it as the plugin
 loads and removes it when the plugin unloads, as handlers and permission sources are found:
@@ -153,7 +400,7 @@ public sealed class KickCommand : ICommand<KickCommand.Arguments>
 - **The registry** refuses a second registration of a name or alias (decision 6), and warns for a
   name AIR runs itself (decision 7).
 
-### The executor
+#### The executor
 
 `ICommandExecutor` is a permission subject with an optional player and room. There are two kinds:
 a player typing in a room, and the console, which holds every node (decision 12). A command that
@@ -161,7 +408,7 @@ declares it needs a room, or a room player parameter, runs only for an executor 
 refuses it elsewhere with a reply. `perm` stays as it is: the console's own commands are not chat
 commands.
 
-### Where it runs in the chat pipeline
+#### Where it runs in the chat pipeline
 
 1. truncate;
 2. mute checks (decision 3), then the flood check. A command counts against the flood window, but one over the limit is dropped rather than muting chat (decision 4);
@@ -172,14 +419,14 @@ commands.
 A command runs in the room grain's turn, reads room state without a call, and awaits other grains
 without blocking. An exception is caught, logged and answered with a whisper (decision 14).
 
-### Replies
+#### Replies
 
 A command returns a `CommandResult`: success, or a status with parameters. Core turns a result
 into a whisper from the hotel texts under `command.<name>.<status>`. Its own failures (arguments
 that do not fit, a target not found, no room) use shared keys (decision 18), so a hotel can reword
 or translate every reply without touching code.
 
-### Events and logging
+#### Events and logging
 
 - `CommandExecutingEvent` is cancellable, raised after binding and before the command runs. It
   carries the command's descriptor, its type and attributes, so a plugin can veto on its own
@@ -189,7 +436,7 @@ or translate every reply without touching code.
 - A use by an executor holding `command.log` goes to a `command_log` table: executor, room,
   command, argument text, outcome, time (decision 11).
 
-## 4. What core ships
+### 4. What core ships
 
 The commands a Habbo client already sends to the server as chat (§1), and each only once the
 feature behind it exists in Turbo. Until then its name is not registered, and the line is said as
@@ -209,7 +456,7 @@ chat as it is now. Operator commands are in §4.1.
 `:moonwalk`, `:habnam`, `:yyxxabxa` and `:mpgame` are client easter eggs and a game. Nothing
 needs them, so none is planned.
 
-### 4.1 Operator commands (built)
+#### 4.1 Operator commands (built)
 
 The first table is what the clients already send. Hotel operators also need bans, alerts,
 summon and follow, currency and badge grants, user information, online counts, reloads,
@@ -285,7 +532,7 @@ waiting; `moderation.cfh.unknown_topic`).
 - `:regenmaps` and `:fixtiles` patch broken state; fix the cause.
 - `:invisible` needs avatar support. Deferred.
 
-### 4.2 Confirming what reaches the hotel (built)
+#### 4.2 Confirming what reaches the hotel (built)
 
 A line that reaches a lot of the hotel does nothing until its executor confirms it, as Terraform's
 `plan` waits for `apply`. The server says what it would do and how to go ahead (`That reaches 312
@@ -313,7 +560,7 @@ players. Type :confirm within 30 seconds to go ahead.`), and `:confirm` runs it.
 - **Not room commands.** `:roomkickall` and `:unloadroom` run in the room's turn and reach one room;
   they do not wait.
 
-### 4.3 Bulk execution and finalisation
+#### 4.3 Bulk execution and finalisation
 
 `give`, `giveitem`, `givebadge` and `takebadge` use `ctx.ExecuteBatchAsync` over the resolved
 players. Core executes at most `Turbo:Commands:MaxBatchConcurrency` players concurrently (4 by
@@ -338,14 +585,14 @@ and completion hooks are still attempted; observer failures cannot change the te
 A timeout bounds the wait, not the underlying operation: hooks must honour their token. These
 bounds apply outside the room's turn; room hooks stay awaited in that turn.
 
-## 5. Open
+### 5. Open
 
 - **Wired.** A command stops before the room event, so the "says keyword" trigger never sees it.
   Decide when a wired box needs to.
 - **Tab completion.** Neither client asks for it.
 - **RCON.** It needs an executor kind of its own when Turbo has RCON.
 
-## 6. Build notes
+### 6. Build notes
 
 What the build found that the design did not say.
 
@@ -373,7 +620,7 @@ What the build found that the design did not say.
 - **Matching never allocates.** Names are found with a span lookup, so an ordinary chat line, or a
   `:word` nobody registered, costs no allocation before the line goes on as chat.
 
-## 7. Telemetry
+### 7. Telemetry
 
 Opt-in, like the room telemetry (`docs/telemetry.md`), and silent when nothing listens.
 
@@ -386,7 +633,7 @@ Opt-in, like the room telemetry (`docs/telemetry.md`), and silent when nothing l
 - A command that holds the room's turn longer than `Turbo:Rooms:CommandSlowWarningMs` (default 250) is logged as a
   warning with its name and room.
 
-## 8. Command log
+### 8. Command log
 
 A use by an executor holding command.log is written to command_logs: room, player, command
 name, the arguments as typed (cut at 255, redacted for sensitive commands), the outcome and the time it ran. A hotel
@@ -400,7 +647,7 @@ Turbo:Rooms:MaxCommandLogsPerFlush on the chatlog timer and when it deactivates.
 fails goes back on the queue in order, and when the queue is full the oldest uses are dropped with
 a warning. The ids are plain columns, not foreign keys: the log outlives the room.
 
-## 9. Client autocomplete (built on the server)
+### 9. Client autocomplete (built on the server)
 
 A client completes and checks a line from the command schema the server already has: the
 `chat.commands.v2` extension in `docs/client-capabilities.md` sends each player the commands they may
@@ -409,7 +656,7 @@ use, with every parameter's type, and answers suggestion requests for values onl
 command's `PlayerTarget` parameter (§4.1). nitro-next asks for it and completes in its chat input.
 
 
-## 10. Grammar, execution and audit guarantees
+### 10. Grammar, execution and audit guarantees
 
 Argument records can declare literal branches with `[CommandBranch("add", typeof(AddArguments))]`.
 Each concrete record derives from the declared base and carries only that branch's arguments.
@@ -450,7 +697,7 @@ performed by code-generation or test checks.
 Client grammar and contextual suggestions use the negotiated `chat.commands.v2` extension;
 see `client-capabilities.md` for its exact wire layout. Older clients still use chat commands.
 
-## 11. Executor feedback and target notices
+### 11. Executor feedback and target notices
 
 Command results describe the applied action. Target notices are best effort and cannot turn a
 completed action into a failure. Executors receive separate warnings when a target is offline

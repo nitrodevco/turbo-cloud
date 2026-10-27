@@ -1,5 +1,13 @@
 # Campaign calendar
 
+- [Introduction](#introduction)
+- [How it runs](#how-it-runs)
+- [Data](#data)
+- [Admin API](#admin-api)
+- [Extending](#extending)
+
+## Introduction
+
 Habbo's gift calendar (advent-style): one door a day, each with a gift. The client is
 `com/sulake/habbo/campaign` in the Flash client (`HabboCampaigns`, `CalendarView`, `CalendarItem`,
 read from WIN63-202610201032); the window is `habbo-toolbar-com/campaign_calendar_xml`.

@@ -1,5 +1,23 @@
 # Extending Turbo and Nitro: the framework model
 
+- [Introduction](#introduction)
+- [1. One add-on, one package (what already holds)](#1-one-add-on-one-package-what-already-holds)
+- [2. What is wrong with it today](#2-what-is-wrong-with-it-today)
+- [3. The primitives](#3-the-primitives)
+- [4. The model, kind by kind](#4-the-model-kind-by-kind)
+    - [4.1 Events: two tiers](#41-events-two-tiers)
+    - [4.2 Pipelines and policies](#42-pipelines-and-policies)
+    - [4.3 Service contracts](#43-service-contracts)
+    - [4.4 Registries](#44-registries)
+    - [4.5 Template patches (client)](#45-template-patches-client)
+    - [4.6 Theme layers](#46-theme-layers)
+    - [4.7 Messages](#47-messages)
+    - [4.8 Web routes (a registry)](#48-web-routes-a-registry)
+- [5. Stability](#5-stability)
+- [6. Roadmap](#6-roadmap)
+
+## Introduction
+
 Turbo (server, C#/Orleans) and Nitro (client, TypeScript/React/Pixi) are two programs in two
 languages. To someone building a feature they should feel like one framework: one package, one set of
 conventions, one place to look things up. This document says how they fit together, which extension

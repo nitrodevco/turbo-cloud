@@ -44,9 +44,10 @@
         Include="@(_TurboPluginAiFile)"
         SdkPath="plugin-sdk/ai/%(RecursiveDir)%(Filename)%(Extension)"
       />
+      <!-- docs/client/ is nitro-next's guides, copied in by docs-site's build: not this server's. -->
       <_TurboPluginDoc
         Include="$(MSBuildThisFileDirectory)../../docs/**/*.md"
-        Exclude="$(MSBuildThisFileDirectory)../../docs/**/bin/**;$(MSBuildThisFileDirectory)../../docs/**/obj/**;$(MSBuildThisFileDirectory)../../docs/**/node_modules/**"
+        Exclude="$(MSBuildThisFileDirectory)../../docs/**/bin/**;$(MSBuildThisFileDirectory)../../docs/**/obj/**;$(MSBuildThisFileDirectory)../../docs/**/node_modules/**;$(MSBuildThisFileDirectory)../../docs/client/**"
       />
       <_TurboPluginSdkFile
         Include="@(_TurboPluginDoc)"

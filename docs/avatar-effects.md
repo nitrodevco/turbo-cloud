@@ -1,5 +1,16 @@
 # Avatar effects
 
+- [Introduction](#introduction)
+- [What it does](#what-it-does)
+- [Data](#data)
+- [Rules](#rules)
+- [The avatar editor's effects tab ("Change your looks")](#the-avatar-editors-effects-tab-change-your-looks)
+- [Setting it up](#setting-it-up)
+- [Messages](#messages)
+- [Not in this change](#not-in-this-change)
+
+## Introduction
+
 A player owns avatar effects: copies of an effect wait in their inventory, they **activate** one
 to start its timer, **wear** an effect they have running, and the running copy **expires** on its
 own. This page is how the server keeps that, what a hotel sets up, and what is deliberately not

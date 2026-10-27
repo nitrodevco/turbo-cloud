@@ -1,5 +1,19 @@
 # The database and its migrations
 
+- [Introduction](#introduction)
+- [Getting a database](#getting-a-database)
+- [The settings (Turbo:Database)](#the-settings-turbodatabase)
+- [What the server will not do](#what-the-server-will-not-do)
+- [Turbo.Main migrate](#turbomain-migrate)
+- [Several things at once](#several-things-at-once)
+- [For people writing migrations](#for-people-writing-migrations)
+- [A plugin's tables](#a-plugins-tables)
+    - [From a route, a task or a singleton](#from-a-route-a-task-or-a-singleton)
+- [Deploying with Ploi](#deploying-with-ploi)
+- [When something is wrong](#when-something-is-wrong)
+
+## Introduction
+
 Turbo keeps its state in MySQL or MariaDB, and the schema moves forward with the server through
 EF Core migrations. **By default the server migrates itself**: start it against an empty database,
 or one made by an older version, and it brings the database up to date, says what it did, and

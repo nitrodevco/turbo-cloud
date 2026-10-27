@@ -1,5 +1,18 @@
 # Server settings
 
+- [Introduction](#introduction)
+- [Where a value comes from](#where-a-value-comes-from)
+- [What the page shows](#what-the-page-shows)
+- [Kinds of setting](#kinds-of-setting)
+- [Values](#values)
+- [The admin API](#the-admin-api)
+- [Who can do what](#who-can-do-what)
+- [External variables that follow a setting](#external-variables-that-follow-a-setting)
+- [More than one silo](#more-than-one-silo)
+- [Starting up](#starting-up)
+
+## Introduction
+
 Every option of every config section (`Turbo:Rooms`, `Turbo:Admin`, `Turbo:Gamedata`, ...) is
 listed on the admin panel's **Settings** page. Each shows its value, where that value comes from and
 whether a restart is waiting on it. Staff with `settings.manage` can override a value there, without

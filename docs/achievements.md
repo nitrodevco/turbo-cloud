@@ -1,5 +1,21 @@
 # Achievements
 
+- [Introduction](#introduction)
+- [Install and configure](#install-and-configure)
+- [Storage](#storage)
+- [Definitions and extensions](#definitions-and-extensions)
+- [States, retiring and seasons](#states-retiring-and-seasons)
+- [Adding your own achievements without code](#adding-your-own-achievements-without-code)
+    - [Example: log in on 12 days of Christmas](#example-log-in-on-12-days-of-christmas)
+    - [What a definition can count](#what-a-definition-can-count)
+- [Packs](#packs)
+- [For plugins](#for-plugins)
+- [Published coverage and hotel extensions](#published-coverage-and-hotel-extensions)
+- [Administration and recovery](#administration-and-recovery)
+- [Verification scope](#verification-scope)
+
+## Introduction
+
 Achievements process immediately after a validated catalog is imported. There is no activation date, baseline or historical-action backfill. Account age uses account creation time; online time credits only durably recorded intervals. Reloading definitions and restarting Turbo preserve progress and awards.
 
 The official [Habbo achievements API](https://www.habbo.com/api/public/achievements) is the source of truth for published achievement names, categories, states and `requiredScore` thresholds. The snapshot retrieved on 2026-10-02 contains 167 records. The API does not define rewards, reducer semantics, source units, gameplay hooks, eligibility or attribution. The accompanying [coverage CSV](achievement-coverage.csv) records every snapshot row and the local mapping decision; it also lists three hotel extensions absent from the API. AS3 defines packet order and client behavior, while the official JavaScript client provides implementation guidance.

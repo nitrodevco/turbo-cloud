@@ -1,5 +1,19 @@
 # What the client gates, and on what
 
+- [Introduction](#introduction)
+- [The two findings that matter](#the-two-findings-that-matter)
+- [Security levels: the complete table](#security-levels-the-complete-table)
+    - [Level 2 — Partner](#level-2--partner)
+    - [Level 4 — Employee](#level-4--employee)
+    - [Level 5 — Moderator](#level-5--moderator)
+    - [Level 7 — Community](#level-7--community)
+    - [What isAmbassador gates](#what-isambassador-gates)
+- [Room controller level: the complete table](#room-controller-level-the-complete-table)
+- [What this tells us about the design](#what-this-tells-us-about-the-design)
+- [Caveats](#caveats)
+
+## Introduction
+
 Every place the Flash client asks about a player's security level or their control over a room,
 read from `D:\Habbo\WIN63-202609091217-117204808\scripts-deob` on 2026-09-20. This is the
 expectation the server has to satisfy; `docs/permissions.md` is the plan that fits it.

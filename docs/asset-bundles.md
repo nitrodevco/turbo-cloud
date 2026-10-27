@@ -1,5 +1,20 @@
 # Asset bundles
 
+- [Introduction](#introduction)
+- [Uploading](#uploading)
+- [Where bundles are kept](#where-bundles-are-kept)
+- [Syncing from Habbo](#syncing-from-habbo)
+- [Habbo's HTML client](#habbos-html-client)
+- [Publishing](#publishing)
+    - [Comparing with the target's copy](#comparing-with-the-targets-copy)
+    - [Purging Cloudflare](#purging-cloudflare)
+- [Broken assets](#broken-assets)
+- [Checks](#checks)
+- [Settings (Turbo:Assets)](#settings-turboassets)
+- [Admin API](#admin-api)
+
+## Introduction
+
 The client draws furniture, clothing, avatar effects and pets from `.nitro` bundles: a zip holding the
 library's asset data (`<name>.json`), its packed images (`<name>.png`) and their frames
 (`<name>_spritesheet.json`). The hotel takes them from Habbo: a **sync** downloads each library

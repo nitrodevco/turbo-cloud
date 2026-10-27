@@ -1,5 +1,15 @@
 # Turbo Boost: the AI kit for plugin authors
 
+- [Introduction](#introduction)
+- [1. What is in it](#1-what-is-in-it)
+- [2. Installing it in a plugin](#2-installing-it-in-a-plugin)
+    - [The dev token](#the-dev-token)
+- [3. A plugin that ships its own](#3-a-plugin-that-ships-its-own)
+- [4. Project rules](#4-project-rules)
+- [5. The dev tools](#5-the-dev-tools)
+
+## Introduction
+
 Turbo Boost gives the AI assistant a plugin author works with (Claude Code, Codex, Cursor, any
 agent reading `AGENTS.md` and Agent Skills) what it needs to write a Turbo plugin correctly the
 first time: the rules and the surface, up front; detailed patterns for each kind of code, when the

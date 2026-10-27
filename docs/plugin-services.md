@@ -1,4 +1,21 @@
-# Replace a host service
+# Host Services
+
+- [Introduction](#introduction)
+- [Which Services](#which-services)
+- [How It Works](#how-it-works)
+- [Two Plugins](#two-plugins)
+- [Adding to the One Replaced](#adding-to-the-one-replaced)
+- [Making a Service Replaceable (Core)](#making-a-service-replaceable-core)
+
+## Introduction
+
+A plugin's classes take the hotel's services by constructor, as core's own do: `IHotel`,
+`IGrainFactory`, `TimeProvider`, `IOptions<T>` of core's settings, the session gateway. Nothing is
+registered by hand; [Plugin Lifecycle](plugin-loading.md#what-a-plugins-classes-can-take) has the
+exact rules, and `ctx.Host<T>()` reaches one from a plugin's start and stop hooks.
+
+Some of those services are more than a tool: they decide a whole feature. Those, a plugin may
+**replace**.
 
 Some of the hotel's services are a whole feature behind one contract: the campaign calendar, who
 may trade, how many free games a player has left. A plugin replaces one by registering its own
@@ -16,7 +33,7 @@ public sealed class AdventPlugin : TurboPlugin
 
 That is all. Nothing else is registered or called.
 
-## Which services
+## Which Services
 
 A contract a plugin may replace is an interface marked `[ReplaceableService]`
 (`Turbo.Primitives.Plugins`):
@@ -34,7 +51,7 @@ loads (`registers its own ..., which this host does not let a plugin replace`).
 A policy that decides one step of an action (a purchase, a room entry, a placement, a sign-up) is a
 policy, not a replacement: several plugins' run in turn (`docs/plugin-policies.md`).
 
-## How it works
+## How It Works
 
 - The hotel registers each replaceable contract through its **slot** (`AddReplaceable<TContract,
   TDefault>()` in `Turbo.Contracts.Plugins`). What its container gives for the contract forwards
@@ -49,7 +66,7 @@ policy, not a replacement: several plugins' run in turn (`docs/plugin-policies.m
 - `IGameAccessPolicy` is also found as a game is, as a public class in the plugin's assembly
   (`docs/plugin-games.md`); the two ways are the same slot.
 
-## Two plugins
+## Two Plugins
 
 The slot is a stack. When two live plugins replace one contract, the one that loaded last is used,
 and the other's comes back when it unloads (not the hotel's). The server logs it as a conflict
@@ -57,7 +74,7 @@ and the other's comes back when it unloads (not the hotel's). The server logs it
 extension inspector (`GET /api/plugins/{key}/contributions`) lists the replacement under kind
 `service` on each plugin and the clash in its conflicts. A plugin that reloads goes on top again.
 
-## Adding to the one replaced
+## Adding to the One Replaced
 
 A replacement that changes part of a feature and leaves the rest to the hotel takes the contract's
 slot, `IServiceSlot<T>`, by constructor and calls `Under(this)`: the implementation it replaced,
@@ -88,7 +105,7 @@ another of the plugin's services) needs itself to be built, and the load fails w
 dependency. `slot.Current` is the implementation in use (the plugin's own while it is on top),
 `slot.Default` the hotel's own and `slot.Owner` the plugin whose is in use (null for the hotel's).
 
-## Making a service replaceable (core)
+## Making a Service Replaceable (Core)
 
 A host service becomes replaceable by marking its contract and registering it through its slot:
 

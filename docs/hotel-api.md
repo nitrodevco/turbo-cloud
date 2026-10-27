@@ -1,4 +1,16 @@
-# The hotel API
+# Contracts: The Hotel API
+
+- [Introduction](#introduction)
+- [Where it comes from](#where-it-comes-from)
+- [Where each member may be called from](#where-each-member-may-be-called-from)
+- [The areas](#the-areas)
+    - [Identity links](#identity-links)
+    - [Wallet rules](#wallet-rules)
+- [FakeHotel](#fakehotel)
+- [Why the fake cannot drift](#why-the-fake-cannot-drift)
+- [Adding to it](#adding-to-it)
+
+## Introduction
 
 `IHotel` (`Turbo.Contracts.Hotel`) is the running hotel as a plugin uses it: its players, rooms,
 wallets, inventories, catalog, notices and clock. A plugin takes it by constructor and never needs

@@ -1,5 +1,15 @@
 # Perks the client knows
 
+- [Introduction](#introduction)
+- [How the channel works](#how-the-channel-works)
+- [The nine perks the client actually reads](#the-nine-perks-the-client-actually-reads)
+- [The full table the client declares, and what it does not read](#the-full-table-the-client-declares-and-what-it-does-not-read)
+- [Against what the server has](#against-what-the-server-has)
+- [What this means for the permission plan](#what-this-means-for-the-permission-plan)
+- [Caveats](#caveats)
+
+## Introduction
+
 The `PerkAllowances` channel, read from the Flash client
 (`D:\Habbo\WIN63-202609091217-117204808\scripts-deob`) on 2026-09-20. Companion to
 `docs/permissions-client-gates.md`, which covers security levels and room controller levels, and

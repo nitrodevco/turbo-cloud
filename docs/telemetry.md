@@ -1,5 +1,13 @@
 # Local OpenTelemetry
 
+- [Introduction](#introduction)
+- [Room telemetry](#room-telemetry)
+- [Command telemetry](#command-telemetry)
+- [Reproducible room check](#reproducible-room-check)
+- [Checking rejected-entry work](#checking-rejected-entry-work)
+
+## Introduction
+
 Telemetry is disabled by default. Enable it in `appsettings.Development.json` or with environment variables, then start the local Aspire dashboard:
 
 ```powershell
@@ -52,7 +60,10 @@ The `System.Runtime` meter includes .NET runtime and GC measurements such as all
 
 ## Command telemetry
 
-Chat commands are measured by source and meter Turbo.Commands, subscribed with the room telemetry. A line that runs a command makes a command.execute span, tagged command.name, oom.id and command.outcome, and records 	urbo.command.duration (seconds) tagged command and outcome. command is the registered name, so its cardinality is the number of loaded commands. outcome is one of completed, efused, oom_level, ind_failed, etoed, lood, rror or canceled. A command holds its room's turn, so the duration is how long that room waited; one over Turbo:Rooms:CommandSlowWarningMs is also logged as a warning. Lines that are not commands are not measured, and cost nothing when telemetry is off. Spans and metrics never carry a player, the arguments or a reply.
+Chat commands are measured by source and meter Turbo.Commands, subscribed with the room telemetry. A line that runs a command makes a command.execute span, tagged command.name, 
+oom.id and command.outcome, and records 	urbo.command.duration (seconds) tagged command and outcome. command is the registered name, so its cardinality is the number of loaded commands. outcome is one of completed, 
+efused, 
+oom_level, ind_failed, etoed, lood, rror or canceled. A command holds its room's turn, so the duration is how long that room waited; one over Turbo:Rooms:CommandSlowWarningMs is also logged as a warning. Lines that are not commands are not measured, and cost nothing when telemetry is off. Spans and metrics never carry a player, the arguments or a reply.
 
 ## Reproducible room check
 

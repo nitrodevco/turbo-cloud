@@ -1,5 +1,10 @@
 # Idempotent wallet credit
 
+- [Introduction](#introduction)
+- [Idempotent debit](#idempotent-debit)
+
+## Introduction
+
 `IPlayerWalletGrain.CreditAsync(kind, amount, reference, cause, ct)` credits a balance at most once
 per `(player, reference)`. Use it when a credit must survive a retry, for example a plugin that
 commits its own database transaction first and then credits the wallet (outbox pattern): if it

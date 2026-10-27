@@ -1,5 +1,14 @@
 # Media library
 
+- [Introduction](#introduction)
+- [What it lists](#what-it-lists)
+- [What a field stores](#what-a-field-stores)
+- [Where it is shown](#where-it-is-shown)
+- [Uploading](#uploading)
+- [API](#api)
+
+## Introduction
+
 Gamedata > Media library in the [admin panel](admin-panel.md) is one searchable index of every image
 the hotel can show, wherever it is kept, and where each one is shown. Staff find a picture there by
 name, path or tag instead of typing an address, copy the value a field stores for it, and upload new

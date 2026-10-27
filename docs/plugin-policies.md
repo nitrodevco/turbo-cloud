@@ -1,4 +1,38 @@
-# Policies and post-commit events
+# Policies & Events
+
+- [Introduction](#introduction)
+- [Policies](#policies)
+    - [Avatar Effects](#avatar-effects)
+    - [Handing a Purchase Over](#handing-a-purchase-over)
+    - [Order and Conflicts](#order-and-conflicts)
+    - [Where They Run](#where-they-run)
+    - [HC Members Pay 50% for Some Furni](#hc-members-pay-50-for-some-furni)
+    - [Closing a Room for an Event](#closing-a-room-for-an-event)
+- [Post-Commit Events](#post-commit-events)
+    - [Addresses](#addresses)
+    - [A Room Entry Ad](#a-room-entry-ad)
+
+## Introduction
+
+Most of what a hotel wants to change about Habbo is not a new feature but a rule on an old one:
+club members pay half, nobody enters the event room before eight, the tenth account from one
+address is refused. **Policies** are those rules. A policy is a small class the hotel asks before it
+does something, and it allows the action, refuses it with a reason the player is shown, or changes
+it:
+
+```csharp
+public sealed class ClubDiscountPolicy(IHotel hotel) : IPurchasePolicy
+{
+    public async ValueTask<PurchaseDecision> DecideAsync(
+        PurchaseRequest request, PurchaseDecision proposed, CancellationToken ct) =>
+        (await hotel.Players.ClubAsync(request.PlayerId, ct)).Active
+            ? proposed with { CostCredits = proposed.CostCredits / 2 }
+            : proposed;
+}
+```
+
+What happened afterwards is an **event**: a handler hears it once the action is saved, and can
+react (a reward, a log, a webhook) but never undo it.
 
 Two of the extension kinds in `docs/extensions.md` (§3) let a plugin take part in the hotel's own
 actions:
@@ -52,7 +86,7 @@ How the player hears of a refusal:
 A hotel styles each pop-up type with `notification.<type>` in its external variables, as any
 notification type. Moving or picking up furni already placed is not asked.
 
-### Avatar effects
+### Avatar Effects
 
 Both methods run on the room's turn, `Show` once per player in the room for each change, so they
 answer at once from what the plugin keeps in memory, never from a table or another grain. `Wear`
@@ -75,7 +109,7 @@ command). What a player was already sent stays until the next change or room ent
 re-sends what is worn (an `AvatarEffect` composer per avatar through `hotel.Players.SendAsync`) to
 show it at once.
 
-### Handing a purchase over
+### Handing a Purchase Over
 
 A fulfilment replaces what the hotel hands over, not the purchase: the offer, the club level, the
 safety lock, the owner's right to the room and the purchase policies are asked as always, and the
@@ -97,7 +131,7 @@ public sealed class PromotedRooms(PromotionBoard board) : IPurchaseFulfilment
 }
 ```
 
-### Order and conflicts
+### Order and Conflicts
 
 Policies of a kind run in `Order` (an `int Order => ...` on the class, 0 by default, lower first),
 then plugin key, then as registered. A purchase's policies each take the decision of the ones before
@@ -115,7 +149,7 @@ A purchase policy that throws refuses the purchase (fail closed): it is logged, 
 hotel's purchase error, nothing is charged and the policies after it are not asked. A policy of any
 other kind that throws is logged and passed over (it allows). A cancelled one cancels the action.
 
-### Where they run
+### Where They Run
 
 A purchase policy runs on the buyer's purchase turn: it may read anything (the hotel API, a grain, its
 own tables) but must not buy for the same player. Room entry and placement policies run off the
@@ -123,7 +157,7 @@ room's turn and may ask the room anything. Keep them quick: the player waits on 
 policy runs on the room's turn, as the avatar is made: answer from the request and from memory, and
 never ask that room anything.
 
-### HC members pay 50% for some furni
+### HC Members Pay 50% for Some Furni
 
 ```csharp
 using Turbo.Contracts.Hotel;
@@ -153,7 +187,7 @@ public sealed class ClubDiscountPolicy(IHotel hotel, IOptionsMonitor<ShopSetting
 catalogue still shows the full price; the purchase charges half, and `PurchaseCompletedEvent` says
 what was paid.
 
-### Closing a room for an event
+### Closing a Room for an Event
 
 ```csharp
 public sealed class EventRoomPolicy(IOptionsMonitor<EventSettings> settings) : IRoomEntryPolicy
@@ -171,7 +205,7 @@ public sealed class EventRoomPolicy(IOptionsMonitor<EventSettings> settings) : I
 }
 ```
 
-## Post-commit events
+## Post-Commit Events
 
 | Event | Raised |
 | --- | --- |
@@ -212,7 +246,7 @@ These are not the room's own events (`PlayerEnterEvent` and the others in `docs/
 which room listeners hear on the room's turn and must handle at once; `RoomEnteredEvent` is the slow
 work's version of an entry.
 
-### A room entry ad
+### A Room Entry Ad
 
 ```csharp
 using Turbo.Contracts.Hotel;

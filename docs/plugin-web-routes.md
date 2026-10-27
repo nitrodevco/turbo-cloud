@@ -1,5 +1,18 @@
 # Plugin web routes and play policies
 
+- [Introduction](#introduction)
+- [1. A route](#1-a-route)
+    - [Verify a webhook](#verify-a-webhook)
+    - [Who is calling](#who-is-calling)
+    - [What the host does around a route](#what-the-host-does-around-a-route)
+- [2. Calling a route from a client module](#2-calling-a-route-from-a-client-module)
+- [3. A play policy](#3-a-play-policy)
+- [4. Settings (Turbo:Web:PluginRoutes)](#4-settings-turbowebpluginroutes)
+- [5. Example](#5-example)
+- [6. What it changed in the server](#6-what-it-changed-in-the-server)
+
+## Introduction
+
 A plugin can serve **players** over HTTP: a hotel's site page or a client module asks the plugin
 for something (a leaderboard, a player's notes, a shop page's data) at
 `/api/plugins/<key>/...` on the hotel's public web host, signed in as the player. The host owns

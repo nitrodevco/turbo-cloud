@@ -1,4 +1,44 @@
-# Plugin messages
+# Plugin Messages
+
+- [Introduction](#introduction)
+- [1. Declaring a message](#1-declaring-a-message)
+- [2. Handling one a client sends](#2-handling-one-a-client-sends)
+- [3. Sending one](#3-sending-one)
+    - [Carrying a core packet](#carrying-a-core-packet)
+- [4. Headers](#4-headers)
+- [5. The protocol: client.messages (version 1)](#5-the-protocol-clientmessages-version-1)
+- [6. Unloading](#6-unloading)
+- [7. What it added to the server](#7-what-it-added-to-the-server)
+
+## Introduction
+
+A plugin with a client module has two halves that need to talk: the window asks for something, the
+server answers, the server tells every client in a room what changed. **Named messages** are how
+they do it. You declare a message once, in C#, as a record with a name; the server numbers it,
+reads and writes it, and tells each client its name and fields, so the client module sends and
+receives it by name:
+
+```csharp
+[PluginMessage("skills.train")]
+public sealed record TrainMessage() : IPluginMessage;
+
+[PluginMessage("skills.state")]
+public sealed record SkillMessage(int Level, int Experience, int Needed) : IPluginMessage;
+
+public sealed class TrainHandler(SkillBook book) : IPluginMessageHandler<TrainMessage>
+{
+    public async ValueTask HandleAsync(TrainMessage message, PluginMessageContext ctx, CancellationToken ct) =>
+        await ctx.ReplyAsync(SkillMessage.Of(await book.TrainAsync(ctx.PlayerId, ct)), ct);
+}
+```
+
+```ts
+api.messages.on('skills.state', (data) => skillStore.set(toSkill(data)));
+api.messages.send('skills.train', {});
+```
+
+`npm run make message levelled --to client --fields level:int,name:string` writes both halves of a
+new one in a plugin made from the template.
 
 A plugin's server half and its client half talk through **named messages**: the plugin declares a
 message once, in C#, as a record with a name. The host gives it a header, writes and reads it from

@@ -1,5 +1,12 @@
 # Observing room events from a plugin
 
+- [Introduction](#introduction)
+- [What a listener hears](#what-a-listener-hears)
+- [Rules for a listener](#rules-for-a-listener)
+- [Where it lives](#where-it-lives)
+
+## Introduction
+
 A plugin can watch what happens in rooms by declaring an `IRoomEventListener`. There is nothing to
 register by hand: when the plugin loads, Turbo Cloud scans its assembly (the same scan that finds
 commands and room object logic), builds each listener with the plugin's services and gives it to

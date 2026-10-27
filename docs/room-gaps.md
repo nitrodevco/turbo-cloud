@@ -1,5 +1,22 @@
 # What the room system is still missing
 
+- [Introduction](#introduction)
+- [How this was measured](#how-this-was-measured)
+- [1. Missing because the system behind them does not exist](#1-missing-because-the-system-behind-them-does-not-exist)
+    - [The room queue and spectators](#the-room-queue-and-spectators)
+    - [Purchasable clothing and chat styles](#purchasable-clothing-and-chat-styles)
+    - [Rented furni](#rented-furni)
+    - [Games](#games)
+    - [NFT](#nft)
+- [2. Complete on the wire, but nothing known causes them](#2-complete-on-the-wire-but-nothing-known-causes-them)
+- [3. Missing and needing a decision on what it means](#3-missing-and-needing-a-decision-on-what-it-means)
+- [4. Rules written but not enforced](#4-rules-written-but-not-enforced)
+- [5. Wired](#5-wired)
+- [Closed since the first survey](#closed-since-the-first-survey)
+- [What is *not* missing](#what-is-not-missing)
+
+## Introduction
+
 A survey of the room system against the client, last taken on 2026-10-11 (first taken
 2026-09-20). It is here so the next person does not have to re-derive it, and so a gap can be
 argued with rather than rediscovered.

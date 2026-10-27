@@ -1,5 +1,12 @@
 # Room papers, posters, badge displays and song discs
 
+- [Introduction](#introduction)
+- [What it does](#what-it-does)
+- [Setting it up](#setting-it-up)
+- [Not here](#not-here)
+
+## Introduction
+
 Furni whose catalog offer decides what the item is, rather than its definition alone: one
 `wallpaper` definition serves every wallpaper, one `poster` every poster. This page is how the
 server keeps what each item is, how a room paper changes a room, and what a hotel sets up.

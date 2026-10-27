@@ -1,5 +1,15 @@
 # Holding and watching rooms
 
+- [Introduction](#introduction)
+- [Holds](#holds)
+- [Watches](#watches)
+    - [Through a linked pair](#through-a-linked-pair)
+- [Envelopes](#envelopes)
+- [Cost](#cost)
+- [Testing](#testing)
+
+## Introduction
+
 A plugin that draws one room beside another (a portal that shows the room it leads to, a screen
 showing a stage) needs the far room loaded and moving with no one in it, and its packets sent to
 players who are not in it. Core keeps rooms the way Habbo's are kept: an empty room goes dormant

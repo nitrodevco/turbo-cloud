@@ -1,5 +1,17 @@
 # Wired boxes and furni logic in a plugin
 
+- [Introduction](#introduction)
+- [Two boxes](#two-boxes)
+    - ["Whisper to everyone in the room" (an effect)](#whisper-to-everyone-in-the-room-an-effect)
+    - ["When a user earns credits" (a trigger, fired by the plugin)](#when-a-user-earns-credits-a-trigger-fired-by-the-plugin)
+- [What each kind declares](#what-each-kind-declares)
+- [Furni logic](#furni-logic)
+    - [Linked pairs](#linked-pairs)
+    - [Messages from your own code](#messages-from-your-own-code)
+- [Scaffolding](#scaffolding)
+
+## Introduction
+
 A plugin can add its own wired boxes (effects, triggers, conditions, selectors) and its own furni
 logic, written against `Turbo.Contracts` alone: no `Turbo.Rooms`, no grain, no room module. The
 server finds them as the plugin loads, gives the furniture whose logic is the box's key to them,
@@ -131,6 +143,10 @@ wait on itself); a player's wallet or inventory is another grain and is fine.
 Add-ons are not in the kit: they change how a stack runs (`WiredPolicy`), which stays core's.
 
 ## Furni logic
+
+> [!NOTE]
+> Furni logic has its own guide, with every hook and the room turn explained:
+> [Furni Logic & Room Turns](furni-logic.md). This section is its short form.
 
 ```csharp
 using Turbo.Contracts.Furni;
