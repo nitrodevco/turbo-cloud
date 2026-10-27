@@ -75,10 +75,18 @@ public sealed class AdventCalendar(IServiceSlot<ICampaignCalendarService> slot)
 }
 ```
 
-Never call the contract itself through the hotel (`IHostServices`, or the contract by
-constructor): while the plugin is live, that is the plugin's own implementation. `slot.Current` is
-the implementation in use, `slot.Default` the hotel's own and `slot.Owner` the plugin whose is in
-use (null for the hotel's).
+The contract through the hotel (`ctx.Host<T>()`, `IHostServices`) is the same for the plugin that
+replaced it: the implementation under its own, as `Under(this)` gives, never the plugin's own
+(calling itself would recurse until the stack overflows, which takes the whole server down). It is
+worked out at each call, so one asked for in `StartingAsync`, before the replacement is in the slot,
+is right once it is. When a later plugin replaces it in turn, the earlier one still reaches the one
+it replaced, not the later one: each call through the hotel goes further down the stack. Other
+plugins and the hotel get the one in use.
+
+The contract by constructor is the plugin's own: a replacement that takes it (directly or through
+another of the plugin's services) needs itself to be built, and the load fails with a circular
+dependency. `slot.Current` is the implementation in use (the plugin's own while it is on top),
+`slot.Default` the hotel's own and `slot.Owner` the plugin whose is in use (null for the hotel's).
 
 ## Making a service replaceable (core)
 

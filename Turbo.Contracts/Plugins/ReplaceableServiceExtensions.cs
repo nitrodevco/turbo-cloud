@@ -74,6 +74,9 @@ internal interface IServiceSlotEntries
     public IDisposable Push(string owner, object implementation, ILogger logger);
 
     public IEnumerable<ServiceReplacement> Entries { get; }
+
+    /// <summary>What <paramref name="owner"/> is given for the contract by the host.</summary>
+    public object For(string owner);
 }
 
 internal sealed class ReplaceableServices(
@@ -131,6 +134,7 @@ internal sealed class ServiceSlot<T> : IServiceSlot<T>, IServiceSlotEntries
     where T : class
 {
     private readonly Lock _gate = new();
+    private readonly ConcurrentDictionary<string, T> _views = new(StringComparer.OrdinalIgnoreCase);
     private volatile Entry[] _stack = [];
 
     public ServiceSlot(T @default)
@@ -159,6 +163,34 @@ internal sealed class ServiceSlot<T> : IServiceSlot<T>, IServiceSlotEntries
         return Current;
     }
 
+    /// <summary>
+    /// What a plugin is given for the contract by the host (<c>Host&lt;T&gt;()</c>): each call goes to
+    /// <see cref="CurrentFor"/>. A replacement calling the contract through the host so reaches the
+    /// one it replaced, as <see cref="Under"/> gives, never itself: calling itself would recurse
+    /// until the stack overflows, which no catch stops and which takes the whole server down.
+    /// </summary>
+    public T For(string owner) => _views.GetOrAdd(owner, key => SlotForwarder<T>.Create(this, key));
+
+    object IServiceSlotEntries.For(string owner) => For(owner);
+
+    /// <summary>
+    /// The implementation <paramref name="owner"/>'s calls go to: the one under its lowest
+    /// replacement once it has one in the slot (another plugin's or the host's), else
+    /// <see cref="Current"/>. A plugin replaced in turn by one loaded later still reaches the one it
+    /// replaced, not the later one, which may be calling it: each call through the host goes lower
+    /// in the stack, so none comes back to a replacement it left.
+    /// </summary>
+    internal T CurrentFor(string owner)
+    {
+        var stack = _stack;
+
+        for (var i = 0; i < stack.Length; i++)
+            if (string.Equals(stack[i].Owner, owner, StringComparison.OrdinalIgnoreCase))
+                return i > 0 ? stack[i - 1].Implementation : Default;
+
+        return Current;
+    }
+
     public IEnumerable<ServiceReplacement> Entries
     {
         get
@@ -179,8 +211,8 @@ internal sealed class ServiceSlot<T> : IServiceSlot<T>, IServiceSlotEntries
 
     public IDisposable Push(string owner, object implementation, ILogger logger)
     {
-        // A plugin handing back what the host gave it replaces nothing (and would call itself).
-        if (ReferenceEquals(implementation, Forwarder))
+        // A plugin handing back what the host gave it replaces nothing.
+        if (implementation is SlotForwarder<T> forwarder && forwarder.Slot == this)
             return new Removal(this, null, logger);
 
         var entry = new Entry(owner, (T)implementation);
@@ -260,17 +292,22 @@ internal sealed class ServiceSlot<T> : IServiceSlot<T>, IServiceSlotEntries
 /// <summary>
 /// The contract's forwarder: every call goes to the slot's implementation in use as it is made,
 /// so a caller never holds on to a replaced one (or keeps an unloaded plugin's assembly alive).
+/// A plugin's (<see cref="ServiceSlot{T}.For"/>) goes to the one under its own replacement.
 /// </summary>
 internal class SlotForwarder<T> : DispatchProxy
     where T : class
 {
-    private ServiceSlot<T> _slot = null!;
+    private string? _owner;
 
-    internal static T Create(ServiceSlot<T> slot)
+    internal ServiceSlot<T> Slot { get; private set; } = null!;
+
+    internal static T Create(ServiceSlot<T> slot, string? owner = null)
     {
         var forwarder = DispatchProxy.Create<T, SlotForwarder<T>>();
+        var proxy = (SlotForwarder<T>)(object)forwarder;
 
-        ((SlotForwarder<T>)(object)forwarder)._slot = slot;
+        proxy.Slot = slot;
+        proxy._owner = owner;
 
         return forwarder;
     }
@@ -279,7 +316,10 @@ internal class SlotForwarder<T> : DispatchProxy
     {
         try
         {
-            return targetMethod!.Invoke(_slot.Current, args);
+            return targetMethod!.Invoke(
+                _owner is null ? Slot.Current : Slot.CurrentFor(_owner),
+                args
+            );
         }
         catch (TargetInvocationException ex) when (ex.InnerException is { } inner)
         {
