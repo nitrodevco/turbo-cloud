@@ -28,6 +28,7 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
+using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Settings;
 
 namespace Turbo.Gamedata.Files;
@@ -212,9 +213,11 @@ internal sealed class GamedataFileService(
             GamedataFiles.EXTERNAL_TEXTS => await RowsStamp
                 .ReadAsync(dbCtx, dbCtx.GamedataTexts, ct)
                 .ConfigureAwait(false),
-            GamedataFiles.EXTERNAL_VARIABLES => await RowsStamp
-                .ReadAsync(dbCtx, dbCtx.GamedataVariables, ct)
-                .ConfigureAwait(false),
+            // Who gets which theme changes what the variables give too.
+            GamedataFiles.EXTERNAL_VARIABLES => (
+                await RowsStamp.ReadAsync(dbCtx, dbCtx.GamedataVariables, ct).ConfigureAwait(false),
+                await ThemeRows.StampAsync(dbCtx, ct).ConfigureAwait(false)
+            ),
             GamedataFiles.BADGE_PARTS => GamedataBytes.Hash(
                 (await BadgePartsAsync(dbCtx, ct).ConfigureAwait(false)).Content
             ),
@@ -604,6 +607,154 @@ internal sealed class GamedataFileService(
         CancellationToken ct
     )
     {
+        var variables = await HotelVariablesAsync(dbCtx, addresses, ct).ConfigureAwait(false);
+        var themes = await ThemesAsync(dbCtx, ct).ConfigureAwait(false);
+
+        // The default theme's look (every Live theme's with none): a session drawing another is
+        // given its own merged variables (ThemeVariablesAsync).
+        var include = ThemeChains.Includes(ThemeChains.DefaultOf(themes.Values), themes);
+
+        foreach (var key in ExternalVariablesFile.MERGED)
+        {
+            if (MergedOf(key, variables.GetValueOrDefault(key), include, log: true) is { } value)
+                variables[key] = value;
+            else
+                variables.Remove(key);
+        }
+
+        // Where a client asks for its own theme before it connects, while a player may draw
+        // another than the default: a theme in development, or one players may choose.
+        if (themes.Values.Any(x => x.Status == ThemeStatus.Development || x.Selectable))
+            variables[ExternalVariablesFile.THEME_SESSION_URL] =
+                ExternalVariablesFile.ThemeSessionAddress(addresses);
+
+        return (
+            ExternalVariablesFile.Write(variables.Select(x => (x.Key, x.Value))),
+            variables.Count
+        );
+    }
+
+    /// <summary>The themes the hotel has, with who gets each.</summary>
+    private async Task<IReadOnlyDictionary<string, ThemeAudience>> ThemesAsync(
+        TurboDbContext dbCtx,
+        CancellationToken ct
+    ) =>
+        ThemeRows.Themes(
+            plugins.Themes(),
+            await ThemeRows.ReadAsync(dbCtx, ct).ConfigureAwait(false)
+        );
+
+    /// <summary>
+    /// A merged variable for a client given the plugins <paramref name="include"/> takes: their parts,
+    /// with the hotel's own entries over them while the hotel's own theme is one of them (the template
+    /// libraries the hotel points at are its own whatever the theme); null for nothing.
+    /// </summary>
+    private string? MergedOf(string key, string? hotel, Func<string, bool> include, bool log)
+    {
+        var own =
+            include(ThemeChains.HOTEL)
+            || string.Equals(key, ExternalVariablesFile.TEMPLATE_BUNDLES, StringComparison.Ordinal)
+                ? hotel
+                : null;
+        var owned = plugins.OwnedPartsOf(key, include);
+
+        if (owned.Count == 0)
+            return own;
+
+        // Two plugins naming one entry (one template library each overriding) cannot both
+        // win: the first's is used, and staff are told which, rather than it being silent.
+        if (log)
+            foreach (var (entry, owners) in ExternalVariablesFile.Collisions(owned))
+                logger.LogWarning(
+                    "Plugins {Plugins} all set {Entry} of {Variable}; {First}'s is used",
+                    string.Join(", ", owners),
+                    entry,
+                    key,
+                    owners[0]
+                );
+
+        return ExternalVariablesFile.Merge(owned.Select(x => x.Part), own);
+    }
+
+    /// <summary>A theme's merged variables, by theme key, for the file's build they were made with.</summary>
+    private readonly ConcurrentDictionary<string, ThemeBuild> _themeBuilds = new(
+        StringComparer.OrdinalIgnoreCase
+    );
+
+    private sealed record ThemeBuild(
+        int Version,
+        object? Inputs,
+        object? Stamp,
+        IReadOnlyDictionary<string, string>? Variables
+    );
+
+    /// <summary>
+    /// The merged variables (<see cref="ExternalVariablesFile.MERGED"/>) of a client drawing
+    /// <paramref name="theme"/>'s chain (<see cref="ThemeChains"/>), each of them, <c>{}</c> for one
+    /// it gives nothing of; null when they are the file's own (the default theme's). Built once per
+    /// theme and kept until the file would be built again.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, string>?> ThemeVariablesAsync(
+        string? theme,
+        CancellationToken ct
+    )
+    {
+        const string file = GamedataFiles.EXTERNAL_VARIABLES;
+
+        var inputs = await InputsAsync(file, ct).ConfigureAwait(false);
+        var stamp = await StampAsync(file, ct).ConfigureAwait(false);
+        var version = VersionOf(file);
+        var key = theme ?? string.Empty;
+
+        if (
+            _themeBuilds.TryGetValue(key, out var built)
+            && built.Version == version
+            && Equals(built.Inputs, inputs)
+            && Equals(built.Stamp, stamp)
+        )
+            return built.Variables;
+
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var themes = await ThemesAsync(dbCtx, ct).ConfigureAwait(false);
+        IReadOnlyDictionary<string, string>? variables = null;
+
+        if (
+            !string.Equals(
+                theme,
+                ThemeChains.DefaultOf(themes.Values),
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+        {
+            var hotel = await HotelVariablesAsync(
+                    dbCtx,
+                    ((ExternalVariablesFile.Inputs)inputs!).Addresses,
+                    ct
+                )
+                .ConfigureAwait(false);
+            var include = ThemeChains.Includes(theme, themes);
+
+            variables = ExternalVariablesFile.MERGED.ToDictionary(
+                x => x,
+                x => MergedOf(x, hotel.GetValueOrDefault(x), include, log: false) ?? "{}",
+                StringComparer.Ordinal
+            );
+        }
+
+        _themeBuilds[key] = new ThemeBuild(version, inputs, stamp, variables);
+
+        return variables;
+    }
+
+    /// <summary>The hotel's own variables, each written with what it follows, but a plugin's own while it isn't loaded.</summary>
+    private async Task<Dictionary<string, string>> HotelVariablesAsync(
+        TurboDbContext dbCtx,
+        ExternalVariablesFile.Addresses addresses,
+        CancellationToken ct
+    )
+    {
         var withheld = await WithheldAsync(dbCtx, GamedataRecordType.Variable, ct)
             .ConfigureAwait(false);
         var rows = (
@@ -633,35 +784,7 @@ internal sealed class GamedataFileService(
             StringComparer.Ordinal
         );
 
-        // The loaded plugins' parts of a merged variable, with the hotel's own entries over them.
-        foreach (var key in ExternalVariablesFile.MERGED)
-        {
-            var owned = plugins.OwnedPartsOf(key);
-
-            if (owned.Count == 0)
-                continue;
-
-            // Two plugins naming one entry (one template library each overriding) cannot both
-            // win: the first's is used, and staff are told which, rather than it being silent.
-            foreach (var (entry, owners) in ExternalVariablesFile.Collisions(owned))
-                logger.LogWarning(
-                    "Plugins {Plugins} all set {Entry} of {Variable}; {First}'s is used",
-                    string.Join(", ", owners),
-                    entry,
-                    key,
-                    owners[0]
-                );
-
-            variables[key] = ExternalVariablesFile.Merge(
-                owned.Select(x => x.Part),
-                variables.GetValueOrDefault(key)
-            );
-        }
-
-        return (
-            ExternalVariablesFile.Write(variables.Select(x => (x.Key, x.Value))),
-            variables.Count
-        );
+        return variables;
     }
 
     /// <summary>Removes the builds older than the ones kept, never the current one.</summary>

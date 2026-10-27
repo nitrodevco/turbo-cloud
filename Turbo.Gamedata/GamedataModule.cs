@@ -137,6 +137,7 @@ public sealed class GamedataModule : IHostPluginModule
             sp.GetRequiredService<ClientModuleRegistry>()
         );
         services.AddHostedService<ClientModuleBroadcast>();
+        services.AddHostedService<ThemeAdoption>();
         services.AddSingleton<LoadedPluginGamedata>();
         services.AddSingleton<PluginGamedataSeeds>();
         services.AddSingleton<IPluginGamedataSeeds>(sp =>
@@ -144,6 +145,12 @@ public sealed class GamedataModule : IHostPluginModule
         );
         services.AddSingleton<IPluginDataOwner>(sp => sp.GetRequiredService<PluginGamedataSeeds>());
         services.AddSingleton<IPluginStyles, PluginStyleService>();
+        services.AddSingleton<IThemeAudiences>(sp =>
+            ActivatorUtilities.CreateInstance<ThemeAudienceService>(
+                sp,
+                (GamedataFileService)sp.GetRequiredService<IGamedataFileService>()
+            )
+        );
         services.AddHostedService<GamedataServer>();
     }
 }

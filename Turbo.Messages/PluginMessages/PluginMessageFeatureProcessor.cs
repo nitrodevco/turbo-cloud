@@ -53,11 +53,7 @@ internal sealed class PluginMessageFeatureProcessor(
         {
             if (messageTypes.Count > 0)
             {
-                var owner =
-                    sp.GetService<PluginManifest>()?.Key
-                    ?? throw new InvalidOperationException(
-                        $"Only a plugin declares plugin messages ({messageTypes[0].Name} in {asm.GetName().Name})."
-                    );
+                var owner = sp.GetService<PluginManifest>()?.Key ?? HostOwner(messageTypes, asm);
 
                 batch.Add(directory.Register(owner, messageTypes));
 
@@ -103,6 +99,33 @@ internal sealed class PluginMessageFeatureProcessor(
 
         return Task.FromResult<IDisposable>(batch);
     }
+
+    /// <summary>
+    /// The owner of messages Turbo's own modules declare: <see cref="HOST_OWNER"/>, their names
+    /// starting <c>turbo.</c>, so a plugin's never meets one. Any other name outside a plugin is refused.
+    /// </summary>
+    private static string HostOwner(
+        System.Collections.Generic.List<Type> messageTypes,
+        Assembly asm
+    )
+    {
+        if (
+            messageTypes.FirstOrDefault(x =>
+                !PluginMessageSchema
+                    .For(x)
+                    .Name.StartsWith(HOST_OWNER + ".", StringComparison.OrdinalIgnoreCase)
+            ) is
+            { } stray
+        )
+            throw new InvalidOperationException(
+                $"Only a plugin declares plugin messages ({stray.Name} in {asm.GetName().Name}); Turbo's own are named \"{HOST_OWNER}.\"."
+            );
+
+        return HOST_OWNER;
+    }
+
+    /// <summary>The owner, and name prefix, of the named messages Turbo's own modules declare.</summary>
+    public const string HOST_OWNER = "turbo";
 
     private static HandlerInvoker<MessageContext> CreateInvoker<T>()
         where T : IPluginMessage =>

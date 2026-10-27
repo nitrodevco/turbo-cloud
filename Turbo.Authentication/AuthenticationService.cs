@@ -20,6 +20,40 @@ public sealed class AuthenticationService(
 {
     private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
 
+    public async Task<int> FindPlayerIdFromTicketAsync(
+        string ticket,
+        CancellationToken ct = default
+    )
+    {
+        if (ticket is null || ticket.Length == 0)
+            return 0;
+
+        var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        if (dbCtx.SecurityTickets is null)
+            return 0;
+
+        var hashed = SecurityTicketEntity.Hash(ticket);
+        var asWritten = ticket.StartsWith(
+            SecurityTicketEntity.HASH_PREFIX,
+            StringComparison.Ordinal
+        )
+            ? hashed
+            : ticket;
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+
+        return await dbCtx
+            .SecurityTickets.AsNoTracking()
+            .Where(x =>
+                (x.Ticket == hashed || x.Ticket == asWritten)
+                && (x.ExpiresAt == null || x.ExpiresAt > now)
+            )
+            .Select(x => x.PlayerEntityId)
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false);
+    }
+
     public async Task<int> GetPlayerIdFromTicketAsync(string ticket, CancellationToken ct = default)
     {
         if (ticket is null || ticket.Length == 0)

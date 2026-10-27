@@ -17,11 +17,14 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using Turbo.Gamedata.Configuration;
+using Turbo.Primitives.Authentication;
 using Turbo.Primitives.Camera;
 using Turbo.Primitives.ClientModules;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Navigator;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Rooms;
 
 namespace Turbo.Gamedata.Api;
@@ -108,6 +111,15 @@ internal sealed class GamedataServer(
     public const string PLUGIN_FILES_ROUTE = "/gamedata/plugins/";
     private const string PLUGIN_FILE_CACHE = "public, no-cache";
 
+    /// <summary>
+    /// Where a client asks, before it connects, which theme its player draws: a <c>POST</c> of
+    /// <c>{ "ticket": "...", "theme": "&lt;staff's preview&gt;" }</c>, the ticket it will log in with
+    /// (looked at, not used up), answered <c>{ theme, variables, choices, chosen }</c>
+    /// (<see cref="IThemeAudiences.SessionAsync"/>; <c>variables</c> null when they are the file's
+    /// own). A ticket that is no player's answers the hotel's default. Never cached: it is a player's.
+    /// </summary>
+    public const string THEME_ROUTE = "/gamedata/theme";
+
     private static readonly FileExtensionContentTypeProvider CONTENT_TYPES = new();
 
     private WebApplication? _app;
@@ -140,6 +152,8 @@ internal sealed class GamedataServer(
         var starterRooms = services.GetService<IStarterRoomDirectory>();
         var thumbnails = services.GetService<IRoomThumbnailFiles>();
         var modules = services.GetService<IClientModuleDirectory>();
+        var themes = services.GetService<IThemeAudiences>();
+        var tickets = services.GetService<IAuthenticationService>();
 
         // Behind the reverse proxy the request comes from loopback; its forwarded headers give
         // the scheme and host clients used, which the hashes list's addresses are built on.
@@ -193,6 +207,11 @@ internal sealed class GamedataServer(
             app.MapGet(
                 PLUGIN_FILES_ROUTE + "{key}/{**path}",
                 (HttpContext http, string key, string path) => PluginFile(http, modules, key, path)
+            );
+        if (themes is not null && tickets is not null)
+            app.MapPost(
+                THEME_ROUTE,
+                (HttpContext http, CancellationToken ct) => ThemeAsync(http, themes, tickets, ct)
             );
         app.MapGet(
             "/gamedata/{file}/{version}",
@@ -299,6 +318,54 @@ internal sealed class GamedataServer(
 
         return Results.Json(answers);
     }
+
+    /// <summary>The theme the ticket's player draws (<see cref="THEME_ROUTE"/>); a body that is not the request's JSON is a 400.</summary>
+    private static async Task<IResult> ThemeAsync(
+        HttpContext http,
+        IThemeAudiences themes,
+        IAuthenticationService tickets,
+        CancellationToken ct
+    )
+    {
+        ThemeRequest? request;
+
+        try
+        {
+            request = await JsonSerializer
+                .DeserializeAsync<ThemeRequest>(http.Request.Body, THEME_JSON, ct)
+                .ConfigureAwait(false);
+        }
+        catch (JsonException)
+        {
+            return Results.BadRequest();
+        }
+
+        if (request is null)
+            return Results.BadRequest();
+
+        var player = await tickets
+            .FindPlayerIdFromTicketAsync(request.Ticket ?? string.Empty, ct)
+            .ConfigureAwait(false);
+        var session = await themes
+            .SessionAsync(new PlayerId(player), player > 0 ? request.Theme : null, ct)
+            .ConfigureAwait(false);
+
+        http.Response.Headers.CacheControl = PHOTO_DATA_CACHE;
+
+        return Results.Json(
+            new
+            {
+                theme = session.Theme,
+                variables = session.Variables,
+                choices = session.Choices.Select(x => new { key = x.Key, name = x.Name }),
+                chosen = session.Chosen,
+            }
+        );
+    }
+
+    private static readonly JsonSerializerOptions THEME_JSON = new(JsonSerializerDefaults.Web);
+
+    private sealed record ThemeRequest(string? Ticket, string? Theme);
 
     /// <summary>A starter room's picture, as the starter room camera last drew it; 404 when there is none.</summary>
     private static IResult StarterRoomPicture(
