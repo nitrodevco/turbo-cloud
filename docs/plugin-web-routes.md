@@ -116,7 +116,7 @@ A provider that signs with a certificate and a transmission id (PayPal's `paypal
 headers) is checked the same way: every header it names is in `Headers`, and the bytes it signed
 are `RawBody`. The body still has to be JSON (400 otherwise) and within `MaxBodyBytes`; the address
 and rate limits apply to the provider as to anyone.
-- **`PluginWebResult`**: a status with a JSON value (`Ok(value)`), `NoContent()`, or an error
+- **`PluginWebResult`**: a status with a JSON value (`Ok(value)`), `NoContent()`, `Accepted()` (202 with no body), or an error
   (`BadRequest`, `Forbidden`, `NotFound`, or `new(status, Error: "...")`) sent as
   `{"error": "..."}`, words the caller shows.
 

@@ -1,0 +1,167 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Reflection;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Turbo.Contracts.Hotel;
+using Turbo.Contracts.Plugins.Mcp;
+using Turbo.Runtime.AssemblyProcessing;
+
+namespace Turbo.Plugins;
+
+/// <summary>
+/// The MCP tools of the live plugins (<see cref="IMcpTools"/>). A plugin's tools are found in its
+/// assembly as it loads (<see cref="Build"/>), listed once it has started, and taken away as it
+/// starts to stop. Who may call a tool is asked of the hotel's permissions on every call.
+/// </summary>
+internal sealed class McpTools(IServiceProvider host, ILogger<McpTools> logger) : IMcpTools
+{
+    private readonly ConcurrentDictionary<string, ImmutableArray<McpToolDefinition>> _live = new(
+        StringComparer.OrdinalIgnoreCase
+    );
+
+    public ImmutableArray<McpToolDefinition> All =>
+        [
+            .. _live
+                .OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+                .SelectMany(x => x.Value.OrderBy(t => t.Name, StringComparer.Ordinal)),
+        ];
+
+    public async Task<ImmutableArray<McpToolDefinition>> AvailableToAsync(
+        McpCaller caller,
+        CancellationToken ct
+    )
+    {
+        var available = ImmutableArray.CreateBuilder<McpToolDefinition>();
+
+        foreach (var tool in All)
+            if (await tool.IsAvailableToAsync(caller, Holds(caller), ct).ConfigureAwait(false))
+                available.Add(tool);
+
+        return available.ToImmutable();
+    }
+
+    public async Task<McpToolCallResult> CallAsync(
+        string name,
+        JsonElement? arguments,
+        McpCaller caller,
+        CancellationToken ct
+    )
+    {
+        var holds = Holds(caller);
+
+        if (
+            All.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.Ordinal))
+                is not { } tool
+            || !await tool.IsAvailableToAsync(caller, holds, ct).ConfigureAwait(false)
+        )
+            return McpToolCallResult.Unavailable(name);
+
+        try
+        {
+            return await tool.CallAsync(arguments, new McpToolContext(caller, holds), ct)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+            when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            logger.LogError(
+                ex,
+                "The plugin {Key}'s MCP tool {Tool} failed for player {Player}",
+                tool.Owner,
+                tool.Name,
+                caller.Player.Value
+            );
+
+            return McpToolCallResult.Failed(tool.Name);
+        }
+    }
+
+    /// <summary>
+    /// The tools <paramref name="asm"/> declares (public <see cref="IMcpTool"/>s), each built with
+    /// <paramref name="services"/>. Throws <see cref="InvalidOperationException"/> for a tool MCP
+    /// can't offer (<see cref="McpToolDefinition.Create"/>), a name used twice in the plugin, or a
+    /// name another live plugin's tool has.
+    /// </summary>
+    public ImmutableArray<McpToolDefinition> Build(
+        string key,
+        Assembly asm,
+        IServiceProvider services
+    )
+    {
+        var tools = new List<McpToolDefinition>();
+
+        foreach (var concrete in AssemblyExplorer.FindAssignees(asm, typeof(IMcpTool)))
+        {
+            var instance = (IMcpTool)ActivatorUtilities.CreateInstance(services, concrete);
+            McpToolDefinition tool;
+
+            try
+            {
+                tool = McpToolDefinition.Create(instance, key);
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw new InvalidOperationException($"The plugin {key}: {ex.Message}", ex);
+            }
+
+            if (tools.Any(x => x.Name == tool.Name))
+                throw new InvalidOperationException(
+                    $"The plugin {key} has two MCP tools named {tool.Name}."
+                );
+
+            if (
+                _live.FirstOrDefault(x =>
+                    !string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)
+                    && x.Value.Any(t => t.Name == tool.Name)
+                ) is
+                { Key: { } other }
+            )
+                throw new InvalidOperationException(
+                    $"The plugin {key}'s MCP tool {tool.Name} has the name of the plugin {other}'s: an assistant calls a tool by name, so each is one plugin's. Name it {key}_{tool.Name}."
+                );
+
+            tools.Add(tool);
+        }
+
+        return [.. tools];
+    }
+
+    /// <summary>Lists the plugin's tools; disposing the result takes them away.</summary>
+    public IDisposable Live(string key, ImmutableArray<McpToolDefinition> tools)
+    {
+        _live[key] = tools;
+
+        return new Removal(this, key, tools);
+    }
+
+    /// <summary>The plugin is reloading, stopping, turned off, failed or gone: it has no tools.</summary>
+    public void Off(string key) => _live.TryRemove(key, out _);
+
+    private Func<string, CancellationToken, Task<bool>> Holds(McpCaller caller)
+    {
+        var hotel = host.GetRequiredService<IHotel>();
+
+        return (node, ct) => hotel.Players.HasPermissionAsync(caller.Player, node, ct);
+    }
+
+    private sealed class Removal(
+        McpTools owner,
+        string key,
+        ImmutableArray<McpToolDefinition> tools
+    ) : IDisposable
+    {
+        public void Dispose()
+        {
+            // Only the version it listed: a newer one may already have replaced it.
+            if (owner._live.TryGetValue(key, out var live) && live == tools)
+                owner._live.TryRemove(key, out _);
+        }
+    }
+}

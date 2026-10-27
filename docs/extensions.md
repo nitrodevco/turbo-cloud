@@ -48,6 +48,7 @@ What already works (each with its guide):
 | Permissions | `IPermissionNodeSource`, `[RequiresPermission]` | `permissions.md` |
 | Admin pages | `IPluginAdmin` (schema-driven, no code in the panel) | `admin-panel.md` |
 | Client code | `client/src/index.tsx`, built by the server; client `ClientModuleApi` v1 | `client-modules.md` |
+| Tools AI assistants call over MCP | `McpTool<TInput>` + `[RequiresPermission]`, `IMcpTools`, `Turbo.Testing.McpToolTester` | `plugin-mcp-tools.md` |
 | Install, update, rollback, uninstall with data choice | `IPluginAdministration`, `IPluginDataOwner` | `admin-panel.md` |
 
 ## 2. What is wrong with it today
@@ -97,7 +98,7 @@ say which in its guide. One kind per problem keeps the surface learnable.
 | **Event** | observe something that happened (`PurchaseCompletedEvent`, `PlayerLoggedInEvent`, `PlayerLoginFailedEvent`, `PlayerRegisteredEvent`, `PlayerRegistrationFailedEvent`, `PlayerIdentityLinkedEvent`, `RoomEnteredEvent`, `HotelAvailabilityChangedEvent`: `docs/plugin-policies.md`) | no | after the fact |
 | **Pipeline / policy** | allow, refuse or adjust an action before it commits (`IPurchasePolicy` incl. room ads, `IRoomEntryPolicy`, `IRoomArrivalPolicy`, `IPlacementPolicy`, `IRegistrationPolicy`: `docs/plugin-policies.md`) | yes, explicitly | before commit, in the owner's context |
 | **Service contract** | replace or add an implementation of a named contract | yes, the whole behaviour | wherever the contract is called |
-| **Registry** | add a new thing of a known kind (command, logic, game, message, web route) | n/a | as registered |
+| **Registry** | add a new thing of a known kind (command, logic, game, message, web route, MCP tool) | n/a | as registered |
 | **Template patch** | change or extend an existing window, as data | presentation only | where the template is read |
 | **Theme layer** | change how everything looks (frames, fonts, colours, art) | presentation only | at load |
 | **Message** | talk between a plugin's client and server halves | n/a | network |
@@ -249,7 +250,10 @@ The assembly scan (commands, logic, listeners, games, permission nodes, wired va
 Laravel auto-discovery equivalent and stays the default. New registrations follow it: implement the
 public interface, get found, get removed on unload. Scheduled tasks are one (`IScheduledTask` with a
 cron or interval, run once per cluster, or on every server with `PerServer = true`:
-`docs/plugin-scheduler.md`).
+`docs/plugin-scheduler.md`). MCP tools are another (`McpTool<TInput>`: a name, a description, an
+input record whose schema is generated, hints, a required permission node; listed for the MCP server
+plugin through `IMcpTools`, which offers each staff member the tools their nodes allow and a
+read-only token the read-only ones: `docs/plugin-mcp-tools.md`).
 
 ### 4.5 Template patches (client)
 

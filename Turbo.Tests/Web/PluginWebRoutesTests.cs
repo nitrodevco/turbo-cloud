@@ -172,6 +172,16 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
             }
         }
 
+        // A notification taken with nothing to answer (an MCP server's notifications).
+        public sealed class SeenRoute : IPluginWebRoute
+        {
+            public string Method => "POST";
+            public string Pattern => "seen";
+            public bool Anonymous => true;
+            public Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct) =>
+                Task.FromResult(PluginWebResult.Accepted());
+        }
+
         public sealed class BrokenRoute : IPluginWebRoute
         {
             public string Method => "GET";
@@ -272,6 +282,21 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
         token
             .BaseUrl.Should()
             .Be(SITE, "with no address of their own the routes are the site's /api");
+    }
+
+    [Fact]
+    public async Task An_accepted_answer_is_202_with_no_body()
+    {
+        await StartAsync();
+
+        var seen = await SendAsync(
+            HttpMethod.Post,
+            "seen",
+            new { method = "notifications/initialized" }
+        );
+
+        seen.Status.Should().Be(202);
+        seen.Json.ValueKind.Should().Be(JsonValueKind.Undefined, "MCP wants no body with a 202");
     }
 
     [Fact]
