@@ -106,8 +106,9 @@ client/src/SkillsWindow.tsx:14:10: Unexpected ";"
 ```
 
 Builds are kept beside the plugins in `<plugins>/.client-builds/<key>/<hash>/<key>.js`, by a hash
-of every file under `client/src/`, the SDK, esbuild's version and the options: a plugin that loads
-again unchanged (a restart, a reload, a server-half change) is not built again. Measured on the
+of every file under `client/src/`, the SDK, esbuild's version and the options, keyed with a secret
+the server makes once (`.client-builds/.key`), so a ready-made build copied in from elsewhere is
+never found and served in place of one built here. A plugin that loads again unchanged (a restart, a reload, a server-half change) is not built again. Measured on the
 template's module (five files, 34 KB built): about 90-140 ms to build, 1-3 ms from the cache. A file
 under `client/src/` is a code file for hot reload: saving one loads the plugin again, which builds
 the module and sends clients its new version. The build before is kept while it may still be

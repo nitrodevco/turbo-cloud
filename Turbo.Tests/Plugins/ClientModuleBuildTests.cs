@@ -192,6 +192,33 @@ public sealed class ClientModuleBuildTests : IDisposable
         File.ReadAllText(changed.File).Should().Contain("changed");
     }
 
+    /// <summary>
+    /// A cache entry made on another server (shipped beside a stub source, with whatever JavaScript
+    /// in it) is never served: the cache is named under this server's own secret.
+    /// </summary>
+    [Fact]
+    public void A_cache_entry_built_elsewhere_is_not_served()
+    {
+        WritePlugin(("client/src/index.ts", "export default { activate() {} };"));
+
+        var folder = Path.Combine(_folder, KEY);
+        var elsewhere = Path.Combine(_folder, "elsewhere");
+        var shipped = new PluginClientBuilder(elsewhere).Build(KEY, folder, "client/src/index.ts");
+
+        File.WriteAllText(shipped.File, "/* not built from this source */");
+
+        var cache = Path.Combine(_folder, PluginClientBuilder.CACHE_FOLDER);
+        var target = Path.Combine(cache, KEY, Path.GetFileName(Path.GetDirectoryName(shipped.File)!));
+
+        Directory.CreateDirectory(target);
+        File.Copy(shipped.File, Path.Combine(target, Path.GetFileName(shipped.File)));
+
+        var built = new PluginClientBuilder(cache).Build(KEY, folder, "client/src/index.ts");
+
+        built.Reused.Should().BeFalse();
+        File.ReadAllText(built.File).Should().NotContain("not built from this source");
+    }
+
     [Fact]
     public async Task Editing_a_client_source_reloads_the_plugin_with_its_module_built_again()
     {

@@ -377,10 +377,15 @@ internal sealed class PluginClientBuilder(
         return $"{file}:{line}:{column}";
     }
 
-    /// <summary>A hash of all a build reads: esbuild's version and options, the SDK, and every file under <c>client/src/</c>.</summary>
+    /// <summary>
+    /// A hash of all a build reads: esbuild's version and options, the SDK, and every file under
+    /// <c>client/src/</c>, keyed with this server's own secret (<see cref="ServerKey"/>), so a build
+    /// output nobody built here (a ready-made cache entry shipped beside a stub source) is never
+    /// found under its name.
+    /// </summary>
     private string Hash(string key, string folder, string entry)
     {
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        using var hash = IncrementalHash.CreateHMAC(HashAlgorithmName.SHA256, ServerKey());
 
         hash.AppendData(
             Encoding.UTF8.GetBytes(
@@ -390,6 +395,34 @@ internal sealed class PluginClientBuilder(
         AppendFolder(hash, Path.Combine(folder, SOURCE_FOLDER));
 
         return Convert.ToHexStringLower(hash.GetHashAndReset());
+    }
+
+    /// <summary>The name of this server's secret, in the cache folder: 32 random bytes made on first use.</summary>
+    public const string KEY_FILE = ".key";
+
+    private byte[]? _serverKey;
+
+    /// <summary>
+    /// This server's secret for the cache's names (<see cref="KEY_FILE"/>), made once. A key file of
+    /// the wrong length is replaced, and every build is then made again under the new one.
+    /// </summary>
+    private byte[] ServerKey()
+    {
+        if (_serverKey is not null)
+            return _serverKey;
+
+        var path = Path.Combine(cacheFolder, KEY_FILE);
+
+        if (File.Exists(path) && File.ReadAllBytes(path) is { Length: 32 } existing)
+            return _serverKey = existing;
+
+        Directory.CreateDirectory(cacheFolder);
+
+        var key = RandomNumberGenerator.GetBytes(32);
+
+        File.WriteAllBytes(path, key);
+
+        return _serverKey = key;
     }
 
     private string SdkHash()
