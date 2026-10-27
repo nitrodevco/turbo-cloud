@@ -135,10 +135,57 @@ public sealed class ButtonLogic : FurniLogic
 ```
 
 Hooks: `OnAttachedAsync` (placed, room loaded, plugin reloaded), `OnUseAsync`, `OnWalkOnAsync`,
-`OnWalkOffAsync`. Each runs after core's own (a walk-on still fires core's walk-on triggers);
-everything else (walking, stacking, sitting, rolling) is the furniture definition's. The context
-(`IFurniContext`) has the room, the furni itself, the room's users, `SetStateAsync` and
-`FireWiredAsync` (from inside the room; `IHotel.Wired` is for outside it).
+`OnWalkOffAsync`, `OnMessageAsync` (below). Each runs after core's own (a walk-on still fires core's
+walk-on triggers); everything else (walking, stacking, sitting, rolling) is the furniture
+definition's. The context (`IFurniContext`) has the room, the furni itself, the room's users,
+`SetStateAsync` and `FireWiredAsync` (from inside the room; `IHotel.Wired` is for outside it), and:
+
+| Member | What it does |
+| --- | --- |
+| `ReadExtraData<T>(section)` | one section of the furni's extra data as JSON (its own, else its definition's); null when none |
+| `PairedItemId` | the other half of a linked pair (its `room_linker` section); 0 when none |
+| `GetRoomOfItemAsync(itemId)` | the room an item stands in; null in an inventory |
+| `ObjectExtra`, `SetObjectExtraAsync(n)` | the number the client gets with the furni; setting it shows the furni again. Kept while the room is loaded: set it in `OnAttachedAsync` if it must last |
+| `WalkToAsync(user, tiles, onArrived)` | walks the user to the nearest tile it can reach and runs `onArrived` once it stands there, in the room's turn (core's walk-to-use machinery: at once when it stands still on the nearest; forgotten if the user walks elsewhere or takes too long). False when no tile is reachable |
+| `StopWalkingAsync(user)`, `SetRotationAsync(user, rotation)` | stop the user where it stands; turn it, body and head |
+| `ShowStepAsync(user, tile)` | shows one step to a tile (the `mv` status, facing it) without moving the user; the tile may be off the map. Shown once |
+| `ForwardToRoomAsync(user, room, extension)` | sends a player to another room with your own data (`RoomEntryExtension(key, payload)`) for that room's arrival policies (`IRoomArrivalPolicy`, `docs/plugin-policies.md`). A plain entry: bans, the door (doorbell, password), a full room and the entry policies all decide |
+
+`RoomUser` stays a read-only view: every action is on the context, and each answers false when the
+user has left the room.
+
+### Linked pairs
+
+`[FurniLogic("portal", LinkedPair = true)]` makes the furni a linked pair while the plugin is
+loaded, exactly as a teleporter is: one bought from the catalogue (or granted by an offer) is two,
+each half's `room_linker` section naming the other (`ctx.PairedItemId`), and it cannot be sent as a
+gift. "WIRED Effect: Teleport to Room" also reads the pair, as it does a room linker's.
+
+### Messages from your own code
+
+A packet handler, command or task reaches its furni logic through the room:
+`IHotel.Rooms.InvokeFurniLogicAsync(room, itemId, message)` (or `IRoomGrain.InvokeFurniLogicAsync`).
+The message is `FurniLogicMessage(key, payload, sender)`: `key` is your logic's `[FurniLogic]` key,
+`payload` a string you serialise (`FurniLogicMessage.Of(key, body, sender)` writes JSON,
+`message.Read<T>()` reads it back), `sender` the player it is for. Strings only: your own types
+never cross grains, since the plugin can be reloaded. The logic answers in the room's turn:
+
+```csharp
+public override async Task<FurniLogicReply> OnMessageAsync(
+    IFurniContext ctx, FurniLogicMessage message, RoomUser? sender, CancellationToken ct)
+{
+    if (message.Read<SetTarget>() is not { } target)
+        return FurniLogicReply.NotHandled;
+
+    await ctx.SetObjectExtraAsync(target.RoomId, ct);
+
+    return FurniLogicReply.Handled();   // or Handled(body) with an answer for the caller
+}
+```
+
+The caller never gets an exception: the reply's `Status` is `Handled` (with its `Payload`),
+`NotHandled`, `UnknownItem` (no such floor item in the room), `WrongLogic` (the item runs another
+logic than `key`) or `Failed` (the logic threw; the room logs it).
 
 ## Scaffolding
 

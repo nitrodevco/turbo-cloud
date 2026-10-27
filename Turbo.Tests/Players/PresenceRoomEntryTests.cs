@@ -74,6 +74,35 @@ public sealed class PresenceRoomEntryTests
         fakes.Log.Of("RecordActivityAsync").Should().BeEmpty();
     }
 
+    /// <summary>
+    /// What a plugin's furni sends with a forwarded player (an entry extension) is still on the
+    /// entry the room makes their avatar with: it survives the presence's forward.
+    /// </summary>
+    [Fact]
+    public async Task A_forwards_entry_extension_reaches_the_room_that_makes_the_avatar()
+    {
+        var fakes = new Fakes();
+        var presence = Presence(fakes);
+        var entry = new RoomEntrySnapshot
+        {
+            Method = Turbo.Primitives.Rooms.Enums.RoomEntryMethodType.Default,
+            TeleportId = 0,
+            SourceRoomId = RoomId.Parse(7),
+            Extension = new RoomEntryExtension("portals", """{"from":10}"""),
+        };
+
+        await presence.ForwardToRoomAsync(ROOM, entry, TestContext.Current.CancellationToken);
+        await presence.SetActiveRoomAsync(ROOM, (PlayerId)2, TestContext.Current.CancellationToken);
+
+        fakes
+            .Log.Of("CreateAvatarFromPlayerAsync")
+            .Should()
+            .ContainSingle()
+            .Which.Args[2]
+            .Should()
+            .Be(entry);
+    }
+
     private static IPlayerPresenceGrain Presence(Fakes fakes)
     {
         // The room stream comes from a keyed provider; the fakes' own service provider has no keys.

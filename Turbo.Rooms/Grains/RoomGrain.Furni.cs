@@ -4,12 +4,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Rooms.Object.Logic.Plugins;
 
 namespace Turbo.Rooms.Grains;
 
@@ -66,6 +68,28 @@ public sealed partial class RoomGrain
 
             return false;
         }
+    }
+
+    public async Task<FurniLogicReply> InvokeFurniLogicAsync(
+        int itemId,
+        FurniLogicMessage message,
+        CancellationToken ct
+    )
+    {
+        // A room nobody is in may not be loaded: its furni and their logic are loaded for it.
+        await MapModule.EnsureMapBuiltAsync(ct);
+        await FurniModule.EnsureFurniLoadedAsync(ct);
+
+        if (!FurniModule.TryGetFloorItem(itemId, out var item))
+            return FurniLogicReply.UnknownItem;
+
+        if (
+            item.Logic is not PluginFurniLogic plugin
+            || !string.Equals(item.Definition.LogicName, message.Key, StringComparison.Ordinal)
+        )
+            return FurniLogicReply.WrongLogic;
+
+        return await plugin.ReceiveMessageAsync(message, ct);
     }
 
     public Task<bool> StaffPickupItemAsync(int itemId, int staffPlayerId, CancellationToken ct) =>

@@ -36,6 +36,8 @@ public sealed class ProductFurniGrantTests : IDisposable
     private const int BUYER = 7;
     private const int OFFER_ID = 900;
     private const int POST_IT = 9;
+    private const int PLUGIN_PAIR = 10;
+    private const string PLUGIN_PAIR_LOGIC = "grant_test_linked_pair";
 
     private readonly SqliteDb _db = new();
     private readonly Fakes _fakes = new();
@@ -76,6 +78,13 @@ public sealed class ProductFurniGrantTests : IDisposable
             FurnitureCategory.Default
         );
         AddDefinition(POST_IT, "post_it", ProductType.Wall, FurnitureCategory.PostIt, "stickie");
+        AddDefinition(
+            PLUGIN_PAIR,
+            "plugin_portal",
+            ProductType.Floor,
+            FurnitureCategory.Default,
+            PLUGIN_PAIR_LOGIC
+        );
 
         _fakes.Handlers["TryGetDefinition"] = call =>
             _definitions.FirstOrDefault(x => x.Id == (int)call.Args[0]!)?.ToSnapshot(0.01);
@@ -245,6 +254,51 @@ public sealed class ProductFurniGrantTests : IDisposable
             items[0].Extra.Should().Be(items[1].ItemId.Value);
             items[1].Extra.Should().Be(items[0].ItemId.Value);
         }
+    }
+
+    /// <summary>
+    /// A plugin's furni logic flagged a linked pair (<c>[FurniLogic(key, LinkedPair = true)]</c>)
+    /// is granted as a teleporter is, each half's <c>room_linker</c> naming the other, while the
+    /// plugin is loaded; once it unloads one bought is one again.
+    /// </summary>
+    [Fact]
+    public async Task A_plugins_linked_pair_logic_is_granted_as_a_pair_while_it_is_loaded()
+    {
+        var registration = TeleportFurniture.AddPairedLogic(PLUGIN_PAIR_LOGIC);
+
+        var pair = await NewInventory()
+            .GrantCatalogOfferAsync(
+                Offer(PLUGIN_PAIR, null),
+                string.Empty,
+                1,
+                TestCustody.Cause(),
+                Ct
+            );
+
+        registration.Dispose();
+
+        var single = await NewInventory()
+            .GrantCatalogOfferAsync(
+                Offer(PLUGIN_PAIR, null),
+                string.Empty,
+                1,
+                TestCustody.Cause(),
+                Ct
+            );
+
+        pair.Should().HaveCount(2);
+        single.Should().ContainSingle();
+
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        var rows = db
+            .Furnitures.Where(x => x.FurnitureDefinitionEntityId == PLUGIN_PAIR)
+            .OrderBy(x => x.Id)
+            .ToList();
+
+        rows.Should().HaveCount(3);
+        rows[0].ExtraData.Should().Be(TeleportFurniture.PairExtraData(rows[1].Id));
+        rows[1].ExtraData.Should().Be(TeleportFurniture.PairExtraData(rows[0].Id));
+        (rows[2].ExtraData ?? string.Empty).Should().NotContain("room_linker");
     }
 
     private void AddDefinition(

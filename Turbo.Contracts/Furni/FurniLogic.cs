@@ -4,7 +4,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Rooms;
 using Turbo.Contracts.Wired;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Contracts.Furni;
 
@@ -17,6 +20,13 @@ namespace Turbo.Contracts.Furni;
 public sealed class FurniLogicAttribute(string key) : Attribute
 {
     public string Key { get; } = key;
+
+    /// <summary>
+    /// Sold, granted and refused as a gift as a linked pair, exactly as a teleporter is: one bought
+    /// is two, each half naming the other in its <c>room_linker</c> extra data
+    /// (<see cref="IFurniContext.PairedItemId"/>). While the plugin is loaded.
+    /// </summary>
+    public bool LinkedPair { get; init; }
 }
 
 /// <summary>
@@ -49,6 +59,21 @@ public abstract class FurniLogic
     /// <summary>A user stepped off it.</summary>
     public virtual Task OnWalkOffAsync(IFurniContext ctx, RoomUser user, CancellationToken ct) =>
         Task.CompletedTask;
+
+    /// <summary>
+    /// A message the plugin sent this furni (<c>IRoomGrain.InvokeFurniLogicAsync</c> or
+    /// <c>IHotel.Rooms.InvokeFurniLogicAsync</c>, from a packet handler, a command, a task), its
+    /// <see cref="FurniLogicMessage.Key"/> this logic's key. <paramref name="sender"/> is the
+    /// message's player when they are in this room. Answer
+    /// <see cref="FurniLogicReply.Handled(string?)"/> (with a payload for the sender, if any);
+    /// <see cref="FurniLogicReply.NotHandled"/> by default.
+    /// </summary>
+    public virtual Task<FurniLogicReply> OnMessageAsync(
+        IFurniContext ctx,
+        FurniLogicMessage message,
+        RoomUser? sender,
+        CancellationToken ct
+    ) => Task.FromResult(FurniLogicReply.NotHandled);
 }
 
 /// <summary>The furni a <see cref="FurniLogic"/> runs for, and its room.</summary>
@@ -72,4 +97,69 @@ public interface IFurniContext
     /// </summary>
     Task FireWiredAsync<TEvent>(TEvent evt, RoomUser? triggerer, CancellationToken ct)
         where TEvent : IWiredEvent;
+
+    /// <summary>
+    /// One section of the furni's extra data (its own, else its definition's) read as JSON;
+    /// null when it has none or it does not read as a <typeparamref name="T"/>.
+    /// </summary>
+    T? ReadExtraData<T>(string section)
+        where T : class;
+
+    /// <summary>
+    /// The other half of a linked pair (a teleporter's, or a <see cref="FurniLogicAttribute.LinkedPair"/>
+    /// furni's): the item its <c>room_linker</c> extra data names; 0 when it names none.
+    /// </summary>
+    int PairedItemId { get; }
+
+    /// <summary>The room <paramref name="itemId"/> stands in; null when it is in no room (an inventory).</summary>
+    Task<RoomId?> GetRoomOfItemAsync(int itemId, CancellationToken ct);
+
+    /// <summary>
+    /// The number the client is sent with the furni (its object extra), 0 until set. Kept while
+    /// the room is loaded: set it again in <see cref="FurniLogic.OnAttachedAsync"/> if it must last.
+    /// </summary>
+    int ObjectExtra { get; }
+
+    /// <summary>Sets <see cref="ObjectExtra"/> and shows the furni again to the room.</summary>
+    Task SetObjectExtraAsync(int extra, CancellationToken ct);
+
+    /// <summary>
+    /// Walks <paramref name="user"/> to the nearest of <paramref name="tiles"/> it can reach and
+    /// runs <paramref name="onArrived"/> once it stands there, in the room's turn (at once when it
+    /// already stands still on the nearest). False when it can reach none, or is not in the room.
+    /// A later walk for the same user replaces it; a user who walks elsewhere or takes too long is
+    /// forgotten, and <paramref name="onArrived"/> never runs.
+    /// </summary>
+    Task<bool> WalkToAsync(
+        RoomUser user,
+        IReadOnlyList<RoomTilePoint> tiles,
+        Func<RoomUser, CancellationToken, Task> onArrived,
+        CancellationToken ct
+    );
+
+    /// <summary>Stops the user where it is, finishing a step under way. False when it is not in the room.</summary>
+    Task<bool> StopWalkingAsync(RoomUser user, CancellationToken ct);
+
+    /// <summary>Turns the user (body and head) to <paramref name="rotation"/>. False when it is not in the room.</summary>
+    Task<bool> SetRotationAsync(RoomUser user, Rotation rotation, CancellationToken ct);
+
+    /// <summary>
+    /// Shows the room the user taking one step to <paramref name="to"/> (its <c>mv</c> status, facing
+    /// that way) without moving it there: the tile may be off the map, as a step through a wall
+    /// into another room is. Shown once; the user stays where it stands. False when it is not in the room.
+    /// </summary>
+    Task<bool> ShowStepAsync(RoomUser user, RoomTilePoint to, CancellationToken ct);
+
+    /// <summary>
+    /// Sends a player to <paramref name="room"/>, with <paramref name="extension"/> for that room's
+    /// arrival policies (<c>IRoomArrivalPolicy</c>) to read. It goes in as any player walking in
+    /// does: bans, the door (doorbell, password), a full room and the entry policies all decide.
+    /// False when the user is not a player in this room.
+    /// </summary>
+    Task<bool> ForwardToRoomAsync(
+        RoomUser user,
+        RoomId room,
+        RoomEntryExtension? extension,
+        CancellationToken ct
+    );
 }

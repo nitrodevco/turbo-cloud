@@ -488,6 +488,40 @@ public class RoomEntryPreparationTests
         Assert.Equal(PacketHarness.Outgoing("ItemsMessageComposer"), headers[^1]);
     }
 
+    /// <summary>
+    /// Only a teleporter's far half lets a player past a room's door (doorbell, password). A plugin's
+    /// furni forwarding a player with its own data (<see cref="RoomEntrySnapshot.Extension"/>, for
+    /// the room's arrival policies) does not: the room checks the door, bans and capacity as for
+    /// anyone walking in.
+    /// </summary>
+    [Theory]
+    [InlineData(RoomEntryMethodType.Teleport, true)]
+    [InlineData(RoomEntryMethodType.Default, false)]
+    [InlineData(RoomEntryMethodType.RoomNetwork, false)]
+    public async Task An_entry_extension_never_lets_a_player_past_the_door(
+        RoomEntryMethodType method,
+        bool passesDoor
+    )
+    {
+        var harness = CreateHarness(RoomEntryAccessType.Banned);
+        harness.Fakes.Handlers["GetPendingRoomEntryAsync"] = _ =>
+            Task.FromResult(
+                new RoomEntrySnapshot
+                {
+                    Method = method,
+                    TeleportId = method == RoomEntryMethodType.Teleport ? 5 : 0,
+                    SourceRoomId = 7,
+                    Extension = new RoomEntryExtension("portals", "{}"),
+                }
+            );
+
+        await OpenRoomAsync(harness);
+
+        var check = Assert.Single(harness.Fakes.Log.Of("CheckEntryAccessAsync"));
+        Assert.Equal("password", check.Args[1]);
+        Assert.Equal(passesDoor, check.Args[2]);
+    }
+
     private static async Task<PacketHarness> ApprovedHarnessAsync(
         Action<Turbo.Primitives.Rooms.Snapshots.Mapping.RoomMapSnapshot>? editMap = null
     )

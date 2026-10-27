@@ -24,6 +24,7 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
     public const string AVATAR_EFFECT = "avatar-effect";
     public const string PURCHASE_FULFILMENT = "purchase-fulfilment";
     public const string PUBLIC_ROOM_ORDER = "public-room-order";
+    public const string ROOM_ARRIVAL = "room-arrival";
 
     /// <summary>No policies: the hotel decides as it always does.</summary>
     public static GamePolicies None => new(NullLogger<GamePolicies>.Instance);
@@ -230,6 +231,33 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
         return RegistrationDecision.Allow;
     }
 
+    public async ValueTask<RoomArrivalDecision> DecideRoomArrivalAsync(
+        RoomArrivalRequest request,
+        RoomArrivalDecision proposed,
+        CancellationToken ct
+    )
+    {
+        var decision = proposed;
+
+        foreach (var entry in Of(ROOM_ARRIVAL))
+        {
+            try
+            {
+                decision =
+                    await ((IRoomArrivalPolicy)entry.Policy)
+                        .DecideAsync(request, decision, ct)
+                        .ConfigureAwait(false)
+                    ?? decision;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                LogFailure(ex, entry, request.PlayerId.Value);
+            }
+        }
+
+        return decision;
+    }
+
     public bool ShowsAvatarEffects => _shows.Length > 0;
 
     public int DecideAvatarEffect(AvatarEffectRequest request)
@@ -396,6 +424,7 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
                 (policy is IAvatarEffectPolicy, AVATAR_EFFECT),
                 (policy is IPurchaseFulfilment, PURCHASE_FULFILMENT),
                 (policy is IPublicRoomOrder, PUBLIC_ROOM_ORDER),
+                (policy is IRoomArrivalPolicy, ROOM_ARRIVAL),
             }
                 .Where(x => x.Is)
                 .Select(x => x.Kind),
@@ -410,6 +439,7 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
             AVATAR_EFFECT => ((IAvatarEffectPolicy)policy).Order,
             PURCHASE_FULFILMENT => ((IPurchaseFulfilment)policy).Order,
             PUBLIC_ROOM_ORDER => ((IPublicRoomOrder)policy).Order,
+            ROOM_ARRIVAL => ((IRoomArrivalPolicy)policy).Order,
             _ => ((IPlacementPolicy)policy).Order,
         };
 

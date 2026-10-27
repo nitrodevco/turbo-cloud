@@ -67,6 +67,22 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             startRot = arrivalItem.Rotation;
         }
 
+        // Anyone else is placed by the arrival policies, asked now that every entry check has let
+        // them in: where they appear and where they walk, never whether they come in.
+        var placed = arrival is null
+            ? await _roomGrain._policies.DecideRoomArrivalAsync(
+                new RoomArrivalRequest(
+                    snapshot.PlayerId,
+                    _roomGrain.RoomId,
+                    entry.Method,
+                    entry.SourceRoomId,
+                    entry.Extension
+                ),
+                RoomArrivalDecision.Door(startX, startY, startRot),
+                ct
+            )
+            : null;
+
         // Read before the avatar is made, unlike the badges and the club below: the moderator
         // flag and the worn group go out with the avatar the moment it attaches. Habbo's own
         // Users message on entry already names the group (official client capture, 2026-10-13:
@@ -101,6 +117,24 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
 
         avatar.SetRoomEntry(entry);
 
+        // A start tile the avatar could not be put down on (off the map, closed, a furni nobody
+        // stands on) is not used: the door is. Others standing there are no obstacle, as for a
+        // teleport.
+        if (
+            placed is { SkipDoor: true }
+            && MapModule.InBounds(placed.X, placed.Y)
+            && MapModule.CanAvatarWalk(
+                avatar,
+                MapModule.ToIdx(placed.X, placed.Y),
+                ignoreAvatars: true
+            )
+        )
+        {
+            startX = placed.X;
+            startY = placed.Y;
+            startRot = placed.Rotation;
+        }
+
         avatar.NextTileId = MapModule.ToIdx(startX, startY);
 
         // Turned before it attaches: the Users the others get then already faces into the room,
@@ -124,6 +158,8 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             // stack in the room the player arrives in).
             await NotifyWalkOnAsync(avatar, MapModule.ToIdx(arrivalItem.X, arrivalItem.Y), ct);
         }
+        else if (placed?.WalkTo is { } goal)
+            await WalkAvatarToAsync(avatar, goal.X, goal.Y, ct);
 
         // Three grains that answer from what they hold and never call a room, asked side by
         // side: each load only sets its own field on the avatar and logs its own failure.

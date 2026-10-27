@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Text.Json;
 using Turbo.Primitives.Furniture.ExtraData;
 
@@ -27,9 +28,43 @@ public static class TeleportFurniture
     public static bool IsRoomLinker(string? classname) =>
         string.Equals(classname, ROOM_LINKER_CLASSNAME, StringComparison.Ordinal);
 
-    /// <summary>Whether a furni comes as a linked pair: a teleporter, or a room linker by its classname.</summary>
+    // The logic keys a loaded plugin's furni logic sells as linked pairs ([FurniLogic(..., LinkedPair
+    // = true)]), once per registration: two plugins naming one key both hold it.
+    private static ImmutableList<string> _pairedLogics = [];
+
+    /// <summary>
+    /// Whether a furni comes as a linked pair: a teleporter, a room linker by its classname, or a
+    /// furni whose logic a loaded plugin registered as one (<see cref="AddPairedLogic"/>).
+    /// </summary>
     public static bool IsLinkedPair(string? logicName, string? classname) =>
-        IsTeleport(logicName) || IsRoomLinker(classname);
+        IsTeleport(logicName)
+        || IsRoomLinker(classname)
+        || (logicName is not null && _pairedLogics.Contains(logicName));
+
+    /// <summary>
+    /// Sells, gives and grants the furni whose logic is <paramref name="logicName"/> as linked
+    /// pairs, as teleporters are, until the result is disposed (its plugin unloads).
+    /// </summary>
+    public static IDisposable AddPairedLogic(string logicName)
+    {
+        ImmutableInterlocked.Update(ref _pairedLogics, list => list.Add(logicName));
+
+        return new PairedLogic(logicName);
+    }
+
+    private sealed class PairedLogic(string logicName) : IDisposable
+    {
+        private int _disposed;
+
+        public void Dispose()
+        {
+            if (System.Threading.Interlocked.Exchange(ref _disposed, 1) == 0)
+                ImmutableInterlocked.Update(
+                    ref _pairedLogics,
+                    list => list.Remove(logicName, StringComparer.Ordinal)
+                );
+        }
+    }
 
     /// <summary>
     /// The extra data one half of a new pair starts with: a <see cref="RoomLinkerData"/> naming

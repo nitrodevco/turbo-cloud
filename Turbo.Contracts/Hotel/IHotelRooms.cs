@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Plugins.Messages;
@@ -47,6 +48,21 @@ public interface IHotelRooms
     /// <summary>A whisper from the hotel to the player in the room; false when they are not in it.</summary>
     [HotelCall(HotelCallContext.NotFromItsGrain)]
     Task<bool> WhisperAsync(RoomId room, PlayerId player, string text, CancellationToken ct);
+
+    /// <summary>
+    /// Hands <paramref name="message"/> to the plugin furni logic of the room's floor item
+    /// <paramref name="itemId"/> (<c>FurniLogic.OnMessageAsync</c>), in the room's turn, and
+    /// answers its reply: never throws for an item that is not there
+    /// (<see cref="FurniLogicReplyStatus.UnknownItem"/>), runs another logic
+    /// (<see cref="FurniLogicReplyStatus.WrongLogic"/>) or fails (<see cref="FurniLogicReplyStatus.Failed"/>).
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<FurniLogicReply> InvokeFurniLogicAsync(
+        RoomId room,
+        int itemId,
+        FurniLogicMessage message,
+        CancellationToken ct
+    );
 
     /// <summary>Loads the room (its furni and their logic) if it is not loaded.</summary>
     [HotelCall(HotelCallContext.NotFromItsGrain)]

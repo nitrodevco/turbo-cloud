@@ -589,6 +589,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   60FAFA3B: HarvestPetAsync(Turbo.Primitives.Action.ActionContext, int, System.Threading.CancellationToken) -> Task<bool>
   24810EA8: InteractWithItemAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, Turbo.Primitives.Furniture.Interactions.FurnitureInteraction, System.Threading.CancellationToken) -> Task<bool>
   2580838F: InteractWithMusicPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Furniture.Interactions.FurnitureInteraction, System.Threading.CancellationToken) -> Task<bool>
+  F476C8A7: InvokeFurniLogicAsync(int, Turbo.Primitives.Furniture.FurniLogicMessage, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Furniture.FurniLogicReply>
   79E3CFE4: KickPlayerAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<bool>
   37DC1ED9: LockWiredChestsAsync(Turbo.Primitives.Action.ActionContext, bool, bool, System.Threading.CancellationToken) -> Task
   A4A98E7C: LookToAsync(Turbo.Primitives.Action.ActionContext, int, int, System.Threading.CancellationToken) -> Task<bool>

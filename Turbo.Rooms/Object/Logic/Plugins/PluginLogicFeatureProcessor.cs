@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Orleans;
 using Turbo.Contracts.Furni;
 using Turbo.Contracts.Wired;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Plugins;
 using Turbo.Primitives.Rooms.Object;
@@ -50,12 +51,16 @@ internal sealed class PluginLogicFeatureProcessor(IRoomObjectLogicProvider logic
             if (type?.GetCustomAttribute<FurniLogicAttribute>(false) is not { } attribute)
                 continue;
 
+            // Sold, granted and refused as a gift in pairs, as a teleporter, while it is loaded.
+            if (attribute.LinkedPair)
+                batch.Add(TeleportFurniture.AddPairedLogic(attribute.Key));
+
             batch.Add(
                 Register(
                     sp,
                     attribute.Key,
                     type,
-                    type.Name,
+                    attribute.LinkedPair ? $"{type.Name} (linked pair)" : type.Name,
                     (services, ctx) =>
                         new PluginFurniLogic(
                             services.GetRequiredService<IStuffDataFactory>(),
