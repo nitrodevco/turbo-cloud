@@ -31,6 +31,7 @@ can notice (internals, core's own behaviour, tests) has no entry.
 - **Breaks plugins**: no.
 - **Action**: a plugin made from an earlier template copies `tools/ai.mjs` and the three `ai`
   scripts of `package.json` from the template, then runs `npm run ai`; `docs/turbo-boost.md`.
+- [turbo-cloud#472](https://github.com/nitrodevco/turbo-cloud/pull/472)
 
 ### MCP tools: a plugin contribution kind for AI assistants
 
