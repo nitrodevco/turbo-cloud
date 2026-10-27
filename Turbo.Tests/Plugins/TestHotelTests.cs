@@ -308,6 +308,32 @@ public sealed class TestHotelTests : IAsyncLifetime
         _hotel.Room(5).Should().HaveSaid("Splash!").Speaker.Should().Be("bob");
     }
 
+    [Fact]
+    public async Task A_second_hotel_takes_the_first_ones_compile_and_starts_from_nothing()
+    {
+        Write(SOURCE + "\npublic static class Visits { public static int Count; }");
+        await using var first = TestHotel.Create();
+        await using var second = TestHotel.Create();
+
+        var before = await first.LoadAsync(_folder, ct: Ct);
+        first.Settings.Set("Garden:Seeds", 5);
+        await first.Player("bob").InRoom(5).WithPermissions("plugin.garden.plant").SaysAsync(":plant", Ct);
+        before.Assembly.GetType("Garden.Visits")!.GetField("Count")!.SetValue(null, 7);
+
+        var after = await second.LoadAsync(_folder, ct: Ct);
+        var bob = second.Player("bob").InRoom(5).WithPermissions("plugin.garden.plant");
+        await bob.SaysAsync(":plant", Ct);
+
+        second
+            .Logs.Entries.Select(x => x.Message)
+            .Should()
+            .Contain(x => x.StartsWith("Plugin garden was compiled before in this process"))
+            .And.NotContain(x => x.StartsWith("Compiled plugin garden"));
+        after.Assembly.Should().NotBeSameAs(before.Assembly);
+        after.Assembly.GetType("Garden.Visits")!.GetField("Count")!.GetValue(null).Should().Be(0);
+        bob.Should().HaveBeenWhispered("Planted 1 of 3.");
+    }
+
     private void Write(string source)
     {
         var server = Path.Combine(_folder, "server");

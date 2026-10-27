@@ -2,6 +2,7 @@ using System;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Turbo.Contracts.Plugins;
+using Turbo.Plugins.Compilation;
 
 namespace Turbo.Plugins;
 
@@ -22,6 +23,12 @@ internal sealed class PluginTestHooks
     /// <see cref="TimeProvider"/>, a fake of its own), after the plugin's and the conventional ones.
     /// </summary>
     public Action<PluginManifest, IServiceCollection>? Services { get; init; }
+
+    /// <summary>
+    /// Compiles shared by the test run's hosts, so the same sources compile once a run; each host
+    /// compiles its own when null.
+    /// </summary>
+    public PluginCompileMemory? Compiles { get; init; }
 
     /// <summary>The host's services as the plugin's classes reach them; the host's own when null.</summary>
     public Func<IServiceProvider, IServiceProvider>? PluginHost { get; init; }

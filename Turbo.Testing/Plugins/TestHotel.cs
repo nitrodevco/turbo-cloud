@@ -63,6 +63,12 @@ namespace Turbo.Testing;
 /// </summary>
 public sealed class TestHotel : IAsyncDisposable
 {
+    /// <summary>
+    /// The run's compiles: the first hotel to load a plugin's sources compiles them, every later
+    /// one (and any loading them at the same time) takes that compile and loads its own copy.
+    /// </summary>
+    private static readonly PluginCompileMemory COMPILES = new();
+
     private readonly string _folder = Path.Combine(
         Path.GetTempPath(),
         "turbo-test-hotel-" + Guid.NewGuid().ToString("N")
@@ -141,6 +147,7 @@ public sealed class TestHotel : IAsyncDisposable
                 new PluginTestHooks
                 {
                     BuiltCode = m => _builds.GetValueOrDefault(m.Key),
+                    Compiles = COMPILES,
                     Services = ChangePluginServices,
                     PluginHost = host => new StandInHost(host, Host, IsPluginType),
                 }
