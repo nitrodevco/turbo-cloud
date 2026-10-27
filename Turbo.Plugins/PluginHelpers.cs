@@ -8,6 +8,8 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Turbo.Contracts.Plugins;
+using Turbo.Plugins.ClientBuild;
+using Turbo.Plugins.Compilation;
 using Turbo.Plugins.Exceptions;
 
 namespace Turbo.Plugins;
@@ -121,11 +123,11 @@ internal static partial class PluginHelpers
     }
 
     /// <summary>
-    /// The files a plugin's code is loaded from. A change to one of them is a new version of the
+    /// The files a plugin's code is compiled from. A change to one of them is a new version of the
     /// plugin; its other files (texts, client module files) are read by reloading it. Its client
     /// module's sources are code too (<see cref="IsClientSource"/>): the module is built from them.
     /// </summary>
-    public static readonly string[] CODE_FILES = ["manifest.json", "*.dll", "*.pdb", "*.deps.json"];
+    public static readonly string[] CODE_FILES = ["manifest.json", "*.cs"];
 
     public static bool IsCodeFile(string path)
     {
@@ -148,14 +150,22 @@ internal static partial class PluginHelpers
     /// The names, sizes and write times of the plugin's code files: the same while none of them
     /// changed on disk.
     /// </summary>
-    public static string CodeFingerprint(string pluginDir)
+    public static string CodeFingerprint(string pluginDir) => Fingerprint(pluginDir, IsCodeFile);
+
+    /// <summary>
+    /// The names, sizes and write times of every file of the plugin: a plugin refused for a file
+    /// in its folder is tried again once anything in it changed.
+    /// </summary>
+    public static string FolderFingerprint(string pluginDir) => Fingerprint(pluginDir, _ => true);
+
+    private static string Fingerprint(string pluginDir, Func<string, bool> include)
     {
         var text = new StringBuilder();
 
         foreach (
             var file in Directory
                 .EnumerateFiles(pluginDir, "*", SearchOption.AllDirectories)
-                .Where(IsCodeFile)
+                .Where(include)
                 .Order(StringComparer.OrdinalIgnoreCase)
         )
         {
@@ -173,37 +183,22 @@ internal static partial class PluginHelpers
     }
 
     /// <summary>
-    /// A plugin with no <see cref="PluginManifest.AssemblyFile"/>: its files only, no code
-    /// (<c>docs/plugin-data.md</c>).
+    /// A plugin with no source in its folder, server (<see cref="PluginManifest.Sources"/>) or
+    /// client (<see cref="PluginClientBuilder.CONVENTIONAL_ENTRIES"/>): its files only, no code
+    /// (<c>docs/plugin-data.md</c>). One whose globs can't be read has code: the server refuses it
+    /// rather than take it for data.
     /// </summary>
-    public static bool IsDataOnly(PluginManifest manifest) =>
-        string.IsNullOrWhiteSpace(manifest.AssemblyFile);
-
-    public static string GetAssemblyPath(string pluginDir, PluginManifest manifest)
+    public static bool IsDataOnly(PluginManifest manifest, string pluginDir)
     {
-        var asmPath = Path.Combine(
-            pluginDir,
-            Path.GetFileNameWithoutExtension(manifest.AssemblyFile) + ".dll"
-        );
-
-        if (!File.Exists(asmPath))
+        try
         {
-            var alt =
-                Directory
-                    .GetFiles(pluginDir, "*.dll")
-                    .FirstOrDefault(f =>
-                        Path.GetFileNameWithoutExtension(f)
-                            .Contains(manifest.Key, StringComparison.OrdinalIgnoreCase)
-                    )
-                ?? throw new PluginAssemblyException(
-                    PluginAssemblyErrorType.NotFound,
-                    manifest.Key,
-                    pluginDir
-                );
-            asmPath = alt;
+            return PluginClientBuilder.ConventionalEntry(pluginDir) is null
+                && PluginSourceFiles.Find(pluginDir, manifest).Count == 0;
         }
-
-        return asmPath;
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 
     /// <summary>The patch file a plugin's <c>wwwroot/</c> may carry (nitro-next <c>docs/template-patches.md</c>).</summary>

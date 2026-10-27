@@ -4,9 +4,6 @@ namespace Turbo.Plugins.Exceptions;
 
 public enum PluginAssemblyErrorType
 {
-    /// <summary>No assembly matching the manifest could be located in the plugin directory.</summary>
-    NotFound,
-
     /// <summary>The assembly loaded, but contains no ITurboPlugin entry point.</summary>
     EntryPointNotFound,
 
@@ -51,8 +48,6 @@ public sealed class PluginAssemblyException : PluginException
     ) =>
         errorType switch
         {
-            PluginAssemblyErrorType.NotFound =>
-                $"No assembly found for plugin '{pluginKey}' in '{assemblyLocation}'.",
             PluginAssemblyErrorType.EntryPointNotFound =>
                 $"No ITurboPlugin entry point found in assembly '{assemblyLocation}'.",
             PluginAssemblyErrorType.KeyMismatch =>

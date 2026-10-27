@@ -3,7 +3,7 @@
     "Key": "skills",
     "Version": "1.0.0",
     "Author": "Turbo",
-    "AssemblyFile": "PurseSkills.dll",
+    "Sources": ["*.cs"],
     "Dependencies": [],
     "ApiVersion": 1
 }

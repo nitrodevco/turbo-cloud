@@ -79,6 +79,7 @@ public sealed record PluginView(
         {
             PluginStateType.Loaded => "loaded",
             PluginStateType.Failed => "failed",
+            PluginStateType.Rejected => "rejected",
             PluginStateType.Disabled => "disabled",
             _ => "not_loaded",
         };
@@ -104,7 +105,7 @@ public sealed record PluginSourceView(
     string Repository,
     string Follow,
     string? Tag,
-    string? Asset,
+    string? Folder,
     bool HasToken,
     bool AutoUpdate,
     string? Key,
@@ -124,7 +125,7 @@ public sealed record PluginSourceView(
             x.Repository,
             x.Follow,
             x.Tag,
-            x.Asset,
+            x.Folder,
             x.HasToken,
             x.AutoUpdate,
             x.Key,
@@ -146,12 +147,12 @@ public sealed record PluginSourceRequest(
     string? Repository,
     string? Follow,
     string? Tag,
-    string? Asset,
+    string? Folder,
     string? Token,
     bool AutoUpdate
 )
 {
-    public PluginSourceInput ToInput() => new(Repository, Follow, Tag, Asset, Token, AutoUpdate);
+    public PluginSourceInput ToInput() => new(Repository, Follow, Tag, Folder, Token, AutoUpdate);
 }
 
 /// <summary>Rolls a plugin back to a kept version.</summary>

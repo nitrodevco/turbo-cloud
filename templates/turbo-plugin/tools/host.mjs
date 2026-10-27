@@ -11,6 +11,9 @@ import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
 
+/** The server project's name (server/<name>.csproj): the plugin's class and namespace prefix. */
+export const projectName = () => path.parse(readdirSync(path.join(root, 'server')).find(file => file.endsWith('.csproj'))).name;
+
 /** The --turbo checkout, as Directory.Build.props has it (TurboCloudPath overrides it). */
 const checkout = () => process.env.TurboCloudPath ?? path.resolve(root, '../turbo-cloud');
 

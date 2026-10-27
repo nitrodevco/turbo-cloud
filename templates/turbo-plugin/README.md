@@ -13,7 +13,7 @@ wwwroot/         files clients load beside the module (its icon), and template-p
                  module lands here in dist/
 gamedata/        the plugin's texts, given to the hotel as it loads (staff can change them)
 tests/           server tests (xunit) and client/tests (node --test)
-manifest.json    key, version, assembly
+manifest.json    key, version, Sources (the server compiles server/**/*.cs; no assembly is shipped)
 ```
 
 ## Three commands
@@ -24,8 +24,8 @@ dotnet new turbo-plugin -n Skills --key skills --turbo <turbo-cloud> --nitro <ni
 cd Skills && npm run dev
 ```
 
-`npm run dev` installs the client's packages the first time, builds both halves into
-`dist/skills/` and keeps it current. It first checks the server it builds against (`TurboBin`, see
+`npm run dev` installs the client's packages the first time, puts both halves into
+`dist/skills/` (the server sources as they are: the hotel compiles them) and keeps it current. It first checks the server it builds against (`TurboBin`, see
 [The rest](#the-rest)): one older than this plugin is named as the cause, with what to rebuild.
 
 `npm run clean-sample` takes the sample (the skill book, its command, messages, weekly reset,
@@ -69,7 +69,9 @@ a panel sign-in gives (turbo-cloud `docs/admin-panel.md`, "Calling the admin API
 
 As it runs:
 
-- A saved `.cs` file rebuilds the server half; the hotel reloads the plugin (no restart).
+- A saved `.cs` file is copied; the hotel compiles the plugin again and reloads it (no restart).
+  A compile error is in the hotel's log and its admin panel as `server/File.cs(line,column)`, and
+  the version running keeps running.
 - A saved client file is copied; the hotel builds the module from `client/src/` again, sends
   clients its new version and they run it in place (no page reload). The hotel builds it: a
   module that does not build fails the plugin with each error's `file:line:column` (server log,
@@ -111,15 +113,19 @@ definition whose logic is the key is what the hotel places.
 
 | Command | What |
 | --- | --- |
-| `npm run build` | The same build once |
+| `npm run build` | The same once, then `npm run check` |
+| `npm run check` | Compiles the server sources as the hotel does (same references, C# and rules), errors as `server/File.cs(line,column)` |
 | `npm test` | `dotnet test tests/Skills.Tests` and the client tests |
 | `npm run typecheck` | The client module's types |
-| `npm run package` | A Release build and `dist/skills-<version>.zip`, the package the admin panel's plugin upload takes |
+| `npm run package` | `dist/skills-<version>.zip`, the package the admin panel's plugin upload takes: the sources, never an assembly |
 
-The server half builds against a Turbo server's own assemblies, never copied beside the plugin:
-`TurboBin` (`-p:TurboBin=...` or the `TurboBin` environment variable) is the folder holding them,
-by default the `--turbo` checkout's `Turbo.Main/bin/Debug/net10.0`. Point it at the bin folder of the
-server you run. `node tools/host.mjs` checks it, as `npm run dev`, `build`, `test` and
+The hotel compiles the server half from its sources (turbo-cloud `docs/plugin-loading.md`); its
+project here is for the editor, the tests and `dotnet ef`, and imports what the hotel compiles with
+from the server it builds against, `$(TurboBin)/plugin-sdk/Turbo.Plugin.props`: the same
+references, C# version and rules (no assembly loading, native or unsafe code, run-time code
+generation, processes or the compiler). `TurboBin` (`-p:TurboBin=...` or the `TurboBin`
+environment variable) is that server's bin folder, by default the `--turbo` checkout's
+`Turbo.Main/bin/Debug/net10.0`. Point it at the bin folder of the server you run. `node tools/host.mjs` checks it, as `npm run dev`, `build`, `test` and
 `make migration` do before they build: a server built before something the plugin uses (the
 scheduler, say) is named as the cause, with the namespace it lacks and what to rebuild.
 

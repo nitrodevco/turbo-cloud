@@ -6,8 +6,8 @@ admin panel, and what a theme author puts in a folder. The patch format itself i
 
 ## A data plugin
 
-A plugin whose `manifest.json` has no `AssemblyFile` is a **data plugin**: its files are all it
-has. It is installed, turned off and on, updated, rolled back and uninstalled from the Plugins page
+A plugin with no C# source (none of the files its manifest's `Sources` names, `server/**/*.cs`
+by default: `docs/plugin-loading.md`) is a **data plugin**: its files are all it has. It is installed, turned off and on, updated, rolled back and uninstalled from the Plugins page
 as any plugin is, and it runs no code - not on the server, and not in the client either (a
 `client/src/` in it is never built, and no `.js` file is served).
 
@@ -240,8 +240,8 @@ own by default.
 
 **Appearance > Themes > New theme** makes a theme as a data plugin of its own: a name, a key, and the
 theme it starts from - Habbo's own (`habbo`), this hotel's, or any installed theme - which it
-`extends`. The server writes `plugins/<key>/` as a package would install it - `manifest.json` with no
-`AssemblyFile`, `theme.json` `{ "extends": "<parent>", "styles": {} }`, an empty
+`extends`. The server writes `plugins/<key>/` as a package would install it - `manifest.json` (no sources),
+`theme.json` `{ "extends": "<parent>", "styles": {} }`, an empty
 `wwwroot/template-patches.json` and `wwwroot/styles/` - and loads it. **Duplicate** makes a copy of a
 theme as this hotel has it (what **Make a plugin** packages: its files, the hotel's values of its
 styles as its defaults, the images uploaded for them) under a new key, with its patches' names. Both
@@ -359,7 +359,7 @@ message.
 - **Saving** in the panel then asks `GET /api/plugins/themes/live` (`admin.plugins.view`), which sends
   a change not sent yet and answers `{ players, online, at }`: the players the last change was sent
   to, of those online. That is the save line's "live for N players now".
-- **A data plugin's files on disk** (a plugin with no `AssemblyFile`, in the plugins folder or
+- **A data plugin's files on disk** (a plugin with no C# source, in the plugins folder or
   `Turbo:Plugin:DevPluginPaths`, with their subfolders): a change to any file that is no code file
   reloads that plugin, `Turbo:Plugin:DebounceMs` after the last of a burst, and so reaches the players
   drawing it.

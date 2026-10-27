@@ -1,0 +1,49 @@
+<Project>
+  <!--
+    A Turbo plugin's project, built as the server compiles the plugin (docs/plugin-loading.md):
+    the same references, the same C#, the same policy analyzer and the server's Orleans
+    serializer generator. The server ships this file in plugin-sdk/ beside its assemblies; a
+    plugin's project imports it from the server it builds against:
+
+      <Import Project="$(TurboBin)/plugin-sdk/Turbo.Plugin.props" />
+
+    The project is for the editor, the plugin's tests and `dotnet ef`: the server compiles the
+    plugin's sources itself, and its folder holds no assembly.
+  -->
+  <PropertyGroup>
+    <TurboBin>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</TurboBin>
+    <Nullable>enable</Nullable>
+    <LangVersion>14.0</LangVersion>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <!-- `dotnet ef` builds with DesignTime=true and loads the plugin with the server's assemblies beside it. -->
+    <TurboPluginPrivate Condition="'$(TurboPluginPrivate)' == ''">false</TurboPluginPrivate>
+    <TurboPluginPrivate Condition="'$(DesignTime)' == 'true'">true</TurboPluginPrivate>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- .NET, ASP.NET Core and Microsoft.Extensions.*: the shared framework, as the server's. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <!-- The server's assemblies a plugin builds on: PluginReferences.HOST, the same list. -->
+    <TurboPluginReference Include="Turbo.Contracts" />
+    <TurboPluginReference Include="Turbo.Primitives" />
+    <TurboPluginReference Include="Turbo.Database" />
+    <TurboPluginReference Include="Microsoft.EntityFrameworkCore" />
+    <TurboPluginReference Include="Microsoft.EntityFrameworkCore.Abstractions" />
+    <TurboPluginReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <TurboPluginReference Include="Pomelo.EntityFrameworkCore.MySql" />
+    <TurboPluginReference Include="Orleans.Core.Abstractions" />
+    <TurboPluginReference Include="Orleans.Serialization.Abstractions" />
+    <TurboPluginReference Include="Orleans.Serialization" />
+    <TurboPluginReference Include="Orleans.Core" />
+    <TurboPluginReference Include="SuperSocket.Server.Abstractions" />
+    <TurboPluginReference Include="SuperSocket.Connection" />
+    <TurboPluginReference Include="SuperSocket.ProtoBase" />
+    <TurboPluginReference Include="SuperSocket.Primitives" />
+    <Reference Include="@(TurboPluginReference->'$(TurboBin)/%(Identity).dll')">
+      <Private>$(TurboPluginPrivate)</Private>
+    </Reference>
+    <!-- What plugins may not do, as errors here as on the server. -->
+    <Analyzer Include="$(TurboBin)/Turbo.Plugins.Policy.dll" />
+    <!-- [GenerateSerializer]; the framework's generators (JSON, regex, logging) come with it. -->
+    <Analyzer Include="$(MSBuildThisFileDirectory)generators/Orleans.CodeGenerator.dll" />
+  </ItemGroup>
+</Project>

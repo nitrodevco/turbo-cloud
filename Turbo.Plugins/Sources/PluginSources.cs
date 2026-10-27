@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -72,7 +73,7 @@ internal sealed class PluginSources(
                 Repository = repository,
                 Follow = FollowOf(input.Follow),
                 Tag = FollowOf(input.Follow) == PluginSourceFollow.TAG ? input.Tag?.Trim() : null,
-                Asset = Blank(input.Asset),
+                Folder = Blank(input.Folder),
                 Token = token,
                 AutoUpdate = input.AutoUpdate,
             };
@@ -115,7 +116,7 @@ internal sealed class PluginSources(
                     Follow = FollowOf(input.Follow),
                     Tag =
                         FollowOf(input.Follow) == PluginSourceFollow.TAG ? input.Tag?.Trim() : null,
-                    Asset = Blank(input.Asset),
+                    Folder = Blank(input.Folder),
                     Token = token,
                     AutoUpdate = input.AutoUpdate,
                     // What GitHub offers depends on what is followed: check again.
@@ -280,13 +281,7 @@ internal sealed class PluginSources(
         try
         {
             var release = await github
-                .GetReleaseAsync(
-                    source.Repository,
-                    TagOf(source),
-                    source.Asset,
-                    TokenOf(source),
-                    ct
-                )
+                .GetReleaseAsync(source.Repository, TagOf(source), TokenOf(source), ct)
                 .ConfigureAwait(false);
 
             return Save(
@@ -298,7 +293,7 @@ internal sealed class PluginSources(
                         LatestUrl = release.HtmlUrl,
                         LatestPublishedAtUtc = release.PublishedAtUtc,
                         CheckedAtUtc = time.GetUtcNow().UtcDateTime,
-                        Error = release.AssetProblem,
+                        Error = null,
                     }
             );
         }
@@ -339,6 +334,43 @@ internal sealed class PluginSources(
             message
         );
 
+    /// <summary>The plugin folder of the repository's sources at <paramref name="tag"/>, as a package.</summary>
+    private async Task<MemoryStream> PluginPackageAsync(
+        string id,
+        PluginSourceEntry source,
+        string tag,
+        IPluginJobProgress progress,
+        CancellationToken ct
+    )
+    {
+        using var archive = await github
+            .DownloadSourcesAsync(
+                source.Repository,
+                tag,
+                TokenOf(source),
+                plugins.MaxUploadBytes,
+                ct
+            )
+            .ConfigureAwait(false);
+
+        try
+        {
+            var package = SourceArchive.PluginPackage(archive, source.Folder, out var folder);
+
+            progress.Log(
+                $"Release {tag}: the plugin in {(folder.Length == 0 ? "the repository's root" : folder + "/")}, {archive.Length:N0} bytes of sources."
+            );
+
+            return package;
+        }
+        catch (InvalidDataException ex)
+        {
+            Save(id, x => x with { Error = ex.Message });
+
+            throw new PluginJobFailure(ex.Message);
+        }
+    }
+
     private async Task<string> UpdateAsync(
         string id,
         IPluginJobProgress progress,
@@ -356,13 +388,7 @@ internal sealed class PluginSources(
         try
         {
             release = await github
-                .GetReleaseAsync(
-                    source.Repository,
-                    TagOf(source),
-                    source.Asset,
-                    TokenOf(source),
-                    ct
-                )
+                .GetReleaseAsync(source.Repository, TagOf(source), TokenOf(source), ct)
                 .ConfigureAwait(false);
         }
         catch (GitHubException ex)
@@ -384,23 +410,17 @@ internal sealed class PluginSources(
                     LatestUrl = release.HtmlUrl,
                     LatestPublishedAtUtc = release.PublishedAtUtc,
                     CheckedAtUtc = time.GetUtcNow().UtcDateTime,
-                    Error = release.AssetProblem,
+                    Error = null,
                 }
         );
 
-        if (release.Asset is not { } asset)
-            throw new PluginJobFailure(release.AssetProblem ?? "The release has no package.");
+        // A plugin is installed as its sources at the release's tag, which the server compiles:
+        // never as a built asset attached to the release.
+        progress.Step($"Downloading the sources of {release.Tag}");
 
-        progress.Log(
-            $"Release {release.Tag}: {asset.Name}, {asset.Size:N0} bytes{(asset.Sha256 is null ? "" : ", SHA-256 listed")}."
-        );
-        progress.Step($"Downloading {asset.Name}");
-
-        using var package = await github
-            .DownloadAsync(asset, TokenOf(source), plugins.MaxUploadBytes, ct)
+        using var package = await PluginPackageAsync(id, source, release.Tag, progress, ct)
             .ConfigureAwait(false);
 
-        progress.Log(asset.Sha256 is null ? "Downloaded." : "Downloaded; its SHA-256 matches.");
         progress.Step("Installing");
 
         // From here on the plugin folder changes: not stopped halfway. Any package: linking
@@ -522,7 +542,7 @@ internal sealed class PluginSources(
             x.Repository,
             x.Follow,
             x.Tag,
-            x.Asset,
+            x.Folder,
             x.Token is not null,
             x.AutoUpdate,
             x.Key,

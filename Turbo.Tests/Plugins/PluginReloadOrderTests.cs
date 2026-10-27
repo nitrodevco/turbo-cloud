@@ -12,12 +12,6 @@ using Xunit;
 
 namespace Turbo.Tests.Plugins;
 
-/// <summary>What a test plugin keeps hold of, so its old version cannot be collected.</summary>
-public static class ReloadRetainer
-{
-    public static readonly List<object> Held = [];
-}
-
 /// <summary>
 /// A reload starts the plugin's new version and tells clients its new module at once, so the new
 /// version's handlers (and every other assembly feature) must be registered then too - not after
@@ -35,7 +29,7 @@ public sealed class PluginReloadOrderTests : IDisposable
 
     public void Dispose()
     {
-        ReloadRetainer.Held.Clear();
+        AppDomain.CurrentDomain.SetData(RETAINED, null);
 
         try
         {
@@ -77,6 +71,8 @@ public sealed class PluginReloadOrderTests : IDisposable
         await manager.UnloadAllAsync(Ct);
     }
 
+    private const string RETAINED = "turbo-tests-retained";
+
     private const string Source = """
         using System;
         using System.Threading;
@@ -92,7 +88,8 @@ public sealed class PluginReloadOrderTests : IDisposable
             public void ConfigureServices(IServiceCollection services, PluginManifest manifest) { }
             public Task StartAsync(IServiceProvider services, CancellationToken ct)
             {
-                Turbo.Tests.Plugins.ReloadRetainer.Held.Add(this);
+                // Held by the process, so its old version cannot be collected.
+                AppDomain.CurrentDomain.SetData("turbo-tests-retained", this);
                 return Task.CompletedTask;
             }
             public Task StopAsync(CancellationToken ct) => Task.CompletedTask;

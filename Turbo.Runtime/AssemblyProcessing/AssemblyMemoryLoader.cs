@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -12,37 +11,18 @@ namespace Turbo.Runtime.AssemblyProcessing;
 
 public static class AssemblyMemoryLoader
 {
-    public static LoadedAssembly LoadFromBytes(string mainDllPath)
+    /// <summary>
+    /// A plugin's assembly, compiled by the server from its sources, in a collectible context of
+    /// its own that loads nothing else (<see cref="ByteLoadingAlc"/>).
+    /// </summary>
+    public static LoadedAssembly Load(byte[] assembly, byte[] symbols, string baseDir)
     {
-        if (!File.Exists(mainDllPath))
-            throw new FileNotFoundException("Plugin entry DLL not found.", mainDllPath);
+        var alc = new ByteLoadingAlc();
 
-        var baseDir = Path.GetDirectoryName(mainDllPath)!;
-        var managed = new Dictionary<string, (byte[] asm, byte[]? pdb)>(
-            StringComparer.OrdinalIgnoreCase
-        );
+        using var image = new MemoryStream(assembly, writable: false);
+        using var pdb = new MemoryStream(symbols, writable: false);
 
-        static byte[] ReadAll(string path) => File.ReadAllBytes(path);
-
-        foreach (var dll in Directory.EnumerateFiles(baseDir, "*.dll"))
-        {
-            var name = Path.GetFileNameWithoutExtension(dll);
-
-            if (managed.ContainsKey(name))
-                continue;
-
-            byte[] asmBytes = ReadAll(dll);
-            string pdbPath = Path.ChangeExtension(dll, ".pdb");
-            byte[]? pdbBytes = File.Exists(pdbPath) ? ReadAll(pdbPath) : null;
-
-            managed[name] = (asmBytes, pdbBytes);
-        }
-
-        var alc = new ByteLoadingAlc(baseDir, managed);
-        var entryName = Path.GetFileNameWithoutExtension(mainDllPath);
-        var asm = alc.LoadFromAssemblyName(new AssemblyName(entryName));
-
-        return new LoadedAssembly(asm, alc, baseDir);
+        return new LoadedAssembly(alc.LoadFromStream(image, pdb), alc, baseDir);
     }
 
     /// <summary>

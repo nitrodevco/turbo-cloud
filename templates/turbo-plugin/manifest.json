@@ -3,7 +3,6 @@
     "Key": "skills",
     "Version": "0.1.0",
     "Author": "",
-    "AssemblyFile": "Skills.dll",
     "Dependencies": [],
     "ApiVersion": 1
 }

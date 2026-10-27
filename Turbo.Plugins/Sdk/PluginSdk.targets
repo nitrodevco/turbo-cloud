@@ -1,0 +1,64 @@
+<Project>
+  <!--
+    The plugin SDK the server compiles plugins with, beside its own assemblies in plugin-sdk/
+    (docs/plugin-loading.md):
+      ref/          the framework's reference assemblies (.NET and ASP.NET Core) the server builds
+                    against, which a server running on the runtime alone does not have;
+      generators/   the source generators pinned with the server (Turbo.Plugins/Compilation/PluginGenerators.cs);
+      Turbo.Plugin.props   what a plugin's own project imports to build as the server compiles it
+                    (the policy analyzer, Turbo.Plugins.Policy.dll, is beside the server's assemblies).
+    Imported by the projects that run plugins: Turbo.Main and Turbo.Tests.
+  -->
+  <Target Name="TurboPluginSdkFiles" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <!-- The targeting packs whole: the server's own build takes some of them from packages. -->
+      <_TurboTargetingPack
+        Include="@(ResolvedTargetingPack)"
+        Condition="'%(Identity)' == 'Microsoft.NETCore.App' or '%(Identity)' == 'Microsoft.AspNetCore.App'"
+      />
+      <_TurboFrameworkReference Include="%(_TurboTargetingPack.Path)/ref/$(TargetFramework)/*.dll" />
+      <_TurboPluginSdkFile
+        Include="@(_TurboFrameworkReference)"
+        SdkPath="plugin-sdk/ref/%(Filename)%(Extension)"
+      />
+      <_TurboPluginGenerator
+        Include="@(Analyzer)"
+        Condition="'%(Filename)' == 'Orleans.CodeGenerator' or '%(Filename)' == 'Microsoft.Extensions.Logging.Generators' or '%(Filename)' == 'System.Text.Json.SourceGeneration' or '%(Filename)' == 'System.Text.RegularExpressions.Generator'"
+      />
+      <_TurboPluginSdkFile
+        Include="@(_TurboPluginGenerator)"
+        SdkPath="plugin-sdk/generators/%(Filename)%(Extension)"
+      />
+      <_TurboPluginSdkFile
+        Include="$(MSBuildThisFileDirectory)Turbo.Plugin.props"
+        SdkPath="plugin-sdk/Turbo.Plugin.props"
+      />
+    </ItemGroup>
+  </Target>
+
+  <Target
+    Name="CopyTurboPluginSdk"
+    AfterTargets="CopyFilesToOutputDirectory"
+    DependsOnTargets="TurboPluginSdkFiles"
+  >
+    <Copy
+      SourceFiles="@(_TurboPluginSdkFile)"
+      DestinationFiles="@(_TurboPluginSdkFile->'$(OutDir)%(SdkPath)')"
+      SkipUnchangedFiles="true"
+    />
+  </Target>
+
+  <Target
+    Name="PublishTurboPluginSdk"
+    AfterTargets="ComputeResolvedFilesToPublishList"
+    DependsOnTargets="TurboPluginSdkFiles"
+  >
+    <ItemGroup>
+      <ResolvedFileToPublish
+        Include="@(_TurboPluginSdkFile)"
+        RelativePath="%(_TurboPluginSdkFile.SdkPath)"
+        CopyToPublishDirectory="PreserveNewest"
+      />
+    </ItemGroup>
+  </Target>
+</Project>

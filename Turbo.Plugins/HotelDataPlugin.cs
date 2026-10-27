@@ -60,7 +60,7 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         if (
             !string.Equals(Path.GetFileName(folder), IHotelDataPlugin.KEY, StringComparison.Ordinal)
             || !string.Equals(manifest.Key, IHotelDataPlugin.KEY, StringComparison.Ordinal)
-            || !PluginHelpers.IsDataOnly(manifest)
+            || !PluginHelpers.IsDataOnly(manifest, folder)
             || manifest.ApiVersion is not { } api
             || api == PluginApi.VERSION
         )
@@ -101,7 +101,7 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
             manager.FoundFolderOf(pluginKey)
             ?? throw new KeyNotFoundException("There is no plugin with that key.");
 
-        if (!PluginHelpers.IsDataOnly(PluginHelpers.ReadManifest(folder)))
+        if (!PluginHelpers.IsDataOnly(PluginHelpers.ReadManifest(folder), folder))
             throw new ArgumentException(
                 $"{pluginKey} has code: its files are its author's to change. Work on this hotel, or on a theme made here.",
                 nameof(pluginKey)
@@ -674,7 +674,7 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
 
         var manifest = PluginHelpers.ReadManifest(folder);
 
-        if (!PluginHelpers.IsDataOnly(manifest))
+        if (!PluginHelpers.IsDataOnly(manifest, folder))
             throw new ArgumentException(
                 $"{manifest.Name} has code: share its author's package instead. Only data plugins (themes, the hotel's changes) are made here.",
                 nameof(pluginKey)

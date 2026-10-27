@@ -383,7 +383,7 @@ internal sealed class PluginEndpoints(
 
         return package =>
             package.CodeFile is { } file
-                ? $"{package.Name} has code ({file}): installing it needs {PermissionNodes.Admin.PLUGINS_INSTALL}. A data plugin (no AssemblyFile; JSON, text, images and fonts only) needs only {PermissionNodes.Admin.PLUGINS_MANAGE}."
+                ? $"{package.Name} has code ({file}): installing it needs {PermissionNodes.Admin.PLUGINS_INSTALL}. A data plugin (no C# sources; JSON, text, images and fonts only) needs only {PermissionNodes.Admin.PLUGINS_MANAGE}."
             : package.ReplacesCode
                 ? $"{package.Name} would replace the installed plugin {package.Key}, which has code: that needs {PermissionNodes.Admin.PLUGINS_INSTALL}."
             : package.Gamedata && !gamedata

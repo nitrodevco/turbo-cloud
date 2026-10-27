@@ -17,7 +17,7 @@ A **plugin** is the package. One folder, installed, updated, rolled back and rem
 ```
 plugins/skills/
   manifest.json                 key, version, dependencies, table prefix, API version
-  Skills.dll                    server half: services, handlers, commands, listeners, migrations
+  server/*.cs                   server half, compiled by the server: services, handlers, commands, listeners, migrations
   wwwroot/                      client half and its files, served at /gamedata/plugins/skills/
     skills.js                   a client module (docs/client-modules.md)
     template-patches.json       changes to existing windows, as data (§4.5)
@@ -27,7 +27,7 @@ plugins/skills/
     external_variables.json     its client settings
 ```
 
-Turbo is the host for both halves: it loads the assembly, serves `wwwroot/`, seeds the texts and
+Turbo is the host for both halves: it compiles the server half from its sources (`docs/plugin-loading.md`), serves `wwwroot/`, seeds the texts and
 variables it owns, tells clients which modules to run, and takes all of it away when the plugin goes.
 Nitro runs what Turbo names and gives modules a versioned API. That split is the Laravel-and-Inertia
 shape: the server owns routing, data, auth and packaging; the client owns rendering, and a shared
@@ -361,7 +361,7 @@ links a Discord account it has proven to an existing player through `IHotel.Play
   before it ships.
 - **Trust**: plugins run in-process with full trust (server assembly, client JS in the page). The
   manifest's declarations are for compatibility and review, not a sandbox. Data plugins (patches,
-  styles, art; no `AssemblyFile`) are the safe kind: they run no code on either side
+  styles, art; no C# source) are the safe kind: they run no code on either side
   (`docs/plugin-data.md`), so the trust policy is a permission, not a setting: a data plugin
   installs with `admin.plugins.manage`, and anything that puts code in place needs
   `admin.plugins.install` as well (`docs/admin-panel.md`, "Installing a package").
@@ -406,8 +406,8 @@ noted.
    (§4.1). Purchase (room ads included), room entry, placement and registration done, with
    `npm run make policy <kind>`, and seven post-commit events (`docs/plugin-policies.md`); trade's
    policy is a replaceable host service (`docs/plugin-services.md`).
-8. **Data-only plugins** (themes without an assembly) and per-asset overlays (§4.6). Done: a
-   manifest with no `AssemblyFile` loads its files only, `theme.json` style properties reach
+8. **Data-only plugins** (themes without code) and per-asset overlays (§4.6). Done: a
+   plugin with no C# source loads its files only, `theme.json` style properties reach
    patches as `${style:name}` with staff's values from the panel, staff's own patches live in the
    hotel's data plugin, and the panel packages either as a data plugin (`docs/plugin-data.md`).
 9. **Scaffolding and dev loop**: `dotnet new turbo-plugin` generating both halves and their tests,

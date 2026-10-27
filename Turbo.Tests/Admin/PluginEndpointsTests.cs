@@ -303,16 +303,19 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
         await _server.StartAsync(Ct);
 
         var response = await InstallAsync(
-            Package(("manifest.json", Manifest("sample", "Sample Plugin")), ("Sample.dll", "MZ"))
+            Package(
+                ("manifest.json", Manifest("sample", "Sample Plugin")),
+                ("server/Sample.cs", "not C#")
+            )
         );
 
-        // Its assembly is not a real one, so it is installed and its load fails, saying why.
+        // Its source does not compile, so it is installed and its load fails, saying why.
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
         var plugin = (await JsonAsync(response)).GetProperty("plugin");
         plugin.GetProperty("key").GetString().Should().Be("sample");
         plugin.GetProperty("state").GetString().Should().Be("failed");
         File.Exists(Path.Combine(_folder, "sample", "manifest.json")).Should().BeTrue();
-        File.Exists(Path.Combine(_folder, "sample", "Sample.dll")).Should().BeTrue();
+        File.Exists(Path.Combine(_folder, "sample", "server", "Sample.cs")).Should().BeTrue();
         Log().Should().Equal([("install sample 1.2.3", "failed")]);
     }
 
@@ -324,30 +327,24 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
         await InstallAsync(
             Package(
                 ("bundle/manifest.json", Manifest("sample", "Sample Plugin")),
-                ("bundle/Sample.dll", "MZ")
+                ("bundle/server/Sample.cs", "not C#")
             )
         );
 
-        File.Exists(Path.Combine(_folder, "sample", "Sample.dll")).Should().BeTrue();
+        File.Exists(Path.Combine(_folder, "sample", "server", "Sample.cs")).Should().BeTrue();
     }
 
     [Theory]
-    [InlineData(
-        """{ "Name": "No key", "Version": "1", "Author": "a", "AssemblyFile": "Sample.dll" }"""
-    )]
-    [InlineData(
-        """{ "Name": "Bad", "Key": "../evil", "Version": "1", "Author": "a", "AssemblyFile": "Sample.dll" }"""
-    )]
-    [InlineData(
-        """{ "Name": "No version", "Key": "sample", "Author": "a", "AssemblyFile": "Sample.dll" }"""
-    )]
+    [InlineData("""{ "Name": "No key", "Version": "1", "Author": "a" }""")]
+    [InlineData("""{ "Name": "Bad", "Key": "../evil", "Version": "1", "Author": "a" }""")]
+    [InlineData("""{ "Name": "No version", "Key": "sample", "Author": "a" }""")]
     [InlineData("not json")]
     public async Task A_package_with_a_bad_manifest_is_refused_and_changes_nothing(string manifest)
     {
         await _server.StartAsync(Ct);
 
         var response = await InstallAsync(
-            Package(("manifest.json", manifest), ("Sample.dll", "MZ"))
+            Package(("manifest.json", manifest), ("server/Sample.cs", "not C#"))
         );
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
@@ -366,14 +363,41 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
         var response = await InstallAsync(
             Package(
                 ("manifest.json", Manifest("sample", "Sample Plugin")),
-                ("Sample.dll", "MZ"),
-                ("../escaped.dll", "MZ")
+                ("server/Sample.cs", "not C#"),
+                ("../escaped.cs", "not C#")
             )
         );
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
         Directory.EnumerateFileSystemEntries(_folder).Should().BeEmpty();
-        File.Exists(Path.Combine(Path.GetTempPath(), "escaped.dll")).Should().BeFalse();
+        File.Exists(Path.Combine(Path.GetTempPath(), "escaped.cs")).Should().BeFalse();
+    }
+
+    /// <summary>
+    /// The server compiles a plugin from its sources and runs nothing else, so a package with an
+    /// executable file is not installed (a renamed one is found by its first bytes).
+    /// </summary>
+    [Theory]
+    [InlineData("Sample.dll", "server/Sample.dll is a .dll file")]
+    [InlineData("logo.png", "server/logo.png is a Linux executable or library (ELF)")]
+    public async Task A_package_with_an_executable_file_is_refused_and_changes_nothing(
+        string file,
+        string reason
+    )
+    {
+        await _server.StartAsync(Ct);
+
+        var response = await InstallAsync(
+            Package(
+                ("manifest.json", Manifest("sample", "Sample")),
+                ("server/Sample.cs", "public sealed class Sample { }"),
+                ($"server/{file}", "\u007FELF")
+            )
+        );
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        (await JsonAsync(response)).GetProperty("message").GetString().Should().Contain(reason);
+        Directory.EnumerateFileSystemEntries(_folder).Should().BeEmpty();
     }
 
     [Fact]
@@ -381,7 +405,7 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
     {
         await _server.StartAsync(Ct);
 
-        (await InstallAsync(Package(("Sample.dll", "MZ"))))
+        (await InstallAsync(Package(("server/Sample.cs", "not C#"))))
             .StatusCode.Should()
             .Be(HttpStatusCode.UnprocessableEntity);
         (await InstallAsync(Encoding.UTF8.GetBytes("not a zip")))
@@ -402,7 +426,7 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
             .Should()
             .BeFalse();
         var response = await InstallAsync(
-            Package(("manifest.json", Manifest("sample", "Sample")), ("Sample.dll", "MZ"))
+            Package(("manifest.json", Manifest("sample", "Sample")), ("server/Sample.cs", "not C#"))
         );
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -411,7 +435,7 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
             .GetString()
             .Should()
             .Be(
-                "Sample has code (Sample.dll): installing it needs admin.plugins.install. A data plugin (no AssemblyFile; JSON, text, images and fonts only) needs only admin.plugins.manage."
+                "Sample has code (server/Sample.cs): installing it needs admin.plugins.install. A data plugin (no C# sources; JSON, text, images and fonts only) needs only admin.plugins.manage."
             );
         Directory.EnumerateFileSystemEntries(_folder).Should().BeEmpty();
         Log().Should().Equal([("install sample 1.2.3", "refused")]);
@@ -515,7 +539,7 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
         list.GetProperty("uploadEnabled").GetBoolean().Should().BeFalse();
 
         var response = await InstallAsync(
-            Package(("manifest.json", Manifest("sample", "Sample")), ("Sample.dll", "MZ"))
+            Package(("manifest.json", Manifest("sample", "Sample")), ("server/Sample.cs", "not C#"))
         );
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -709,7 +733,7 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
 
         Directory.CreateDirectory(dir);
         File.WriteAllText(Path.Combine(dir, "manifest.json"), Manifest(key, name));
-        File.WriteAllText(Path.Combine(dir, "Sample.dll"), "MZ");
+        PluginBuilder.WriteSources(dir, ["not C#"]);
     }
 
     private static string DataManifest(string key) =>
@@ -731,7 +755,6 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
                 Key = key,
                 Version = "1.2.3",
                 Author = "Staff",
-                AssemblyFile = "Sample.dll",
             }
         );
 

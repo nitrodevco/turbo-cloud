@@ -3,7 +3,7 @@
     "Key": "infostandskin",
     "Version": "1.0.0",
     "Author": "Turbo",
-    "AssemblyFile": "InfostandSkin.dll",
+    "Sources": ["*.cs"],
     "Dependencies": [],
     "ApiVersion": 1
 }

@@ -1,7 +1,85 @@
 # Loading plugins
 
-How Turbo Cloud loads, reloads and isolates plugins, what a plugin's classes can take by
+How Turbo Cloud compiles, loads, reloads and isolates plugins, what a plugin's classes can take by
 constructor, and what each step of a plugin's life guarantees.
+
+## A plugin is its sources
+
+The server runs a plugin's code only by compiling it from the plugin's C# sources, as it loads the
+plugin. There is no plugin assembly: a plugin folder holds its `manifest.json`, its sources and its
+files (`wwwroot/`, `gamedata/`, `theme.json`), and an installed package, a GitHub link and a dev
+folder are all the same sources.
+
+```json
+{ "Name": "Skills", "Key": "skills", "Version": "1.0.0", "Author": "you", "Sources": ["server/**/*.cs"] }
+```
+
+- **Sources**: globs of the C# files, relative to the plugin's folder (`*` and `?` within a name,
+  `**` any folders). `server/**/*.cs` when the manifest names none, which is the template's layout.
+  `bin/` and `obj/` are never sources. A plugin with no source file is a data plugin
+  (`docs/plugin-data.md`): it runs no code.
+- **Compiled against** the framework (.NET and ASP.NET Core, with `Microsoft.Extensions.*`) and the
+  server's plugin surface: `Turbo.Contracts`, `Turbo.Primitives`, `Turbo.Database` (a plugin's own
+  tables, `docs/database.md`), EF Core with the MySQL provider, Orleans' serialization and
+  abstractions, and SuperSocket's session abstractions. Nothing else: not the server's internals
+  (`Turbo.Rooms`, grains, sessions), and no package of the plugin's own. The list is
+  `PluginReferences` (`Turbo.Plugins/Compilation`); it is what a plugin may build on, not a fence
+  (see below).
+- **Compiled as** the server is: C# 14, nullable on, optimized, no unsafe code, with the source
+  generators the server ships pinned with it: Orleans serializers (`[GenerateSerializer]`),
+  `[LoggerMessage]`, System.Text.Json (`[JsonSerializable]`) and `[GeneratedRegex]`. A plugin brings
+  no generator or analyzer of its own.
+- **Symbols**: the assembly's portable PDB carries the sources, so an error thrown in a plugin's
+  code names the plugin's file and line in the log.
+- **Kept**: a compile is kept in `<plugins>/.compiled/<key>/`, keyed by a hash of everything it read
+  (each source file's path and bytes, the references' module ids, the generators, the policy and
+  this format). A restart, or a reload with nothing changed, loads it without compiling again. The
+  kept files are signed with HMAC-SHA256 under a key only this server has (`.compiled/.key`, made
+  once); files that are not the server's own are deleted and the plugin compiled again. Only the
+  newest compile of each plugin is kept.
+
+A plugin's own project (the template's `server/*.csproj`) imports what the server compiles with,
+`plugin-sdk/Turbo.Plugin.props`, which the server ships beside its assemblies: the same references,
+C# version, policy analyzer and Orleans generator. `npm run check` (`dotnet build` of that project)
+fails as the server's compile would; the project is for the editor, the tests and `dotnet ef`, and
+what it builds is never installed.
+
+### What a plugin may not do
+
+Code that does one of these is **refused** (the plugin is `Rejected`, with the rule and its file
+and line):
+
+| Rule | What | Why |
+|---|---|---|
+| `TPP001` | load assemblies: `Assembly.Load*`, `LoadFrom`, `LoadFile`, `UnsafeLoadFrom`, `AppDomain.Load`, `Activator.CreateInstanceFrom`, any `AssemblyLoadContext` | the server runs a plugin's own sources and nothing else |
+| `TPP002` | call native code: `[DllImport]`, `[LibraryImport]`, `extern` methods, `NativeLibrary` | native code is outside what the sources show |
+| `TPP003` | unsafe code: `unsafe`, pointers, function pointers, `System.Runtime.CompilerServices.Unsafe` | it reads and writes memory the runtime does not check |
+| `TPP004` | generate code at run time: `System.Reflection.Emit` | code that is not in the sources |
+| `TPP005` | start processes: `Process.Start` | another program, outside the server |
+| `TPP006` | use the compiler: `Microsoft.CodeAnalysis` | compiling code that is not in the sources |
+
+A plugin folder that holds an executable file (an assembly or Windows executable, a Linux or macOS
+binary, WebAssembly: `.dll`, `.exe`, `.so`, `.dylib`, `.wasm`, `.nupkg`, or any file whose first
+bytes are one) is refused the same way, and the panel and GitHub installs refuse such a package
+before installing it. Images, fonts, `.nitro` bundles, texts and JSON are a plugin's data and are
+allowed. A refused plugin is not tried again until a file in its folder changes.
+
+**Plugins are full trust.** A plugin runs in the server's process with the server's own access:
+its database, its files, the network, every player's session. The list above is a norm every
+plugin is held to and makes a plugin's sources the whole of what it runs, so reading them tells
+you what it does; it is not a sandbox (reflection reaches anything). Read a plugin, or know its
+author, before you install it, as you would any server code.
+
+### When a plugin does not load
+
+| The panel says | What to do |
+|---|---|
+| **Rejected**: `server/X.cs(12,9): TPP005 Plugins may not start processes ...` | take the call out; the rule's row above says why it is not allowed |
+| **Rejected**: `server/bin/X.dll is a .dll file` | remove the file: the server compiles the sources itself (a package or a dev folder holds no build output) |
+| **Rejected**: `The manifest's Sources glob "../x" leaves the plugin's folder` | name files inside the plugin's folder |
+| **Failed**: `server/X.cs(42,9): CS0103 The name 'y' does not exist ...` | fix the code; `npm run check` shows the same errors locally |
+| **Failed**: `CS0234 The type or namespace name 'Rooms' does not exist in the namespace 'Turbo'` | the plugin uses the server's internals: use the contracts (`Turbo.Contracts`, `Turbo.Primitives`) instead |
+| **Failed** with an exception | it compiled and threw as it started: the log has the stack trace with the plugin's file and line |
 
 ## The plugin class
 
@@ -94,7 +172,8 @@ loaded in dependency order: a plugin after every plugin its manifest's `dependen
 runs, in this order:
 
 1. its checks: the plugin API version it was built against, and every dependency live;
-2. its assembly, read into a context of its own, and its `ConfigureServices`;
+2. its code: its folder checked, its sources compiled (or the kept compile loaded) into a context of
+   its own, and its `ConfigureServices`;
 3. its settings listed in the panel, its admin permission nodes, its client module files served,
    the gamedata it brings, its `BindExportsAsync`;
 4. its migrations, its hosted services, its `StartAsync`; its admin pages go live;
@@ -106,15 +185,17 @@ The plugin is **Loaded** once all five are done.
 ## A plugin that fails to load
 
 One plugin that fails does not stop the server or the other plugins. Whatever the step, the plugin
-is marked **Failed** with the reason, which the admin panel's plugin list shows, and the server and
-the rest of the plugins carry on. A plugin that depends on it is marked Failed too ("dependency
+is marked **Failed** (or **Rejected**, above) with the reason, which the admin panel's plugin list
+shows, and the server and the rest of the plugins carry on. A plugin that depends on it is marked Failed too ("dependency
 inactive") and is loaded again with it once it loads.
 
 A failed load leaves nothing of the plugin behind: what it registered in steps 3 to 5 is taken back,
 the hosted services it started are stopped and its assembly context unloaded, whichever step failed,
-so loading it again once fixed (an upload, a reload, a rescan) does not find its commands or permission nodes registered twice. A failed new version of a plugin
-does not keep the old one running: the old version was stopped to make way for it. The panel's
-upload puts the kept earlier version back when the new one fails.
+so loading it again once fixed (an upload, a reload, a rescan) does not find its commands or permission nodes registered twice. A new version
+that is refused or does not compile leaves the running version as it was: it is compiled before
+the old one stops. One that fails after that (as it starts) does not keep the old one running: the
+old version was stopped to make way for it. The panel's upload puts the kept earlier version back
+when the new one fails.
 
 ## What a reload touches
 
@@ -122,7 +203,7 @@ A reload replaces the plugins it is about and leaves every other plugin running:
 
 | Trigger | Plugins reloaded |
 |---|---|
-| A file of a plugin's code changes on disk (`manifest.json`, `*.dll`, `*.pdb`, `*.deps.json`), when the server runs in the Development environment with `Turbo:Plugin:HotReloadEnabled`; or the panel's **Rescan** | the plugins new or changed since they loaded, and the ones not live (failed, waiting for a dependency); unchanged live ones keep running. Removed folders are unloaded |
+| A file of a plugin's code changes on disk (`manifest.json`, `*.cs`), when the server runs in the Development environment with `Turbo:Plugin:HotReloadEnabled`; or the panel's **Rescan** | the plugins new or changed since they loaded, and the ones not live (failed, waiting for a dependency); unchanged live ones keep running. Removed folders are unloaded |
 | The panel's **Reload**, an upload, turning a plugin on, the console's `reload-plugin <key>` | that plugin, whether it changed or not |
 | The console's `reload-plugins`, `:reload plugins` | every plugin |
 

@@ -155,8 +155,11 @@ internal sealed record PluginSourceEntry
 
     public string? Tag { get; init; }
 
-    /// <summary>The release asset to install; null takes the release's only zip.</summary>
-    public string? Asset { get; init; }
+    /// <summary>
+    /// The folder in the repository holding the plugin's manifest.json (<c>""</c> its root);
+    /// null takes the one folder with a plugin manifest.
+    /// </summary>
+    public string? Folder { get; init; }
 
     /// <summary>The token, sealed and base64; null for a public repository.</summary>
     public string? Token { get; init; }

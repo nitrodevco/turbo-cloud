@@ -145,8 +145,18 @@ public enum PluginStateType
     /// <summary>Running.</summary>
     Loaded,
 
-    /// <summary>Its last load failed; <see cref="PluginSnapshot.Error"/> says why.</summary>
+    /// <summary>
+    /// Its last load failed (its code does not compile, or it threw as it started);
+    /// <see cref="PluginSnapshot.Error"/> says why.
+    /// </summary>
     Failed,
+
+    /// <summary>
+    /// Refused: its folder holds an executable file, or its code does what plugins may not
+    /// (docs/plugin-loading.md); <see cref="PluginSnapshot.Error"/> says what. Not tried again
+    /// until its files change.
+    /// </summary>
+    Rejected,
 
     /// <summary>Turned off by the operator; not loaded until turned on.</summary>
     Disabled,

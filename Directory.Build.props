@@ -19,10 +19,13 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
   </PropertyGroup>
-  <ItemGroup>
+  <!-- Not the plugin policy analyzer (netstandard2.0, loaded by compilers): it has no grains. -->
+  <ItemGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
     <!-- Orleans 10.3 no longer supplies code generation through Core.Abstractions.
          Every project must generate its own grain metadata and serializers. -->
     <PackageReference Include="Microsoft.Orleans.Sdk" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" PrivateAssets="all" />
   </ItemGroup>

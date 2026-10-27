@@ -297,8 +297,8 @@ public sealed class PluginTemplateTests : IDisposable
     }
 
     /// <summary>
-    /// An event handler, and a behaviour with its order, builds against the server assemblies the
-    /// template's project references and the shared frameworks alone: the contracts it needs are
+    /// An event handler, and a behaviour with its order, builds against what the server compiles
+    /// plugins with: the contracts it needs are
     /// in <c>Turbo.Primitives</c>. They were in <c>Turbo.Events</c> and <c>Turbo.Pipeline</c>,
     /// which every plugin with a handler referenced (docs/extensions.md, "Public means contract").
     /// </summary>
@@ -332,7 +332,7 @@ public sealed class PluginTemplateTests : IDisposable
 
     /// <summary>
     /// A packet handler and its middleware, which answers through its <c>MessageContext</c> and
-    /// publishes a plugin notice, builds against the template's references alone: the handler
+    /// publishes a plugin notice, builds against what the server compiles plugins with: the handler
     /// contracts are in <c>Turbo.Primitives</c> (they were in <c>Turbo.Messages</c>) and the host's
     /// event system is reached through <c>IEventPublisher</c> (it was <c>EventSystem</c>, in
     /// <c>Turbo.Events</c>).
@@ -378,29 +378,11 @@ public sealed class PluginTemplateTests : IDisposable
             .BeEmpty();
 
     /// <summary>
-    /// The errors compiling <paramref name="source"/> as a plugin gives against the server
-    /// assemblies the template's project references and the shared frameworks alone.
+    /// The errors compiling <paramref name="source"/> as a plugin gives against what the server
+    /// compiles plugins with (the template's project imports the same, plugin-sdk/Turbo.Plugin.props).
     /// </summary>
     private static List<string> ErrorsAgainstTheTemplateReferences(string source)
     {
-        var server = XDocument
-            .Load(Path.Combine(Template, "server", "Skills.csproj"))
-            .Descendants("Reference")
-            .Select(r =>
-                Path.Combine(
-                    AppContext.BaseDirectory,
-                    r.Attribute("Include")!
-                        .Value.Replace("$(TurboBin)/", "", StringComparison.Ordinal)
-                )
-            );
-        var frameworks = new[]
-        {
-            typeof(object).Assembly.Location,
-            typeof(Microsoft.AspNetCore.Http.HttpContext).Assembly.Location,
-        }.Select(Path.GetDirectoryName);
-        var shared = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
-            .Split(Path.PathSeparator)
-            .Where(path => frameworks.Contains(Path.GetDirectoryName(path)));
         var compilation = Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create(
             "Skills",
             [
@@ -409,15 +391,11 @@ public sealed class PluginTemplateTests : IDisposable
                     cancellationToken: Ct
                 ),
             ],
-            server
-                .Concat(shared)
-                .Select(path => Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(path)),
+            Turbo.Plugins.Compilation.PluginReferences.All,
             new Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions(
                 Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary
             )
         );
-
-        shared.Should().NotBeEmpty();
 
         return
         [
