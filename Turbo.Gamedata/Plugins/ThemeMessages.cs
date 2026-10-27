@@ -18,6 +18,14 @@ public sealed record ChooseTheme(string Key) : IPluginMessage;
 [PluginMessage("turbo.theme.chosen")]
 public sealed record ThemeChosen(string Key, bool Ok, string Message) : IPluginMessage;
 
+/// <summary>
+/// The player's look changed (<c>docs/plugin-data.md</c>, "Live reload"): the theme they draw now
+/// (empty: the hotel's default), the look's revision, and where its variables are read
+/// (<c>/gamedata/theme/live/&lt;revision&gt;</c>). The client draws it with no reload.
+/// </summary>
+[PluginMessage("turbo.theme.changed")]
+public sealed record ThemeChanged(string Theme, string Revision, string Url) : IPluginMessage;
+
 /// <summary>Keeps a player's choice of theme (<see cref="IThemeAudiences.ChooseAsync"/>) and says what came of it.</summary>
 public sealed class ChooseThemeHandler(IThemeAudiences themes) : IPluginMessageHandler<ChooseTheme>
 {

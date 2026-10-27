@@ -120,6 +120,13 @@ internal sealed class GamedataServer(
     /// </summary>
     public const string THEME_ROUTE = "/gamedata/theme";
 
+    /// <summary>
+    /// Where a client sent <c>turbo.theme.changed</c> reads its new look (<see cref="IThemeLiveReload"/>):
+    /// <c>GET /gamedata/theme/live/&lt;revision&gt;</c>, answered <c>{ theme, variables }</c>. A revision
+    /// names one look, so the answer never changes; one no longer kept is a 404.
+    /// </summary>
+    public const string THEME_LIVE_ROUTE = "/gamedata/theme/live/";
+
     private static readonly FileExtensionContentTypeProvider CONTENT_TYPES = new();
 
     private WebApplication? _app;
@@ -154,6 +161,7 @@ internal sealed class GamedataServer(
         var modules = services.GetService<IClientModuleDirectory>();
         var themes = services.GetService<IThemeAudiences>();
         var tickets = services.GetService<IAuthenticationService>();
+        var live = services.GetService<IThemeLiveReload>();
 
         // Behind the reverse proxy the request comes from loopback; its forwarded headers give
         // the scheme and host clients used, which the hashes list's addresses are built on.
@@ -212,6 +220,11 @@ internal sealed class GamedataServer(
             app.MapPost(
                 THEME_ROUTE,
                 (HttpContext http, CancellationToken ct) => ThemeAsync(http, themes, tickets, ct)
+            );
+        if (live is not null)
+            app.MapGet(
+                THEME_LIVE_ROUTE + "{revision}",
+                (HttpContext http, string revision) => ThemeLook(http, live, revision)
             );
         app.MapGet(
             "/gamedata/{file}/{version}",
@@ -361,6 +374,17 @@ internal sealed class GamedataServer(
                 chosen = session.Chosen,
             }
         );
+    }
+
+    /// <summary>A look a client was sent (<see cref="THEME_LIVE_ROUTE"/>), kept by the browser for good.</summary>
+    private static IResult ThemeLook(HttpContext http, IThemeLiveReload live, string revision)
+    {
+        if (live.Find(revision) is not { } look)
+            return Results.NotFound();
+
+        http.Response.Headers.CacheControl = IMMUTABLE;
+
+        return Results.Json(new { theme = look.Theme, variables = look.Variables });
     }
 
     private static readonly JsonSerializerOptions THEME_JSON = new(JsonSerializerDefaults.Web);

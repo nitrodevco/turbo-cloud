@@ -21,12 +21,14 @@ namespace Turbo.Admin.Api;
 /// Who gets which theme (<c>docs/plugin-data.md</c>, "Who gets which theme"), for staff with
 /// <c>admin.plugins.view</c>: each theme's status, whether it is the default or may be chosen, and
 /// its development audience (players by name, permission groups). A change needs
-/// <c>admin.plugins.manage</c> and goes to the command log.
+/// <c>admin.plugins.manage</c> and goes to the command log. <c>GET /plugins/themes/live</c> says who
+/// an appearance save reached: the players live reload sent it to, of those online.
 /// </summary>
 internal sealed class ThemeAudienceEndpoints(
     IGrainFactory grainFactory,
     AdminActionLog audit,
-    IThemeAudiences? themes = null
+    IThemeAudiences? themes = null,
+    IThemeLiveReload? live = null
 )
 {
     private const string NO_ACCESS = "You can't see the server's plugins.";
@@ -43,6 +45,21 @@ internal sealed class ThemeAudienceEndpoints(
 
         group.MapGet("/audience", ListAsync);
         group.MapPut("/{key}/audience", SetAsync);
+        group.MapGet("/live", LiveAsync);
+    }
+
+    /// <summary>
+    /// What the last appearance change did (<see cref="IThemeLiveReload.SettleAsync"/>): the players
+    /// sent it with no reload, of those online. Asked straight after a save, it sends the save first.
+    /// </summary>
+    private async Task<IResult> LiveAsync(CancellationToken ct)
+    {
+        if (live is null)
+            return AdminResults.Error(StatusCodes.Status404NotFound, "The server runs no plugins.");
+
+        var result = await live.SettleAsync(ct).ConfigureAwait(false);
+
+        return Results.Ok(new ThemeLiveView(result.Players, result.Online, result.At));
     }
 
     private async Task<IResult> ListAsync(HttpContext http, CancellationToken ct)
@@ -207,6 +224,9 @@ internal sealed record ThemeAudienceInput(
 );
 
 internal sealed record ThemeAudiencePlayer(int Id, string? Name);
+
+/// <summary>The players the last appearance change reached with no reload, of those online, and when (null: none lately).</summary>
+internal sealed record ThemeLiveView(int Players, int Online, DateTime? At);
 
 internal sealed record ThemeAudienceView(
     string Key,

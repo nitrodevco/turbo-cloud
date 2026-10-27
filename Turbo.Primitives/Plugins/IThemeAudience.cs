@@ -99,3 +99,37 @@ public interface IThemeAudiences
     /// </summary>
     public Task ChooseAsync(PlayerId player, string key, CancellationToken ct);
 }
+
+/// <summary>
+/// What a client drawing a theme reads of the hotel's look now (<c>docs/plugin-data.md</c>, "Live
+/// reload"): the theme (empty: the hotel's look with no theme of its own), the merged variables of
+/// its chain with the address of the hotel's texts, and a revision that names exactly those - the same
+/// look, the same revision.
+/// </summary>
+public sealed record ThemeLook(
+    string Theme,
+    string Revision,
+    IReadOnlyDictionary<string, string> Variables
+);
+
+/// <summary>What the last live reload did: the players sent the new look, of those online, and when.</summary>
+public sealed record ThemeLiveResult(int Players, int Online, System.DateTime? At);
+
+/// <summary>
+/// Live reload (<c>docs/plugin-data.md</c>, "Live reload"): whenever the hotel's look changes - a
+/// theme's or a data plugin's patches, styles, images, fonts or texts, or who gets a theme - every
+/// online player whose look is not the one their client draws is sent the Turbo named message
+/// <c>turbo.theme.changed</c>, and their client draws the new look with no reload. A player whose
+/// theme's chain the change did not touch is sent nothing.
+/// </summary>
+public interface IThemeLiveReload
+{
+    /// <summary>
+    /// Sends the changes made so far, when they are not sent yet, and says what the last live reload
+    /// did: the panel's "live for N players now" after a save.
+    /// </summary>
+    public Task<ThemeLiveResult> SettleAsync(CancellationToken ct);
+
+    /// <summary>A look a client was sent, by its revision; null for one not kept any more.</summary>
+    public ThemeLook? Find(string revision);
+}
