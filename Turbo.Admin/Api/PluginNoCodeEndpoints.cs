@@ -81,6 +81,7 @@ internal sealed class PluginNoCodeEndpoints(
         group.MapPost("/{key}/fonts", UploadFontAsync);
         group.MapDelete("/{key}/fonts", RemoveFontAsync);
         group.MapPut("/{key}/overlays", SetOverlaysAsync);
+        group.MapPut("/{key}/texts", SetTextsAsync);
         group.MapPost("/{key}/package", PackageAsync);
     }
 
@@ -527,6 +528,37 @@ internal sealed class PluginNoCodeEndpoints(
         );
 
     /// <summary>
+    /// Texts in a theme's own files (<see cref="IPluginStyles.SetTextsAsync"/>): drawn over the
+    /// hotel's for its players, for every key staff never changed; the theme is loaded again.
+    /// </summary>
+    private Task<IResult> SetTextsAsync(
+        string key,
+        ThemeTextsInput input,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ManageAsync(
+            http,
+            $"texts {key} {input.Texts?.Count ?? 0} text(s)",
+            ct,
+            async _ =>
+            {
+                var texts = await Styles
+                    .SetTextsAsync(
+                        key,
+                        Hotel.EditableFolderOf(key),
+                        input.Texts ?? new Dictionary<string, string?>(),
+                        ct
+                    )
+                    .ConfigureAwait(false);
+
+                await ReloadThemeAsync(key, ct).ConfigureAwait(false);
+
+                return Results.Ok(new ThemeTextsResponse(texts));
+            }
+        );
+
+    /// <summary>
     /// A new theme, made in the plugin folder and loaded (<see cref="IThemeAuthoring.CreateAsync"/>):
     /// one that extends another, or a copy of one.
     /// </summary>
@@ -813,6 +845,12 @@ internal sealed record HotelOverlaysInput(Dictionary<string, string?>? Overlays)
 
 /// <summary>The hotel's <c>asset.overlays</c> entries after a skin set.</summary>
 internal sealed record HotelOverlaysResponse(ImmutableDictionary<string, string> Overlays);
+
+/// <summary>Texts set in a theme's own files: a text per key, null takes the theme's away.</summary>
+internal sealed record ThemeTextsInput(Dictionary<string, string?>? Texts);
+
+/// <summary>The theme's texts after a change.</summary>
+internal sealed record ThemeTextsResponse(ImmutableDictionary<string, string> Texts);
 
 /// <summary>The patches staff made in a plugin (the hotel's own, or a theme they work on), and its key.</summary>
 internal sealed record HotelPatchesResponse(

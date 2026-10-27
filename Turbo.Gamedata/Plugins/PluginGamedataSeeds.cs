@@ -118,6 +118,15 @@ internal sealed class PluginGamedataSeeds(
         // (ThemeAudienceService), another plugin's every player.
         var theme = ThemeOf(pluginKey, folder);
 
+        // A theme's texts are its look too: drawn over the hotel's for the players who get it,
+        // never given to the hotel (a key staff changed stays the hotel's as the file is written).
+        if (theme is not null && textSeed.Count > 0)
+            parts[ExternalVariablesFile.TEXT_OVERRIDES] = new JsonObject(
+                textSeed
+                    .OrderBy(x => x.Key, StringComparer.Ordinal)
+                    .Select(x => KeyValuePair.Create(x.Key, (JsonNode?)JsonValue.Create(x.Value)))
+            ).ToJsonString();
+
         loaded.SetTheme(pluginKey, theme is not null, theme?.Extends);
         loaded.SetParts(pluginKey, parts);
         Invalidate();
@@ -131,7 +140,15 @@ internal sealed class PluginGamedataSeeds(
                 ct
             )
             .ConfigureAwait(false);
-        await FollowAsync(pluginKey, Texts, textSeed, ct).ConfigureAwait(false);
+        // A theme gives the hotel no texts: what one gave before it had a look of its own and that
+        // staff left as it was goes (its own again, drawn through text.overrides); staff's edits stay.
+        await FollowAsync(
+                pluginKey,
+                Texts,
+                theme is null ? textSeed : new Dictionary<string, string>(StringComparer.Ordinal),
+                ct
+            )
+            .ConfigureAwait(false);
         await SeedChatStylesAsync(pluginKey, folder, ct).ConfigureAwait(false);
     }
 

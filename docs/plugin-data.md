@@ -20,7 +20,7 @@ plugins/mytheme/
     frame.png              files its patches and styles name
     styles/pixel.woff2     a font its text.fonts names ({ "Pixel": "styles/pixel.woff2" })
   gamedata/
-    external_texts.txt     its phrases (key=value), editable by staff
+    external_texts.txt     its phrases (key=value), editable by staff; a theme's are its look (below)
     external_variables.json
   chatstyles/
     chatstyles.json        its chat bubbles (below)
@@ -246,7 +246,24 @@ written into its own files and the theme is loaded again:
   each named by its window, until the first save;
 - images and fonts: its `wwwroot/styles/`; a font's family and a skin set's bitmaps
   (`PUT /plugins/{key}/overlays`) its `gamedata/external_variables.json` `text.fonts` and
-  `asset.overlays`, each by its own path (a bitmap an image style stands in for: that style's default).
+  `asset.overlays`, each by its own path (a bitmap an image style stands in for: that style's default);
+- texts: its `gamedata/external_texts.txt` - `PUT /plugins/{key}/texts` `{ "texts": { "<key>": "<text>" | null } }`
+  (`admin.plugins.manage`, one command log line; a key is one line up to its first `=`, a text one
+  line, `
+` for a break). The hotel's own texts stay Gamedata > Texts'.
+
+### A theme's texts
+
+A theme's `gamedata/external_texts.txt` is part of its look, not given to the hotel: clients drawing
+the theme get them in the merged variable **`text.overrides`** `{ "<key>": "<text>" }` (only the
+theme's own keys, never a copy of the hotel's texts) and lay them over the hotel's texts at start. A
+key staff changed on Gamedata > Texts is the hotel's: the hotel has a text for it that isn't Habbo's
+as last taken in (or Habbo has none of it), and the theme's text of that key is left out as the
+variables are written - a text staff save takes it away at once. A key the hotel has no text of, or
+still has Habbo's, shows the theme's. Two themes of a chain giving one key: the nearer one's (the theme's
+over the one it extends). A plugin that is no theme still gives the hotel the texts it has none
+of, as before; a theme that gave the hotel texts before it was one takes back those staff left as
+they were when it loads (staff's edits stay the hotel's).
 
 Only a data plugin's files are written; a plugin with code is its author's to change, and refused.
 The theme's **Make a plugin** is then its package, with every change in it, for another hotel to
