@@ -1501,19 +1501,20 @@ loaded. With `admin.plugins.manage`, **Run now** runs one at once without moving
 a run now goes to the command log.
 
 **Installing a package** is off unless the server sets `Turbo:Plugin:UploadEnabled` to `true`.
-A package is a zip with `manifest.json` and the plugin's assembly at its root, or a zipped plugin
-folder (`dist/<key>` as a plugin's packaging script builds it). A **data plugin** (a theme, texts,
-template patches: `docs/plugin-data.md`) is the same zip with no assembly and no `AssemblyFile` in
-its manifest. Who may install which:
+A package is a zip with `manifest.json` and the plugin's C# sources (`server/` by default) at its
+root, or a zipped plugin folder (`dist/<key>` as a plugin's packaging script builds it): the server
+compiles the sources as it loads the plugin (`docs/plugin-loading.md`), and a package holding an
+executable file (an assembly, a native library) is refused. A **data plugin** (a theme, texts,
+template patches: `docs/plugin-data.md`) is the same zip with no C# source. Who may install which:
 
 | Package | Needs |
 | --- | --- |
-| A data plugin: no `AssemblyFile`, and only JSON, text, Markdown and PNG, GIF, JPEG or WebP files (or files with no extension) | `admin.plugins.manage` |
+| A data plugin: no C# source, and only JSON, text, Markdown and PNG, GIF, JPEG or WebP files (or files with no extension) | `admin.plugins.manage` |
 | A data plugin with a `gamedata/` folder (external texts or variables) | `admin.plugins.manage` and `gamedata.manage` |
-| Anything else: an assembly, any other file (a page or script could run from the address a plugin's files are served at), or one replacing an installed plugin that has an assembly | `admin.plugins.manage` and `admin.plugins.install`, which no wildcard grants: it is server code that runs with the hotel's own access |
+| Anything else: C# sources, any other file (a page or script could run from the address a plugin's files are served at), or one replacing an installed plugin that has code | `admin.plugins.manage` and `admin.plugins.install`, which no wildcard grants: it is server code that runs with the hotel's own access |
 
 The manifest is checked first (it needs `Name`, `Key` and `Version`, its key only letters,
-digits, `.`, `_` and `-`, and the assembly its `AssemblyFile` names, when it names one), then what
+digits, `.`, `_` and `-`), the package is checked for executable files, then what
 the package holds against the table, and nothing is written to the plugin folder unless both pass;
 a refusal says what it needs. The page always shows **Install**, **Link from GitHub** and
 **Uninstall**, greyed out when they need a node the staff member lacks, with a line saying which
@@ -1525,8 +1526,7 @@ Every install keeps the version it replaces, zipped, in `<plugin folder>/.versio
 (the newest `Turbo:Plugin:KeepVersions`, 3); the plugin's **Earlier versions** roll back to one,
 through the same checks (a data plugin's with `admin.plugins.manage`), and the version rolled back from is kept in turn. A new version that does
 not load is taken out again and the one it replaced put back, with why it failed. A manifest may
-say which plugin API it was built for (`ApiVersion`, and `BuiltAgainst`: the turbo-cloud ref, for
-people to read); a server takes `PluginApi.OLDEST` to `PluginApi.VERSION` and refuses any other,
+say which plugin API it was built for (`ApiVersion`); a server takes `PluginApi.OLDEST` to `PluginApi.VERSION` and refuses any other,
 saying both. Both are 1: no plugin outside this project has been published, so the API stays 1
 while it changes, and counts up from the first one that is. The hotel's own plugin (`hotel`, staff's
 patches), whose manifest the server writes, is stamped with the server's API as it loads.
@@ -1535,16 +1535,17 @@ patches), whose manifest the server writes, is stamped with the server's API as 
 to date. Link one by its URL (`https://github.com/owner/repo`) or `owner/repo`, following its
 newest release or one tag, with an optional token for a private repository (sealed on disk with
 `Turbo:Plugin:SecretKey`, or a `.plugin-key` made once beside the plugins; the panel only says a
-token is set). The package is the release's only `.zip` asset, or the asset named on the link; it
-is downloaded (checked against the SHA-256 GitHub lists for it) and installed as an uploaded
+token is set). What is installed is the plugin's sources at the release's tag (GitHub's source
+archive of the tag, never a built asset): the folder of the repository holding the plugin's
+`manifest.json`, the one named on the link (**Folder**) or, when it names none, the only one; it is
+installed as an uploaded
 package is, so linking, updating and rolling back need what installing needs. Every
 `Turbo:Plugin:UpdateCheckMinutes` (60; 0: only on request) the links are checked and a newer
 release shows as **Update available**; a link set to update on its own installs it then, except a
 release staff rolled back from. **Check now** (with `admin.plugins.manage`) and **Update** run as
 a job, with its steps and log on the page. `Turbo:Plugin:AllowedSources` limits the GitHub owners
 plugins may be linked from (empty: any); `Turbo:Plugin:GitHubApiUrl` points at GitHub Enterprise.
-A plugin repository builds its release package in CI against turbo-cloud (the bug report plugin's
-`.github/workflows/release.yml` is one). Links are kept in `plugins.json` under `Sources`.
+A plugin repository needs no release build: a tag of its sources is a version. Links are kept in `plugins.json` under `Sources`.
 
 **Uninstalling** a plugin (with `admin.plugins.uninstall`, which no wildcard grants) starts with a
 dry run of what would go: its folder and the earlier versions kept of it, the GitHub links it was

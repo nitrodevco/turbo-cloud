@@ -1,50 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    The plugin's server half. `npm run dev` (in the plugin's folder) builds it into dist/skills/
-    with the client module and the plugin's files, the folder a hotel names in
-    Turbo:Plugin:DevPluginPaths.
+    The plugin's server half: its C# sources, which the hotel compiles as it loads the plugin
+    (turbo-cloud docs/plugin-loading.md). This project is for the editor, the tests and `dotnet ef`:
+    it builds against what the server compiles plugins with (plugin-sdk/Turbo.Plugin.props: the
+    same references, C# version and policy analyzer), so `npm run check` fails as the hotel would.
+    `npm run dev` copies the sources into dist/skills/ with the client module and the plugin's
+    files, the folder a hotel names in Turbo:Plugin:DevPluginPaths.
   -->
+  <Import Project="$(TurboBin)/plugin-sdk/Turbo.Plugin.props" />
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Skills</RootNamespace>
-    <EnableDynamicLoading>true</EnableDynamicLoading>
-    <SelfContained>false</SelfContained>
-    <!-- Skills.xml: the admin panel's Settings page shows each setting's summary from it. -->
+    <!-- The hotel's Settings page shows each setting's summary from the doc comments. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <!--
-      The plugin folder holds the plugin alone: a host assembly beside it would be a second copy.
-      `dotnet ef` (npm run make migration) builds with DesignTime=true and needs them beside it.
-    -->
-    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-    <TurboPrivate>false</TurboPrivate>
-    <TurboPrivate Condition="'$(DesignTime)' == 'true'">true</TurboPrivate>
   </PropertyGroup>
-  <ItemGroup>
-    <!-- Microsoft.Extensions.* (services, options, logging) are the shared framework's, as the server's are. -->
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
-  <ItemGroup>
-    <!-- The host's own assemblies: referenced, never copied beside the plugin. -->
-    <Reference Include="$(TurboBin)/Turbo.Contracts.dll" Private="$(TurboPrivate)" />
-    <Reference Include="$(TurboBin)/Turbo.Primitives.dll" Private="$(TurboPrivate)" />
-    <Reference Include="$(TurboBin)/Orleans.Core.Abstractions.dll" Private="$(TurboPrivate)" />
-    <Reference
-      Include="$(TurboBin)/Orleans.Serialization.Abstractions.dll"
-      Private="$(TurboPrivate)"
-    />
-  </ItemGroup>
-  <!-- A host assembly a reference brings along is the host's too: keep every one out of the plugin's folder. -->
-  <Target
-    Name="KeepHostAssembliesOut"
-    AfterTargets="ResolveAssemblyReferences"
-    Condition="'$(DesignTime)' != 'true'"
-  >
-    <ItemGroup>
-      <ReferenceCopyLocalPaths
-        Remove="@(ReferenceCopyLocalPaths)"
-        Condition="Exists('$(TurboBin)/%(Filename)%(Extension)')"
-      />
-    </ItemGroup>
-  </Target>
 </Project>

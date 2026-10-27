@@ -350,7 +350,7 @@ public sealed class PluginUninstallTests : IDisposable
 
         Directory.CreateDirectory(dir);
         File.WriteAllText(Path.Combine(dir, "manifest.json"), Manifest(key, prefix, dependsOn));
-        File.WriteAllText(Path.Combine(dir, "Sample.dll"), "MZ");
+        PluginBuilder.WriteSources(dir, ["not C#"]);
     }
 
     private static string Manifest(string key, string prefix, string? dependsOn = null) =>
@@ -361,7 +361,6 @@ public sealed class PluginUninstallTests : IDisposable
                 Key = key,
                 Version = "1.0.0",
                 Author = "Staff",
-                AssemblyFile = "Sample.dll",
                 TablePrefix = prefix,
                 Dependencies = dependsOn is null
                     ? Array.Empty<object>()
@@ -379,7 +378,7 @@ public sealed class PluginUninstallTests : IDisposable
                 var (name, content) in new[]
                 {
                     ("manifest.json", Manifest(key, prefix)),
-                    ("Sample.dll", "MZ"),
+                    ("server/Plugin.cs", "not C#"),
                 }
             )
             {

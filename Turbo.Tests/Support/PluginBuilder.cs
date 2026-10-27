@@ -9,8 +9,7 @@ namespace Turbo.Tests.Support;
 
 /// <summary>
 /// A real plugin on disk, as the server finds one: <c>&lt;folder&gt;/&lt;key&gt;/manifest.json</c>
-/// and its assembly, compiled here from the source given (against every assembly the test host
-/// may load, so the host's contracts and everything a server plugin can use).
+/// and its C# sources in <c>server/</c>, which the server compiles as it loads the plugin.
 /// </summary>
 internal static class PluginBuilder
 {
@@ -22,7 +21,7 @@ internal static class PluginBuilder
         params string[] dependsOn
     ) => Write(pluginsFolder, key, [source], apiVersion, dependsOn);
 
-    /// <summary>A plugin compiled from several files, as a plugin project's are.</summary>
+    /// <summary>A plugin of several files, as a plugin project's are.</summary>
     public static void Write(
         string pluginsFolder,
         string key,
@@ -43,14 +42,32 @@ internal static class PluginBuilder
                     Key = key,
                     Version = "1.0.0",
                     Author = "Staff",
-                    AssemblyFile = $"{key}.dll",
                     ApiVersion = apiVersion ?? PluginApi.VERSION,
-                    BuiltAgainst = "abc1234",
                     Dependencies = dependsOn.Select(k => new { Key = k }).ToArray(),
                 }
             )
         );
-        File.WriteAllBytes(Path.Combine(folder, $"{key}.dll"), Compile(key, sources));
+        WriteSources(folder, sources);
+    }
+
+    /// <summary>
+    /// <paramref name="sources"/> as the plugin's <c>server/</c> files, replacing the ones there:
+    /// <c>Plugin.cs</c>, then <c>Plugin2.cs</c>...
+    /// </summary>
+    public static void WriteSources(string pluginFolder, IReadOnlyList<string> sources)
+    {
+        var server = Path.Combine(pluginFolder, "server");
+
+        if (Directory.Exists(server))
+            Directory.Delete(server, recursive: true);
+
+        Directory.CreateDirectory(server);
+
+        for (var i = 0; i < sources.Count; i++)
+            File.WriteAllText(
+                Path.Combine(server, i == 0 ? "Plugin.cs" : $"Plugin{i + 1}.cs"),
+                sources[i]
+            );
     }
 
     /// <summary>

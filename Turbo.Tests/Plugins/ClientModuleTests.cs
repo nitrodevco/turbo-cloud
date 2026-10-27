@@ -212,7 +212,6 @@ public sealed class ClientModuleTests : IAsyncDisposable
             Key = "hello",
             Version = "1.0.0",
             Author = "Staff",
-            AssemblyFile = "hello.dll",
         };
         using var plugin = new PluginClientModules(
             _registry,

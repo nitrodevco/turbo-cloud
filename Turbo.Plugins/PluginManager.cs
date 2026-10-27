@@ -23,6 +23,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Migrations;
 using Turbo.Logging.Extensions;
 using Turbo.Plugins.ClientBuild;
+using Turbo.Plugins.Compilation;
 using Turbo.Plugins.Configuration;
 using Turbo.Plugins.Exceptions;
 using Turbo.Plugins.Exports;
@@ -48,6 +49,13 @@ public sealed class PluginManager(
     private readonly ExportRegistry _exports = new();
     private readonly PluginConfig _config = config.Value;
     private readonly ILogger _logger = logger;
+    private readonly PluginCompiler _compiler = new(config.Value.PluginFolderPath, logger);
+
+    // The plugins refused (an executable file in the folder, code the policy does not allow), with
+    // their folder's fingerprint then: not tried again until something in the folder changed.
+    private readonly ConcurrentDictionary<string, string> _rejected = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
     // Plugins' client modules, built from their sources and kept beside the plugins.
     private readonly PluginClientBuilder _clientBuilder = new(
@@ -214,6 +222,10 @@ public sealed class PluginManager(
                 if (changedOnly && IsCurrent(m.Key, folder))
                     continue;
 
+                // Refused as it is: refused again until its files change.
+                if (IsRejectedAsIs(m.Key, folder))
+                    continue;
+
                 await TryLoadAsync(m, folder, plugins, ct).ConfigureAwait(false);
             }
 
@@ -318,8 +330,38 @@ public sealed class PluginManager(
             }
 
             await LoadAndProcessAsync(m, folder, ct).ConfigureAwait(false);
+            _rejected.TryRemove(m.Key, out _);
 
             return null;
+        }
+        catch (PluginRejectedException ex)
+        {
+            // Its folder or its code is not what the server runs (docs/plugin-loading.md); it
+            // stays refused until its files change.
+            _rejected[m.Key] = PluginHelpers.FolderFingerprint(folder);
+            SetStatus(m, folder, PluginStateType.Rejected, ex.Message);
+            _logger.LogError(
+                "Refused {Name}@{Version} by {Author}: {Reasons}",
+                m.Name,
+                m.Version,
+                m.Author,
+                string.Join(Environment.NewLine, ex.Reasons)
+            );
+
+            return ex;
+        }
+        catch (PluginCompileException ex)
+        {
+            SetStatus(m, folder, PluginStateType.Failed, ex.Message);
+            _logger.LogError(
+                "{Name}@{Version} by {Author} does not compile:{Errors}",
+                m.Name,
+                m.Version,
+                m.Author,
+                string.Concat(ex.Errors.Select(e => Environment.NewLine + "  " + e))
+            );
+
+            return ex;
         }
         catch (Exception ex) when (MigrationException.FindIn(ex) is { } migration)
         {
@@ -385,6 +427,10 @@ public sealed class PluginManager(
 
         return [.. plugins.Where(p => found.Contains(p.Manifest.Key))];
     }
+
+    /// <summary>The plugin was refused, and nothing in its folder changed since.</summary>
+    private bool IsRejectedAsIs(string key, string folder) =>
+        _rejected.TryGetValue(key, out var was) && was == PluginHelpers.FolderFingerprint(folder);
 
     /// <summary>The live version of the plugin was loaded from this folder as its code is now.</summary>
     private bool IsCurrent(string key, string folder) =>
@@ -503,8 +549,11 @@ public sealed class PluginManager(
 
         // Checks come first so a refused load does not leave an assembly context behind. Its code
         // is fingerprinted before it is read: a change while it loads is seen by the next scan.
+        // It is compiled before the live version stops: one that is refused or does not compile
+        // leaves that version running.
         var fingerprint = PluginHelpers.CodeFingerprint(folder);
-        var asm = GetLoadedPluginAssembly(m, folder);
+        var code = await _compiler.LoadAsync(m, folder, ct).ConfigureAwait(false);
+        var asm = code.Assembly;
         WeakReference? unloading = null;
 
         if (current is not null)
@@ -532,7 +581,8 @@ public sealed class PluginManager(
 
         try
         {
-            next = await BuildEnvelopeAsync(asm, m, folder, fingerprint, ct).ConfigureAwait(false);
+            next = await BuildEnvelopeAsync(asm, m, folder, fingerprint, code.DocumentationPath, ct)
+                .ConfigureAwait(false);
         }
         catch
         {
@@ -540,6 +590,7 @@ public sealed class PluginManager(
             var failed = asm.Alc is null ? null : AssemblyMemoryLoader.BeginUnload(asm.Alc);
 
             asm = null!;
+            code = null!;
             WaitForFailedUnload(failed, m.Key);
 
             throw;
@@ -643,22 +694,12 @@ public sealed class PluginManager(
         await Task.WhenAll(_failedUnloads.Keys).ConfigureAwait(false);
     }
 
-    private static LoadedAssembly GetLoadedPluginAssembly(PluginManifest manifest, string folder)
-    {
-        // A data plugin: its files are all it has.
-        if (PluginHelpers.IsDataOnly(manifest))
-            return AssemblyMemoryLoader.Empty(folder, $"TurboDataPlugin.{manifest.Key}");
-
-        var asmPath = PluginHelpers.GetAssemblyPath(folder, manifest);
-
-        return AssemblyMemoryLoader.LoadFromBytes(asmPath);
-    }
-
     private async Task<PluginEnvelope> BuildEnvelopeAsync(
         LoadedAssembly asm,
         PluginManifest m,
         string folder,
         string fingerprint,
+        string? documentationPath,
         CancellationToken ct
     )
     {
@@ -704,7 +745,7 @@ public sealed class PluginManager(
                         m.Key,
                         settings,
                         type => RunningOptions(sp, type),
-                        Path.ChangeExtension(PluginHelpers.GetAssemblyPath(folder, m), ".xml")
+                        documentationPath
                     )
                 );
 
@@ -747,7 +788,7 @@ public sealed class PluginManager(
             // Its client module is built from its sources before it starts; one that does not
             // build fails the load. A data plugin runs no code, in the client either.
             if (
-                !PluginHelpers.IsDataOnly(m)
+                !PluginHelpers.IsDataOnly(m, folder)
                 && clientModules?.BuildConventionalModule() is { Reused: false } build
             )
                 _logger.LogInformation(

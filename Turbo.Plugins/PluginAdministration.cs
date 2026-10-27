@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Migrations;
+using Turbo.Plugins.Compilation;
 using Turbo.Plugins.Data;
 using Turbo.Plugins.Exceptions;
 using Turbo.Primitives.Players;
@@ -123,7 +124,9 @@ internal sealed partial class PluginAdministration(
             .Keys.Except(plugins.Select(p => p.Folder), StringComparer.Ordinal)
             .Select(folder => before[folder].Key)
             .ToList();
-        var failed = plugins.Where(p => p.State == PluginStateType.Failed).ToList();
+        var failed = plugins
+            .Where(p => p.State is PluginStateType.Failed or PluginStateType.Rejected)
+            .ToList();
 
         if (changed.Count > 0)
             parts.Add($"loaded {string.Join(", ", changed)}");
@@ -138,7 +141,9 @@ internal sealed partial class PluginAdministration(
             $"{plugins.Count(p => p.State == PluginStateType.Loaded)} loaded"
             + (failed.Count > 0 ? $", {failed.Count} failed" : "");
         var failures = string.Concat(
-            failed.Select(p => $" {p.Key} failed: {p.Error ?? "it did not load."}")
+            failed.Select(p =>
+                $" {p.Key} {(p.State == PluginStateType.Rejected ? "was refused" : "failed")}: {p.Error ?? "it did not load."}"
+            )
         );
 
         return new PluginActionResult(
@@ -603,15 +608,20 @@ internal sealed partial class PluginAdministration(
             try
             {
                 manifest = PluginHelpers.ReadManifest(staging);
-
-                // A data plugin has no assembly to find.
-                if (!PluginHelpers.IsDataOnly(manifest))
-                    PluginHelpers.GetAssemblyPath(staging, manifest);
             }
             catch (PluginException ex)
             {
                 return new PluginActionResult(false, Describe(ex), null);
             }
+
+            // The server compiles a plugin from its sources: a package with an executable file
+            // in it would be refused as it loads, so it is not installed.
+            if (PluginFolderGate.Find(staging) is { Count: > 0 } executables)
+                return new PluginActionResult(
+                    false,
+                    $"The package holds {string.Join(", ", executables)}: a plugin is installed as its C# sources and the server compiles them, so a package has no executable file.",
+                    null
+                );
 
             if (!KeyPattern().IsMatch(manifest.Key))
                 return new PluginActionResult(
@@ -707,20 +717,23 @@ internal sealed partial class PluginAdministration(
         string? existing
     )
     {
-        var codeFile = PluginHelpers.IsDataOnly(manifest)
+        var codeFile = PluginHelpers.IsDataOnly(manifest, staging)
             ? Directory
                 .EnumerateFiles(staging, "*", SearchOption.AllDirectories)
                 .Select(file => Path.GetRelativePath(staging, file).Replace('\\', '/'))
                 .Where(file => !DATA_FILES.Contains(Path.GetExtension(file)))
                 .Order(StringComparer.Ordinal)
                 .FirstOrDefault()
-            : Path.GetFileName(manifest.AssemblyFile);
+            : SourceFileOf(manifest, staging);
         var replacesCode = false;
 
         if (existing is not null)
             try
             {
-                replacesCode = !PluginHelpers.IsDataOnly(PluginHelpers.ReadManifest(existing));
+                replacesCode = !PluginHelpers.IsDataOnly(
+                    PluginHelpers.ReadManifest(existing),
+                    existing
+                );
             }
             catch (PluginException)
             {
@@ -737,6 +750,19 @@ internal sealed partial class PluginAdministration(
             replacesCode,
             Directory.Exists(gamedata) && Directory.EnumerateFiles(gamedata).Any()
         );
+    }
+
+    /// <summary>The first of the plugin's source files: what makes the package code.</summary>
+    private static string SourceFileOf(PluginManifest manifest, string staging)
+    {
+        try
+        {
+            return PluginSourceFiles.Find(staging, manifest)[0];
+        }
+        catch (ArgumentException)
+        {
+            return "manifest.json";
+        }
     }
 
     /// <summary>
@@ -982,8 +1008,6 @@ internal sealed partial class PluginAdministration(
             PluginManifestException { ErrorType: PluginManifestErrorType.MissingField } m =>
                 $"The manifest has no {m.FieldName}.",
             PluginManifestException => "The manifest isn't valid JSON for a plugin manifest.",
-            PluginAssemblyException { ErrorType: PluginAssemblyErrorType.NotFound } =>
-                "The package has no assembly named as the manifest's AssemblyFile.",
             _ => ex.Message,
         };
 

@@ -694,7 +694,7 @@ public sealed class DataPluginTests : IDisposable
             .Be("styles/frame-art.png");
         JsonDocument
             .Parse(archive.GetEntry("manifest.json")!.Open())
-            .RootElement.TryGetProperty("AssemblyFile", out _)
+            .RootElement.TryGetProperty("Sources", out _)
             .Should()
             .BeFalse();
 
@@ -1297,7 +1297,7 @@ public sealed class DataPluginTests : IDisposable
         );
 
         theme.Should().Be(new PluginTheme("nightly", "habbo"));
-        PluginHelpers.ReadManifest(folder).AssemblyFile.Should().BeNull();
+        PluginHelpers.IsDataOnly(PluginHelpers.ReadManifest(folder), folder).Should().BeTrue();
         hotel.Manager.FolderOf("nightly").Should().Be(folder);
 
         await hotel.HotelPlugin.SavePatchAsync(

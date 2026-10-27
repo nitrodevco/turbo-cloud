@@ -21,6 +21,6 @@ public static class PluginApi
     /// <summary>Why the server can't take a plugin built for <paramref name="manifest"/>'s API; null when it can.</summary>
     public static string? Refusal(PluginManifest manifest) =>
         manifest.ApiVersion is { } api && (api < OLDEST || api > VERSION)
-            ? $"{manifest.Name} {manifest.Version} was built for plugin API {api}{(manifest.BuiltAgainst is { } built ? $" (turbo-cloud {built})" : "")}; this server has plugin API {VERSION} (it loads {OLDEST} to {VERSION}). Install a build made for it."
+            ? $"{manifest.Name} {manifest.Version} was built for plugin API {api}; this server has plugin API {VERSION} (it loads {OLDEST} to {VERSION}). Install a version made for it."
             : null;
 }

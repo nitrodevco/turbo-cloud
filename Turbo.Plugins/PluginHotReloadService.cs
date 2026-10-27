@@ -196,7 +196,9 @@ public sealed class PluginHotReloadService(
 
         try
         {
-            return PluginHelpers.IsDataOnly(PluginHelpers.ReadManifest(folder)) ? folder : null;
+            return PluginHelpers.IsDataOnly(PluginHelpers.ReadManifest(folder), folder)
+                ? folder
+                : null;
         }
         catch (Exception ex)
             when (ex is PluginManifestException or IOException or UnauthorizedAccessException)

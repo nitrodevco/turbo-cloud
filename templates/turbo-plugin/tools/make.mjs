@@ -31,13 +31,13 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { buildErrors, checkHost, turboBin } from './host.mjs';
+import { buildErrors, checkHost, projectName, turboBin } from './host.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const manifestFile = path.join(root, 'manifest.json');
 const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'));
 const key = manifest.Key;
-const assembly = path.parse(manifest.AssemblyFile).name;
+const assembly = projectName();
 const server = path.join(root, 'server');
 const made = path.join(root, 'client', 'src', 'made');
 const DOCS = 'turbo-cloud docs/';
@@ -96,18 +96,6 @@ const text = (textKey, value) => change(path.join(root, 'gamedata', 'external_te
     if (texts.split(/\r?\n/).some(line => line.startsWith(`${textKey}=`))) return texts;
 
     return `${texts}${(texts && !texts.endsWith('\n')) ? '\n' : ''}${textKey}=${value}\n`;
-});
-
-/** A reference to one of the server's assemblies (TurboBin), kept out of the plugin's folder. */
-const reference = (dll, why) => change(path.join(server, `${assembly}.csproj`), (project) => {
-    if (project.includes(`$(TurboBin)/${dll}"`)) return project;
-
-    const comment = `    <!-- ${why} -->\n`;
-    const line = `    <Reference Include="$(TurboBin)/${dll}" Private="$(TurboPrivate)" />\n`;
-    const anchor = project.lastIndexOf('    <Reference Include="$(TurboBin)/');
-    const end = project.indexOf('\n', anchor) + 1;
-
-    return `${project.slice(0, end)}${project.includes(comment) ? '' : comment}${line}${project.slice(end)}`;
 });
 
 /** Rewrites client/src/made/index.ts to activate every made piece with an `activate`. */
@@ -662,9 +650,7 @@ export const activate = (api: ClientModuleApi) => {
             change(manifestFile, () => `${JSON.stringify(manifest, null, 4)}\n`);
         }
 
-        for (const dll of [ 'Turbo.Database.dll', 'Microsoft.EntityFrameworkCore.dll', 'Microsoft.EntityFrameworkCore.Abstractions.dll', 'Microsoft.EntityFrameworkCore.Relational.dll', 'Pomelo.EntityFrameworkCore.MySql.dll' ]) {
-            reference(dll, 'The plugin\'s tables (turbo-cloud docs/database.md).');
-        }
+        // Turbo.Database and EF Core are in what every plugin compiles against (plugin-sdk/Turbo.Plugin.props).
 
         // dotnet ef needs EF Core's design package, at the server's EF Core version, while it runs only.
         change(path.join(server, `${assembly}.csproj`), (project) => {

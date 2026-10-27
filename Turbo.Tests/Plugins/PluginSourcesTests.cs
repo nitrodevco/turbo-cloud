@@ -2,12 +2,9 @@ using System.IO;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -26,10 +23,11 @@ namespace Turbo.Tests.Plugins;
 
 /// <summary>
 /// Plugins linked to a GitHub repository, over the real plugin manager, a plugin folder on disk,
-/// real plugin assemblies and a stand-in for GitHub's releases API: linking installs the release,
-/// a check shows a newer one, an update installs it and keeps the version it replaced to roll back
-/// to, an update that does not load is put back, and a package that is not what GitHub lists, or
-/// built for another plugin API, changes nothing. A token is sealed on disk and sent to GitHub only.
+/// real plugin sources and a stand-in for GitHub's releases API: linking installs the release's
+/// sources, a check shows a newer one, an update installs it and keeps the version it replaced to
+/// roll back to, an update that does not load is put back, and sources with an executable file,
+/// or written for another plugin API, change nothing. A token is sealed on disk and sent to GitHub
+/// only.
 /// </summary>
 public sealed class PluginSourcesTests : IDisposable
 {
@@ -179,17 +177,39 @@ public sealed class PluginSourcesTests : IDisposable
         _sources.List().Single().InstalledTag.Should().Be("v1.0.0");
     }
 
+    /// <summary>
+    /// A plugin is installed as its sources at the release's tag: an assembly in them (one built
+    /// and committed, or attached as the plugin) is refused and nothing is installed.
+    /// </summary>
     [Fact]
-    public async Task A_package_that_is_not_the_file_github_lists_changes_nothing()
+    public async Task Sources_with_an_executable_file_change_nothing()
     {
-        _github.Release("v1.0.0", Package("1.0.0"), digest: new string('0', 64));
+        _github.Release("v1.0.0", Package("1.0.0", extra: ("server/bin/Sample.dll", "MZ")));
         _sources.Add(Input(), player: 1);
 
         var job = await JobAsync();
 
         job.Status.Should().Be(PluginJobStatus.Failed);
-        job.Error.Should().Contain("SHA-256 differs");
+        job.Error.Should().Contain("server/bin/Sample.dll is a .dll file");
         Directory.Exists(Path.Combine(_folder, "sample")).Should().BeFalse();
+    }
+
+    /// <summary>
+    /// A repository whose plugin is in a folder of it (a solution with the plugin's project and its
+    /// tests) is installed from the folder the link names, with that folder's files only.
+    /// </summary>
+    [Fact]
+    public async Task A_plugin_in_a_folder_of_the_repository_installs_from_the_folder_the_link_names()
+    {
+        _github.Release("v1.0.0", Package("1.0.0", folder: "Sample"));
+        _sources.Add(Input() with { Folder = "Sample" }, player: 1);
+
+        (await JobAsync()).Status.Should().Be(PluginJobStatus.Done);
+        Loaded().Version.Should().Be("1.0.0");
+        File.Exists(Path.Combine(_folder, "sample", "server", "SamplePlugin.cs")).Should().BeTrue();
+        File.Exists(Path.Combine(_folder, "sample", "README.md"))
+            .Should()
+            .BeFalse("the repository's own files are not the plugin's");
     }
 
     [Fact]
@@ -203,7 +223,6 @@ public sealed class PluginSourcesTests : IDisposable
         job.Status.Should().Be(PluginJobStatus.Failed);
         job.Error.Should()
             .Contain($"built for plugin API {PluginApi.VERSION + 1}")
-            .And.Contain("turbo-cloud abc1234")
             .And.Contain($"this server has plugin API {PluginApi.VERSION}");
         Directory.Exists(Path.Combine(_folder, "sample")).Should().BeFalse();
     }
@@ -342,8 +361,17 @@ public sealed class PluginSourcesTests : IDisposable
         throw new TimeoutException("The plugin job did not finish.");
     }
 
-    /// <summary>A plugin package: its manifest and a real plugin assembly, compiled here.</summary>
-    private static byte[] Package(string version, bool failsToStart = false, int? apiVersion = null)
+    /// <summary>
+    /// The repository's sources at a tag, as GitHub zips them: under one top folder, the plugin's
+    /// manifest and source in <paramref name="folder"/> (the root when null) and a README.
+    /// </summary>
+    private static byte[] Package(
+        string version,
+        bool failsToStart = false,
+        int? apiVersion = null,
+        string? folder = null,
+        (string Path, string Content)? extra = null
+    )
     {
         var manifest = JsonSerializer.Serialize(
             new
@@ -352,29 +380,35 @@ public sealed class PluginSourcesTests : IDisposable
                 Key = "sample",
                 Version = version,
                 Author = "Staff",
-                AssemblyFile = "Sample.dll",
                 ApiVersion = apiVersion ?? PluginApi.VERSION,
-                BuiltAgainst = "abc1234",
             }
         );
+        var plugin = $"Diddyy-turbo-sample-plugin-0123abc/{(folder is null ? "" : folder + "/")}";
+        var files = new List<(string Path, string Content)>
+        {
+            ("Diddyy-turbo-sample-plugin-0123abc/README.md", "# Sample"),
+            (plugin + "manifest.json", manifest),
+            (plugin + "server/SamplePlugin.cs", Source(version, failsToStart)),
+        };
+
+        if (extra is { } file)
+            files.Add((plugin + file.Path, file.Content));
 
         using var memory = new MemoryStream();
 
         using (var zip = new ZipArchive(memory, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            using (var entry = zip.CreateEntry("sample/manifest.json").Open())
-                entry.Write(Encoding.UTF8.GetBytes(manifest));
+            foreach (var (path, content) in files)
+            {
+                using var entry = zip.CreateEntry(path).Open();
 
-            using (var entry = zip.CreateEntry("sample/Sample.dll").Open())
-                entry.Write(Compile(version, failsToStart));
-        }
+                entry.Write(Encoding.UTF8.GetBytes(content));
+            }
 
         return memory.ToArray();
     }
 
-    private static byte[] Compile(string version, bool failsToStart)
-    {
-        var source = $$"""
+    private static string Source(string version, bool failsToStart) =>
+        $$"""
             using System;
             using System.Threading;
             using System.Threading.Tasks;
@@ -389,52 +423,31 @@ public sealed class PluginSourcesTests : IDisposable
                 public void ConfigureServices(IServiceCollection services, PluginManifest manifest) { }
                 public Task StartAsync(IServiceProvider services, CancellationToken ct) =>
                     {{(
-                failsToStart
-                    ? "throw new InvalidOperationException(\"broken build\")"
-                    : "Task.CompletedTask"
-            )}};
+            failsToStart ? "throw new InvalidOperationException(\"broken build\")" : "Task.CompletedTask"
+        )}};
                 public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
                 public Task BindExportsAsync(IExportBinder binder, IServiceProvider services) => Task.CompletedTask;
                 public ValueTask DisposeAsync() => ValueTask.CompletedTask;
             }
             """;
 
-        var compilation = CSharpCompilation.Create(
-            "Sample",
-            [CSharpSyntaxTree.ParseText(source)],
-            PluginBuilder.References(),
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
-        );
-
-        using var dll = new MemoryStream();
-        var emitted = compilation.Emit(dll);
-
-        emitted
-            .Success.Should()
-            .BeTrue(string.Join("; ", emitted.Diagnostics.Select(d => d.ToString())));
-
-        return dll.ToArray();
-    }
-
     /// <summary>
-    /// GitHub's releases API for <see cref="REPO"/>: the newest release, and its one asset, which
-    /// is listed with its SHA-256 (or <c>digest</c>); without a release, 404 as for a private repository.
+    /// GitHub's releases API for <see cref="REPO"/>: the newest release, and the sources at its tag;
+    /// without a release, 404 as for a private repository.
     /// </summary>
     private sealed class FakeGitHub : HttpMessageHandler
     {
         private string? _tag;
-        private byte[] _asset = [];
-        private string? _digest;
+        private byte[] _sources = [];
 
         public List<string> Authorizations { get; } = [];
 
         public int Downloads { get; private set; }
 
-        public void Release(string tag, byte[] asset, string? digest = null)
+        public void Release(string tag, byte[] sources)
         {
             _tag = tag;
-            _asset = asset;
-            _digest = digest ?? Convert.ToHexStringLower(SHA256.HashData(asset));
+            _sources = sources;
         }
 
         protected override Task<HttpResponseMessage> SendAsync(
@@ -461,30 +474,20 @@ public sealed class PluginSourcesTests : IDisposable
                                     tag_name = _tag,
                                     html_url = $"https://github.com/{REPO}/releases/tag/{_tag}",
                                     published_at = "2026-10-17T16:00:00Z",
-                                    assets = new[]
-                                    {
-                                        new
-                                        {
-                                            name = $"sample-{_tag}.zip",
-                                            url = $"{API}/repos/{REPO}/releases/assets/1",
-                                            size = _asset.Length,
-                                            digest = "sha256:" + _digest,
-                                        },
-                                    },
                                 }
                             )
                         ),
                     }
                 );
 
-            if (path == $"/repos/{REPO}/releases/assets/1")
+            if (path == $"/repos/{REPO}/zipball/{_tag}")
             {
                 Downloads++;
 
                 return Task.FromResult(
                     new HttpResponseMessage(HttpStatusCode.OK)
                     {
-                        Content = new ByteArrayContent(_asset),
+                        Content = new ByteArrayContent(_sources),
                     }
                 );
             }

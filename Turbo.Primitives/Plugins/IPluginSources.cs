@@ -49,7 +49,7 @@ public sealed record PluginSourceInput(
     string? Repository,
     string? Follow,
     string? Tag,
-    string? Asset,
+    string? Folder,
     string? Token,
     bool AutoUpdate
 );
@@ -63,7 +63,7 @@ public sealed record PluginSourceSnapshot(
     string Repository,
     string Follow,
     string? Tag,
-    string? Asset,
+    string? Folder,
     bool HasToken,
     bool AutoUpdate,
     string? Key,

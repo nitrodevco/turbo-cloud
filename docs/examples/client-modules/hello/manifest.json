@@ -3,7 +3,7 @@
     "Key": "hello",
     "Version": "1.0.0",
     "Author": "Turbo",
-    "AssemblyFile": "Hello.dll",
+    "Sources": ["*.cs"],
     "Dependencies": [],
     "ApiVersion": 1
 }

@@ -6,6 +6,7 @@
     "scripts": {
         "dev": "node tools/dev.mjs dev",
         "build": "node tools/dev.mjs build",
+        "check": "node tools/dev.mjs check",
         "package": "node tools/dev.mjs package",
         "test": "node tools/dev.mjs test",
         "make": "node tools/make.mjs",

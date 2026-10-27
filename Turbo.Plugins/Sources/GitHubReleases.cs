@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -14,25 +13,17 @@ using Turbo.Plugins.Configuration;
 
 namespace Turbo.Plugins.Sources;
 
-/// <summary>A release on GitHub, and the plugin package picked from its assets (null with why not).</summary>
-internal sealed record GitHubRelease(
-    string Tag,
-    string HtmlUrl,
-    DateTime? PublishedAtUtc,
-    GitHubAsset? Asset,
-    string? AssetProblem
-);
-
-/// <summary>A release asset: its API url downloads it, for private repositories too.</summary>
-internal sealed record GitHubAsset(string Name, string ApiUrl, long Size, string? Sha256);
+/// <summary>A release on GitHub: its tag is what is installed, from the tag's sources.</summary>
+internal sealed record GitHubRelease(string Tag, string HtmlUrl, DateTime? PublishedAtUtc);
 
 /// <summary>Why GitHub did not give what was asked, in words for the panel.</summary>
 internal sealed class GitHubException(string message) : Exception(message);
 
 /// <summary>
 /// GitHub's releases REST API (<see cref="PluginConfig.GitHubApiUrl"/>): a repository's newest
-/// release or one by tag, and an asset's bytes. A token, when given, is sent to GitHub only:
-/// .NET drops it on the redirect to the asset's storage host.
+/// release or one by tag, and the tag's source archive. A plugin is installed as its sources,
+/// which the server compiles, never as a built asset. A token, when given, is sent to GitHub only:
+/// .NET drops it on the redirect to the archive's host.
 /// </summary>
 internal sealed partial class GitHubReleases(HttpClient http, IOptions<PluginConfig> config)
 {
@@ -60,14 +51,10 @@ internal sealed partial class GitHubReleases(HttpClient http, IOptions<PluginCon
             : null;
     }
 
-    /// <summary>
-    /// The newest release (<paramref name="tag"/> null) or the release tagged <paramref name="tag"/>,
-    /// with the package: the asset named <paramref name="assetName"/>, or the release's only zip.
-    /// </summary>
+    /// <summary>The newest release (<paramref name="tag"/> null) or the release tagged <paramref name="tag"/>.</summary>
     public async Task<GitHubRelease> GetReleaseAsync(
         string repository,
         string? tag,
-        string? assetName,
         string? token,
         CancellationToken ct
     )
@@ -86,65 +73,35 @@ internal sealed partial class GitHubReleases(HttpClient http, IOptions<PluginCon
             await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false)
         );
         var root = json.RootElement;
-        var assets = root.TryGetProperty("assets", out var list)
-            ? list.EnumerateArray().Select(ReadAsset).ToList()
-            : [];
-
-        GitHubAsset? asset = null;
-        string? problem = null;
-
-        if (!string.IsNullOrWhiteSpace(assetName))
-        {
-            asset = assets.FirstOrDefault(a =>
-                string.Equals(a.Name, assetName, StringComparison.OrdinalIgnoreCase)
-            );
-
-            if (asset is null)
-                problem = $"The release has no asset named {assetName}.";
-        }
-        else
-        {
-            var zips = assets
-                .Where(a => a.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            if (zips.Count == 1)
-                asset = zips[0];
-            else
-                problem =
-                    zips.Count == 0
-                        ? "The release has no .zip asset: attach the plugin package to it."
-                        : $"The release has {zips.Count} .zip assets: name the one to install.";
-        }
 
         return new GitHubRelease(
             root.GetProperty("tag_name").GetString() ?? "",
             root.TryGetProperty("html_url", out var url) ? url.GetString() ?? "" : "",
             root.TryGetProperty("published_at", out var at) && at.ValueKind == JsonValueKind.String
                 ? at.GetDateTime().ToUniversalTime()
-                : null,
-            asset,
-            problem
+                : null
         );
     }
 
     /// <summary>
-    /// The asset's bytes, no more than <paramref name="limit"/>, checked against the SHA-256
-    /// GitHub gives for it (when it gives one).
+    /// The repository's files at <paramref name="tag"/>, as GitHub zips them (every file under
+    /// one top folder), no more than <paramref name="limit"/> bytes.
     /// </summary>
-    public async Task<MemoryStream> DownloadAsync(
-        GitHubAsset asset,
+    public async Task<MemoryStream> DownloadSourcesAsync(
+        string repository,
+        string tag,
         string? token,
         long limit,
         CancellationToken ct
     )
     {
-        var tooLarge = $"{asset.Name} is larger than {limit / (1024 * 1024)} MB.";
+        var tooLarge = $"The sources of {tag} are larger than {limit / (1024 * 1024)} MB.";
 
-        if (asset.Size > limit)
-            throw new GitHubException(tooLarge);
-
-        using var request = Request(asset.ApiUrl, token, "application/octet-stream");
+        using var request = Request(
+            $"{ApiUrl}/repos/{repository}/zipball/{Uri.EscapeDataString(tag)}",
+            token,
+            "application/vnd.github+json"
+        );
         using var response = await http.SendAsync(
                 request,
                 HttpCompletionOption.ResponseHeadersRead,
@@ -154,8 +111,11 @@ internal sealed partial class GitHubReleases(HttpClient http, IOptions<PluginCon
 
         if (!response.IsSuccessStatusCode)
             throw new GitHubException(
-                $"GitHub did not give {asset.Name} ({(int)response.StatusCode} {response.ReasonPhrase})."
+                $"GitHub did not give the sources of {tag} ({(int)response.StatusCode} {response.ReasonPhrase})."
             );
+
+        if (response.Content.Headers.ContentLength > limit)
+            throw new GitHubException(tooLarge);
 
         var buffer = new MemoryStream();
         var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
@@ -172,16 +132,6 @@ internal sealed partial class GitHubReleases(HttpClient http, IOptions<PluginCon
 
                 await buffer.WriteAsync(chunk.AsMemory(0, read), ct).ConfigureAwait(false);
             }
-        }
-
-        if (asset.Sha256 is { } expected)
-        {
-            var actual = Convert.ToHexStringLower(SHA256.HashData(buffer.ToArray()));
-
-            if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
-                throw new GitHubException(
-                    $"{asset.Name} is not the file GitHub lists: its SHA-256 differs. Nothing was installed."
-                );
         }
 
         buffer.Position = 0;
@@ -201,23 +151,6 @@ internal sealed partial class GitHubReleases(HttpClient http, IOptions<PluginCon
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         return request;
-    }
-
-    private static GitHubAsset ReadAsset(JsonElement asset)
-    {
-        var digest =
-            asset.TryGetProperty("digest", out var d) && d.ValueKind == JsonValueKind.String
-                ? d.GetString()
-                : null;
-
-        return new GitHubAsset(
-            asset.GetProperty("name").GetString() ?? "",
-            asset.GetProperty("url").GetString() ?? "",
-            asset.TryGetProperty("size", out var size) ? size.GetInt64() : 0,
-            digest is not null && digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase)
-                ? digest[7..]
-                : null
-        );
     }
 
     private static string Refusal(

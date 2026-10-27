@@ -75,4 +75,6 @@
     <ProjectReference Include="..\Turbo.Testing\Turbo.Testing.csproj" />
     <ProjectReference Include="..\Turbo.Commands\Turbo.Commands.csproj" />
   </ItemGroup>
+  <!-- plugin-sdk/: what the server compiles plugins with (docs/plugin-loading.md). -->
+  <Import Project="..\Turbo.Plugins\Sdk\PluginSdk.targets" />
 </Project>

@@ -1,13 +1,16 @@
 /**
- * The plugin's one build script, run through npm (`npm run dev`, `build`, `package`, `test`):
+ * The plugin's one build script, run through npm (`npm run dev`, `build`, `check`, `package`, `test`):
  *
- *   dev      builds the server half and copies the client's sources into dist/<key>/ and keeps it
- *            current: a changed .cs rebuilds the server half (the hotel reloads the plugin), a
- *            changed client file is copied (the hotel builds the module again and sends clients its
- *            new version, which they run without a page reload).
- *   build    the same once, then stops.
- *   package  a Release build in dist/<key>/ and dist/<key>-<version>.zip, the package the admin
- *            panel's plugin upload takes.
+ *   dev      copies both halves' sources into dist/<key>/ and keeps it current: a changed .cs is
+ *            copied (the hotel compiles the plugin's sources and reloads it; a compile error is in
+ *            its log and the admin panel as server/File.cs(line,column)), a changed client file is
+ *            copied (the hotel builds the module again and sends clients its new version, which
+ *            they run without a page reload).
+ *   build    the same once, then checks the server sources compile, and stops.
+ *   check    compiles the server sources as the hotel does (the project imports the server's
+ *            plugin-sdk/Turbo.Plugin.props: the same references, C# and policy), and stops.
+ *   package  dist/<key>/ afresh and dist/<key>-<version>.zip, the package the admin panel's plugin
+ *            upload takes: the sources, never an assembly.
  *   test     the server tests (dotnet test) and the client tests (node --test).
  *
  * dist/<key>/ is the plugin folder a hotel loads: name it once in the hotel's
@@ -20,17 +23,16 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statS
 import path from 'node:path';
 import { crc32, deflateRawSync } from 'node:zlib';
 
-import { buildHint, checkHost } from './host.mjs';
+import { buildHint, checkHost, projectName } from './host.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const manifest = JSON.parse(readFileSync(path.join(root, 'manifest.json'), 'utf8'));
 const key = manifest.Key;
-const assembly = path.parse(manifest.AssemblyFile).name;
+const assembly = projectName();
 const dist = path.join(root, 'dist', key);
 const serverProject = path.join(root, 'server', `${assembly}.csproj`);
 const mode = process.argv[2] ?? 'dev';
 const release = mode === 'package';
-const configuration = release ? 'Release' : 'Debug';
 
 const log = (part, text) => console.log(`${new Date().toISOString().slice(11, 23)} [${part}] ${text}`);
 const since = start => `${Math.round(performance.now() - start)} ms`;
@@ -69,24 +71,35 @@ const copyFiles = () => {
 /** Writing the manifest is what tells a hotel in Development to reload the plugin (with its module's new hash). */
 const writeManifest = () => writeFileSync(path.join(dist, 'manifest.json'), readFileSync(path.join(root, 'manifest.json')));
 
-const buildServer = async () => {
+/**
+ * The server half as the hotel takes it: its .cs files in dist/<key>/server/ (the manifest's
+ * Sources: every .cs under server/). Never bin/ or obj/: a plugin folder holds no assembly, and
+ * the hotel refuses one that does.
+ */
+const copySources = () => {
+    const from = path.join(root, 'server');
+    const to = path.join(dist, 'server');
+
+    rmSync(to, { recursive: true, force: true });
+    cpSync(from, to, {
+        recursive: true,
+        filter: source => !/[\\/](bin|obj)$/.test(source) && (statSync(source).isDirectory() || source.endsWith('.cs')),
+    });
+    log('server', 'sources copied');
+};
+
+/** Compiles the server sources as the hotel does; the errors, as server/File.cs(line,column), when they don't. */
+const checkServer = async () => {
     const start = performance.now();
-    const result = await run('dotnet', [ 'build', serverProject, '-c', configuration, '-nologo', '-v', 'q', '-clp:NoSummary;ErrorsOnly' ], { quiet: true });
+    const result = await run('dotnet', [ 'build', serverProject, '-nologo', '-v', 'q', '-clp:NoSummary;ErrorsOnly' ], { quiet: true });
 
     if (!result.ok) {
-        log('server', `build failed (${since(start)})\n${result.output.trim()}`);
+        log('server', `does not compile (${since(start)})\n${result.output.trim()}`);
 
         return false;
     }
 
-    const out = path.join(root, 'server', 'bin', configuration, 'net10.0');
-
-    // Only the plugin's own files: the server's assemblies are the host's (Skills.csproj keeps them out).
-    for (const file of readdirSync(out)) {
-        if (file.startsWith(`${assembly}.`) && !file.endsWith('.runtimeconfig.json')) cpSync(path.join(out, file), path.join(dist, file));
-    }
-
-    log('server', `built in ${since(start)}`);
+    log('server', `compiles (${since(start)})`);
 
     return true;
 };
@@ -202,8 +215,10 @@ const dev = async () => {
 
     watch(path.join(root, 'client', 'src'), { recursive: true }, recopyClient);
 
+    // The hotel compiles the sources it is given: a copy is all a change needs.
     const rebuildServer = debounced(async () => {
-        if (await buildServer()) writeManifest();
+        copySources();
+        writeManifest();
     });
     const recopy = debounced(async () => {
         copyFiles();
@@ -212,7 +227,7 @@ const dev = async () => {
     });
 
     watch(path.join(root, 'server'), { recursive: true }, (_event, file) => {
-        if (file && /\.(cs|csproj)$/.test(file) && !/[\\/](bin|obj)[\\/]/.test(file)) rebuildServer();
+        if (file && /\.cs$/.test(file) && !/[\\/](bin|obj)[\\/]/.test(file)) rebuildServer();
     });
 
     for (const folder of [ 'wwwroot', 'gamedata' ]) {
@@ -233,6 +248,8 @@ const main = async () => {
         if (mode !== 'dev') process.exit(1);
     }
 
+    if (mode === 'check') process.exit((await checkServer()) ? 0 : 1);
+
     await ensurePackages();
 
     if (mode === 'test') {
@@ -251,16 +268,13 @@ const main = async () => {
 
     mkdirSync(dist, { recursive: true });
     copyFiles();
-
+    copySources();
     copyClient();
-
-    const server = await buildServer();
-
     writeManifest();
 
     if (mode === 'dev') return dev();
 
-    if (!server) process.exit(1);
+    if (!(await checkServer())) process.exit(1);
 
     if (release) {
         const file = path.join(root, 'dist', `${key}-${manifest.Version}.zip`);

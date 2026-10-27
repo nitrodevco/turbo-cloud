@@ -8,10 +8,12 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { projectName } from './host.mjs';
+
 const root = path.resolve(import.meta.dirname, '..');
 const manifest = JSON.parse(readFileSync(path.join(root, 'manifest.json'), 'utf8'));
 const key = manifest.Key;
-const assembly = path.parse(manifest.AssemblyFile).name;
+const assembly = projectName();
 const removed = [];
 
 const remove = (...parts) => {

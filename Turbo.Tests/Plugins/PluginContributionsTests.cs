@@ -289,6 +289,7 @@ public sealed class PluginContributionsTests : IDisposable
     }
 
     private const string EVERYTHING = """
+        using Turbo.Contracts.Furni;
         using System;
         using System.Collections.Generic;
         using System.Threading;
@@ -304,7 +305,6 @@ public sealed class PluginContributionsTests : IDisposable
         using Turbo.Primitives.Plugins.Messages;
         using Turbo.Primitives.Rooms.Object.Furniture.Floor;
         using Turbo.Primitives.Rooms.Object.Logic;
-        using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
         public sealed class InspectPlugin : TurboPlugin
         {
@@ -344,9 +344,8 @@ public sealed class PluginContributionsTests : IDisposable
             public IEnumerable<PermissionMetaDefinition> MetaKeys => [];
         }
 
-        [RoomObjectLogic("default_floor")]
-        public sealed class GlowFloorLogic(IStuffDataFactory stuffData, IRoomFloorItemContext ctx)
-            : FurnitureFloorLogic(stuffData, ctx);
+        [FurniLogic("default_floor")]
+        public sealed class GlowFloorLogic : FurniLogic;
 
         [PluginMessage("inspect.ping")]
         public sealed record Ping(int Id) : IPluginMessage;

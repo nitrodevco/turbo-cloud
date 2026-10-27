@@ -69,7 +69,7 @@ public sealed class PluginApiVersionTests : IDisposable
         status.State.Should().Be(PluginStateType.Failed);
         status
             .Error.Should()
-            .Contain($"built for plugin API {api} (turbo-cloud abc1234)")
+            .Contain($"built for plugin API {api};")
             .And.Contain($"this server has plugin API {PluginApi.VERSION}");
     }
 
