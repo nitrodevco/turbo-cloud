@@ -34,7 +34,8 @@ namespace Turbo.Rooms.Object.Logic.Plugins;
 internal sealed class PluginFurniLogic(
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx,
-    FurniLogic logic
+    FurniLogic logic,
+    bool linkedPair
 ) : FurnitureWalkToUseLogic(stuffDataFactory, ctx), IFurniContext
 {
     // Steps shown (ShowStepAsync) and when their mv comes off again, by avatar: one avatar tick
@@ -162,7 +163,7 @@ internal sealed class PluginFurniLogic(
         return Task.FromResult(true);
     }
 
-    public Task<bool> ForwardToRoomAsync(
+    public async Task<bool> ForwardToRoomAsync(
         RoomUser user,
         RoomId room,
         RoomEntryExtension? extension,
@@ -170,10 +171,18 @@ internal sealed class PluginFurniLogic(
     )
     {
         if (!TryGetAvatar(user, out var avatar) || avatar is not IRoomPlayer player || room <= 0)
-            return Task.FromResult(false);
+            return false;
 
-        // Told, not awaited: this runs in the room turn. A plain entry, never a teleport's: the
-        // other room's door, bans, capacity and entry policies all decide.
+        // A linked pair's half sending someone to the room its other half stands in passes that
+        // room's door as a teleporter does: both halves were placed by someone with rights in both
+        // rooms. Checked here, never taken from the plugin. Any other forward is a plain entry.
+        var throughPair =
+            linkedPair
+            && PairedItemId is > 0 and var partnerId
+            && await FurniModule.GetRoomIdOfItemAsync(partnerId, ct) == room;
+
+        // Told, not awaited: this runs in the room turn. Never a teleport's entry: the other
+        // room's arrival policies place them, and its bans, capacity and entry policies decide.
         GrainFactory
             .ForwardPlayerToRoomAsync(
                 player.PlayerId,
@@ -184,6 +193,7 @@ internal sealed class PluginFurniLogic(
                     TeleportId = 0,
                     SourceRoomId = Room,
                     Extension = extension,
+                    ThroughLinkedPair = throughPair,
                 },
                 CancellationToken.None
             )
@@ -194,7 +204,7 @@ internal sealed class PluginFurniLogic(
                 room
             );
 
-        return Task.FromResult(true);
+        return true;
     }
 
     /// <summary>

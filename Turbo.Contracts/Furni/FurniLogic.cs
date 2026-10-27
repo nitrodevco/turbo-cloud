@@ -24,7 +24,9 @@ public sealed class FurniLogicAttribute(string key) : Attribute
     /// <summary>
     /// Sold, granted and refused as a gift as a linked pair, exactly as a teleporter is: one bought
     /// is two, each half naming the other in its <c>room_linker</c> extra data
-    /// (<see cref="IFurniContext.PairedItemId"/>). While the plugin is loaded.
+    /// (<see cref="IFurniContext.PairedItemId"/>). While the plugin is loaded. A player it sends to
+    /// the room its other half stands in (<see cref="IFurniContext.ForwardToRoomAsync"/>) passes
+    /// that room's door as a teleporter's does.
     /// </summary>
     public bool LinkedPair { get; init; }
 }
@@ -154,7 +156,10 @@ public interface IFurniContext
     /// Sends a player to <paramref name="room"/>, with <paramref name="extension"/> for that room's
     /// arrival policies (<c>IRoomArrivalPolicy</c>) to read. It goes in as any player walking in
     /// does: bans, the door (doorbell, password), a full room and the entry policies all decide.
-    /// False when the user is not a player in this room.
+    /// One exception, checked by core: a <see cref="FurniLogicAttribute.LinkedPair"/> furni sending
+    /// them to the room its other half (<see cref="PairedItemId"/>) stands in passes the door as a
+    /// teleporter does, while bans, a full room and the entry policies still decide and the
+    /// arrival policies still place them. False when the user is not a player in this room.
     /// </summary>
     Task<bool> ForwardToRoomAsync(
         RoomUser user,

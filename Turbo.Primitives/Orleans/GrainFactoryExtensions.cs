@@ -32,7 +32,6 @@ using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Quests.Grains;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Grains;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Polls;
@@ -399,11 +398,12 @@ public static class GrainFactoryExtensions
     ) => factory.GetPlayerPresenceGrain(playerId).ForwardToRoomAsync(roomId, entry, ct);
 
     /// <summary>
-    /// Whether the player is on their way into <paramref name="roomId"/> through a teleporter,
-    /// which passes the room's door (doorbell, password) the way Habbo's does. Bans and
-    /// capacity still apply.
+    /// Whether the player is on their way into <paramref name="roomId"/> a way that passes the
+    /// room's door (doorbell, password): through a teleporter, the way Habbo's does, or through a
+    /// plugin furni's linked pair (<see cref="RoomEntrySnapshot.PassesDoor"/>). Bans and capacity
+    /// still apply.
     /// </summary>
-    public static async Task<bool> IsArrivingByTeleportAsync(
+    public static async Task<bool> PassesRoomDoorAsync(
         this IGrainFactory factory,
         PlayerId playerId,
         RoomId roomId,
@@ -414,7 +414,7 @@ public static class GrainFactoryExtensions
                 .GetPlayerPresenceGrain(playerId)
                 .GetPendingRoomEntryAsync(roomId, ct)
                 .ConfigureAwait(false)
-        ).Method == RoomEntryMethodType.Teleport;
+        ).PassesDoor;
 
     /// <summary>A plain forward: the player arrives the ordinary way.</summary>
     public static Task ForwardPlayerToRoomAsync(

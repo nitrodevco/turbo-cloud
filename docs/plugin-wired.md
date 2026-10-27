@@ -149,7 +149,7 @@ definition's. The context (`IFurniContext`) has the room, the furni itself, the 
 | `WalkToAsync(user, tiles, onArrived)` | walks the user to the nearest tile it can reach and runs `onArrived` once it stands there, in the room's turn (core's walk-to-use machinery: at once when it stands still on the nearest; forgotten if the user walks elsewhere or takes too long). False when no tile is reachable |
 | `StopWalkingAsync(user)`, `SetRotationAsync(user, rotation)` | stop the user where it stands; turn it, body and head |
 | `ShowStepAsync(user, tile)` | shows one step to a tile (the `mv` status, facing it) without moving the user; the tile may be off the map. Shown once |
-| `ForwardToRoomAsync(user, room, extension)` | sends a player to another room with your own data (`RoomEntryExtension(key, payload)`) for that room's arrival policies (`IRoomArrivalPolicy`, `docs/plugin-policies.md`). A plain entry: bans, the door (doorbell, password), a full room and the entry policies all decide |
+| `ForwardToRoomAsync(user, room, extension)` | sends a player to another room with your own data (`RoomEntryExtension(key, payload)`) for that room's arrival policies (`IRoomArrivalPolicy`, `docs/plugin-policies.md`). A plain entry: bans, the door (doorbell, password), a full room and the entry policies all decide. A linked pair's half sending them to the room its other half stands in passes the door, as a teleporter does (see Linked pairs) |
 
 `RoomUser` stays a read-only view: every action is on the context, and each answers false when the
 user has left the room.
@@ -160,6 +160,12 @@ user has left the room.
 loaded, exactly as a teleporter is: one bought from the catalogue (or granted by an offer) is two,
 each half's `room_linker` section naming the other (`ctx.PairedItemId`), and it cannot be sent as a
 gift. "WIRED Effect: Teleport to Room" also reads the pair, as it does a room linker's.
+
+A player one half sends (`ctx.ForwardToRoomAsync`) to the room its other half stands in passes that
+room's door (doorbell, password) as a teleporter's does: both halves were placed by someone with
+rights in both rooms. Core checks the pair and the room itself; your logic cannot ask for it. Bans,
+a full room and the entry policies still decide, and unlike a teleporter's arrival the room's
+arrival policies still place the player. A forward anywhere else is a plain entry.
 
 ### Messages from your own code
 

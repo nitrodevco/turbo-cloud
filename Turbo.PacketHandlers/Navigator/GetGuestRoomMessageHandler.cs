@@ -76,7 +76,7 @@ public class GetGuestRoomMessageHandler(
                     message.RoomId,
                     password: null,
                     bypassDoor: await _grainFactory
-                        .IsArrivingByTeleportAsync(ctx.PlayerId, message.RoomId, ct)
+                        .PassesRoomDoorAsync(ctx.PlayerId, message.RoomId, ct)
                         .ConfigureAwait(false),
                     ct
                 )

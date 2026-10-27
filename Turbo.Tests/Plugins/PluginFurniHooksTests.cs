@@ -172,6 +172,57 @@ public sealed class PluginFurniHooksTests : IDisposable
             .Be(Rotation.South);
     }
 
+    /// <summary>
+    /// A linked pair's half forwarding a player to the room its other half stands in passes that
+    /// room's door as a teleporter does (RoomEntryPreparationTests checks the door itself): core
+    /// finds the partner's room, the plugin never says so. A forward to any other room, or from a
+    /// logic that is no linked pair, is a plain entry. Either way the entry method stays a plain
+    /// one, so the far room's arrival policies still place them.
+    /// </summary>
+    [Theory]
+    [InlineData("plugin_portal", 77, true)]
+    [InlineData("plugin_portal", 78, false)]
+    [InlineData("plugin_door", 77, false)]
+    public async Task Only_a_linked_pair_forwarding_to_its_partners_room_passes_the_door(
+        string logicKey,
+        int partnerRoom,
+        bool passesDoor
+    )
+    {
+        var db = new InMemoryDb();
+
+        await using (var dbCtx = await db.CreateDbContextAsync(Ct))
+        {
+            dbCtx.Furnitures.Add(
+                new Turbo.Database.Entities.Furniture.FurnitureEntity
+                {
+                    Id = PARTNER,
+                    PlayerEntityId = ALICE_PLAYER,
+                    FurnitureDefinitionEntityId = 1,
+                    RoomEntityId = partnerRoom,
+                }
+            );
+            await dbCtx.SaveChangesAsync(Ct);
+        }
+
+        _room.Harness.Room.UseDatabase(db);
+        _room.Enter(ALICE, 2, 7, "alice");
+        var portal = await PlacePortalAsync(logicKey);
+        portal.ExtraData.UpdateSection(
+            RoomLinkerData.SECTION,
+            new RoomLinkerData { ItemId = PARTNER }
+        );
+
+        (await InvokeAsync(PORTAL, "forward", FAR_ROOM.Value, logicKey))
+            .IsHandled.Should()
+            .BeTrue();
+
+        var entry = (RoomEntrySnapshot)Forwards().Should().ContainSingle().Subject.Args[1]!;
+        entry.ThroughLinkedPair.Should().Be(passesDoor);
+        entry.PassesDoor.Should().Be(passesDoor);
+        entry.Method.Should().Be(RoomEntryMethodType.Default, "never a teleporter's arrival");
+    }
+
     [Fact]
     public async Task A_linked_pair_logic_is_sold_as_a_pair_while_its_plugin_is_loaded()
     {
@@ -188,20 +239,21 @@ public sealed class PluginFurniHooksTests : IDisposable
 
     private sealed record Answer(int Paired, string? Sender);
 
-    private Task<FurniLogicReply> InvokeAsync(int itemId, string command, int value = 0) =>
+    private Task<FurniLogicReply> InvokeAsync(
+        int itemId,
+        string command,
+        int value = 0,
+        string logicKey = "plugin_portal"
+    ) =>
         _room.Harness.Room.InvokeFurniLogicAsync(
             itemId,
-            FurniLogicMessage.Of(
-                "plugin_portal",
-                new { Do = command, Value = value },
-                ALICE_PLAYER
-            ),
+            FurniLogicMessage.Of(logicKey, new { Do = command, Value = value }, ALICE_PLAYER),
             Ct
         );
 
     private IEnumerable<FakeCall> Forwards() => _room.Harness.Fakes.Log.Of("ForwardToRoomAsync");
 
-    private async Task<IRoomFloorItem> PlacePortalAsync()
+    private async Task<IRoomFloorItem> PlacePortalAsync(string logicKey = "plugin_portal")
     {
         _plugin = await new PluginLogicFeatureProcessor(_room.Harness.LogicProvider).ProcessAsync(
             Plugin(),
@@ -213,10 +265,9 @@ public sealed class PluginFurniHooksTests : IDisposable
             PORTAL,
             2,
             2,
-            "plugin_portal",
+            logicKey,
             canWalk: false,
-            createLogic: (_, ctx) =>
-                _room.Harness.LogicProvider.CreateLogicInstance("plugin_portal", ctx)
+            createLogic: (_, ctx) => _room.Harness.LogicProvider.CreateLogicInstance(logicKey, ctx)
         );
     }
 
@@ -254,7 +305,13 @@ public sealed class PluginFurniHooksTests : IDisposable
         public sealed record Command(string Do, int Value);
 
         [FurniLogic("plugin_portal", LinkedPair = true)]
-        public sealed class Portal : FurniLogic
+        public sealed class Portal : PortalBase;
+
+        // The same furni, but no linked pair.
+        [FurniLogic("plugin_door")]
+        public sealed class Door : PortalBase;
+
+        public abstract class PortalBase : FurniLogic
         {
             public override async Task<bool> OnUseAsync(IFurniContext ctx, RoomUser? user, int param, CancellationToken ct)
             {
@@ -291,6 +348,8 @@ public sealed class PluginFurniHooksTests : IDisposable
                         return await ctx.StopWalkingAsync(sender!, ct) ? FurniLogicReply.Handled() : FurniLogicReply.NotHandled;
                     case "turn":
                         return await ctx.SetRotationAsync(sender!, (Rotation)command.Value, ct) ? FurniLogicReply.Handled() : FurniLogicReply.NotHandled;
+                    case "forward":
+                        return await ctx.ForwardToRoomAsync(sender!, new RoomId(command.Value), null, ct) ? FurniLogicReply.Handled() : FurniLogicReply.NotHandled;
                     case "walk_nowhere":
                         var walking = await ctx.WalkToAsync(sender!, [new(-5, -5), new(40, 40)], (_, _) => throw new InvalidOperationException("never"), ct);
                         return FurniLogicReply.Handled(walking ? "true" : "false");

@@ -65,7 +65,8 @@ internal sealed class PluginLogicFeatureProcessor(IRoomObjectLogicProvider logic
                         new PluginFurniLogic(
                             services.GetRequiredService<IStuffDataFactory>(),
                             ctx,
-                            (FurniLogic)ActivatorUtilities.CreateInstance(services, type)
+                            (FurniLogic)ActivatorUtilities.CreateInstance(services, type),
+                            attribute.LinkedPair
                         )
                 )
             );

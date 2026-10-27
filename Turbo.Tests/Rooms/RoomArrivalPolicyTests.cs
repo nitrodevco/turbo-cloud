@@ -49,10 +49,23 @@ public sealed class RoomArrivalPolicyTests
         _room.Harness.Policies.Register("portals", _policy);
     }
 
-    [Fact]
-    public async Task A_policy_reading_the_extension_places_the_player_off_the_door_and_walks_them()
+    /// <summary>
+    /// Also for a player a plugin's linked pair sent (<see cref="RoomEntrySnapshot.ThroughLinkedPair"/>):
+    /// passing the door does not make them a teleporter's arrival.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_policy_reading_the_extension_places_the_player_off_the_door_and_walks_them(
+        bool throughLinkedPair
+    )
     {
-        await EnterAsync(Portal("""{"x":4,"y":6}"""));
+        await EnterAsync(
+            Portal("""{"x":4,"y":6}""") with
+            {
+                ThroughLinkedPair = throughLinkedPair,
+            }
+        );
 
         var arrived = Arrived();
         (arrived.X, arrived.Y).Should().Be((4, 6));

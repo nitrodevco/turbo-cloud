@@ -58,7 +58,7 @@ public class OpenFlatConnectionMessageHandler(
                     message.RoomId,
                     message.Password,
                     bypassDoor: await _grainFactory
-                        .IsArrivingByTeleportAsync(ctx.PlayerId, message.RoomId, ct)
+                        .PassesRoomDoorAsync(ctx.PlayerId, message.RoomId, ct)
                         .ConfigureAwait(false),
                     ct
                 )

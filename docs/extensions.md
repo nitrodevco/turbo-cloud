@@ -42,7 +42,7 @@ What already works (each with its guide):
 | Own tables and migrations | `PluginDbContextBase` (found and migrated as the plugin loads) | `database.md` |
 | Packet handlers and packet middleware | `IMessageHandler<T>`, `IMessageBehavior<T>` | `plugin-packets.md` |
 | Commands | `ICommand<TArgs>` | `commands.md` |
-| Furni and wired logic | `FurniLogic` + `[FurniLogic]` (walk-to with arrival, user actions, forward with an entry extension, linked pairs, messages from the plugin's handlers), `WiredEffect`/`WiredTrigger<TEvent>`/`WiredCondition`/`WiredSelector` + `[WiredBox]`, `IHotel.Wired` (contracts only) | `plugin-wired.md` |
+| Furni and wired logic | `FurniLogic` + `[FurniLogic]` (walk-to with arrival, user actions, forward with an entry extension, linked pairs (a forward to the other half's room passes its door as a teleporter does), messages from the plugin's handlers), `WiredEffect`/`WiredTrigger<TEvent>`/`WiredCondition`/`WiredSelector` + `[WiredBox]`, `IHotel.Wired` (contracts only) | `plugin-wired.md` |
 | Observe rooms | `IRoomEventListener` | `plugin-room-events.md` |
 | Games | `IRoomGame`, `IGameAccessPolicy` | `plugin-games.md` |
 | Permissions | `IPermissionNodeSource`, `[RequiresPermission]` | `permissions.md` |
