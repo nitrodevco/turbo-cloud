@@ -22,6 +22,20 @@ can notice (internals, core's own behaviour, tests) has no entry.
 
 ## 2026-10-27
 
+### An AI SDK: agents, tools and typed answers from the hotel's own providers
+
+- **What**: `IAi` (`Turbo.Contracts.Ai`), taken by constructor, runs agents (`AiAgent`: instructions,
+  MCP tools, `MaxSteps`, budgets, middleware, stop conditions), asks one-shot questions and typed
+  answers (`AiAgent<TOutput>`, `AskAsync<TOutput>`), keeps conversations per player or key
+  (`AiMemory`) and makes tools that change things wait on a staff member's approval. The hotel
+  configures the providers (`anthropic`, `openai-compatible`), their keys and failover under
+  `Turbo:Ai`; a plugin names none. `AiFake` scripts the model in tests; `TestHotel.Ai` is one.
+- **Who**: plugin authors who want language models; nobody else.
+- **Breaks plugins**: no.
+- **Action**: to use it, declare `"ai": { "purpose": "..." }` in `manifest.json` and ask the hotel
+  to add your key to `Turbo:Ai:Plugins`. Guide: `docs/ai-sdk.md`; skill `turbo-ai-agents`.
+- [turbo-cloud#479](https://github.com/nitrodevco/turbo-cloud/pull/479)
+
 ### Test kit: operator commands run, and each plugin compiles once a test run
 
 - **What**: `SaysAsync` runs an operator command (`IOperatorCommand`) through the hotel's own

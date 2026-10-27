@@ -26,4 +26,18 @@ public sealed class PluginManifest
     /// refuses to install it; a plugin that does not say is installed as before.
     /// </summary>
     public int? ApiVersion { get; init; }
+
+    /// <summary>
+    /// That it asks language models (<c>Turbo.Contracts.Ai.IAi</c>) and what for, as the hotel's
+    /// owner reads it before allowing it (<c>Turbo:Ai:Plugins</c>, <c>docs/ai-sdk.md</c>). A plugin
+    /// without it can't use models.
+    /// </summary>
+    public PluginAiUse? Ai { get; init; }
+}
+
+/// <summary>A plugin's use of language models, from its manifest's <c>"ai"</c>.</summary>
+public sealed class PluginAiUse
+{
+    /// <summary>What it asks models for, in a sentence for the hotel's owner.</summary>
+    public required string Purpose { get; init; }
 }

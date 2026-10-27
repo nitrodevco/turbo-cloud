@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Language models for plugins (docs/ai-sdk.md): the agent loop, the anthropic and
+    openai-compatible drivers over HttpClient, failover, budgets, memory and the usage log. What
+    plugins build on is in Turbo.Contracts (Ai/); this is the host's side.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Turbo.Tests" />
+    <InternalsVisibleTo Include="Turbo.Testing" />
+    <InternalsVisibleTo Include="Turbo.Admin" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
+    <ProjectReference Include="..\Turbo.Database\Turbo.Database.csproj" />
+    <ProjectReference Include="..\Turbo.Events\Turbo.Events.csproj" />
+    <ProjectReference Include="..\Turbo.Plugins\Turbo.Plugins.csproj" />
+    <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
+  </ItemGroup>
+</Project>

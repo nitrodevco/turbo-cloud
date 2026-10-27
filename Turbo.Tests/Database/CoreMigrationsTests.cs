@@ -72,7 +72,8 @@ public sealed class CoreMigrationsTests
         // queries that skipped deleted rows found nothing.
         columns.Should().NotContain(x => x.Column == "deleted_at");
         // An asset bundle's is set by the sync and shown in the panel's list; a theme's says the
-        // client's variables are built again when who gets it changes, on every silo.
+        // client's variables are built again when who gets it changes, on every silo; an AI
+        // conversation's picks a participant's latest one to go on with.
         columns
             .Where(x => x.Column == "updated_at")
             .Select(x => x.Table)
@@ -82,6 +83,7 @@ public sealed class CoreMigrationsTests
                 "player_subscriptions",
                 "asset_bundles",
                 "gamedata_themes",
+                "ai_conversations",
             ]);
     }
 

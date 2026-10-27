@@ -69,6 +69,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Testing", "Turbo.Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Plugins.Policy", "Turbo.Plugins.Policy\Turbo.Plugins.Policy.csproj", "{70A44B9F-6D80-481F-BAF8-711ED6B83079}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Turbo.Ai", "Turbo.Ai\Turbo.Ai.csproj", "{3A85AD02-CFED-42E2-864D-A7F6D0666105}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -475,6 +477,18 @@ Global
 		{70A44B9F-6D80-481F-BAF8-711ED6B83079}.Release|x64.Build.0 = Release|Any CPU
 		{70A44B9F-6D80-481F-BAF8-711ED6B83079}.Release|x86.ActiveCfg = Release|Any CPU
 		{70A44B9F-6D80-481F-BAF8-711ED6B83079}.Release|x86.Build.0 = Release|Any CPU
+		{3A85AD02-CFED-42E2-864D-A7F6D0666105}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3A85AD02-CFED-42E2-864D-A7F6D0666105}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3A85AD02-CFED-42E2-864D-A7F6D0666105}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3A85AD02-CFED-42E2-864D-A7F6D0666105}.Debug|x64.Build.0 = Debug|Any CPU
+		{3A85AD02-CFED-42E2-864D-A7F6D0666105}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3A85AD02-CFED-42E2-864D-A7F6D0666105}.Debug|x86.Build.0 = Debug|Any CPU
+		{3A85AD02-CFED-42E2-864D-A7F6D0666105}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3A85AD02-CFED-42E2-864D-A7F6D0666105}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3A85AD02-CFED-42E2-864D-A7F6D0666105}.Release|x64.ActiveCfg = Release|Any CPU
+		{3A85AD02-CFED-42E2-864D-A7F6D0666105}.Release|x64.Build.0 = Release|Any CPU
+		{3A85AD02-CFED-42E2-864D-A7F6D0666105}.Release|x86.ActiveCfg = Release|Any CPU
+		{3A85AD02-CFED-42E2-864D-A7F6D0666105}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

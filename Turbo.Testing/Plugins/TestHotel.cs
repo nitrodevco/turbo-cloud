@@ -107,6 +107,7 @@ public sealed class TestHotel : IAsyncDisposable
         Admin = new TestAdmin(this);
         Events = new TestEvents(this);
         Texts = new TestTexts(this);
+        Ai = new AiFake(Fake);
 
         AnswerHostCalls();
 
@@ -114,6 +115,7 @@ public sealed class TestHotel : IAsyncDisposable
         var services = new ServiceCollection()
             .AddLogging(b => b.AddProvider(Logs).SetMinimumLevel(LogLevel.Debug))
             .AddSingleton<IHotel>(Fake)
+            .AddSingleton<IPluginAiHost>(Ai)
             .AddSingleton<TimeProvider>(Fake.Clock)
             .AddSingleton<IConfiguration>(_configuration)
             .AddSingleton<IHostApplicationLifetime>(_lifetime)
@@ -285,6 +287,9 @@ public sealed class TestHotel : IAsyncDisposable
     /// <c>command.log</c>, or a line that named a group of players).
     /// </summary>
     public TestCommandLog CommandLog { get; } = new();
+
+    /// <summary>The hotel's language models, scripted (<see cref="AiFake"/>): a plugin declaring <c>"ai"</c> is allowed them.</summary>
+    public AiFake Ai { get; }
 
     /// <summary>The live plugins, by key.</summary>
     public IReadOnlyDictionary<string, TestPlugin> Plugins => _plugins;

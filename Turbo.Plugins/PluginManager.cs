@@ -881,6 +881,16 @@ public sealed class PluginManager(
             if (approvalHandlers.Length > 0 && ApprovalHandlers is { } liveHandlers)
                 disposables.Insert(0, liveHandlers.Live(m.Key, approvalHandlers));
 
+            // A run of its agents that waited on an approval resumes with its services while it runs.
+            if (m.Ai is not null && host.GetService<IPluginAiHost>() is { } ai)
+            {
+                contributions.Add(PluginContributionKinds.AI, m.Ai.Purpose);
+                disposables.Insert(
+                    0,
+                    ai.Live(m, asm.Assembly, new CompositeServiceProvider(sp, _hostForPlugins))
+                );
+            }
+
             if (host.GetService<IReplaceableServices>() is { } replaceable)
                 foreach (var (type, implementation) in replacements)
                     disposables.Insert(0, replaceable.Replace(type, m.Key, implementation));
@@ -1005,6 +1015,10 @@ public sealed class PluginManager(
         // Approvals it asks for are recorded as its own.
         if (host.GetService<HotelApprovals>() is { } approvals)
             services.AddSingleton<IApprovals>(new PluginApprovals(approvals, manifest.Key));
+
+        // Language models, as this plugin's calls (docs/ai-sdk.md).
+        if (host.GetService<IPluginAiHost>() is { } ai)
+            services.AddSingleton(ai.ForPlugin(manifest));
 
         if (host.GetService<IConfiguration>() is { } configuration)
         {

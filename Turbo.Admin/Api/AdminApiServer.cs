@@ -148,6 +148,7 @@ internal sealed class AdminApiServer(
         ActivatorUtilities.CreateInstance<PluginNoCodeEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<ThemeAudienceEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<PluginScheduleEndpoints>(services).Map(secured);
+        ActivatorUtilities.CreateInstance<PluginAiEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<PluginAdminEndpoints>(services).Map(secured);
 
         // The panel is a convenience: an address it cannot have (the port taken, or not this

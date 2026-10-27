@@ -220,7 +220,10 @@ result. A read-only tool can't need approval: it fails the plugin's load.
 An agent that pauses for a person asks with `ApprovalRequester.Agent(name, onBehalfOf)`, keeps the
 id with its paused run, and registers an `ApprovalHandler` for its kind that does the paused step
 and resumes the run. `ApprovalDecidedEvent` with `Denied` or `Expired` is the refusal to resume it
-with.
+with. The AI SDK (`docs/ai-sdk.md`, Approvals) does this for plugins' agents: a tool call that
+changes things is a request of kind `ai.tool`, the plugin's, whose arguments are
+`AiToolApproval(ConversationId, Tool, Arguments)`; approving it runs the tool and the run goes on,
+and its answer is the request's result.
 
 ## The Approvals inbox
 

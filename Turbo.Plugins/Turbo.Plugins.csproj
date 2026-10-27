@@ -14,5 +14,9 @@
     <ProjectReference Include="..\Turbo.Plugins.Policy\Turbo.Plugins.Policy.csproj" />
     <InternalsVisibleTo Include="Turbo.Tests" />
     <InternalsVisibleTo Include="Turbo.Testing" />
+    <!-- An agent's approval is recorded as its plugin's (docs/ai-sdk.md). -->
+    <InternalsVisibleTo Include="Turbo.Ai" />
+    <!-- An agent's approval is recorded as its plugin's (docs/ai-sdk.md). -->
+    <InternalsVisibleTo Include="Turbo.Ai" />
   </ItemGroup>
 </Project>
