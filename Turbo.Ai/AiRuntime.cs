@@ -34,7 +34,7 @@ public sealed class AiRuntime(
     IAiStore store,
     IAiApprovals approvals,
     IAiPermissions permissions,
-    AiRateLimits limits,
+    IAiRateLimits limits,
     TimeProvider clock,
     ILogger<AiRuntime> logger,
     IHostEnvironment? environment = null
@@ -92,21 +92,40 @@ public sealed class AiRuntime(
         var current = Config;
         var payer = call.Payer;
 
-        if (
-            !limits.TryStart(
-                ($"plugin:{plugin.Key}", current.PluginRunsPerMinute),
-                (
-                    payer is { } p ? $"player:{p.Value}" : "player:none",
-                    payer is null ? 0 : current.PlayerRunsPerMinute
-                )
+        try
+        {
+            ct.ThrowIfCancellationRequested();
+            if (
+                !await limits
+                    .TryStartAsync(
+                        ct,
+                        ($"plugin:{plugin.Key}", current.PluginRunsPerMinute),
+                        (
+                            payer is { } p ? $"player:{p.Value}" : "player:none",
+                            payer is null ? 0 : current.PlayerRunsPerMinute
+                        )
+                    )
+                    .ConfigureAwait(false)
             )
-        )
+                return Stopped(
+                    AiStopReason.RateLimited,
+                    payer is null
+                        ? "This plugin has started too many runs this minute."
+                        : "Too many questions this minute; wait a moment and ask again."
+                );
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            return Stopped(AiStopReason.Cancelled, "The run was cancelled.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Could not check AI rate limits for plugin {Plugin}", plugin.Key);
             return Stopped(
-                AiStopReason.RateLimited,
-                payer is null
-                    ? "This plugin has started too many runs this minute."
-                    : "Too many questions this minute; wait a moment and ask again."
+                AiStopReason.Unavailable,
+                "The hotel's AI limits could not be checked. Try again later."
             );
+        }
 
         var run = await AiRun.StartAsync(this, plugin, agent, call, ct).ConfigureAwait(false);
 

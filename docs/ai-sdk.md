@@ -13,6 +13,7 @@
     - [One question, no class](#one-question-no-class)
 - [Tools](#tools)
 - [Structured output](#structured-output)
+- [Streaming](#streaming)
 - [Memory](#memory)
 - [Middleware & budgets](#middleware--budgets)
     - [Middleware](#middleware)
@@ -130,8 +131,10 @@ key) and the usage. Until both are so, `IAi.Availability` says why (`NotDeclared
 | `MaxSteps` | `20` | The most steps any run takes, whatever its agent asks |
 | `MemoryMessages` | `40` | The most messages a conversation keeps |
 | `TimeoutSeconds` | `60` | One answer's timeout, for a provider that does not set one |
+| `ResumesAtOnce` | `4` | Concurrent approval continuations per server; applies after restart |
+| `ResumeQueueCapacity` | `128` | Active and queued continuations per server; applies after restart |
 
-Rate limits are counted on each silo.
+Runs per minute are counted across the cluster; the standalone test kit counts locally.
 
 ## Agents
 
@@ -236,6 +239,34 @@ own agents both use it.
   to agents on a development server only, as over MCP. Mark a tool that only adds (sends a whisper, opens a ticket)
   `Destructive => false`; leave one that takes, bans, kicks or deletes as it is.
 
+## Streaming
+
+`IAi.StreamAsync` uses the same tools, memory, budgets and stop conditions as `PromptAsync`:
+
+```csharp
+await foreach (var item in ai.StreamAsync(agent, prompt, call, ct))
+{
+    switch (item)
+    {
+        case AiTextDelta delta:
+            // Buffer or moderate delta.Text before showing it.
+            break;
+        case AiStreamEnd end:
+            // end.Response is the final answer, including Stop, Usage and Pending.
+            break;
+    }
+}
+```
+
+`AiToolCallStarted` and `AiToolCallEnded` report tool progress. `AiStreamEnd` is last, including
+when cancellation stops the run. Cancelling the token or disposing the enumeration stops work;
+the conversation saves its progress. Provider failover is allowed until the first text delta;
+after text has been emitted, failure ends the step rather than appending a second provider's answer.
+
+Deltas contain provider text before post-answer middleware runs. Moderate buffered text before
+displaying it, or use `PromptAsync` when the complete answer must pass a filter first. Room bots
+should use `PromptAsync`. `AiFake.Stream("first", "second")` scripts incremental text in tests.
+
 ## Structured output
 
 An agent deriving from `AiAgent<TOutput>` answers with a `TOutput` record. Its properties are the
@@ -333,7 +364,12 @@ Before each step a run stops when it has spent its budget (`AiBudget` tokens or 
 the call's), when its player has used `PlayerDailyTokens` today (counted from the usage log, every
 plugin together), or at its most steps. A run may go over a budget by the one step that crossed it.
 A run that the player's or the plugin's runs-a-minute refuses stops with `RateLimited` before
-anything is sent.
+anything is sent. Runs per minute are counted across the cluster through one Orleans grain per
+player or plugin, using a rolling 60-second window. A refused run rolls back only its own
+reservations. These short-lived windows reset if their grain activation is lost; provider and
+network failures may conservatively consume a reservation until it expires. The standalone test
+kit counts locally. Daily budgets use recorded usage and can be exceeded by concurrent in-flight
+steps; they do not reserve tokens in advance.
 
 ## Approvals
 
@@ -346,13 +382,17 @@ asked by the agent for the player it acts for (who can't approve it themself); i
 plugin, the tool and the arguments; an approver holds the tool's `ApprovalNode`
 (`approvals.decide` by default). It shows in the panel's Approvals inbox like any other.
 
-Once it is decided, the run goes on by itself: approved, the tool runs (its nodes asked again) and the
-agent's answer is the approval's result; denied or expired, the model is told (with the approver's
+Once it is decided, the run goes on by itself: approved, the tool runs (its nodes asked again) and
+the model continues; denied or expired, the model is told (with the approver's
 note). The agent's `ResumedAsync(resumed, ct)` is then called with the answer (`resumed.Response`),
 the player it was for (`resumed.Player`) and the conversation's owner (`resumed.Participant`), to
 whisper to the player or post to the room. The agent is built for it from the plugin's services, so a
 resumable agent's constructor takes only services (one that can't be built is logged and its run
-waits). An approved run goes on during the approver's request: the panel shows its answer. A plugin
+waits). Deciding queues continuation in the background, so the approver's request returns before
+the model answers. `ResumesAtOnce` (default 4) limits concurrent continuations per server and
+`ResumeQueueCapacity` (default 128) bounds active and queued continuations. Both apply after a
+restart. An overflowing continuation is logged and remains available for manual resume; failures
+are logged and reported to the agent. The queue is in memory, while the conversation is stored. A plugin
 that was not running then goes on later with `ai.ResumeAsync(agent, call)`. A new prompt on the
 conversation before it is decided answers the waiting call as not run.
 
@@ -429,7 +469,15 @@ Every model answer, and every failed attempt, is a row of `ai_usage`: the plugin
 provider and model, the player it counted against, the conversation, tokens in and out, the cost by
 the provider's prices, how long it took and its outcome (`ok`, `timeout`, `network`, `http_429`,
 `unreadable`, ...). Never a prompt, an answer or a key. The panel's `GET /api/plugins/ai?days=30`
-sums it by plugin, provider and model.
+sums it by UTC day, plugin, provider and model.
+
+The panel's **Plugins → AI** page shows providers, models, failover, declared plugin purposes and
+usage for 7, 30 or 90 days. Settings managers can edit the live `Turbo:Ai` configuration through
+the existing settings API. Provider keys have a separate write-only input: setting or removing
+one preserves the other providers' keys. Writes are serialized within one server; operators on
+multiple admin servers should avoid simultaneous key edits, since settings replace the key map
+as a whole. A connection test makes a one-token provider request
+with the saved configuration and logs its usage under `(panel)`; it does not use failover.
 
 ## What it changed in the server
 

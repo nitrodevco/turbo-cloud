@@ -359,6 +359,69 @@ public sealed class AiProviderTests
         after.Urls.Should().ContainSingle("the second is not asked once the first has begun");
     }
 
+    [Fact]
+    public async Task The_connection_test_asks_for_one_token_and_reports_a_refusal_without_the_key()
+    {
+        string? sent = null;
+        var http = new ScriptedHttp(
+            async (request, ct) =>
+            {
+                sent = await request.Content!.ReadAsStringAsync(ct);
+
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        """{"model":"claude-haiku-5-5","content":[{"type":"text","text":"OK"}],"stop_reason":"max_tokens","usage":{"input_tokens":9,"output_tokens":1}}"""
+                    ),
+                };
+            },
+            (_, _) =>
+                Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.Unauthorized)
+                    {
+                        Content = new StringContent(
+                            $$$"""{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key {{{KEY}}}"}}"""
+                        ),
+                    }
+                )
+        );
+        var (providers, store, _) = Providers(
+            http,
+            new AiConfig
+            {
+                Providers = new()
+                {
+                    ["claude"] = new() { Driver = "anthropic", Model = "claude-haiku-5-5" },
+                    ["unkeyed"] = new() { Driver = "openai-compatible", Model = "m" },
+                },
+                Keys = new() { ["claude"] = KEY },
+            }
+        );
+
+        var ok = await providers.TestAsync("Claude", CancellationToken.None);
+        var refused = await providers.TestAsync("claude", CancellationToken.None);
+        var unkeyed = await providers.TestAsync("unkeyed", CancellationToken.None);
+
+        JsonNode.Parse(sent!)!["max_tokens"]!.GetValue<int>().Should().Be(1);
+        (ok.Ok, ok.Model, ok.InputTokens, ok.OutputTokens)
+            .Should()
+            .Be((true, "claude-haiku-5-5", 9, 1));
+        refused.Ok.Should().BeFalse();
+        refused
+            .Message.Should()
+            .Contain("401")
+            .And.Contain("authentication_error")
+            .And.NotContain(KEY);
+        (unkeyed.Ok, unkeyed.Message)
+            .Should()
+            .Be((false, "It has no key: enter one, or mark it as taking none."));
+        http.Urls.Should().HaveCount(2, "a provider without a key is not asked");
+        store
+            .Usage.Select(u => (u.Plugin, u.Provider, u.Outcome))
+            .Should()
+            .Equal(("(panel)", "claude", "ok"), ("(panel)", "claude", "http_401"));
+    }
+
     private static HttpResponseMessage Sse(string body) =>
         new(HttpStatusCode.OK)
         {

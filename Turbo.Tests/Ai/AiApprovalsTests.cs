@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Ai;
@@ -49,6 +50,7 @@ public sealed class AiApprovalsTests : IDisposable
     private readonly Events _events = new();
     private readonly ConcurrentQueue<Func<Task<AiDriverAnswer>>> _model = new();
     private readonly List<AiResumed> _told = [];
+    private readonly CapturingLogger<AiHost> _hostLog = new();
     private readonly ServiceProvider _services;
 
     public AiApprovalsTests()
@@ -71,6 +73,7 @@ public sealed class AiApprovalsTests : IDisposable
                             },
                         },
                         Plugins = ["desk"],
+                        ResumeQueueCapacity = 1,
                     }
                 )
             )
@@ -79,17 +82,14 @@ public sealed class AiApprovalsTests : IDisposable
             .AddSingleton<IAiPermissions>(sp => new Permissions(_hotel))
             .AddSingleton<IAiApprovals>(sp => new HotelAiApprovals(sp))
             .AddSingleton<TimeProvider>(_hotel.Clock)
-            .AddSingleton(sp => new AiRateLimits(_hotel.Clock))
+            .AddSingleton<IAiRateLimits>(sp => new AiRateLimits(_hotel.Clock))
             .AddSingleton(sp =>
                 ActivatorUtilities.CreateInstance<AiProviders>(sp, NullLogger<AiProviders>.Instance)
             )
             .AddSingleton(sp =>
                 ActivatorUtilities.CreateInstance<AiRuntime>(sp, NullLogger<AiRuntime>.Instance)
             )
-            .AddSingleton(sp => new AiHost(
-                sp.GetRequiredService<AiRuntime>(),
-                NullLogger<AiHost>.Instance
-            ))
+            .AddSingleton(sp => new AiHost(sp.GetRequiredService<AiRuntime>(), _hostLog))
             .AddSingleton(sp => new ApprovalHandlers([
                 new AiToolApprovalHandler(sp.GetRequiredService<AiHost>()),
             ]))
@@ -188,6 +188,13 @@ public sealed class AiApprovalsTests : IDisposable
 
         decided.Status.Should().Be(ApprovalDecisionStatus.Executed);
         _told.Should().BeEmpty("the model has not answered yet");
+
+        // The active continuation occupies the bounded backlog; another cannot accumulate.
+        host.Resume(paused.Pending.ApprovalId, new AiApprovalDecision(true));
+        _hostLog
+            .AtLeast(LogLevel.Error)
+            .Should()
+            .ContainSingle(x => x.Message.Contains("queue is full"));
 
         model.SetResult();
         await host.WhenResumedAsync().WaitAsync(TimeSpan.FromSeconds(10), Ct);

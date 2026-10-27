@@ -5,17 +5,21 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Turbo.Ai.Approvals;
+using Turbo.Ai.Configuration;
 using Turbo.Ai.Storage;
 using Turbo.Contracts.Ai;
 using Turbo.Contracts.Plugins;
 using Turbo.Plugins;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Plugins;
+using Turbo.Primitives.Settings;
 
 namespace Turbo.Ai;
 
@@ -25,20 +29,21 @@ namespace Turbo.Ai;
 /// once it is decided. Deciding only queues the run (<see cref="Resume"/>): it goes on in the
 /// background, so an approver's click never waits on a model.
 /// </summary>
-public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger)
-    : IPluginAiHost,
-        IAiOverview,
-        IAsyncDisposable,
-        IDisposable
+public sealed class AiHost(
+    AiRuntime runtime,
+    ILogger<AiHost> logger,
+    IServerSettings? settings = null
+) : IPluginAiHost, IAiOverview, IAsyncDisposable, IDisposable
 {
-    /// <summary>Resumed runs going on at once on this server; more wait their turn.</summary>
-    public const int RESUMES_AT_ONCE = 4;
-
     private readonly ConcurrentDictionary<string, LivePlugin> _live = new(
         StringComparer.OrdinalIgnoreCase
     );
 
-    private readonly SemaphoreSlim _resumeSlots = new(RESUMES_AT_ONCE);
+    private readonly SemaphoreSlim _resumeSlots = new(Math.Max(1, runtime.Config.ResumesAtOnce));
+    private readonly SemaphoreSlim _resumeBacklog = new(
+        Math.Max(1, runtime.Config.ResumeQueueCapacity)
+    );
+    private readonly SemaphoreSlim _keyChanges = new(1, 1);
     private readonly CancellationTokenSource _stopping = new();
     private readonly ConcurrentDictionary<Task, byte> _resuming = new();
 
@@ -89,6 +94,7 @@ public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger)
             ],
             [
                 .. totals.Select(x => new AiUsageView(
+                    x.Day,
                     x.Plugin,
                     x.Provider,
                     x.Model,
@@ -102,6 +108,53 @@ public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger)
             since
         );
     }
+
+    public async Task SetKeyAsync(string provider, string? key, PlayerId by, CancellationToken ct)
+    {
+        await _keyChanges.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            await SaveKeyAsync(provider, key, by, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _keyChanges.Release();
+        }
+    }
+
+    private async Task SaveKeyAsync(string provider, string? key, PlayerId by, CancellationToken ct)
+    {
+        var current = runtime.Config;
+        var name =
+            current.Providers.Keys.FirstOrDefault(x =>
+                string.Equals(x, provider, StringComparison.OrdinalIgnoreCase)
+            ) ?? throw new ArgumentException($"There is no provider named {provider}.");
+
+        if (settings is null)
+            throw new InvalidOperationException(
+                "This host has no server settings to keep keys in."
+            );
+
+        // The keys are one setting, replaced whole: the others are kept as they are now.
+        var keys = current
+            .Keys.Where(x => !string.Equals(x.Key, name, StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
+
+        if (!string.IsNullOrWhiteSpace(key))
+            keys[name] = key.Trim();
+
+        await settings
+            .SaveAsync(
+                $"{AiConfig.SECTION_NAME}:{nameof(AiConfig.Keys)}",
+                JsonSerializer.Serialize(keys),
+                by,
+                ct
+            )
+            .ConfigureAwait(false);
+    }
+
+    public Task<AiConnectionTest> TestAsync(string provider, CancellationToken ct) =>
+        runtime.Providers.TestAsync(provider, ct);
 
     public IDisposable Live(PluginManifest manifest, Assembly assembly, IServiceProvider services)
     {
@@ -130,21 +183,30 @@ public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger)
 
     /// <summary>
     /// Queues the run waiting on the approval to go on by <paramref name="decision"/>, and returns
-    /// at once: it runs in the background (at most <see cref="RESUMES_AT_ONCE"/> at a time), with
+    /// at once: it runs in the background with bounded concurrency and backlog, with
     /// its agent's steps, budget and timeouts, and its agent is told the answer
     /// (<see cref="AiAgent.ResumedAsync"/>). What fails is logged, kept in the usage log and told
     /// to the agent as <see cref="AiStopReason.Failed"/>.
     /// </summary>
     public void Resume(string approvalId, AiApprovalDecision decision)
     {
+        if (!_resumeBacklog.Wait(0))
+        {
+            logger.LogError(
+                "The AI resume queue is full; approval {Approval} must be resumed manually",
+                approvalId
+            );
+            return;
+        }
         var ct = _stopping.Token;
         var task = Task.Run(
             async () =>
             {
-                await _resumeSlots.WaitAsync(ct).ConfigureAwait(false);
-
+                var entered = false;
                 try
                 {
+                    await _resumeSlots.WaitAsync(ct).ConfigureAwait(false);
+                    entered = true;
                     await DecidedAsync(approvalId, decision, ct).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (!ct.IsCancellationRequested)
@@ -157,7 +219,9 @@ public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger)
                 }
                 finally
                 {
-                    _resumeSlots.Release();
+                    if (entered)
+                        _resumeSlots.Release();
+                    _resumeBacklog.Release();
                 }
             },
             CancellationToken.None

@@ -30,7 +30,7 @@ public interface IAiStore
     /// <summary>Tokens (in and out) the player's calls used since <paramref name="since"/>.</summary>
     Task<long> TokensSinceAsync(int playerId, DateTime since, CancellationToken ct);
 
-    /// <summary>Usage since <paramref name="since"/> by plugin, provider and model, for the admin panel.</summary>
+    /// <summary>Usage since <paramref name="since"/> by UTC day, plugin, provider and model, for the admin panel.</summary>
     Task<IReadOnlyList<AiUsageTotal>> TotalsSinceAsync(DateTime since, CancellationToken ct);
 }
 
@@ -74,8 +74,9 @@ public sealed record AiUsageRecord(
     DateTime At
 );
 
-/// <summary>Usage summed by plugin, provider and model.</summary>
+/// <summary>Usage summed by UTC day, plugin, provider and model.</summary>
 public sealed record AiUsageTotal(
+    DateTime Day,
     string Plugin,
     string Provider,
     string Model,
