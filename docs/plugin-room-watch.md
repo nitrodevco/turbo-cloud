@@ -78,6 +78,9 @@ the room; the plugin cannot claim it. Bans still apply. Any other watch from a f
 It is asked, not awaited (the room's turn must not wait on another room), so it answers only whether
 the user is a player in this room; renew it the same way.
 
+`docs/examples/room-window` is a whole one: a window pair whose players see the room behind it
+drawn beside their own (a client module's secondary room fed by the watch) and walk into it.
+
 ## Envelopes
 
 The envelope (`PluginEnvelopeComposer`, in `Turbo.Primitives.Plugins.Messages`) is a plugin message
