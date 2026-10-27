@@ -118,9 +118,35 @@ public sealed class AiMemoryTests
         _ai.AssertToolCalled("kick", a => a.GetProperty("name").GetString() == "Bob").Outcome.Should().Be(AiToolOutcome.Ok);
     }
 
+    [Fact]
+    public async Task A_long_conversation_is_summarised_once_and_goes_on_from_the_summary()
+    {
+        var alice = _hotel.Players.Add("Alice");
+        var call = new AiCall { Memory = AiMemory.ForPlayer(alice.Id) };
+        var agent = new Chat { Wares = [new AiSummarize(keep: 3)] };
+        _ai.Respond("a1").Respond("a2").Respond("They said one.").Respond("a3").Respond("a4");
+
+        await _ai.For().PromptAsync(agent, "one", call);
+        await _ai.For().PromptAsync(agent, "two", call);
+        var third = await _ai.For().PromptAsync(agent, "three", call);
+        await _ai.For().PromptAsync(new Chat(), "four", call);
+
+        _ai.Requests[2].Instructions.Should().Be(AiSummarize.INSTRUCTIONS);
+        _ai.Requests[2].Messages.Select(m => m.Text).Should().Equal("one", "a1", "Summarise the conversation so far.");
+        _ai.Requests[3].Messages.Select(m => m.Text)
+            .Should().Equal(AiSummarize.PREFIX + "They said one.", "two", "a2", "three");
+        third.Usage.Tokens.Should().Be(30, "the summary's tokens count in the run");
+        _ai.Requests[4].Messages.Select(m => m.Text)
+            .Should().Equal(AiSummarize.PREFIX + "They said one.", "two", "a2", "three", "a3", "four");
+    }
+
     private sealed class Chat : AiAgent
     {
+        public List<IAiMiddleware> Wares { get; init; } = [];
+
         public override string Instructions => "Chat.";
+
+        public override IEnumerable<IAiMiddleware> Middleware => Wares;
     }
 
     public sealed class KickAgent(List<AiResponse> told) : AiAgent

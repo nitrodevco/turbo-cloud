@@ -8,6 +8,7 @@ using Turbo.Ai.Drivers;
 using Turbo.Ai.Storage;
 using Turbo.Contracts.Plugins;
 using Turbo.Plugins;
+using Turbo.Primitives.Plugins;
 
 namespace Turbo.Ai;
 
@@ -39,5 +40,6 @@ public sealed class AiModule : IHostPluginModule
         services.AddSingleton<AiRuntime>();
         services.AddSingleton<AiHost>();
         services.AddSingleton<IPluginAiHost>(sp => sp.GetRequiredService<AiHost>());
+        services.AddSingleton<IAiOverview>(sp => sp.GetRequiredService<AiHost>());
     }
 }

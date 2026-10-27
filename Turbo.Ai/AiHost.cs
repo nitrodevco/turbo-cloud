@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +11,7 @@ using Turbo.Ai.Approvals;
 using Turbo.Contracts.Ai;
 using Turbo.Contracts.Plugins;
 using Turbo.Plugins;
+using Turbo.Primitives.Plugins;
 
 namespace Turbo.Ai;
 
@@ -17,7 +20,7 @@ namespace Turbo.Ai;
 /// <see cref="IAi"/>, and the runs that waited on an approval, resumed with their plugin's agent
 /// once it is decided (<see cref="DecidedAsync"/>).
 /// </summary>
-public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger) : IPluginAiHost
+public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger) : IPluginAiHost, IAiOverview
 {
     private readonly ConcurrentDictionary<string, LivePlugin> _live = new(
         StringComparer.OrdinalIgnoreCase
@@ -25,7 +28,64 @@ public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger) : IPluginA
 
     public AiRuntime Runtime => runtime;
 
-    public IAi ForPlugin(PluginManifest manifest) => new PluginAi(runtime, manifest);
+    // Every plugin is given its IAi as it loads: those declaring AI, for the panel.
+    private readonly ConcurrentDictionary<string, PluginManifest> _declared = new(
+        StringComparer.OrdinalIgnoreCase
+    );
+
+    public IAi ForPlugin(PluginManifest manifest)
+    {
+        if (manifest.Ai is not null)
+            _declared[manifest.Key] = manifest;
+
+        return new PluginAi(runtime, manifest);
+    }
+
+    public async Task<AiOverview> GetAsync(int days, CancellationToken ct)
+    {
+        var config = runtime.Config;
+        var since = DateTime.UtcNow.Date.AddDays(-Math.Clamp(days, 1, 366) + 1);
+        var totals = await runtime.Store.TotalsSinceAsync(since, ct).ConfigureAwait(false);
+
+        return new AiOverview(
+            [
+                .. config
+                    .Providers.OrderBy(x => x.Key, StringComparer.Ordinal)
+                    .Select(x => new AiProviderView(
+                        x.Key,
+                        x.Value.Driver,
+                        x.Value.Url,
+                        x.Value.Model,
+                        config.Keys.Keys.Contains(x.Key, StringComparer.OrdinalIgnoreCase),
+                        runtime.Providers.Usable([x.Key]).Count > 0
+                    )),
+            ],
+            [.. config.Failover],
+            [
+                .. _declared
+                    .Values.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(x => new AiPluginView(
+                        x.Key,
+                        x.Name,
+                        x.Ai!.Purpose,
+                        config.Plugins.Contains(x.Key, StringComparer.OrdinalIgnoreCase)
+                    )),
+            ],
+            [
+                .. totals.Select(x => new AiUsageView(
+                    x.Plugin,
+                    x.Provider,
+                    x.Model,
+                    x.Calls,
+                    x.Failed,
+                    x.InputTokens,
+                    x.OutputTokens,
+                    x.Cost
+                )),
+            ],
+            since
+        );
+    }
 
     public IDisposable Live(PluginManifest manifest, Assembly assembly, IServiceProvider services)
     {
