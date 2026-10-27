@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -36,6 +37,7 @@ using Turbo.Primitives.Commands;
 using Turbo.Primitives.Events;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Extensions;
+using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Grains.Permissions;
 using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Permissions;
@@ -508,6 +510,44 @@ public sealed class TestHotel : IAsyncDisposable
                         && Grants(player, (string)call.Args[0]!)
                 )
         );
+        // Who is online and players by name, as an operator command asks the hotel.
+        Host.Answer<ISessionGateway>(
+            nameof(ISessionGateway.GetOnlinePlayerIds),
+            _ => Fake.Players.OnlineIds()
+        );
+        Host.Answer<IPlayerDirectoryGrain>(
+            nameof(IPlayerDirectoryGrain.GetPlayerIdAsync),
+            call =>
+                Task.FromResult(
+                    Fake.Players.All.FirstOrDefault(p =>
+                        string.Equals(
+                            p.Name,
+                            (string)call.Args[0]!,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                    )
+                        is { } player
+                        ? (Turbo.Primitives.Players.PlayerId?)player.Id
+                        : null
+                )
+        );
+        Host.Answer<IPlayerDirectoryGrain>(
+            nameof(IPlayerDirectoryGrain.GetPlayerNameAsync),
+            call =>
+                Task.FromResult(
+                    NameOf((Turbo.Primitives.Players.PlayerId)call.Args[0]!) ?? string.Empty
+                )
+        );
+        Host.Answer<IPlayerDirectoryGrain>(
+            nameof(IPlayerDirectoryGrain.GetPlayerNamesAsync),
+            call =>
+                Task.FromResult(
+                    ((List<Turbo.Primitives.Players.PlayerId>)call.Args[0]!)
+                        .Where(id => NameOf(id) is not null)
+                        .Distinct()
+                        .ToImmutableDictionary(id => id, id => NameOf(id)!)
+                )
+        );
         Host.Answer<ISessionGateway>(
             nameof(ISessionGateway.GetPlayerId),
             call =>
@@ -515,6 +555,9 @@ public sealed class TestHotel : IAsyncDisposable
                 ?? Turbo.Primitives.Players.PlayerId.Invalid
         );
     }
+
+    private string? NameOf(Turbo.Primitives.Players.PlayerId id) =>
+        Fake.Players.All.FirstOrDefault(p => p.Id == id)?.Name;
 
     private static string FindPluginFolder()
     {

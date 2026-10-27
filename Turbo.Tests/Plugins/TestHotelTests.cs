@@ -125,6 +125,21 @@ public sealed class TestHotelTests : IAsyncLifetime
             }
         }
 
+        [Command("drench", Description = "Drench a player's garden")]
+        [RequiresPermission("plugin.garden.rain")]
+        public sealed class DrenchCommand : IOperatorCommand<DrenchCommand.Arguments>
+        {
+            public sealed record Arguments(PlayerTarget Gardener);
+
+            public IReadOnlyDictionary<string, string> DefaultTexts { get; } =
+                new Dictionary<string, string> { ["drenched"] = "Drenched the garden of %0%." };
+
+            public async ValueTask<CommandResult> ExecuteAsync(IOperatorCommandContext ctx, Arguments arguments, CancellationToken ct) =>
+                await ctx.ResolveAsync(arguments.Gardener, ct) is { Players: [var gardener] }
+                    ? CommandResult.Done("drenched", gardener.Name)
+                    : CommandResult.Fail(CommandReplyKeys.PLAYER_NOT_FOUND, arguments.Gardener.Text);
+        }
+
         [PluginMessage("garden.water")]
         public sealed record WaterMessage(int Litres) : IPluginMessage;
 
@@ -281,17 +296,42 @@ public sealed class TestHotelTests : IAsyncLifetime
         await bob.SaysAsync(":rain", Ct);
 
         bob.Should().HaveHadCommand(CommandOutcome.AwaitingConfirmation);
-        bob.Should().HaveBeenWhispered("That rains on 4 gardens. Type :confirm within 30 seconds to go ahead.");
+        bob.Should()
+            .HaveBeenWhispered(
+                "That rains on 4 gardens. Type :confirm within 30 seconds to go ahead."
+            );
         _hotel.Notify.Alerts.Should().BeEmpty();
 
         await bob.SaysAsync(":confirm", Ct);
 
         bob.Should().HaveBeenWhispered("It rained on 4 gardens.");
-        _hotel.Notify.Alerts.Select(x => x.Text).Should().Equal(Enumerable.Repeat("Rain falls on your garden.", 4));
+        _hotel
+            .Notify.Alerts.Select(x => x.Text)
+            .Should()
+            .Equal(Enumerable.Repeat("Rain falls on your garden.", 4));
         _hotel
             .CommandLog.Entries.Select(x => (x.Command, x.Outcome))
             .Should()
             .Equal(("rain", "confirm"), ("rain", "completed"), ("confirm", "completed"));
+    }
+
+    [Fact]
+    public async Task An_operator_command_finds_a_player_by_name_as_the_hotel_spells_it()
+    {
+        await _hotel.LoadAsync(_folder, ct: Ct);
+        _hotel.Player("Carol");
+        var bob = _hotel.Player("bob").InRoom(5).WithPermissions("plugin.garden.rain");
+
+        await bob.SaysAsync(":drench CAROL", Ct);
+        await bob.SaysAsync(":drench nobody", Ct);
+
+        bob.Whispers.Should()
+            .Equal(
+                "Drenched the garden of Carol.",
+                CommandReplyKeys
+                    .Defaults[CommandReplyKeys.PLAYER_NOT_FOUND]
+                    .Replace("%0%", "nobody")
+            );
     }
 
     [Fact]
@@ -374,7 +414,11 @@ public sealed class TestHotelTests : IAsyncLifetime
 
         var before = await first.LoadAsync(_folder, ct: Ct);
         first.Settings.Set("Garden:Seeds", 5);
-        await first.Player("bob").InRoom(5).WithPermissions("plugin.garden.plant").SaysAsync(":plant", Ct);
+        await first
+            .Player("bob")
+            .InRoom(5)
+            .WithPermissions("plugin.garden.plant")
+            .SaysAsync(":plant", Ct);
         before.Assembly.GetType("Garden.Visits")!.GetField("Count")!.SetValue(null, 7);
 
         var after = await second.LoadAsync(_folder, ct: Ct);

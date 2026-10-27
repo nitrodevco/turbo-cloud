@@ -42,7 +42,8 @@ internal sealed class TestOperatorExecutor(TestHotel hotel, TestPlayer player, T
         if (await hotel.Fake.Rooms.WhisperAsync(room.Id, player.Id, text, ct).ConfigureAwait(false))
             return;
 
-        await hotel.Fake.Notify.AlertAsync(player.Id, "command.feedback", "%0%", [text], ct)
+        await hotel
+            .Fake.Notify.AlertAsync(player.Id, "command.feedback", "%0%", [text], ct)
             .ConfigureAwait(false);
     }
 
