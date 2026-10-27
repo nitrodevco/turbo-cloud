@@ -184,6 +184,7 @@ public interface IFurniContext
     /// in passes it, checked by core; bans still apply. Asked, not awaited: this runs in the
     /// room's turn. False when the user is not a player in this room.
     /// </summary>
+    /// <exception cref="ArgumentException">The envelope has no carried packet field.</exception>
     Task<bool> WatchRoomAsync(
         RoomUser user,
         RoomId room,

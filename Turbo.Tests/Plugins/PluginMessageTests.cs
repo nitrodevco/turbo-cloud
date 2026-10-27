@@ -410,6 +410,31 @@ public sealed class PluginMessageTests : IDisposable
         _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task A_plugin_handling_a_message_that_carries_a_packet_fails_to_load_and_keeps_nothing()
+    {
+        PluginBuilder.Write(
+            _folder,
+            "skills",
+            SKILLS.Replace(
+                "public sealed record Secret(int Value) : IPluginMessage;",
+                "public sealed record Secret(int Value, Turbo.Primitives.Networking.IComposer? Carried = null) : IPluginMessage;"
+            )
+        );
+        var manager = Manager(
+            new MessageRegistry(HostServices(), NullLogger<MessageRegistry>.Instance)
+        );
+
+        await manager.LoadAllAsync(ct: Ct);
+
+        var status = manager.Snapshot().Single();
+        status.State.Should().Be(PluginStateType.Failed);
+        status.Error.Should().Contain("skills.secret").And.Contain("carries a packet");
+        _directory.Messages.Should().BeEmpty();
+
+        await manager.UnloadAllAsync(Ct);
+    }
+
     // ---- Sending ----
 
     [Fact]

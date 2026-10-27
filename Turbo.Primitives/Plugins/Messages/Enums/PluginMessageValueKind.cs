@@ -30,4 +30,11 @@ public enum PluginMessageValueKind
 
     /// <summary>A string-keyed dictionary: an int count, then each key (a string) and its value.</summary>
     Map,
+
+    /// <summary>
+    /// A whole packet of the hotel's, carried (an <c>IComposer</c>): its short header and body as
+    /// the session's encoder writes that packet alone, without its length. Only a message's last
+    /// field, never inside an array, a dictionary or a record; only from the server to clients.
+    /// </summary>
+    Packet,
 }

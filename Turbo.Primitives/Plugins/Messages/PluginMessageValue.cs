@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Packets;
 using Turbo.Primitives.Plugins.Messages.Enums;
 
@@ -76,6 +77,10 @@ internal sealed class PluginMessageValue
 
         if (type == typeof(double))
             return new(PluginMessageValueKind.Double, type);
+
+        // Where it may stand (a message's last field) is the schema's to check.
+        if (type == typeof(IComposer))
+            return new(PluginMessageValueKind.Packet, type);
 
         if (type.IsEnum)
         {
@@ -206,10 +211,22 @@ internal sealed class PluginMessageValue
         return (constructor, fields.ToImmutable());
     }
 
+    /// <summary>Whether a carried packet is this value or anywhere inside it.</summary>
+    public bool HasPacket() =>
+        Kind == PluginMessageValueKind.Packet
+        || Item?.HasPacket() == true
+        || Fields.Any(x => x.Value.HasPacket());
+
+    /// <summary>
+    /// Writes the value; a carried packet writes nothing here, the session's encoder writes it
+    /// after the fields (<see cref="PluginEnvelopeComposer"/>).
+    /// </summary>
     public void Write(IServerPacket packet, object? value)
     {
         switch (Kind)
         {
+            case PluginMessageValueKind.Packet:
+                break;
             case PluginMessageValueKind.Int:
                 packet.WriteInteger(value is null ? 0 : Convert.ToInt32(value));
                 break;
@@ -262,6 +279,10 @@ internal sealed class PluginMessageValue
     {
         switch (Kind)
         {
+            case PluginMessageValueKind.Packet:
+                throw new InvalidDataException(
+                    "A message that carries a packet goes only from the server to clients."
+                );
             case PluginMessageValueKind.Int:
                 var number = packet.PopInt();
 
@@ -352,6 +373,7 @@ internal sealed class PluginMessageValue
                         PluginMessageValueKind.Long => "long",
                         PluginMessageValueKind.Bool => "bool",
                         PluginMessageValueKind.Double => "double",
+                        PluginMessageValueKind.Packet => "packet",
                         _ => "string",
                     }
                 );
@@ -461,6 +483,6 @@ internal sealed class PluginMessageValue
         new(
             $"{path}: {type.Name} is not a type a plugin message can carry"
                 + (why is null ? "" : $" ({why})")
-                + ". Supported: int, long, bool, string, double, an enum, a record of those, an array (T[], ImmutableArray<T>, IReadOnlyList<T>) or a string-keyed dictionary (Dictionary<string, T>, IReadOnlyDictionary<string, T>, ImmutableDictionary<string, T>) of any of them."
+                + ". Supported: int, long, bool, string, double, an enum, a record of those, an array (T[], ImmutableArray<T>, IReadOnlyList<T>) or a string-keyed dictionary (Dictionary<string, T>, IReadOnlyDictionary<string, T>, ImmutableDictionary<string, T>) of any of them, and an IComposer as the message's last field (a carried packet)."
         );
 }

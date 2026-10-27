@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Rooms.Watching;
 using Turbo.Testing;
@@ -51,5 +52,5 @@ public sealed class FakeRoomWatchTests
     }
 
     [PluginMessage("portals.room")]
-    public sealed record Portal(int RoomId) : IPluginMessage;
+    public sealed record Portal(int RoomId, IComposer? Carried = null) : IPluginMessage;
 }

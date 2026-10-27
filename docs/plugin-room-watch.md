@@ -33,14 +33,16 @@ load; logged). The limits are `RoomWatchLimits`.
 
 ```csharp
 [PluginMessage("portals.room")]
-public sealed record PortalRoom(int RoomId) : IPluginMessage;
+public sealed record PortalRoom(int RoomId, IComposer? Carried = null) : IPluginMessage;
 
 await hotel.Rooms.WatchAsync(player, farRoom, new PortalRoom(farRoom.Value), TimeSpan.FromMinutes(1), ct);
 ```
 
 A watch first sends the player the far room as a room entry draws it, then everything the room
 sends the players in it (avatars walking, furni moving, chat), each packet inside your envelope
-message, in order with their own room's packets. It holds the room while it lasts.
+message (in its last field, the carried packet, which you leave null), in order with their own
+room's packets. An envelope message without that field is refused (`ArgumentException`). It holds
+the room while it lasts.
 
 The first view is the entry's packets, in the entry's order: RoomReady, RoomEntryTile, the room's
 properties, HeightMap, FloorHeightMap, RoomVisualizationSettings, Users, the WIRED visualization
@@ -79,18 +81,20 @@ the user is a player in this room; renew it the same way.
 ## Envelopes
 
 The envelope (`PluginEnvelopeComposer`, in `Turbo.Primitives.Plugins.Messages`) is a plugin message
-whose fields are followed by a whole packet of the hotel's: on the wire, your message's header and
-fields, then the carried packet's short header and body exactly as the session's encoder writes that
-packet alone (no length). A watch builds them for you; to send one yourself:
+whose last field carries a whole packet of the hotel's (`docs/plugin-messages.md`, "Carrying a core
+packet"): on the wire, your message's header and other fields, then the carried packet's short
+header and body exactly as the session's encoder writes that packet alone (no length). A watch
+builds them for you; to send one yourself, send the message with its field set:
 
 ```csharp
-await hotel.Players.SendAsync(player, PluginEnvelopeComposer.For(new PortalRoom(12), corePacket), ct);
+await hotel.Players.SendAsync(player, new PortalRoom(12, corePacket), ct);
 ```
 
-The client module reads your fields, then the carried packet's short header, and hands the rest of
-the body to the client's own parser, `api.packets.parseCore(header, reader)` (`undefined` for a
-header the client has no packet at). It only parses: none of the client's handlers hear the carried
-packet (`docs/client-modules.md` in nitro-next). An envelope reaches only a session that accepted
+The client reads your fields by the schema it was sent, and the carried field with its own parser
+for the packet's header: a module gets `{ header, packet }`, `packet` being what the client's parser
+read (`undefined`, and a warning, for a header the client has no packet at). It only parses: none of
+the client's handlers hear the carried packet; a secondary room takes it with `apply`
+(`docs/client-modules.md` in nitro-next). An envelope reaches only a session that accepted
 `client.messages`, as any plugin message does, and a carried plugin packet only a session that
 accepted its own capability. An envelope cannot carry another envelope.
 

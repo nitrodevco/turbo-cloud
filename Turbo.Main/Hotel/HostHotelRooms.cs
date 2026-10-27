@@ -82,7 +82,7 @@ internal sealed class HostHotelRooms(
         await grains.GetRoomDirectoryGrain().GetRoomPlayersAsync(room, ct).ConfigureAwait(false);
 
     public Task<bool> SendAsync(RoomId room, IPluginMessage message, CancellationToken ct) =>
-        SendAsync(room, PluginMessageComposer.For(message), ct);
+        SendAsync(room, PluginMessageComposer.Compose(message), ct);
 
     /// <summary>
     /// The room's own send: one write for everyone in it. A room no one is in is left alone
@@ -148,7 +148,7 @@ internal sealed class HostHotelRooms(
             Plugin,
             player,
             room,
-            PluginMessageComposer.For(envelope),
+            PluginEnvelopeComposer.OuterOf(envelope),
             lease,
             throughLinkedPair: false,
             ct

@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Immutable;
 using Orleans;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Capabilities;
 using Turbo.Primitives.Packets;
 
@@ -24,10 +26,38 @@ public sealed record PluginMessageComposer : ICapabilityComposer
     public string Capability => ClientCapabilities.CLIENT_MESSAGES;
 
     /// <summary><paramref name="message"/>, written by its schema.</summary>
-    /// <exception cref="System.ArgumentException">The message's type is not a valid plugin message.</exception>
+    /// <exception cref="ArgumentException">
+    /// The message's type is not a valid plugin message, or it carries a packet: that is sent as a
+    /// <see cref="PluginEnvelopeComposer"/> (<see cref="Compose"/>).
+    /// </exception>
     public static PluginMessageComposer For(IPluginMessage message)
     {
         var schema = PluginMessageSchema.For(message.GetType());
+
+        if (schema.CarriesPacket)
+            throw new ArgumentException(
+                $"{schema.Name} carries a packet: send it as PluginEnvelopeComposer.For(message).",
+                nameof(message)
+            );
+
+        return Fields(schema, message);
+    }
+
+    /// <summary>
+    /// What sending <paramref name="message"/> takes: the message written by its schema, or an
+    /// envelope of its fields and the packet it carries (<see cref="PluginEnvelopeComposer.For(IPluginMessage)"/>).
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// The message's type is not a valid plugin message, or its carried packet is null.
+    /// </exception>
+    public static IComposer Compose(IPluginMessage message) =>
+        PluginMessageSchema.For(message.GetType()).CarriesPacket
+            ? PluginEnvelopeComposer.For(message)
+            : For(message);
+
+    /// <summary>The message's fields as its schema writes them: all of them, or those before its carried packet.</summary>
+    internal static PluginMessageComposer Fields(PluginMessageSchema schema, IPluginMessage message)
+    {
         using var packet = new ServerPacket(0);
 
         schema.Write(packet, message);

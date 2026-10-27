@@ -311,10 +311,10 @@ no second serializer, and a mismatch between halves is detected, not misread.
 `IPluginMessageHandler<T>` in `Turbo.Primitives.Plugins.Messages`, `api.messages.on/send` in the
 client and the SDK's `ClientModuleMessageOf<typeof schema>`; see `docs/plugin-messages.md`. The map
 is its own packet, sent before the module list; a `.d.ts` generator is still to come. A message
-can carry a whole core packet after its fields (`PluginEnvelopeComposer`, read on the client with
-`api.packets.parseCore`), which is how a room watch relays another room to a player, starting
-with the room as an entry draws it (`docs/plugin-room-watch.md`: room holds and watches, each the
-plugin's and ended by its unload).
+can carry a whole core packet in its last field (an `IComposer`, schema type `"packet"`, sent as a
+`PluginEnvelopeComposer`; the client hands the module the packet its own parser read), which is
+how a room watch relays another room to a player, starting with the room as an entry draws it
+(`docs/plugin-room-watch.md`: room holds and watches, each the plugin's and ended by its unload).
 
 ### 4.8 Web routes (a registry)
 

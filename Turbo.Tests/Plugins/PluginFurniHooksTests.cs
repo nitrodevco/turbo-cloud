@@ -371,6 +371,7 @@ public sealed class PluginFurniHooksTests : IDisposable
         using Turbo.Contracts.Furni;
         using Turbo.Contracts.Rooms;
         using Turbo.Primitives.Furniture;
+        using Turbo.Primitives.Networking;
         using Turbo.Primitives.Plugins.Messages;
         using Turbo.Primitives.Rooms;
         using Turbo.Primitives.Rooms.Enums;
@@ -381,7 +382,7 @@ public sealed class PluginFurniHooksTests : IDisposable
         public sealed record Command(string Do, int Value);
 
         [PluginMessage("portals.room")]
-        public sealed record PortalRoom(int RoomId) : IPluginMessage;
+        public sealed record PortalRoom(int RoomId, IComposer? Carried = null) : IPluginMessage;
 
         [FurniLogic("plugin_portal", LinkedPair = true)]
         public sealed class Portal : PortalBase;

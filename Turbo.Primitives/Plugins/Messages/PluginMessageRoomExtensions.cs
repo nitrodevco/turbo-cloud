@@ -7,7 +7,7 @@ namespace Turbo.Primitives.Plugins.Messages;
 /// <summary>
 /// Sending a plugin message to a room: the room's own <c>SendComposerToRoomAsync</c> with the
 /// message written by its schema (<see cref="PluginMessageComposer"/>). From room code that holds
-/// another send (a room object's, a wired context's), pass <c>PluginMessageComposer.For(message)</c>
+/// another send (a room object's, a wired context's), pass <c>PluginMessageComposer.Compose(message)</c>
 /// to it the same way.
 /// </summary>
 public static class PluginMessageRoomExtensions
@@ -17,5 +17,5 @@ public static class PluginMessageRoomExtensions
         this IRoomGrain room,
         IPluginMessage message,
         CancellationToken ct
-    ) => room.SendComposerToRoomAsync(PluginMessageComposer.For(message), ct);
+    ) => room.SendComposerToRoomAsync(PluginMessageComposer.Compose(message), ct);
 }
