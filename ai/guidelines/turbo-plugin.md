@@ -71,6 +71,8 @@ Load the skill before writing that kind of code.
 - `npm test`: the server tests (`dotnet test`) and the client tests. `npm run typecheck`: the module's types.
 - `npm run dev`: keeps `dist/<key>/` current for a dev hotel, which reloads the plugin on save.
 - `npm run ai:update`: refreshes this block and the skills from the server the plugin builds against.
+  After moving to a newer server, read `plugin-changelog.md` (what changed for plugins) and
+  `upgrading.md` before fixing what no longer compiles.
 
 ### Looking things up
 
