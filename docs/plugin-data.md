@@ -247,7 +247,7 @@ written into its own files and the theme is loaded again:
 - images and fonts: its `wwwroot/styles/`; a font's family and a skin set's bitmaps
   (`PUT /plugins/{key}/overlays`) its `gamedata/external_variables.json` `text.fonts` and
   `asset.overlays`, each by its own path (a bitmap an image style stands in for: that style's default);
-- texts: its `gamedata/external_texts.txt` - `PUT /plugins/{key}/texts` `{ "texts": { "<key>": "<text>" | null } }`
+- texts: its `gamedata/external_texts.txt` - `GET`/`PUT /plugins/{key}/texts` `{ "texts": { "<key>": "<text>" | null } }`
   (`admin.plugins.manage`, one command log line; a key is one line up to its first `=`, a text one
   line, `
 ` for a break). The hotel's own texts stay Gamedata > Texts'.

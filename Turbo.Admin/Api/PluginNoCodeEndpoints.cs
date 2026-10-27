@@ -81,6 +81,7 @@ internal sealed class PluginNoCodeEndpoints(
         group.MapPost("/{key}/fonts", UploadFontAsync);
         group.MapDelete("/{key}/fonts", RemoveFontAsync);
         group.MapPut("/{key}/overlays", SetOverlaysAsync);
+        group.MapGet("/{key}/texts", TextsAsync);
         group.MapPut("/{key}/texts", SetTextsAsync);
         group.MapPost("/{key}/package", PackageAsync);
     }
@@ -526,6 +527,14 @@ internal sealed class PluginNoCodeEndpoints(
                 return Results.Ok(new HotelOverlaysResponse(overlays));
             }
         );
+
+    /// <summary>A plugin's own texts (its <c>gamedata/external_texts.txt</c>): a theme's are drawn for its players.</summary>
+    private async Task<IResult> TextsAsync(string key, CancellationToken ct) =>
+        stylesService is null || hotelService?.FolderOf(key) is not { } folder
+            ? AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
+            : Results.Ok(
+                new ThemeTextsResponse(await Styles.TextsAsync(folder, ct).ConfigureAwait(false))
+            );
 
     /// <summary>
     /// Texts in a theme's own files (<see cref="IPluginStyles.SetTextsAsync"/>): drawn over the

@@ -137,6 +137,20 @@ internal sealed partial class PluginStyleService(
         return Of(pluginKey, property, styles);
     }
 
+    public async Task<ImmutableDictionary<string, string>> TextsAsync(
+        string folder,
+        CancellationToken ct
+    )
+    {
+        var path = Path.Combine(folder, PluginGamedataSeeds.FOLDER, PluginGamedataSeeds.TEXTS_FILE);
+
+        return File.Exists(path)
+            ? ExternalTextsFile
+                .Parse(await File.ReadAllTextAsync(path, ct).ConfigureAwait(false))
+                .ToImmutableDictionary(StringComparer.Ordinal)
+            : ImmutableDictionary<string, string>.Empty;
+    }
+
     public async Task<ImmutableDictionary<string, string>> SetTextsAsync(
         string pluginKey,
         string folder,

@@ -111,6 +111,12 @@ public interface IPluginStyles
         CancellationToken ct
     );
 
+    /// <summary>The texts in a plugin's own files (its <c>gamedata/external_texts.txt</c>), by key; none without the file.</summary>
+    public Task<ImmutableDictionary<string, string>> TextsAsync(
+        string folder,
+        CancellationToken ct
+    );
+
     /// <summary>
     /// Sets texts in the theme <paramref name="pluginKey"/>'s own files (its
     /// <c>gamedata/external_texts.txt</c>): each of <paramref name="texts"/> a text key and what it

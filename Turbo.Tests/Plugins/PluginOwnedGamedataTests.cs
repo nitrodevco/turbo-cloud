@@ -473,6 +473,9 @@ public sealed class PluginOwnedGamedataTests : IDisposable
             )
             .Should()
             .ThrowAsync<ArgumentException>();
+        (await styles.TextsAsync(folder, Ct))
+            .Should()
+            .BeEquivalentTo(new Dictionary<string, string> { ["night.title"] = "Night shop" });
         File.ReadAllText(Path.Combine(folder, "gamedata", "external_texts.txt"))
             .Should()
             .Be("night.title=Night shop\n");
