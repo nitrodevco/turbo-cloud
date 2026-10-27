@@ -36,8 +36,9 @@ with the Habbo behaviour described step by step.
 Open each pull request against that branch, rebased on it, with one change per pull request.
 The pull request template asks why, what, the evidence (tests, figures) and what is left out, and
 whether the change affects **plugin authors**. One that does adds its entry to the
-[plugin changelog](plugin-changelog.md) in the same pull request, and a breaking one says what to do
-in the [upgrade guide](upgrading.md).
+[plugin changelog](plugin-changelog.md#adding-an-entry) in the same pull request, as a file of its
+own in `docs/changelog/` (so two pull requests never conflict over it), and a breaking one says what
+to do in the [upgrade guide](upgrading.md).
 
 ## Coding Style
 

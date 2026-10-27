@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, posix, relative, resolve } from 'node:path';
 import type { SiteConfig } from 'vitepress';
 
@@ -11,6 +11,16 @@ function markdownFiles(dir: string, root = dir): string[] {
 
         return entry.name.endsWith('.md') ? [relative(root, full).split('\\').join('/')] : [];
     });
+}
+
+// A page read whole, with what it includes for the site (<!--@include: path-->: the plugin
+// changelog's entries) in place.
+function withIncludes(docs: string, file: string): string {
+    const full = resolve(docs, file);
+
+    return readFileSync(full, 'utf8').replace(/<!--\s*@include:\s*(.*?)\s*-->/g, (_, path: string) =>
+        readFileSync(resolve(dirname(full), path), 'utf8').replace(/^---[\s\S]*?\n---\n/, ''),
+    );
 }
 
 // The first paragraph under "## Introduction", or else the first paragraph after the title.
@@ -34,7 +44,7 @@ export function writeMarkdownFiles(site: SiteConfig, docs: string, nav: NavSecti
 
         const target = resolve(site.outDir, file);
         mkdirSync(dirname(target), { recursive: true });
-        copyFileSync(resolve(docs, file), target);
+        writeFileSync(target, withIncludes(docs, file));
     }
 
     const fileOf = (link: string) => {
@@ -63,7 +73,7 @@ export function writeMarkdownFiles(site: SiteConfig, docs: string, nav: NavSecti
             }
 
             const file = fileOf(item.link);
-            const markdown = readFileSync(resolve(docs, file), 'utf8');
+            const markdown = withIncludes(docs, file);
             const line = summary(markdown);
             lines.push(`- [${item.text}](${posix.join(base, file)})${line ? `: ${line}` : ''}`);
 

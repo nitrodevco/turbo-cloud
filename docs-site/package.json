@@ -4,8 +4,9 @@
     "type": "module",
     "scripts": {
         "client-docs": "node scripts/client-docs.mjs",
-        "dev": "node scripts/client-docs.mjs && vitepress dev",
-        "build": "node scripts/client-docs.mjs && vitepress build",
+        "changelog": "node scripts/changelog.mjs",
+        "dev": "node scripts/changelog.mjs && node scripts/client-docs.mjs && vitepress dev",
+        "build": "node scripts/changelog.mjs && node scripts/client-docs.mjs && vitepress build",
         "preview": "vitepress preview"
     },
     "devDependencies": {
