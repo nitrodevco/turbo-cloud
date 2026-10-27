@@ -38,9 +38,19 @@ public sealed record PortalRoom(int RoomId) : IPluginMessage;
 await hotel.Rooms.WatchAsync(player, farRoom, new PortalRoom(farRoom.Value), TimeSpan.FromMinutes(1), ct);
 ```
 
-A watch sends the player everything the far room sends the players in it (avatars walking, furni
-moving, chat), each packet inside your envelope message, in order with their own room's packets. It
-holds the room while it lasts. The player watches only a room they could walk into: banned, or kept
+A watch first sends the player the far room as a room entry draws it, then everything the room
+sends the players in it (avatars walking, furni moving, chat), each packet inside your envelope
+message, in order with their own room's packets. It holds the room while it lasts.
+
+The first view is the entry's packets, in the entry's order: RoomReady, RoomEntryTile, the room's
+properties, HeightMap, FloorHeightMap, RoomVisualizationSettings, Users, the WIRED visualization
+states, Objects, Items, ConfigurationItemStates, FurnitureLabelsAndRegions, then everyone's status
+(UserUpdate) and their dances, effects and sleeps. What only someone standing in the room is told
+is left out: their own avatar, RoomEntryInfo, the event card, WiredEnvironment, rights and
+ownership, WiredPermissions, the rating and the raid protection, and the chat styles. The room
+takes the view in one of its turns and numbers its publishes, so nothing it publishes reaches the
+player before the view, and nothing the view already shows reaches them again. A renewal before
+the lease runs out sends no view; one after it (the watch had ended) starts with a new one. The player watches only a room they could walk into: banned, or kept
 out by the door (doorbell, password, a lobby for new users, a room closed or hidden), they are not
 let watch it (`Banned`, `DoorClosed`); a full room does not keep a watcher out, since watching takes
 no place in it. The check is made again on each renewal, so a ban placed since ends the watch.
@@ -88,7 +98,10 @@ accepted its own capability. An envelope cannot carry another envelope.
 
 A room's packets are the same objects for every player in it and every watcher, so each is
 serialized once (the encoder's payload cache), as a room broadcast is; per watcher only the
-envelope's frame is written (6 bytes plus your fields) and one small object queued. A held room
+envelope's frame is written (6 bytes plus your fields) and one small object queued. Watchers whose
+watch starts while the room has published nothing new (and within a room tick) get the same first
+view packets, so each of those is written once for all of them too; the encoder keeps packets up to
+16 KB, so a big room's Objects is written for each watcher. A held room
 costs what a room with someone in it costs: its tick runs at full rate.
 
 ## Testing

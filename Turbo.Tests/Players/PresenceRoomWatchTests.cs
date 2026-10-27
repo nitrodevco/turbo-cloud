@@ -22,7 +22,8 @@ namespace Turbo.Tests.Players;
 /// the room's stream beside their own room's, and each of its packets reaches the session inside
 /// the plugin's envelope, in order with everything else they are sent, the same instance every
 /// player in that room gets (written once). Only a room they could walk into, a limited number,
-/// and until the lease runs out, the session ends or they walk in.
+/// and until the lease runs out, the session ends or they walk in. A watch starts with the
+/// room's view (RoomWatchViewTests) before any of its publishes, and none twice.
 /// </summary>
 public sealed class PresenceRoomWatchTests
 {
@@ -54,7 +55,101 @@ public sealed class PresenceRoomWatchTests
             Task.FromResult<IList<StreamSubscriptionHandle<RoomOutboundSnapshot>>>([]);
         fakes.Handlers["SubscribeAsync"] = _ =>
             Task.FromResult<StreamSubscriptionHandle<RoomOutboundSnapshot>>(null!);
+        // The room's first view shows everything it has published; empty unless a test says.
+        fakes.Handlers[nameof(IRoomGrain.GetWatchViewAsync)] = _ =>
+            Task.FromResult(new RoomWatchView { Sequence = _published, Composers = [] });
     }
+
+    [Fact]
+    public Task A_watch_starts_with_the_rooms_view_and_then_only_what_the_room_published_after_it() =>
+        SessionHarness.InTurns(async () =>
+        {
+            var key = await LogInAsync(clientMessages: true);
+            IComposer[] view = [Core(), Core()];
+            var next = Core();
+
+            // Two publishes the view already shows are still on their way when it arrives.
+            ViewIs(_published + 2, view);
+
+            await WatchAsync();
+            await PublishAsync(WATCHED, Core());
+            await PublishAsync(WATCHED, Core());
+            await PublishAsync(WATCHED, next);
+            await _hotel.WhenPresenceIdleAsync();
+
+            Carried(key).Should().Equal([.. view, next], ReferenceEquals);
+            _hotel
+                .Received(key)
+                .Should()
+                .AllSatisfy(x =>
+                    x.Should().BeOfType<PluginEnvelopeComposer>().Which.Outer.Should().Be(_envelope)
+                );
+        });
+
+    [Fact]
+    public Task What_the_room_publishes_while_its_view_is_taken_follows_the_view_and_never_repeats_it() =>
+        SessionHarness.InTurns(async () =>
+        {
+            var key = await LogInAsync(clientMessages: true);
+            var view = Core();
+            var shown = Core();
+            var after = Core();
+            var later = Core();
+
+            // The room changes as the watch starts: one publish the view shows and one after it
+            // reach the watch before the view does.
+            _hotel.Fakes.Handlers[nameof(IRoomGrain.GetWatchViewAsync)] = _ =>
+                TakeViewBetweenAsync(shown, view, after);
+
+            await WatchAsync();
+            await PublishAsync(WATCHED, later);
+            await _hotel.WhenPresenceIdleAsync();
+
+            Carried(key).Should().Equal([view, after, later], ReferenceEquals);
+        });
+
+    [Fact]
+    public Task A_renewal_sends_the_view_again_only_after_the_watch_lapsed() =>
+        SessionHarness.InTurns(async () =>
+        {
+            var key = await LogInAsync(clientMessages: true);
+            var view = Core();
+            ViewIs(0, view);
+
+            await WatchAsync();
+            await WatchAsync();
+            Views().Should().Be(1, "a renewal in time keeps the room coming");
+
+            // Lapsed and ended by the presence's tick.
+            await _hotel.Presence.EndExpiredWatchesAsync(DateTime.UtcNow.AddSeconds(61));
+            await WatchAsync();
+            Views().Should().Be(2);
+
+            // Lapsed before the tick came round.
+            _hotel.Presence._state.Watches[WATCHED].ExpiresAtUtc = DateTime.UtcNow.AddSeconds(-1);
+            await WatchAsync();
+            Views().Should().Be(3);
+
+            await _hotel.WhenPresenceIdleAsync();
+            Carried(key).Should().Equal([view, view, view], ReferenceEquals);
+        });
+
+    [Fact]
+    public Task A_player_kept_out_of_the_room_is_shown_nothing_of_it() =>
+        SessionHarness.InTurns(async () =>
+        {
+            var key = await LogInAsync(clientMessages: true);
+            ViewIs(0, Core());
+            _hotel.Fakes.Handlers[nameof(IRoomGrain.CheckEntryAccessAsync)] = _ =>
+                Task.FromResult(RoomEntryAccessType.Banned);
+
+            (await WatchAsync()).Should().Be(RoomWatchOutcome.Banned);
+            await PublishAsync(WATCHED, Core());
+            await _hotel.WhenPresenceIdleAsync();
+
+            Views().Should().Be(0);
+            Carried(key).Should().BeEmpty();
+        });
 
     [Fact]
     public Task A_watched_rooms_packets_reach_the_player_in_the_envelope_in_order_with_their_own() =>
@@ -246,10 +341,41 @@ public sealed class PresenceRoomWatchTests
             Ct
         );
 
+    // The watched room's publishes so far, numbered as the room numbers them.
+    private long _published;
+
     private Task PublishAsync(RoomId room, params IComposer[] composers) =>
         ((IAsyncObserver<RoomOutboundSnapshot>)_hotel.Presence).OnNextAsync(
-            new RoomOutboundSnapshot { RoomId = room, Composers = [.. composers] }
+            new RoomOutboundSnapshot
+            {
+                RoomId = room,
+                Composers = [.. composers],
+                Sequence = ++_published,
+            }
         );
+
+    private void ViewIs(long sequence, params IComposer[] composers) =>
+        _hotel.Fakes.Handlers[nameof(IRoomGrain.GetWatchViewAsync)] = _ =>
+            Task.FromResult(new RoomWatchView { Sequence = sequence, Composers = [.. composers] });
+
+    private async Task<RoomWatchView> TakeViewBetweenAsync(
+        IComposer shown,
+        IComposer view,
+        IComposer after
+    )
+    {
+        await PublishAsync(WATCHED, shown);
+        var taken = new RoomWatchView { Sequence = _published, Composers = [view] };
+        await PublishAsync(WATCHED, after);
+
+        return taken;
+    }
+
+    private int Views() => _hotel.Fakes.Log.Of(nameof(IRoomGrain.GetWatchViewAsync)).Count();
+
+    /// <summary>The packets carried in envelopes to the session, in order.</summary>
+    private IEnumerable<IComposer> Carried(SessionKey key) =>
+        _hotel.Received(key).OfType<PluginEnvelopeComposer>().Select(x => x.Inner);
 
     // Watching shows as the room's packets arriving in the envelope.
     private async Task AssertWatchingAsync() => (await DeliveredAsync()).Should().BeTrue();

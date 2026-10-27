@@ -93,9 +93,9 @@ public interface IHotelRooms
 
     /// <summary>
     /// Lets <paramref name="player"/> watch <paramref name="room"/> from wherever they are: they
-    /// are sent everything the room sends the players in it, each packet inside
-    /// <paramref name="envelope"/> (its fields, then the room's packet: header and body), in order
-    /// with their own room's packets, for a client module to read with
+    /// are sent the room as an entry draws it, then everything the room sends the players in it,
+    /// each packet inside <paramref name="envelope"/> (its fields, then the room's packet: header
+    /// and body), in order with their own room's packets, for a client module to read with
     /// <c>api.packets.parseCore</c>. Only when they could walk in: not banned, and through its
     /// door (a doorbell, a password, a lobby for new users keep a watcher out; a full room does
     /// not). A watch holds the room, and ends when <paramref name="lease"/> (1 s to 10 min) runs
