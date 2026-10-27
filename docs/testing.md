@@ -10,7 +10,7 @@
 - [Testing Scheduled Tasks](#testing-scheduled-tasks)
 - [Testing MCP Tools](#testing-mcp-tools)
 - [Testing the Client Module](#testing-the-client-module)
-- [Commands, Furni Logic and Wired Boxes](#commands-furni-logic-and-wired-boxes)
+- [Testing a Plugin as the Hotel Loads It](#testing-a-plugin-as-the-hotel-loads-it)
 - [Testing Core](#testing-core)
 
 ## Introduction
@@ -20,8 +20,10 @@ holds `FakeHotel`: the [hotel API](hotel-api.md) in memory, with the same rules 
 hotel. Your plugin takes `IHotel` by constructor, so in a test you hand it a `FakeHotel`, run the
 code, and assert on what it did to the hotel: who was paid, who was alerted, what was sent.
 
-Projects made from the plugin template come with a test project already wired up
-(`tests/<Name>.Tests`, xUnit) and client tests (`client/tests`, `node --test`).
+For a test of the whole plugin, loaded from its sources as the hotel loads it, `TestHotel` plays the
+game against it: see [The Test Hotel](plugin-testing.md). Projects made from the plugin template
+come with a test project on it already (`tests/<Name>.Tests`, xUnit) and client tests
+(`client/tests`, `node --test`).
 
 ## Running Tests
 
@@ -31,9 +33,9 @@ dotnet test tests/Skills.Tests             # the server tests only
 dotnet test tests/Skills.Tests --filter SkillBookTests
 ```
 
-The test project references the server's own `Turbo.Contracts.dll`, `Turbo.Primitives.dll` and
-`Turbo.Testing.dll` from `$(TurboBin)`, the bin folder of the server you build against, so its fake
-is always the same version as the hotel you run.
+The test project imports `$(TurboBin)/plugin-sdk/Turbo.Plugin.Tests.props`, from the bin folder of
+the server you build against: it references the test kit and the server's own assemblies, so the
+fake and the test hotel are always the same version as the hotel you run.
 
 ## Testing Against FakeHotel
 
@@ -166,12 +168,26 @@ void test('progress is the share of the level done, never past its end', () => {
 });
 ```
 
-## Commands, Furni Logic and Wired Boxes
+## Testing a Plugin as the Hotel Loads It
 
-There is no tester yet for the code the room calls in its turn (a command's `ICommandContext`, a
-furni logic's `IFurniContext`, a wired box's context). Keep their bodies thin: put the rule in a
-class of your own that takes `IHotel` and plain values, test that against `FakeHotel`, and have the
-command or logic call it. The template's `SkillsCommand` and `SkillBook` are split this way.
+`FakeHotel` tests your plugin's own classes one at a time. To test the plugin as a whole, use
+`TestHotel` (also in `Turbo.Testing`): it compiles and loads the plugin from its sources as the
+server does, then lets players say its commands, send its messages, buy through its policies, use
+furni running its logic and wait for its scheduled tasks:
+
+```csharp
+var hotel = TestHotel.Create();
+await hotel.LoadAsync<SkillsPlugin>();
+
+var alice = hotel.Player("Alice");
+await alice.SendsAsync(new TrainMessage());
+
+Assert.Equal(new SkillMessage(1, 25, 100), alice.Should().HaveReceived<SkillMessage>());
+```
+
+[The Test Hotel](plugin-testing.md) covers everything it does, and what it leaves out (operator
+commands, the room's own simulation). The template's test project uses it, and
+`npm run make command` / `make message` write a test beside the piece they add.
 
 ## Testing Core
 

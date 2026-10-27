@@ -1,4 +1,22 @@
-# Testing a plugin
+# Testing a Plugin
+
+- [Introduction](#introduction)
+- [A test hotel](#a-test-hotel)
+    - [Loading the plugin](#loading-the-plugin)
+    - [What the plugin is given](#what-the-plugin-is-given)
+- [Players](#players)
+    - [Commands](#commands)
+    - [Messages](#messages)
+- [Rooms and furni](#rooms-and-furni)
+- [Purchases](#purchases)
+- [Time and scheduled tasks](#time-and-scheduled-tasks)
+- [Settings and the database](#settings-and-the-database)
+- [Web routes and admin endpoints](#web-routes-and-admin-endpoints)
+- [Events and logs](#events-and-logs)
+- [Assertions](#assertions)
+- [Not in the kit](#not-in-the-kit)
+
+## Introduction
 
 A plugin's tests play the game against it: players who say its commands and send its messages,
 purchases its policies are asked about, furni running its logic, a clock that moves when told. The

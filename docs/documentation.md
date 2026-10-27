@@ -50,6 +50,7 @@
     - [Movements Ledger](movements.md)
 - ## Testing
     - [Getting Started](testing.md)
+    - [The Test Hotel](plugin-testing.md)
     - [MCP Tool Tests](plugin-mcp-tools.md#3-testing-a-tool)
     - [Load-Test Bots](loadbots.md)
 - ## Hotel Features
