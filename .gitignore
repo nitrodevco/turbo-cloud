@@ -50,8 +50,9 @@ loadbots.accounts.json
 loadbots-report-*.json
 
 assets/*
-# Documentation site (docs-site/): its build, and nitro-next's docs copied in at build time
+# Documentation site (docs-site/): its build, the plugin changelog it assembles, and nitro-next's docs copied in at build time
 docs-site/dist/
+docs-site/generated/
 docs/client/
 docs-site/.vitepress/.temp/
 docs-site/.vitepress/cache/

@@ -48,6 +48,12 @@ Policy phase controls:
 dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudQualityGate -p:TurboAIPolicyPhase=2
 ```
 
+## Plugin changelog
+
+A pull request that changes what a plugin author writes or sees adds one file to `docs/changelog/`
+(`<yyyy-mm-dd>-<slug>.md`, its fields and paragraphs in `docs/plugin-changelog.md`, "Adding an
+entry"). Check it with `node docs-site/scripts/changelog.mjs --check`.
+
 ## Integrated plugin workflow
 
 Canonical integrated workflow is documented in `../turbo-sample-plugin/README.md`.

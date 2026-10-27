@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using Turbo.Contracts.Approvals;
 using Turbo.Contracts.Wired;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Commands;
@@ -25,6 +26,8 @@ public static class TestAssertions
     public static EventAssertions Should(this TestEvents events) => new(events);
 
     public static LogAssertions Should(this TestLogs logs) => new(logs);
+
+    public static ApprovalAssertions Should(this TestApprovals approvals) => new(approvals);
 
     internal static string List<T>(IEnumerable<T> items) =>
         items.Any() ? string.Join(", ", items.Select(x => x?.ToString())) : "nothing";
@@ -170,6 +173,53 @@ public sealed class RoomAssertions(TestRoom room)
 
         return this;
     }
+}
+
+public sealed class ApprovalAssertions(TestApprovals approvals)
+{
+    /// <summary>A request of <paramref name="kind"/> waits for a decision; the newest such.</summary>
+    public Approval HavePending(string kind)
+    {
+        var pending = Read(ApprovalState.Pending, kind);
+
+        return pending.Count > 0
+            ? pending[0]
+            : throw new HotelAssertionException(
+                $"No request of {kind} is pending; there are {Describe(Read(null, null))}."
+            );
+    }
+
+    /// <summary>No request (of <paramref name="kind"/>, when given) waits for a decision.</summary>
+    public ApprovalAssertions NotHavePending(string? kind = null)
+    {
+        var pending = Read(ApprovalState.Pending, kind);
+
+        if (pending.Count > 0)
+            throw new HotelAssertionException($"Requests are pending: {Describe(pending)}.");
+
+        return this;
+    }
+
+    /// <summary>The newest request of <paramref name="kind"/> is <paramref name="state"/> (executed, denied, expired, ...).</summary>
+    public Approval HaveBeen(string kind, ApprovalState state)
+    {
+        var newest =
+            Read(null, kind).FirstOrDefault()
+            ?? throw new HotelAssertionException($"No request of {kind} was asked for.");
+
+        return newest.State == state
+            ? newest
+            : throw new HotelAssertionException(
+                $"The request {newest.Id} of {kind} is {newest.State}, not {state}{(newest.Result is { } result ? $" ({result})" : "")}."
+            );
+    }
+
+    // The approvals live in SQLite in memory: reading them never waits on anything.
+    private IReadOnlyList<Approval> Read(ApprovalState? state, string? kind) =>
+        approvals.ListAsync(state, kind, default).GetAwaiter().GetResult();
+
+    private static string Describe(IReadOnlyList<Approval> list) =>
+        TestAssertions.List(list.Select(x => $"{x.Id} {x.Kind} ({x.State})"));
 }
 
 public sealed class PurchaseAssertions(TestPurchases purchases)

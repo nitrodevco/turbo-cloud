@@ -25,4 +25,4 @@ rest of this section.
 
 - Changes for plugin authors: <!-- one line: what they now write or see differently -->
 - Breaks plugins: <!-- yes / no. Yes = a plugin that built and ran before stops compiling, stops loading or behaves differently without a change of its own -->
-- Changelog entry: <!-- added at the top of today's date in docs/plugin-changelog.md, in this PR; a breaking change also says what to do in docs/upgrading.md -->
+- Changelog entry: <!-- a new file docs/changelog/<yyyy-mm-dd>-<slug>.md in this PR (docs/plugin-changelog.md, "Adding an entry"); a breaking change also says what to do in docs/upgrading.md -->

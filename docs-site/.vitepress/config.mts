@@ -63,7 +63,8 @@ export default defineConfig({
     description: 'Documentation for Turbo, the Habbo emulator, its plugins and its client.',
     base,
     srcDir: docs,
-    srcExclude: ['documentation.md', '**/node_modules/**'],
+    // docs/changelog/ is the plugin changelog's entries, which plugin-changelog.md includes.
+    srcExclude: ['documentation.md', 'changelog/**', '**/node_modules/**'],
     cleanUrls: true,
     // A dead link between pages fails the build; a local address in an example is not one.
     ignoreDeadLinks: 'localhostLinks',

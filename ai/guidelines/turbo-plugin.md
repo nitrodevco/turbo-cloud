@@ -73,8 +73,9 @@ Load the skill before writing that kind of code.
 - `npm run dev`: keeps `dist/<key>/` current for a dev hotel, which reloads the plugin on save.
 - `npm run mcp:inspect`: the MCP Inspector on the dev hotel's MCP server, to call a tool by hand.
 - `npm run ai:update`: refreshes this block and the skills from the server the plugin builds against.
-  After moving to a newer server, read `plugin-changelog.md` (what changed for plugins) and
-  `upgrading.md` before fixing what no longer compiles.
+  After moving to a newer server, read the plugin changelog (what changed for plugins: one file
+  per change in `changelog/`, named by date, the newest last) and `upgrading.md` before fixing what
+  no longer compiles.
 
 ### Looking things up
 

@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using FluentAssertions;
+using Turbo.Contracts.Approvals;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Players.Permissions;
@@ -38,6 +39,7 @@ public sealed class TestHotelTests : IAsyncLifetime
         using Microsoft.EntityFrameworkCore;
         using Microsoft.Extensions.DependencyInjection;
         using Microsoft.Extensions.Options;
+        using Turbo.Contracts.Approvals;
         using Turbo.Contracts.Furni;
         using Turbo.Contracts.Hotel;
         using Turbo.Contracts.Plugins;
@@ -45,8 +47,10 @@ public sealed class TestHotelTests : IAsyncLifetime
         using Turbo.Contracts.Plugins.Web;
         using Turbo.Contracts.Rooms;
         using Turbo.Database.Context;
+        using Turbo.Events.Registry;
         using Turbo.Primitives.Catalog.Enums;
         using Turbo.Primitives.Commands;
+        using Turbo.Primitives.Players;
         using Turbo.Primitives.Players.Permissions;
         using Turbo.Primitives.Plugins.Messages;
         using Turbo.Primitives.Policies;
@@ -95,6 +99,60 @@ public sealed class TestHotelTests : IAsyncLifetime
                     (await db.Plants.CountAsync(ct)).ToString(),
                     settings.CurrentValue.Seeds.ToString()
                 );
+            }
+        }
+
+        [Command("grant", Description = "Ask staff for 50 credits for the garden")]
+        [RequiresPermission("plugin.garden.grant")]
+        public sealed class GrantCommand(IApprovals approvals) : ICommand<GrantCommand.Arguments>
+        {
+            public sealed record Arguments;
+
+            public IReadOnlyDictionary<string, string> DefaultTexts { get; } =
+                new Dictionary<string, string> { ["asked"] = "Staff will look at it." };
+
+            public async ValueTask<CommandResult> ExecuteAsync(ICommandContext ctx, Arguments arguments, CancellationToken ct)
+            {
+                await approvals.RequestAsync(
+                    new ApprovalRequest
+                    {
+                        Kind = "garden.grant",
+                        Summary = "Grant a gardener 50 credits",
+                        Arguments = new GrantArgs(ctx.Executor.PlayerId.Value, 50),
+                        Requester = ApprovalRequester.Player(ctx.Executor.PlayerId),
+                        Node = "plugin.garden.grant.approve",
+                        ExpiresIn = TimeSpan.FromHours(1),
+                    },
+                    ct
+                );
+
+                return CommandResult.Done("asked");
+            }
+        }
+
+        public sealed record GrantArgs(int Player, int Credits);
+
+        public sealed class GrantHandler(IHotel hotel) : ApprovalHandler<GrantArgs>
+        {
+            public override string Kind => "garden.grant";
+
+            public override async Task<ApprovalResult> ExecuteAsync(GrantArgs args, Approval approval, CancellationToken ct)
+            {
+                var paid = await hotel.Wallet.CreditAsync(
+                    new PlayerId(args.Player), "credits", args.Credits, $"grant:{approval.Id}", "grant", ct);
+
+                return paid is WalletOutcome.Done
+                    ? ApprovalResult.Done($"Granted {args.Credits} credits.")
+                    : ApprovalResult.Failed("The wallet refused.");
+            }
+        }
+
+        public sealed class GrantExpired(IHotel hotel) : IEventHandler<ApprovalDecidedEvent>
+        {
+            public async ValueTask HandleAsync(ApprovalDecidedEvent decided, EventContext ctx, CancellationToken ct)
+            {
+                if (decided.Approval is { Kind: "garden.grant", State: ApprovalState.Expired, Requester.OnBehalfOf: { } player })
+                    await hotel.Notify.NotificationAsync(player, "garden.grant.expired", new Dictionary<string, string>(), ct);
             }
         }
 
@@ -390,6 +448,50 @@ public sealed class TestHotelTests : IAsyncLifetime
             .Should()
             .Equal(TimeSpan.FromHours(1), TimeSpan.FromHours(2));
         bob.Should().HaveBeenNotified("garden.harvest");
+    }
+
+    [Fact]
+    public async Task A_request_the_plugin_asked_for_runs_its_handler_once_when_a_holder_of_its_node_approves()
+    {
+        await _hotel.LoadAsync(_folder, ct: Ct);
+        var bob = _hotel.Player("bob").InRoom(5).WithPermissions("plugin.garden.grant");
+        var helper = _hotel.Player("helper");
+        var staff = _hotel.Player("staff").WithPermissions("plugin.garden.grant.approve");
+
+        await bob.SaysAsync(":grant", Ct);
+        var asked = _hotel.Approvals.Should().HavePending("garden.grant");
+        var refused = await _hotel.Approvals.ApproveAsync("garden.grant", helper, ct: Ct);
+        var approved = await _hotel.Approvals.ApproveAsync(asked.Id, staff, "ok", Ct);
+        var again = await _hotel.Approvals.ApproveAsync(asked.Id, staff, ct: Ct);
+
+        asked.Plugin.Should().Be("garden");
+        refused.Status.Should().Be(ApprovalDecisionStatus.NotPermitted);
+        approved.Status.Should().Be(ApprovalDecisionStatus.Executed);
+        approved.Approval!.Result.Should().Be("Granted 50 credits.");
+        again.Status.Should().Be(ApprovalDecisionStatus.NotPending);
+        bob.Should().HaveBalance("credits", 50);
+        _hotel.Approvals.Should().NotHavePending();
+    }
+
+    [Fact]
+    public async Task A_request_expires_as_the_clock_moves_past_it_and_the_plugin_hears_of_it()
+    {
+        await _hotel.LoadAsync(_folder, ct: Ct);
+        var bob = _hotel.Player("bob").InRoom(5).WithPermissions("plugin.garden.grant");
+        var staff = _hotel.Player("staff").WithPermissions("plugin.garden.grant.approve");
+        await bob.SaysAsync(":grant", Ct);
+        var asked = _hotel.Approvals.Should().HavePending("garden.grant");
+
+        _hotel.Clock.Advance(TimeSpan.FromMinutes(59));
+        _hotel.Approvals.Should().HavePending("garden.grant");
+        _hotel.Clock.Advance(TimeSpan.FromMinutes(1));
+
+        _hotel.Approvals.Should().HaveBeen("garden.grant", ApprovalState.Expired);
+        bob.Should().HaveBeenNotified("garden.grant.expired");
+        (await _hotel.Approvals.ApproveAsync(asked.Id, staff, ct: Ct))
+            .Status.Should()
+            .Be(ApprovalDecisionStatus.NotPending);
+        bob.Should().HaveBalance("credits", 0);
     }
 
     [Fact]

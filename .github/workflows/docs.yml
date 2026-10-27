@@ -1,6 +1,7 @@
 name: Docs
 
-# Builds the documentation site (docs-site/) from docs/ on every pull request that touches either.
+# Builds the documentation site (docs-site/) from docs/ on every pull request that touches either,
+# after checking the plugin changelog's entries (docs/changelog/: each has its fields).
 # A dead link between pages, or a sidebar entry for a page that does not exist, fails the build.
 # The AI kit's skills (ai/) have their TypeScript type-checked against nitro-next's client module SDK.
 on:
@@ -38,6 +39,10 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: docs-site/package-lock.json
+
+      # Every entry of the plugin changelog (docs/changelog/) has its fields and its paragraphs.
+      - name: Plugin changelog entries
+        run: node scripts/changelog.mjs --check
 
       - name: Install
         run: npm ci --no-audit --no-fund

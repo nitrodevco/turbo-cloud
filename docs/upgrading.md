@@ -18,7 +18,9 @@
 ## Introduction
 
 What a plugin author does when Turbo changes what plugins are. Each change, with who it affects and
-whether it breaks a plugin, is in `docs/plugin-changelog.md`; this page is the work, in order.
+whether it breaks a plugin, is in `docs/plugin-changelog.md` (one file per change in
+`docs/changelog/`); this page is the work, in order. A pull request with a breaking change adds its
+changelog entry and its steps here together.
 
 ## To source-only plugins (2026-10-27)
 
