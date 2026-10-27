@@ -18,6 +18,7 @@ using Microsoft.Extensions.Options;
 using Turbo.Contracts.Hotel;
 using Turbo.Contracts.Plugins;
 using Turbo.Contracts.Plugins.Admin;
+using Turbo.Contracts.Plugins.Mcp;
 using Turbo.Contracts.Plugins.Web;
 using Turbo.Database.Context;
 using Turbo.Database.Migrations;
@@ -105,6 +106,8 @@ public sealed class PluginManager(
     private PluginAdminRoutes? Routes => host.GetService<PluginAdminRoutes>();
 
     private PluginWebRoutes? WebRoutes => host.GetService<PluginWebRoutes>();
+
+    private McpTools? Mcp => host.GetService<McpTools>();
 
     private static readonly ServiceProviderOptions SP_OPTIONS = new()
     {
@@ -561,6 +564,7 @@ public sealed class PluginManager(
             // Until the new version is up, nothing of the plugin is registered: not "loaded".
             Routes?.Reloading(m.Key);
             WebRoutes?.Reloading(m.Key);
+            Mcp?.Off(m.Key);
 
             if (_status.TryGetValue(m.Key, out var was))
                 _status[m.Key] = was with
@@ -618,8 +622,9 @@ public sealed class PluginManager(
 
             if (_live.TryRemove(key, out var env))
             {
-                // Its web routes stop answering before it stops, not once it has.
+                // Its web routes stop answering, and its tools are unlisted, before it stops.
                 WebRoutes?.Off(key);
+                Mcp?.Off(key);
 
                 var unloading = await StopAndTearDownAsync(env, ct).ConfigureAwait(false);
 
@@ -765,10 +770,19 @@ public sealed class PluginManager(
                 )
                 : [];
 
+            // Its MCP tools are built (and a bad one refused) before it starts, and listed once it has.
+            var mcp = Mcp is { } tools
+                ? tools.Build(
+                    m.Key,
+                    asm.Assembly,
+                    new CompositeServiceProvider(sp, _hostForPlugins)
+                )
+                : [];
+
             if (admin is not null && host.GetService<IPermissionRegistryProvider>() is { } nodes)
                 disposables.Insert(0, nodes.Register(admin.Nodes));
 
-            NoteContributions(contributions, folder, contexts, settings, admin, web);
+            NoteContributions(contributions, folder, contexts, settings, admin, web, mcp);
 
             // The host services it replaces are built before it starts (one that can't be fails
             // the load) and go in their slots once it has; they are taken out first when it stops.
@@ -824,6 +838,9 @@ public sealed class PluginManager(
 
             if (web.Length > 0 && WebRoutes is { } webRoutes)
                 disposables.Insert(0, webRoutes.Live(m.Key, web));
+
+            if (mcp.Length > 0 && Mcp is { } mcpTools)
+                disposables.Insert(0, mcpTools.Live(m.Key, mcp));
 
             if (host.GetService<IReplaceableServices>() is { } replaceable)
                 foreach (var (type, implementation) in replacements)
@@ -1376,7 +1393,7 @@ public sealed class PluginManager(
 
     /// <summary>
     /// Notes what the load built besides the assembly scan's registrations: its databases,
-    /// settings, admin nodes, pages and endpoints, web routes and the template patches its
+    /// settings, admin nodes, pages and endpoints, web routes, MCP tools and the template patches its
     /// <c>wwwroot/template-patches.json</c> declares.
     /// </summary>
     private void NoteContributions(
@@ -1385,7 +1402,8 @@ public sealed class PluginManager(
         List<Type> contexts,
         List<Type> settings,
         PluginAdminRoutes.Table? admin,
-        ImmutableArray<PluginWebEndpoint> web
+        ImmutableArray<PluginWebEndpoint> web,
+        ImmutableArray<McpToolDefinition> mcp
     )
     {
         foreach (var context in contexts)
@@ -1419,6 +1437,13 @@ public sealed class PluginManager(
                 PluginContributionKinds.WEB_ROUTE,
                 $"{endpoint.Method} {endpoint.Pattern}",
                 endpoint.Anonymous ? "anonymous" : string.Join(", ", endpoint.Nodes)
+            );
+
+        foreach (var tool in mcp)
+            log.Add(
+                PluginContributionKinds.MCP_TOOL,
+                tool.Name,
+                $"{(tool.ReadOnly ? "read-only" : "changes")}; {string.Join(", ", tool.Nodes)}"
             );
 
         foreach (var (template, ops) in PluginHelpers.ReadTemplatePatches(folder, _logger))
@@ -1497,6 +1522,7 @@ public sealed class PluginManager(
         {
             Routes?.Off(m.Key);
             WebRoutes?.Off(m.Key);
+            Mcp?.Off(m.Key);
         }
 
         _status[m.Key] = new PluginStatus(m, folder, state, error, [], null);
@@ -1555,6 +1581,7 @@ public sealed class PluginManager(
 
             Routes?.Off(key);
             WebRoutes?.Off(key);
+            Mcp?.Off(key);
 
             if (_status.TryRemove(key, out var status) && Directory.Exists(status.Folder))
                 Directory.Delete(status.Folder, recursive: true);

@@ -10,6 +10,9 @@ public sealed record PluginWebResult(int Status, object? Value = null, string? E
 
     public static PluginWebResult NoContent() => new(204);
 
+    /// <summary>Taken, with nothing to answer: 202 with no body (an MCP notification's answer).</summary>
+    public static PluginWebResult Accepted() => new(202);
+
     public static PluginWebResult BadRequest(string error) => new(400, Error: error);
 
     public static PluginWebResult Forbidden(string error) => new(403, Error: error);

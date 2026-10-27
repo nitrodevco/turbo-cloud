@@ -64,6 +64,9 @@ public static class PluginContributionKinds
     public const string PERMISSION_NODE = "permission-node";
     public const string SETTING = "setting";
     public const string WEB_ROUTE = "web-route";
+
+    /// <summary>A tool assistants call over MCP (<c>docs/plugin-mcp-tools.md</c>): its name, read-only or not and its nodes.</summary>
+    public const string MCP_TOOL = "mcp-tool";
     public const string ADMIN_PAGE = "admin-page";
     public const string ADMIN_ENDPOINT = "admin-endpoint";
     public const string DATABASE = "database";

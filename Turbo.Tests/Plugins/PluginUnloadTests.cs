@@ -335,6 +335,84 @@ public sealed class PluginUnloadTests : IDisposable
         }
         """;
 
+    [Fact]
+    public async Task A_plugin_whose_mcp_tools_were_listed_and_called_unloads_and_reloads_without_a_leak()
+    {
+        PluginBuilder.Write(_folder, "tools", MCP_SOURCE);
+
+        var hotel = new Turbo.Testing.FakeHotel();
+        var staff = hotel.Players.Add("Staff");
+        staff.Permissions.Add("tools.echo");
+        var host = new ServiceCollection()
+            .AddSingleton<Turbo.Contracts.Hotel.IHotel>(hotel)
+            .AddSingleton(sp => new McpTools(sp, new CapturingLogger<McpTools>()))
+            .BuildServiceProvider();
+        var tools = host.GetRequiredService<McpTools>();
+        var manager = new PluginManager(
+            host,
+            new AssemblyProcessor([]),
+            Options.Create(new PluginConfig { PluginFolderPath = _folder }),
+            _log
+        );
+
+        await manager.LoadAllAsync(ct: Ct);
+        await CallEchoAsync(tools, staff);
+        await manager.ReloadAsync("tools", Ct);
+        await CallEchoAsync(tools, staff);
+        await manager.UnloadAllAsync(Ct);
+
+        tools.All.Should().BeEmpty();
+        _log.AtLeast(LogLevel.Warning).Where(x => x.Message.Contains(LEAK)).Should().BeEmpty();
+    }
+
+    // Lists and calls the tool, so its schema, arguments and answer have gone through the serializer.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static async Task CallEchoAsync(McpTools tools, Turbo.Testing.FakePlayer staff)
+    {
+        var caller = new Turbo.Contracts.Plugins.Mcp.McpCaller(staff);
+
+        (await tools.AvailableToAsync(caller, Ct)).Should().ContainSingle();
+        (
+            await tools.CallAsync(
+                "echo",
+                System.Text.Json.JsonSerializer.SerializeToElement(
+                    new { text = "hi", mood = "happy" }
+                ),
+                caller,
+                Ct
+            )
+        )
+            .Status.Should()
+            .Be(Turbo.Contracts.Plugins.Mcp.McpToolCallStatus.Ok);
+    }
+
+    private const string MCP_SOURCE = """
+        using System.ComponentModel;
+        using System.Threading;
+        using System.Threading.Tasks;
+        using Turbo.Contracts.Plugins.Mcp;
+        using Turbo.Primitives.Players.Permissions;
+
+        namespace Tools;
+
+        public enum Mood { Happy, Sad }
+
+        public sealed record EchoInput([Description("What to say.")] string Text, Mood Mood = Mood.Happy);
+
+        public sealed record EchoOutput(string Text, PlayerText Said, Mood Mood);
+
+        [RequiresPermission("tools.echo")]
+        public sealed class EchoTool : McpTool<EchoInput, EchoOutput>
+        {
+            public override string Name => "echo";
+            public override string Description => "Says it back.";
+            public override bool ReadOnly => true;
+
+            public override Task<McpToolResult> HandleAsync(EchoInput input, McpToolContext ctx, CancellationToken ct) =>
+                Task.FromResult(Ok(new EchoOutput(input.Text, input.Text, input.Mood)));
+        }
+        """;
+
     private const string SOURCE = """
         using System;
         using System.Threading;
