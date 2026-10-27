@@ -25,6 +25,8 @@
     <TurboPluginTestReference Include="Turbo.Contracts" />
     <TurboPluginTestReference Include="Turbo.Primitives" />
     <TurboPluginTestReference Include="Turbo.Database" />
+    <!-- AiFake's scripts and what it records (docs/ai-sdk.md, Testing). -->
+    <TurboPluginTestReference Include="Turbo.Ai" />
     <TurboPluginTestReference Include="Microsoft.EntityFrameworkCore" />
     <TurboPluginTestReference Include="Microsoft.EntityFrameworkCore.Abstractions" />
     <TurboPluginTestReference Include="Microsoft.EntityFrameworkCore.Relational" />

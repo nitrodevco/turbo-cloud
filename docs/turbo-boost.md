@@ -32,9 +32,9 @@ The skills: `turbo-plugin-basics` (the plugin class, `IHotel`, commands, nodes, 
 listeners, tables), `turbo-furni-logic` (`FurniLogic`, `IFurniContext`, `IRoomTurn`),
 `turbo-wired-boxes`, `turbo-policies` (policies and post-commit events), `turbo-plugin-messages`,
 `turbo-client-modules` (windows, template patches, secondary rooms and carried packets),
-`turbo-room-holds-watches`, `turbo-web-routes-admin`, `turbo-mcp-tools`, `turbo-plugin-tests`,
-and `turbo-infer-conventions` (reads the plugin's own conventions and records the approved ones as
-project rules).
+`turbo-room-holds-watches`, `turbo-web-routes-admin`, `turbo-mcp-tools`, `turbo-ai-agents` (agents
+asking the hotel's language models), `turbo-plugin-tests`, and `turbo-infer-conventions` (reads the
+plugin's own conventions and records the approved ones as project rules).
 
 The server ships `ai/` and its guides (`docs/**/*.md`) in `plugin-sdk/` beside its assemblies
 (`Turbo.Plugins/Sdk/PluginSdk.targets`), as it ships `Turbo.Plugin.props`: a plugin installs the

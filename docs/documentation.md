@@ -45,6 +45,7 @@
     - [Telemetry](telemetry.md)
     - [MCP Tools](plugin-mcp-tools.md)
     - [Human Approval](approvals.md)
+    - [AI SDK](ai-sdk.md)
 - ## Database
     - [Getting Started](database.md)
     - [Plugin Tables & Migrations](database.md#a-plugins-tables)
@@ -53,6 +54,7 @@
     - [Getting Started](testing.md)
     - [The Test Hotel](plugin-testing.md)
     - [MCP Tool Tests](plugin-mcp-tools.md#3-testing-a-tool)
+    - [AI Fakes](ai-sdk.md#testing)
     - [Load-Test Bots](loadbots.md)
 - ## Hotel Features
     - [Achievements](achievements.md)

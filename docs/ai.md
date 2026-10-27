@@ -16,7 +16,8 @@ made from the template, `npm run ai` writes the plugin guideline into its `CLAUD
 `AGENTS.md`, installs one Agent Skill per kind of plugin code (furni logic, wired boxes, policies,
 messages, client modules, tests...), and connects the assistant to your dev hotel's tools
 (`search_docs`, `plugin_errors`, `server_log`). Run `npm run ai:update` after you update the server.
-The rest of this page is for work on Turbo itself.
+A plugin that asks language models while the hotel runs (an NPC, a staff assistant) uses the
+[AI SDK](ai-sdk.md). The rest of this page is for work on Turbo itself.
 
 ## Context Files
 

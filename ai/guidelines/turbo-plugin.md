@@ -57,6 +57,7 @@ when the plugin unloads. Write against the plugin surface only; never against th
 | keep a room loaded, show a player another room | `IHotel.Rooms.HoldAsync` / `WatchAsync` | turbo-room-holds-watches |
 | HTTP for players or a site, staff pages | `IPluginWebRoute`, `IPluginAdmin` | turbo-web-routes-admin |
 | tools for AI assistants | `McpTool<TIn, TOut>` | turbo-mcp-tools |
+| ask language models: an NPC, a helper, a staff assistant, typed answers | `IAi`, `AiAgent`, `AiAgent<TOut>`, `AiFake` in tests | turbo-ai-agents |
 | tests | xunit + `FakeHotel`, `McpToolTester` | turbo-plugin-tests |
 
 Load the skill before writing that kind of code.
