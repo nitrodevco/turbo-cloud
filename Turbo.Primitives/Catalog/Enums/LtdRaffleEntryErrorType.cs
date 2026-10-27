@@ -11,4 +11,7 @@ public enum LtdRaffleEntryErrorType
     RaffleProcessing = 6,
     AlreadyWon = 7,
     RequiresHabboClub = 8,
+
+    /// <summary>A purchase policy refused it (<see cref="Snapshots.LtdRaffleEntryResult.Refusal"/>).</summary>
+    Refused = 9,
 }

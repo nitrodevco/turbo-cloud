@@ -681,7 +681,7 @@ internal sealed class InventoryFurniModule(
     }
 
     /// <summary>A limited edition item: the serial travels in the stuff section of its extra data.</summary>
-    public async Task GrantLimitedAsync(
+    public async Task<ImmutableArray<FurnitureItemSnapshot>> GrantLimitedAsync(
         int catalogProductId,
         int serialNumber,
         int seriesSize,
@@ -714,7 +714,7 @@ internal sealed class InventoryFurniModule(
             }
         );
 
-        await GrantAsync(
+        return await GrantAsync(
             [(GetDefinitionOrThrow(product.FurniDefinitionId), extraDataJson)],
             cause,
             ct

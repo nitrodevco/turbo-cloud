@@ -169,6 +169,48 @@ refusal is the answer. Two plugins with a policy of one kind both run and are re
 (logged, and listed on each plugin in the admin API). With none the hotel decides as it always did.
 `docs/plugin-policies.md`.
 
+#### Deny or react to a purchase
+
+Any number of plugins can each have a say over a purchase. Each brings an `IPurchasePolicy`; every
+one is asked, in `Order` then plugin key, after the hotel's own checks and before any money moves, on
+every way an offer is bought (`PurchaseRequest.Kind`: the catalogue, a membership, a gift, a room ad,
+a club gift claim, a limited edition's entry). The first refusal is the answer and the ones after it
+are not asked; one that throws refuses too (fail closed), so a broken guard never lets a purchase
+through. The buyer gets the reason in a pop-up, or the purchase error the refusal named.
+
+```csharp
+/// <summary>No rares for accounts younger than a day.</summary>
+public sealed class NewAccountGuard(IHotel hotel) : IPurchasePolicy
+{
+    public int Order => -10;
+
+    public async ValueTask<PurchaseDecision> DecideAsync(
+        PurchaseRequest request, PurchaseDecision proposed, CancellationToken ct
+    ) =>
+        request.Offer.LocalizationId.StartsWith("rare_")
+        && await hotel.Players.GetAsync(request.PlayerId, ct) is { } player
+        && DateTime.UtcNow - player.CreatedAt < TimeSpan.FromDays(1)
+            ? PurchaseDecision.Refuse("Rares unlock a day after you join.")
+            : proposed;
+}
+```
+
+What happened afterwards is `PurchaseCompletedEvent`, raised once for each purchase that landed
+(never for a refused one), off the purchase's turn, so a slow handler never holds the buyer up:
+
+```csharp
+public sealed class PurchaseAudit(AuditLog log) : IEventHandler<PurchaseCompletedEvent>
+{
+    public ValueTask HandleAsync(PurchaseCompletedEvent e, EventContext ctx, CancellationToken ct) =>
+        log.WriteAsync(e.PlayerId, e.Kind, e.OfferId, e.CostCredits, e.ItemIds, ct);
+}
+```
+
+Do not guard a purchase with an `IMessageBehavior<T>`: it sees the packet before the hotel resolved
+the offer, misses the other ways in (gifts, the club centre, club gifts) and, when it blocks, must
+send the client its reply itself or leave it waiting. A behavior that throws before passing the
+packet on drops it (fail closed) and answers nobody.
+
 Two kinds go further than allow or refuse. `IAvatarEffectPolicy` decides on the room's turn what
 an avatar wears and what each player is shown on it (a command that turns effects off), and
 `IPurchaseFulfilment` replaces what the hotel hands over for an offer or a room ad (a room ad that

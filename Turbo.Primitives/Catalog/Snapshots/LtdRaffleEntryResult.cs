@@ -21,6 +21,17 @@ public sealed record LtdRaffleEntryResult
     [Id(3)]
     public CatalogBalanceFailure? BalanceFailure { get; init; }
 
+    /// <summary>
+    /// For <see cref="LtdRaffleEntryErrorType.Refused"/>, the purchase error the client is shown
+    /// when the policy gave no <see cref="Refusal"/>.
+    /// </summary>
+    [Id(4)]
+    public CatalogPurchaseErrorType RefusedWith { get; init; }
+
+    /// <summary>For <see cref="LtdRaffleEntryErrorType.Refused"/>, the purchase policy's reason, if it gave one.</summary>
+    [Id(5)]
+    public string? Refusal { get; init; }
+
     public static LtdRaffleEntryResult Succeeded(string batchId) =>
         new()
         {
@@ -40,5 +51,12 @@ public sealed record LtdRaffleEntryResult
             BatchId = "",
             Error = error,
             BalanceFailure = balanceFailure,
+        };
+
+    public static LtdRaffleEntryResult Refused(CatalogPurchaseErrorType error, string? reason) =>
+        Failed(LtdRaffleEntryErrorType.Refused) with
+        {
+            RefusedWith = error,
+            Refusal = reason,
         };
 }

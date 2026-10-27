@@ -425,7 +425,7 @@ public sealed class ${type} : IScheduledTask
                 decision: 'PurchaseDecision',
                 parameters: 'PurchaseRequest request, PurchaseDecision proposed, CancellationToken ct',
                 body: 'ValueTask.FromResult(proposed)',
-                summary: 'Asked before a catalogue purchase is paid for: return proposed to let it stand, proposed with { CostCredits = ... } to change\n/// what it costs or gives, or PurchaseDecision.Refuse("why") to refuse it.',
+                summary: 'Asked before a catalogue purchase is paid for (request.Kind says which way): return proposed to let it stand,\n/// proposed with { CostCredits = ... } to change what it costs or gives, or PurchaseDecision.Refuse("why") to refuse it.\n/// Throwing refuses it too.',
             },
             'room-entry': {
                 contract: 'IRoomEntryPolicy',

@@ -16,7 +16,8 @@ namespace Turbo.Primitives.Policies;
 /// offer fulfils it. With
 /// none the hotel decides as it always does. Two plugins with a policy of the same kind both run,
 /// in that order; the host logs it as a conflict and lists it on each plugin
-/// (<see cref="Registered"/>), since the later one decides on what the earlier one left.
+/// (<see cref="Registered"/>), since the later one decides on what the earlier one left. A
+/// purchase policy that throws refuses the purchase; one of any other kind is passed over.
 /// </summary>
 public interface IGamePolicies
 {

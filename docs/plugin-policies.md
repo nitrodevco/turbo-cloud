@@ -22,7 +22,7 @@ room's limits) are the hotel's own and are not policies.
 
 | Interface (`Turbo.Primitives.Policies`) | Asked | Answers |
 | --- | --- | --- |
-| `IPurchasePolicy` | before a catalogue offer is paid for, bought for oneself (the catalogue, the builders club catalogue), as a gift, or as a room ad (`request.RoomAd`: the room, category, name, description, whether it extends the running one, how long; an ad is one ad, so `Units` is not read) | `proposed` to let it stand, `proposed with { CostCredits = ..., CostSilver = ..., CostActivityPoints = ..., Units = ... }` to change what it costs in all or how many it gives (a gift always holds one), `PurchaseDecision.Refuse("why")` |
+| `IPurchasePolicy` | before a catalogue offer is paid for, `request.Kind` saying which way: bought for oneself (`Catalog`: the catalogue, the builders club catalogue; `ClubMembership`: an offer giving a membership, the club centre's extend buttons included), as a gift (`Gift`, `request.GiftReceiverId`), as a room ad (`RoomAd`, `request.RoomAd`: the room, category, name, description, whether it extends the running one, how long; an ad is one ad, so `Units` is not read), a club gift a member picks (`ClubGiftClaim`) or a player entering a limited edition's sale (`LimitedEdition`); for the last two only a refusal is read. `request.ExtraParam` is the offer's extra parameter as the client sent it | `proposed` to let it stand, `proposed with { CostCredits = ..., CostSilver = ..., CostActivityPoints = ..., Units = ... }` to change what it costs in all or how many it gives (a gift always holds one), `PurchaseDecision.Refuse("why")`, or `PurchaseDecision.Refuse(error: CatalogPurchaseErrorType.RequiresHabboClub)` to show one of the hotel's own purchase errors |
 | `IRoomEntryPolicy` | before a player enters a room the hotel lets them into, or rings at its doorbell (`request.Doorbell`) | `RoomEntryDecision.Allow`, `.Refuse("why")`, `.Redirect(roomId, "why"?)` |
 | `IRegistrationPolicy` | before a new account is made, once the hotel's own checks passed (the name's rules and filter, a free name, the motto's and figure's lengths): the name, motto and figure as they would be saved (the gender's default figure when none was chosen), `request.Source` (`Site`, `Panel`, `Hotel`) and `request.RemoteAddress` (the site visitor's; empty from the panel) | `RegistrationDecision.Allow`, `.Refuse("why")` |
 | `IPlacementPolicy` | before a player places a floor or wall item (from their inventory, the builders club or a sticky note pad) or saves the room's floor plan (`PlacementKind.FloorPlan`, the plan in `request.ModelData`) | `PlacementDecision.Allow`, `.Refuse("why")` |
@@ -33,8 +33,9 @@ room's limits) are the hotel's own and are not policies.
 How the player hears of a refusal:
 
 - **Purchase**: the reason in a pop-up (`NotificationDialog`, type `turbo.purchase.refused`, its
-  `message` the reason); without a reason, the hotel's own "you may not buy this" alert. Nothing is
-  charged or given.
+  `message` the reason); without a reason, the hotel's purchase error the refusal named
+  (`PurchaseFailed`, the "you may not buy this" alert, by default). Nothing is charged or given, a
+  club gift stays unclaimed and a limited edition's entry is not taken.
 - **Room entry**: the reason in a pop-up (`turbo.room_entry.refused`) before the room's own "no
   entry"; a redirect closes this entry (the reason first, when given) and forwards the player to the
   other room, which they enter as any other, its policies asked again. A policy must not send a
@@ -109,8 +110,9 @@ alpha, beta each have a purchase policy ...") and lists it on both in the admin 
 (`policies`, each with the other owners in `sharedWith`), since the later one decides on what the
 earlier one left. Give one an explicit `Order` when the order matters.
 
-A policy that throws is logged and passed over (it allows, and a purchase keeps the decision so far);
-a cancelled one cancels the action.
+A purchase policy that throws refuses the purchase (fail closed): it is logged, the buyer gets the
+hotel's purchase error, nothing is charged and the policies after it are not asked. A policy of any
+other kind that throws is logged and passed over (it allows). A cancelled one cancels the action.
 
 ### Where they run
 
@@ -170,7 +172,7 @@ public sealed class EventRoomPolicy(IOptionsMonitor<EventSettings> settings) : I
 
 | Event | Raised |
 | --- | --- |
-| `PurchaseCompletedEvent` (`Turbo.Primitives.Catalog.Events`) | a catalogue offer was paid for and handed over (a limited edition when its sale or raffle win is charged): buyer, offer and product code, units given, what was paid in each currency, the receiver of a gift; for a room ad, `RoomAd` (the room event as it now runs) and `RoomAdExtended` |
+| `PurchaseCompletedEvent` (`Turbo.Primitives.Catalog.Events`) | a catalogue offer was paid for and handed over (a limited edition when its sale or raffle win is charged), or a club gift claimed: buyer, `Kind` (as `PurchaseRequest.Kind`), offer and product code, units given, what was paid in each currency, `ItemIds` (the furni put in the buyer's inventory), the receiver of a gift; for a room ad, `RoomAd` (the room event as it now runs) and `RoomAdExtended` |
 | `PlayerLoggedInEvent` (`Turbo.Primitives.Players.Events`) | a player's login ticket was taken and the connection is theirs: every login, one replacing an earlier connection included; `RemoteAddress` |
 | `PlayerLoginFailedEvent` (`Turbo.Primitives.Players.Events`) | a login was turned away: `Failure` (`InvalidTicket`, `Banned`, `Maintenance`, `RefusedByPolicy` with the policy's `Reason`), whose ticket it was (null for an unknown one), `RemoteAddress` |
 | `PlayerRegisteredEvent` (`Turbo.Primitives.Players.Events`) | a new player account was saved (the site's registration, the panel's): `Source`, `RemoteAddress` |

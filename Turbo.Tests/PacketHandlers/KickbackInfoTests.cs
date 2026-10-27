@@ -15,6 +15,7 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains.Subscriptions;
+using Turbo.Primitives.Policies;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Tests.Support;
 using Xunit;
@@ -198,6 +199,7 @@ public sealed class KickbackInfoTests : IDisposable
                 new PurchaseCompletedEvent
                 {
                     PlayerId = PlayerId.Parse(PLAYER),
+                    Kind = PurchaseKind.Catalog,
                     CatalogType = CatalogType.Normal,
                     OfferId = 1,
                     ProductCode = productCode,
