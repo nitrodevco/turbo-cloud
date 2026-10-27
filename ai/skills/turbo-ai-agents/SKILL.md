@@ -155,7 +155,8 @@ then `review.Output` (null unless `review.Ok`). One-shot without a class: `ai.As
   model as sentences; the tool never sees them.
 - **Tools that change things wait on approval**: a tool not `ReadOnly` and not
   `Destructive => false` stops the run with `AwaitingApproval`; once staff decide, the run goes on
-  and the agent's `ResumedAsync(response, ct)` gets the answer (override it to tell the player).
+  and the agent's `ResumedAsync(resumed, ct)` gets the answer and who it was for (override it to
+  tell the player; such an agent's constructor takes only services).
   Mark a tool that only adds (a whisper, a ticket) `Destructive => false`.
 - **Player text is `PlayerText`**: `new AiPrompt("your words", playerText)` or
   `AiPrompt.FromPlayer(text)`, never the player's words pasted into a string. Tools answer player

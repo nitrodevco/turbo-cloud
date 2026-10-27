@@ -128,7 +128,28 @@ public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger) : IPluginA
             return null;
         }
 
-        var agent = (AiAgent)ActivatorUtilities.CreateInstance(live.Services, type);
+        AiAgent agent;
+
+        try
+        {
+            agent = (AiAgent)ActivatorUtilities.CreateInstance(live.Services, type);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogError(
+                ex,
+                "The approval {Approval} was decided, but the plugin {Plugin}'s agent {Agent} can't be built from its services to go on",
+                approvalId,
+                waiting.Plugin,
+                type.Name
+            );
+
+            return null;
+        }
+
+        var payer = waiting.Pending is { } pending
+            ? System.Text.Json.JsonSerializer.Deserialize<AiRuntime.PendingRun>(pending, AiRuntime.Json)?.Payer
+            : null;
         var response = await runtime
             .ResumeAsync(
                 live.Manifest,
@@ -141,7 +162,16 @@ public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger) : IPluginA
 
         try
         {
-            await agent.ResumedAsync(PluginAi.Plain(response), ct).ConfigureAwait(false);
+            await agent
+                .ResumedAsync(
+                    new AiResumed(
+                        PluginAi.Plain(response),
+                        payer is { } player ? new Turbo.Primitives.Players.PlayerId(player) : null,
+                        waiting.Participant
+                    ),
+                    ct
+                )
+                .ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

@@ -94,7 +94,7 @@ public sealed class AiMemoryTests
     {
         var staff = _hotel.Players.Add("Staff");
         staff.Permissions.Add("test.kick");
-        var told = new List<AiResponse>();
+        var told = new List<AiResumed>();
         var services = new ServiceCollection().AddSingleton(told).BuildServiceProvider();
         var manifest = new PluginManifest
         {
@@ -114,7 +114,9 @@ public sealed class AiMemoryTests
         paused.Stop.Should().Be(AiStopReason.AwaitingApproval);
         paused.ConversationId.Should().NotBeNull("a run without memory keeps one while it waits");
         resumed!.Stop.Should().Be(AiStopReason.Finished);
-        told.Should().ContainSingle().Which.Text.Should().Be("Bob was kicked.");
+        var only = told.Should().ContainSingle().Which;
+        only.Response.Text.Should().Be("Bob was kicked.");
+        only.Player.Should().Be(staff.Id, "the staff member asked");
         _ai.AssertToolCalled("kick", a => a.GetProperty("name").GetString() == "Bob").Outcome.Should().Be(AiToolOutcome.Ok);
     }
 
@@ -149,15 +151,15 @@ public sealed class AiMemoryTests
         public override IEnumerable<IAiMiddleware> Middleware => Wares;
     }
 
-    public sealed class KickAgent(List<AiResponse> told) : AiAgent
+    public sealed class KickAgent(List<AiResumed> told) : AiAgent
     {
         public override string Instructions => "You kick players when staff ask.";
 
         public override IEnumerable<IMcpTool> Tools => [new KickTool()];
 
-        public override Task ResumedAsync(AiResponse response, CancellationToken ct)
+        public override Task ResumedAsync(AiResumed resumed, CancellationToken ct)
         {
-            told.Add(response);
+            told.Add(resumed);
 
             return Task.CompletedTask;
         }

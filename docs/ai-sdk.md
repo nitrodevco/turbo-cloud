@@ -341,8 +341,11 @@ stops with `AwaitingApproval`; `Pending` names the tool and its arguments. The a
 which plugin, agent and tool, the call's arguments, and the tool's nodes (an approver must hold one).
 
 Once it is decided, the run goes on by itself: the tool runs if it was approved, the model is told if
-it was not (with the approver's note), and the agent's `ResumedAsync(response, ct)` is called with
-the answer, to whisper to the player or post to the room. A plugin that was not running then can go on
+it was not (with the approver's note), and the agent's `ResumedAsync(resumed, ct)` is called with
+the answer (`resumed.Response`), the player it was for (`resumed.Player`) and the conversation's
+owner (`resumed.Participant`), to whisper to the player or post to the room. The agent is built for
+it from the plugin's services, so a resumable agent's constructor takes only services (one that
+can't be built is logged and its run waits). A plugin that was not running then can go on
 later with `ai.ResumeAsync(agent, call)`. A new prompt on the conversation before it is decided answers
 the waiting call as not run.
 

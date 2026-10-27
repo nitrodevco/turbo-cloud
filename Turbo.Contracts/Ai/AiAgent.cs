@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Plugins.Mcp;
+using Turbo.Primitives.Players;
 
 namespace Turbo.Contracts.Ai;
 
@@ -60,12 +61,19 @@ public abstract class AiAgent
 
     /// <summary>
     /// A run that waited on an approval went on once it was decided: say the answer to whoever
-    /// asked (whisper it to the player, post it to the room). Called on the hotel's own thread,
-    /// never inside a room's turn.
+    /// asked (whisper it to the player, post it to the room). The agent is built for it with the
+    /// plugin's services, so give a resumable agent a constructor taking only services; who asked
+    /// is in <paramref name="resumed"/>. Called on the hotel's own thread, never inside a room's turn.
     /// </summary>
-    public virtual Task ResumedAsync(AiResponse response, CancellationToken ct) =>
-        Task.CompletedTask;
+    public virtual Task ResumedAsync(AiResumed resumed, CancellationToken ct) => Task.CompletedTask;
 }
+
+/// <summary>
+/// A run that went on after an approval: its answer, the player it was for (<see cref="AiCall.Payer"/>),
+/// and its conversation's owner (<see cref="AiMemory.Participant"/>: <c>player:&lt;id&gt;</c>,
+/// <c>key:&lt;key&gt;</c>, or <c>run:...</c> for a call without memory).
+/// </summary>
+public sealed record AiResumed(AiResponse Response, PlayerId? Player, string Participant);
 
 /// <summary>
 /// An agent answering with <typeparamref name="TOutput"/>, a record whose properties are the
