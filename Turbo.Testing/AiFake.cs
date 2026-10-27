@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,7 +35,7 @@ public sealed class AiFake : IPluginAiHost
     /// <summary>The provider name the fake answers as.</summary>
     public const string PROVIDER = "fake";
 
-    private readonly ConcurrentQueue<Func<AiProviderRequest, AiDriverAnswer>> _script = new();
+    private readonly ConcurrentQueue<Scripted> _script = new();
     private readonly List<AiProviderRequest> _requests = [];
     private readonly List<AiResponse> _responses = [];
     private readonly HashSet<string> _allowed = new(StringComparer.OrdinalIgnoreCase);
@@ -178,6 +179,22 @@ public sealed class AiFake : IPluginAiHost
     public AiFake Answer(object output, int inputTokens = 10, int outputTokens = 5) =>
         CallTool(AiRuntime.RESPOND, output, inputTokens, outputTokens);
 
+    /// <summary>
+    /// The model writes <paramref name="pieces"/> one at a time and is done: a streamed run
+    /// (<see cref="IAi.StreamAsync"/>) is given each piece as it comes; any other gets them joined.
+    /// </summary>
+    public AiFake Stream(params string[] pieces)
+    {
+        _script.Enqueue(
+            new Scripted(
+                _ => Answer([new AiTextPart(string.Concat(pieces))], AiFinish.EndTurn, 10, 5),
+                [.. pieces]
+            )
+        );
+
+        return this;
+    }
+
     /// <summary>The model's answer is cut at the most tokens.</summary>
     public AiFake Truncate(string text) =>
         Then(_ => Answer([new AiTextPart(text)], AiFinish.MaxTokens, 10, 5));
@@ -189,7 +206,7 @@ public sealed class AiFake : IPluginAiHost
     /// <summary>The next answer is <paramref name="answer"/>'s, from what the model is asked.</summary>
     public AiFake Then(Func<AiProviderRequest, AiDriverAnswer> answer)
     {
-        _script.Enqueue(answer);
+        _script.Enqueue(new Scripted(answer, []));
 
         return this;
     }
@@ -322,21 +339,27 @@ public sealed class AiFake : IPluginAiHost
             ),
         };
 
-    private AiDriverAnswer Next(AiProviderRequest request)
+    private (AiDriverAnswer Answer, ImmutableArray<string> Pieces) Next(AiProviderRequest request)
     {
         lock (_lock)
             _requests.Add(request);
 
-        if (_script.TryDequeue(out var answer))
-            return answer(request);
+        if (_script.TryDequeue(out var scripted))
+            return (scripted.Answer(request), scripted.Pieces);
 
         if (_strict)
             throw new HotelAssertionException(
                 $"The model was asked with no scripted answer left (PreventStrayPrompts). Its last message: \"{request.Messages.LastOrDefault()?.Text}\"."
             );
 
-        return Answer([new AiTextPart("Fake answer.")], AiFinish.EndTurn, 10, 5);
+        return (Answer([new AiTextPart("Fake answer.")], AiFinish.EndTurn, 10, 5), []);
     }
+
+    /// <summary>A scripted answer, and the pieces a streamed run is given its text in (none: whole).</summary>
+    private sealed record Scripted(
+        Func<AiProviderRequest, AiDriverAnswer> Answer,
+        ImmutableArray<string> Pieces
+    );
 
     private void Record(AiResponse response)
     {
@@ -425,6 +448,24 @@ public sealed class AiFake : IPluginAiHost
             where TOutput : class =>
             Keep(await inner.PromptAsync(agent, prompt, call, ct).ConfigureAwait(false));
 
+        public async IAsyncEnumerable<AiStreamEvent> StreamAsync(
+            AiAgent agent,
+            AiPrompt prompt,
+            AiCall? call = null,
+            [EnumeratorCancellation] CancellationToken ct = default
+        )
+        {
+            await foreach (
+                var e in inner.StreamAsync(agent, prompt, call, ct).ConfigureAwait(false)
+            )
+            {
+                if (e is AiStreamEnd end)
+                    Keep(end.Response);
+
+                yield return e;
+            }
+        }
+
         public async Task<AiResponse> AskAsync(
             AiPrompt prompt,
             string? instructions = null,
@@ -476,7 +517,27 @@ public sealed class AiFake : IPluginAiHost
         {
             ct.ThrowIfCancellationRequested();
 
-            return Task.FromResult(fake.Next(request));
+            return Task.FromResult(fake.Next(request).Answer);
+        }
+
+        public Task<AiDriverAnswer> StreamAsync(
+            AiEndpoint endpoint,
+            AiProviderRequest request,
+            Action<string> text,
+            CancellationToken ct
+        )
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var (answer, pieces) = fake.Next(request);
+
+            if (pieces.Length > 0)
+                foreach (var piece in pieces)
+                    text(piece);
+            else if (answer.Message.Text is { Length: > 0 } whole)
+                text(whole);
+
+            return Task.FromResult(answer);
         }
     }
 

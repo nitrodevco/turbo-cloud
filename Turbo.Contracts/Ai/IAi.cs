@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -39,6 +40,22 @@ public interface IAi
         CancellationToken ct = default
     )
         where TOutput : class;
+
+    /// <summary>
+    /// Runs <paramref name="agent"/> as <see cref="PromptAsync(AiAgent, AiPrompt, AiCall?, CancellationToken)"/>
+    /// does, with the same limits, and tells it as it goes: the model's text a piece at a time
+    /// (<see cref="AiTextDelta"/>), its tool calls (<see cref="AiToolCallStarted"/>,
+    /// <see cref="AiToolCallEnded"/>), and last the answer (<see cref="AiStreamEnd"/>). Stop
+    /// reading, or cancel <paramref name="ct"/>, and the run is cancelled. When a provider fails
+    /// part way through an answer, no other provider is asked that step: the run ends
+    /// <see cref="AiStopReason.Failed"/>.
+    /// </summary>
+    IAsyncEnumerable<AiStreamEvent> StreamAsync(
+        AiAgent agent,
+        AiPrompt prompt,
+        AiCall? call = null,
+        CancellationToken ct = default
+    );
 
     /// <summary>One question, no agent class: <paramref name="instructions"/> as its instructions and no tools.</summary>
     Task<AiResponse> AskAsync(

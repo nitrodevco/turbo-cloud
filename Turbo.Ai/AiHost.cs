@@ -1,13 +1,17 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Turbo.Ai.Approvals;
+using Turbo.Ai.Storage;
 using Turbo.Contracts.Ai;
 using Turbo.Contracts.Plugins;
 using Turbo.Plugins;
@@ -18,13 +22,25 @@ namespace Turbo.Ai;
 /// <summary>
 /// Language models for the plugins (<see cref="IPluginAiHost"/>): each plugin's own
 /// <see cref="IAi"/>, and the runs that waited on an approval, resumed with their plugin's agent
-/// once it is decided (<see cref="DecidedAsync"/>).
+/// once it is decided. Deciding only queues the run (<see cref="Resume"/>): it goes on in the
+/// background, so an approver's click never waits on a model.
 /// </summary>
-public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger) : IPluginAiHost, IAiOverview
+public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger)
+    : IPluginAiHost,
+        IAiOverview,
+        IAsyncDisposable,
+        IDisposable
 {
+    /// <summary>Resumed runs going on at once on this server; more wait their turn.</summary>
+    public const int RESUMES_AT_ONCE = 4;
+
     private readonly ConcurrentDictionary<string, LivePlugin> _live = new(
         StringComparer.OrdinalIgnoreCase
     );
+
+    private readonly SemaphoreSlim _resumeSlots = new(RESUMES_AT_ONCE);
+    private readonly CancellationTokenSource _stopping = new();
+    private readonly ConcurrentDictionary<Task, byte> _resuming = new();
 
     public AiRuntime Runtime => runtime;
 
@@ -97,9 +113,103 @@ public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger) : IPluginA
     }
 
     /// <summary>
+    /// Why the run waiting on the approval can't go on now (no run waits on it, or its plugin is
+    /// not running); null when it can.
+    /// </summary>
+    public async Task<string?> CannotResumeAsync(string approvalId, CancellationToken ct)
+    {
+        var waiting = await runtime.Store.FindByApprovalAsync(approvalId, ct).ConfigureAwait(false);
+
+        if (waiting is null)
+            return "No agent's run waits on it any more.";
+
+        return Agent(waiting) is null
+            ? $"The plugin {waiting.Plugin} whose agent waits on it is not running: the run goes on when the plugin resumes it."
+            : null;
+    }
+
+    /// <summary>
+    /// Queues the run waiting on the approval to go on by <paramref name="decision"/>, and returns
+    /// at once: it runs in the background (at most <see cref="RESUMES_AT_ONCE"/> at a time), with
+    /// its agent's steps, budget and timeouts, and its agent is told the answer
+    /// (<see cref="AiAgent.ResumedAsync"/>). What fails is logged, kept in the usage log and told
+    /// to the agent as <see cref="AiStopReason.Failed"/>.
+    /// </summary>
+    public void Resume(string approvalId, AiApprovalDecision decision)
+    {
+        var ct = _stopping.Token;
+        var task = Task.Run(
+            async () =>
+            {
+                await _resumeSlots.WaitAsync(ct).ConfigureAwait(false);
+
+                try
+                {
+                    await DecidedAsync(approvalId, decision, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (!ct.IsCancellationRequested)
+                {
+                    logger.LogError(
+                        ex,
+                        "The run waiting on the approval {Approval} could not go on",
+                        approvalId
+                    );
+                }
+                finally
+                {
+                    _resumeSlots.Release();
+                }
+            },
+            CancellationToken.None
+        );
+
+        _resuming[task] = 0;
+        _ = task.ContinueWith(
+            t => _resuming.TryRemove(t, out _),
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default
+        );
+    }
+
+    /// <summary>Waits until no queued run is left going on.</summary>
+    public async Task WhenResumedAsync()
+    {
+        while (!_resuming.IsEmpty)
+        {
+            try
+            {
+                await Task.WhenAll(_resuming.Keys).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // A run cancelled as the server stopped.
+            }
+        }
+    }
+
+    /// <summary>The server stops: the runs going on are cancelled (each saves where it got to).</summary>
+    public async ValueTask DisposeAsync()
+    {
+        await _stopping.CancelAsync().ConfigureAwait(false);
+
+        try
+        {
+            await WhenResumedAsync().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            // Stopping anyway: a run that did not save its end keeps its conversation as it was.
+        }
+    }
+
+    public void Dispose() => _stopping.Cancel();
+
+    /// <summary>
     /// An approval was decided: the run waiting on it goes on with its plugin's agent, which is
     /// told the answer (<see cref="AiAgent.ResumedAsync"/>). The resumed run's answer; null when no run waits on it, or its
-    /// plugin is not running (then <see cref="IAi.ResumeAsync"/> goes on with it later).
+    /// plugin is not running (then <see cref="IAi.ResumeAsync"/> goes on with it later). The
+    /// hotel calls it through <see cref="Resume"/>, in the background; a test may await it.
     /// </summary>
     public async Task<AiResponse?> DecidedAsync(
         string approvalId,
@@ -112,12 +222,7 @@ public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger) : IPluginA
         if (waiting is null)
             return null;
 
-        if (
-            !_live.TryGetValue(waiting.Plugin, out var live)
-            || waiting.AgentType is not { } typeName
-            || live.Assembly.GetType(typeName) is not { } type
-            || !typeof(AiAgent).IsAssignableFrom(type)
-        )
+        if (Agent(waiting) is not { } found)
         {
             logger.LogInformation(
                 "The approval {Approval} was decided, but the plugin {Plugin} that waits on it is not running",
@@ -128,6 +233,7 @@ public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger) : IPluginA
             return null;
         }
 
+        var (live, type) = found;
         AiAgent agent;
 
         try
@@ -152,15 +258,44 @@ public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger) : IPluginA
                 .Text.Json.JsonSerializer.Deserialize<AiRuntime.PendingRun>(pending, AiRuntime.Json)
                 ?.Payer
             : null;
-        var response = await runtime
-            .ResumeAsync(
-                live.Manifest,
-                agent,
-                new AiCall { Memory = AiMemory.Of(waiting.Participant, waiting.Id) },
-                decision,
-                ct
-            )
-            .ConfigureAwait(false);
+        AiResponse response;
+
+        try
+        {
+            response = await runtime
+                .ResumeAsync(
+                    live.Manifest,
+                    agent,
+                    new AiCall { Memory = AiMemory.Of(waiting.Participant, waiting.Id) },
+                    decision,
+                    ct
+                )
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+            when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            logger.LogError(
+                ex,
+                "The plugin {Plugin}'s agent {Agent} failed going on after the approval {Approval}",
+                waiting.Plugin,
+                agent.Name,
+                approvalId
+            );
+            await runtime
+                .Providers.RecordFailureAsync(
+                    new AiUsageContext(waiting.Plugin, agent.Name, payer, waiting.Id),
+                    AiProviders.RESUME_FAILED
+                )
+                .ConfigureAwait(false);
+            response = AiRuntime.Stopped(
+                AiStopReason.Failed,
+                "The run failed going on after its approval; the error is in the server's log."
+            ) with
+            {
+                ConversationId = waiting.Id,
+            };
+        }
 
         try
         {
@@ -187,6 +322,15 @@ public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger) : IPluginA
 
         return PluginAi.Plain(response);
     }
+
+    /// <summary>The running plugin and agent class of a waiting conversation; null when its plugin is not running.</summary>
+    private (LivePlugin Live, Type Type)? Agent(AiConversationRecord waiting) =>
+        _live.TryGetValue(waiting.Plugin, out var live)
+        && waiting.AgentType is { } typeName
+        && live.Assembly.GetType(typeName) is { } type
+        && typeof(AiAgent).IsAssignableFrom(type)
+            ? (live, type)
+            : null;
 
     private sealed record LivePlugin(
         PluginManifest Manifest,
@@ -233,6 +377,60 @@ internal sealed class PluginAi(AiRuntime runtime, PluginManifest manifest) : IAi
                 .RunAsync(manifest, agent, prompt, call ?? new AiCall(), ct)
                 .ConfigureAwait(false)
         );
+
+    public async IAsyncEnumerable<AiStreamEvent> StreamAsync(
+        AiAgent agent,
+        AiPrompt prompt,
+        AiCall? call = null,
+        [EnumeratorCancellation] CancellationToken ct = default
+    )
+    {
+        var events = Channel.CreateUnbounded<AiStreamEvent>(
+            new UnboundedChannelOptions { SingleReader = true }
+        );
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var run = Task.Run(
+            async () =>
+            {
+                try
+                {
+                    var response = await runtime
+                        .RunAsync(
+                            manifest,
+                            agent,
+                            prompt,
+                            call ?? new AiCall(),
+                            stop.Token,
+                            events.Writer
+                        )
+                        .ConfigureAwait(false);
+
+                    events.Writer.TryWrite(new AiStreamEnd(Plain(response)));
+                    events.Writer.TryComplete();
+                }
+                catch (Exception ex)
+                {
+                    events.Writer.TryComplete(ex);
+                }
+            },
+            CancellationToken.None
+        );
+
+        try
+        {
+            // Read to the end whatever ct says: a cancelled run still ends with its answer.
+            await foreach (
+                var e in events.Reader.ReadAllAsync(CancellationToken.None).ConfigureAwait(false)
+            )
+                yield return e;
+        }
+        finally
+        {
+            // The caller stopped reading: the run is cancelled, and saves where it got to.
+            await stop.CancelAsync().ConfigureAwait(false);
+            await run.ConfigureAwait(false);
+        }
+    }
 
     public Task<AiResponse> AskAsync(
         AiPrompt prompt,

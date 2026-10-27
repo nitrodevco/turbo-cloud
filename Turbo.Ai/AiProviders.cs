@@ -69,8 +69,36 @@ public sealed class AiProviders(
     /// failure when none answers, and <see cref="OperationCanceledException"/> when
     /// <paramref name="ct"/> is cancelled.
     /// </summary>
-    public async Task<AiAnswer> SendAsync(AiStep step, AiUsageContext usage, CancellationToken ct)
+    public Task<AiAnswer> SendAsync(AiStep step, AiUsageContext usage, CancellationToken ct) =>
+        AskAsync(step, usage, null, ct);
+
+    /// <summary>
+    /// <see cref="SendAsync"/>, the answer streamed: <paramref name="text"/> is given each piece
+    /// of text as it comes. The next provider is asked only while nothing has been given: one
+    /// that fails part way through its answer ends the step.
+    /// </summary>
+    public Task<AiAnswer> StreamAsync(
+        AiStep step,
+        AiUsageContext usage,
+        Action<string> text,
+        CancellationToken ct
+    ) => AskAsync(step, usage, text, ct);
+
+    private async Task<AiAnswer> AskAsync(
+        AiStep step,
+        AiUsageContext usage,
+        Action<string>? text,
+        CancellationToken ct
+    )
     {
+        var streamed = false;
+        Action<string>? piece = text is null
+            ? null
+            : t =>
+            {
+                streamed = true;
+                text(t);
+            };
         var current = config.CurrentValue;
         var names = Usable(step.Providers);
 
@@ -119,21 +147,20 @@ public sealed class AiProviders(
 
             try
             {
-                var answer = await driver
-                    .SendAsync(
-                        endpoint,
-                        new AiProviderRequest(
-                            model,
-                            step.Instructions,
-                            step.Messages,
-                            step.Tools,
-                            step.RequireTool,
-                            step.MaxTokens,
-                            step.Temperature
-                        ),
-                        timer.Token
-                    )
-                    .ConfigureAwait(false);
+                var request = new AiProviderRequest(
+                    model,
+                    step.Instructions,
+                    step.Messages,
+                    step.Tools,
+                    step.RequireTool,
+                    step.MaxTokens,
+                    step.Temperature
+                );
+                var answer = await (
+                    piece is null
+                        ? driver.SendAsync(endpoint, request, timer.Token)
+                        : driver.StreamAsync(endpoint, request, piece, timer.Token)
+                ).ConfigureAwait(false);
                 var cost =
                     answer.InputTokens * provider.InputPricePerMillion / 1_000_000m
                     + answer.OutputTokens * provider.OutputPricePerMillion / 1_000_000m;
@@ -178,10 +205,21 @@ public sealed class AiProviders(
                 usage.Plugin,
                 failures[^1]
             );
+
+            // Its text has been shown: another provider's answer would follow it, not replace it.
+            if (streamed)
+                break;
         }
 
         throw new AiProviderException("failed", string.Join("; ", failures));
     }
+
+    /// <summary>The usage log's outcome for a run that failed going on after its approval.</summary>
+    public const string RESUME_FAILED = "resume_failed";
+
+    /// <summary>Logs a failure no provider answered for (no provider or model; no tokens).</summary>
+    public Task RecordFailureAsync(AiUsageContext usage, string outcome) =>
+        RecordAsync(usage, string.Empty, string.Empty, 0, 0, 0, Stopwatch.GetTimestamp(), outcome);
 
     private async Task RecordAsync(
         AiUsageContext usage,

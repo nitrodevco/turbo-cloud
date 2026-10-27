@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -26,6 +29,26 @@ public interface IAiDriver
         AiProviderRequest request,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// Asks the provider for its answer as it writes it: <paramref name="text"/> is given each
+    /// piece of text as it comes, and the whole answer is returned as <see cref="SendAsync"/>
+    /// returns it. A driver that can't stream answers whole, its text as one piece.
+    /// </summary>
+    async Task<AiDriverAnswer> StreamAsync(
+        AiEndpoint endpoint,
+        AiProviderRequest request,
+        Action<string> text,
+        CancellationToken ct
+    )
+    {
+        var answer = await SendAsync(endpoint, request, ct).ConfigureAwait(false);
+
+        if (answer.Message.Text is { Length: > 0 } said)
+            text(said);
+
+        return answer;
+    }
 }
 
 /// <summary>Where and how to reach one provider: its name, address, key (null for none), headers and extra body fields.</summary>
@@ -57,6 +80,9 @@ public sealed record AiDriverAnswer(
     string Model
 );
 
+/// <summary>One event of a streamed answer: its name (null when it has none) and its data.</summary>
+public sealed record ServerSentEvent(string? Name, string Data);
+
 /// <summary>
 /// A provider could not answer: <see cref="Kind"/> is what the usage log keeps (<c>timeout</c>,
 /// <c>http_429</c>, <c>network</c>, <c>unreadable</c>); the message never holds a key.
@@ -78,11 +104,139 @@ internal static partial class DriverHttp
         CancellationToken ct
     )
     {
+        using var response = await OpenAsync(
+                http,
+                request,
+                endpoint,
+                readError,
+                HttpCompletionOption.ResponseContentRead,
+                ct
+            )
+            .ConfigureAwait(false);
+
+        return await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sends a request whose answer is streamed (<c>text/event-stream</c>) and reads its events
+    /// as they come, the answer's status checked first.
+    /// </summary>
+    public static async IAsyncEnumerable<ServerSentEvent> StreamAsync(
+        HttpClient http,
+        HttpRequestMessage request,
+        AiEndpoint endpoint,
+        Func<string, string?> readError,
+        [EnumeratorCancellation] CancellationToken ct
+    )
+    {
+        using var response = await OpenAsync(
+                http,
+                request,
+                endpoint,
+                readError,
+                HttpCompletionOption.ResponseHeadersRead,
+                ct
+            )
+            .ConfigureAwait(false);
+        var body = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+
+        await using (body.ConfigureAwait(false))
+        {
+            await foreach (var e in ReadEventsAsync(body, endpoint, ct).ConfigureAwait(false))
+                yield return e;
+        }
+    }
+
+    /// <summary>
+    /// The events of a <c>text/event-stream</c> body: each one's <c>event:</c> name (null when it
+    /// has none) and its <c>data:</c> lines joined.
+    /// </summary>
+    public static async IAsyncEnumerable<ServerSentEvent> ReadEventsAsync(
+        Stream body,
+        AiEndpoint? endpoint,
+        [EnumeratorCancellation] CancellationToken ct
+    )
+    {
+        using var reader = new StreamReader(body, Encoding.UTF8);
+        string? name = null;
+        var data = new StringBuilder();
+        var any = false;
+
+        while (true)
+        {
+            string? line;
+
+            try
+            {
+                line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
+            }
+            catch (IOException ex)
+            {
+                throw new AiProviderException(
+                    "network",
+                    Redact("stopped answering part way", endpoint?.Key),
+                    ex
+                );
+            }
+
+            if (line is null || line.Length == 0)
+            {
+                if (any)
+                    yield return new ServerSentEvent(name, data.ToString());
+
+                if (line is null)
+                    yield break;
+
+                name = null;
+                data.Clear();
+                any = false;
+
+                continue;
+            }
+
+            if (line[0] == ':')
+                continue;
+
+            var colon = line.IndexOf(':');
+            var field = colon < 0 ? line : line[..colon];
+            var value = colon < 0 ? string.Empty : line[(colon + 1)..];
+
+            if (value.StartsWith(' '))
+                value = value[1..];
+
+            switch (field)
+            {
+                case "event":
+                    name = value;
+                    any = true;
+
+                    break;
+                case "data":
+                    if (data.Length > 0)
+                        data.Append('\n');
+
+                    data.Append(value);
+                    any = true;
+
+                    break;
+            }
+        }
+    }
+
+    private static async Task<HttpResponseMessage> OpenAsync(
+        HttpClient http,
+        HttpRequestMessage request,
+        AiEndpoint endpoint,
+        Func<string, string?> readError,
+        HttpCompletionOption completion,
+        CancellationToken ct
+    )
+    {
         HttpResponseMessage response;
 
         try
         {
-            response = await http.SendAsync(request, ct).ConfigureAwait(false);
+            response = await http.SendAsync(request, completion, ct).ConfigureAwait(false);
         }
         catch (HttpRequestException ex)
         {
@@ -93,13 +247,12 @@ internal static partial class DriverHttp
             );
         }
 
+        if (response.IsSuccessStatusCode)
+            return response;
+
         using (response)
         {
             var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-
-            if (response.IsSuccessStatusCode)
-                return body;
-
             var status = (int)response.StatusCode;
             var why = readError(body) ?? response.ReasonPhrase ?? "no reason given";
 
@@ -109,6 +262,16 @@ internal static partial class DriverHttp
             );
         }
     }
+
+    /// <summary>A provider's error sent inside a streamed answer, as an <see cref="AiProviderException"/>.</summary>
+    public static AiProviderException StreamError(string kind, string? why, AiEndpoint? endpoint) =>
+        new(kind, Redact($"failed part way: {Shorten(why ?? "no reason given")}", endpoint?.Key));
+
+    /// <summary>A model's tool arguments, written a piece at a time, read when the call is whole.</summary>
+    public static JsonElement ParsePieces(StringBuilder pieces) =>
+        pieces.Length == 0
+            ? JsonSerializer.SerializeToElement(new JsonObject())
+            : ParseArguments(pieces.ToString());
 
     /// <summary>Adds the provider's extra body fields where the driver wrote none of the same name.</summary>
     public static void AddOptions(JsonObject body, IReadOnlyDictionary<string, string> options)
