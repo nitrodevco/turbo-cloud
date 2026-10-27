@@ -147,6 +147,9 @@ internal static class ExternalVariablesFile
     /// </summary>
     public const string THEME_SESSION_URL = "theme.session.url";
 
+    /// <summary>The address of the hotel's texts the client loads (the external texts file's, by its hash).</summary>
+    public const string EXTERNAL_TEXTS_URL = "gamedata.urls.externalTexts";
+
     /// <summary>The theme route on the gamedata host, under the public address when there is one.</summary>
     public static string ThemeSessionAddress(Addresses addresses) =>
         Text($"{addresses.Root}{Api.GamedataServer.THEME_ROUTE}");

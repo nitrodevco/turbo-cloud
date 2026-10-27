@@ -151,6 +151,14 @@ public sealed class GamedataModule : IHostPluginModule
                 (GamedataFileService)sp.GetRequiredService<IGamedataFileService>()
             )
         );
+        services.AddSingleton(sp =>
+            ActivatorUtilities.CreateInstance<ThemeLiveReload>(
+                sp,
+                (GamedataFileService)sp.GetRequiredService<IGamedataFileService>()
+            )
+        );
+        services.AddSingleton<IThemeLiveReload>(sp => sp.GetRequiredService<ThemeLiveReload>());
+        services.AddHostedService(sp => sp.GetRequiredService<ThemeLiveReload>());
         services.AddHostedService<GamedataServer>();
     }
 }

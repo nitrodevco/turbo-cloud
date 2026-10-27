@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Orleans;
@@ -19,11 +20,13 @@ using Turbo.Networking.Extensions;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Gamedata;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Plugins;
+using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Settings;
 using Turbo.Tests.Support;
@@ -315,7 +318,127 @@ public sealed class ThemeAudienceTests : IDisposable
         directory
             .Messages.Select(x => x.Name)
             .Should()
-            .Contain(["turbo.theme.choose", "turbo.theme.chosen"]);
+            .Contain(["turbo.theme.choose", "turbo.theme.chosen", "turbo.theme.changed"]);
+    }
+
+    [Fact]
+    public async Task A_theme_s_change_reaches_only_the_players_drawing_it_with_no_reload()
+    {
+        var live = Live();
+
+        await _themes.SetAsync(
+            "night",
+            new ThemeAudienceChange(ThemeStatus.Development, Players: [A.Value]),
+            STAFF,
+            Ct
+        );
+        // A asked for their theme before connecting; B draws what every client loads.
+        await _themes.SessionAsync(A, null, Ct);
+        (await live.SettleAsync(Ct)).Players.Should().Be(0, "nothing changed since they loaded");
+
+        // Staff save a patch into night: its file has a new address.
+        Repatch("night", "v2");
+
+        var result = await live.SettleAsync(Ct);
+
+        result.Players.Should().Be(1);
+        result.Online.Should().Be(2);
+        Changed(B).Should().BeEmpty("night is not in B's chain");
+
+        var (theme, revision, url) = Changed(A).Should().ContainSingle().Subject;
+
+        theme.Should().Be("night");
+        url.Should().Be($"/gamedata/theme/live/{revision}");
+        live.Find(revision)!
+            .Variables[ExternalVariablesFile.TEMPLATE_PATCHES]
+            .Should()
+            .Contain("/night/v2/");
+
+        // A second look with nothing changed sends nothing again.
+        _files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
+        (await live.SettleAsync(Ct)).Players.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_new_default_theme_is_sent_to_the_players_with_no_theme_of_their_own()
+    {
+        var live = Live();
+
+        await _themes.SetAsync(
+            "night",
+            new ThemeAudienceChange(ThemeStatus.Development, Players: [A.Value]),
+            STAFF,
+            Ct
+        );
+        await _themes.SessionAsync(A, null, Ct);
+        await live.SettleAsync(Ct);
+
+        await _themes.SetAsync("blue", new ThemeAudienceChange(IsDefault: true), STAFF, Ct);
+
+        (await live.SettleAsync(Ct)).Players.Should().Be(1);
+        Changed(B).Select(x => x.Theme).Should().Equal("blue");
+        Changed(A).Should().BeEmpty("A draws night, whose chain the default did not touch");
+    }
+
+    /// <summary>Live reload over this hotel, with A and B online.</summary>
+    private ThemeLiveReload Live()
+    {
+        _fakes.Handlers["GetOnlinePlayerIds"] = _ => (IReadOnlyCollection<PlayerId>)[A, B];
+
+        var live = new ThemeLiveReload(
+            _files,
+            _themes,
+            _fakes.Create<IGrainFactory>(),
+            Options.Create(new GamedataConfig()),
+            _fakes.Create<IHostApplicationLifetime>(),
+            TimeProvider.System,
+            NullLogger<ThemeLiveReload>.Instance,
+            _fakes.Create<ISessionGateway>()
+        );
+
+        live.StartAsync(Ct).GetAwaiter().GetResult();
+        _handles.Add(live);
+
+        return live;
+    }
+
+    /// <summary>The <c>turbo.theme.changed</c> messages a player was sent: theme, revision, address.</summary>
+    private List<(string Theme, string Revision, string Url)> Changed(PlayerId player) =>
+        [
+            .. _fakes
+                .SentToPlayer<PluginMessageComposer>(player.Value)
+                .Where(x => x.Name == "turbo.theme.changed")
+                .Select(x =>
+                {
+                    var body = x.Body.AsSpan();
+                    var fields = new List<string>();
+
+                    while (body.Length >= 2)
+                    {
+                        var length = System.Buffers.Binary.BinaryPrimitives.ReadInt16BigEndian(
+                            body
+                        );
+
+                        fields.Add(Encoding.UTF8.GetString(body.Slice(2, length)));
+                        body = body[(2 + length)..];
+                    }
+
+                    return (fields[0], fields[1], fields[2]);
+                }),
+        ];
+
+    /// <summary>A plugin's patch file at a new address, as its files loaded again give it.</summary>
+    private void Repatch(string key, string version)
+    {
+        _loaded.SetParts(
+            key,
+            new Dictionary<string, string>
+            {
+                [ExternalVariablesFile.TEMPLATE_PATCHES] =
+                    $"{{\"{key}\":\"/gamedata/plugins/{key}/{version}/template-patches.json\"}}",
+            }
+        );
+        _files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
     }
 
     private void Load(string key, bool theme)

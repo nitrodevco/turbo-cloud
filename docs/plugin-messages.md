@@ -94,7 +94,8 @@ on a header; they are sent the map.
 Turbo's own modules declare named messages the same way, for features no Habbo message carries,
 instead of a hand-numbered header: their names start `turbo.` (the owner `turbo`), any other name
 outside a plugin is refused. Today: `turbo.theme.choose` / `turbo.theme.chosen`, a player's choice of
-theme (`docs/plugin-data.md`, "Who gets which theme").
+theme (`docs/plugin-data.md`, "Who gets which theme"), and `turbo.theme.changed { theme, revision, url }`,
+the player's look changed (`docs/plugin-data.md`, "Live reload").
 
 ## 5. The protocol: `client.messages` (version 1)
 

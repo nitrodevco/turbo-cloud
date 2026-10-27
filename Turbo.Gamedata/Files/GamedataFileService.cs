@@ -116,7 +116,14 @@ internal sealed class GamedataFileService(
     {
         _stamps.TryRemove(file, out _);
         _versions.AddOrUpdate(file, 1, (_, version) => version + 1);
+        Invalidated?.Invoke(file);
     }
+
+    /// <summary>
+    /// Raised after a file's rows were said to have changed (<see cref="Invalidate"/>): live reload
+    /// looks at whose look changed (<see cref="ThemeLiveReload"/>).
+    /// </summary>
+    public event Action<string>? Invalidated;
 
     private int VersionOf(string file) =>
         _versions.TryGetValue(file, out var version) ? version : 0;
@@ -838,6 +845,105 @@ internal sealed class GamedataFileService(
             .Where(x => !habbo.TryGetValue(x.Key, out var value) || value != x.Value)
             .Select(x => x.Key)
             .ToHashSet(StringComparer.Ordinal);
+    }
+
+    /// <summary>The newest looks found by revision (<see cref="FindLook"/>): what a client was sent and is yet to read.</summary>
+    private const int LOOKS_KEPT = 64;
+
+    private readonly ConcurrentDictionary<string, LookBuild> _looks = new(
+        StringComparer.OrdinalIgnoreCase
+    );
+    private readonly ConcurrentDictionary<string, ThemeLook> _lookRevisions = new(
+        StringComparer.Ordinal
+    );
+    private readonly ConcurrentQueue<string> _lookOrder = new();
+
+    private sealed record LookBuild(int Version, object? Inputs, object? Stamp, ThemeLook Look);
+
+    /// <summary>
+    /// What a client drawing <paramref name="theme"/> (null: the hotel's look with no theme of its
+    /// own) reads of the hotel's look (<see cref="ThemeLook"/>): every merged variable of its chain,
+    /// <c>{}</c> for one it gives nothing of, and the hotel's
+    /// <see cref="ExternalVariablesFile.EXTERNAL_TEXTS_URL"/>. Built once per theme and kept until the
+    /// variables file would be built again; the newest <see cref="LOOKS_KEPT"/> are found by revision.
+    /// </summary>
+    public async Task<ThemeLook> ThemeLookAsync(string? theme, CancellationToken ct)
+    {
+        const string file = GamedataFiles.EXTERNAL_VARIABLES;
+
+        var inputs = await InputsAsync(file, ct).ConfigureAwait(false);
+        var stamp = await StampAsync(file, ct).ConfigureAwait(false);
+        var version = VersionOf(file);
+        var key = theme ?? string.Empty;
+
+        if (
+            _looks.TryGetValue(key, out var built)
+            && built.Version == version
+            && Equals(built.Inputs, inputs)
+            && Equals(built.Stamp, stamp)
+        )
+            return built.Look;
+
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+
+        var themes = await ThemesAsync(dbCtx, ct).ConfigureAwait(false);
+        var hotel = await HotelVariablesAsync(
+                dbCtx,
+                ((ExternalVariablesFile.Inputs)inputs!).Addresses,
+                ct
+            )
+            .ConfigureAwait(false);
+        var include = ThemeChains.Includes(theme, themes);
+        var texts = new ThemeTexts(
+            await StaffTextsAsync(dbCtx, ct).ConfigureAwait(false),
+            DepthIn(theme, themes)
+        );
+        var variables = new SortedDictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var merged in ExternalVariablesFile.MERGED)
+            variables[merged] =
+                MergedOf(merged, hotel.GetValueOrDefault(merged), include, texts, log: false)
+                ?? "{}";
+
+        if (hotel.TryGetValue(ExternalVariablesFile.EXTERNAL_TEXTS_URL, out var textsUrl))
+            variables[ExternalVariablesFile.EXTERNAL_TEXTS_URL] = textsUrl;
+
+        var look = new ThemeLook(key, RevisionOf(key, variables), variables);
+
+        _looks[key] = new LookBuild(version, inputs, stamp, look);
+
+        if (_lookRevisions.TryAdd(look.Revision, look))
+        {
+            _lookOrder.Enqueue(look.Revision);
+
+            while (_lookOrder.Count > LOOKS_KEPT && _lookOrder.TryDequeue(out var old))
+                _lookRevisions.TryRemove(old, out _);
+        }
+
+        return look;
+    }
+
+    /// <summary>A look built lately (<see cref="ThemeLookAsync"/>), by its revision; null for one not kept.</summary>
+    public ThemeLook? FindLook(string revision) =>
+        _lookRevisions.TryGetValue(revision, out var look) ? look : null;
+
+    /// <summary>The revision of a look: the same theme and variables, the same revision, on every silo.</summary>
+    private static string RevisionOf(
+        string theme,
+        IEnumerable<KeyValuePair<string, string>> variables
+    )
+    {
+        var text = new System.Text.StringBuilder(theme).Append('\n');
+
+        foreach (var (key, value) in variables)
+            text.Append(key).Append('=').Append(value).Append('\n');
+
+        return Convert.ToHexStringLower(
+            System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(text.ToString())
+            )
+        )[..24];
     }
 
     /// <summary>The hotel's own variables, each written with what it follows, but a plugin's own while it isn't loaded.</summary>

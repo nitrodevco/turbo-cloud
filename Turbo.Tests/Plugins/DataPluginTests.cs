@@ -1446,6 +1446,48 @@ public sealed class DataPluginTests : IDisposable
             false
         );
 
+    /// <summary>A theme author edits a data plugin's file in their editor: the plugin is reloaded and clients get the new file's address (live reload).</summary>
+    [Fact]
+    public async Task A_data_plugin_s_file_edited_on_disk_reloads_the_plugin()
+    {
+        WriteTheme("night");
+
+        var hotel = Hotel();
+
+        await hotel.Manager.LoadAllAsync(ct: Ct);
+
+        string? Address() =>
+            hotel.Loaded.OwnedPartsOf(ExternalVariablesFile.TEMPLATE_PATCHES) is [var (_, part)]
+                ? part
+                : null;
+
+        var before = Address();
+        using var watch = new PluginHotReloadService(
+            hotel.Manager,
+            Options.Create(new PluginConfig { PluginFolderPath = _folder, DebounceMs = 100 }),
+            NullLogger<PluginHotReloadService>.Instance
+        );
+
+        await watch.StartAsync(Ct);
+        File.WriteAllText(
+            Path.Combine(_folder, "night", "wwwroot", PluginGamedataSeeds.TEMPLATE_PATCHES_FILE),
+            PATCHES + " "
+        );
+
+        var after = before;
+
+        for (var i = 0; i < 100 && after == before; i++)
+        {
+            await Task.Delay(100, Ct);
+            after = Address();
+        }
+
+        await watch.StopAsync(Ct);
+
+        before.Should().NotBeNull();
+        after.Should().NotBeNull().And.NotBe(before, "the edited file has another address");
+    }
+
     private void WriteTheme(string key)
     {
         var folder = Path.Combine(_folder, key);
