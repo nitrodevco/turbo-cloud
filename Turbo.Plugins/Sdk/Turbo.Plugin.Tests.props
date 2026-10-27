@@ -1,0 +1,53 @@
+<Project>
+  <!--
+    A Turbo plugin's test project, with the plugin test kit (docs/plugin-testing.md): TestHotel,
+    which loads the plugin as the server does and plays the game against it, and FakeHotel. The
+    server ships this file in plugin-sdk/ beside its assemblies; a plugin's test project imports it
+    from the server it builds against, and references the plugin's own project:
+
+      <Import Project="$(TurboBin)/plugin-sdk/Turbo.Plugin.Tests.props" />
+
+    For tests only: the kit is not among what the server compiles a plugin against, so a plugin's
+    own sources cannot use it.
+  -->
+  <PropertyGroup>
+    <TurboBin>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</TurboBin>
+  </PropertyGroup>
+  <!-- TurboSqliteVersion: the EF Core SQLite provider at the server's EF Core version. -->
+  <Import Project="$(MSBuildThisFileDirectory)Turbo.Versions.props" />
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <!--
+      The kit, and the server's assemblies a plugin builds on (Turbo.Plugin.props' list), which a
+      test names too; what they build on is copied with them, so the tests run without a server.
+    -->
+    <Reference Include="$(TurboBin)/Turbo.Testing.dll" />
+    <TurboPluginTestReference Include="Turbo.Contracts" />
+    <TurboPluginTestReference Include="Turbo.Primitives" />
+    <TurboPluginTestReference Include="Turbo.Database" />
+    <TurboPluginTestReference Include="Microsoft.EntityFrameworkCore" />
+    <TurboPluginTestReference Include="Microsoft.EntityFrameworkCore.Abstractions" />
+    <TurboPluginTestReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <TurboPluginTestReference Include="Orleans.Core.Abstractions" />
+    <TurboPluginTestReference Include="Orleans.Serialization.Abstractions" />
+    <Reference Include="@(TurboPluginTestReference->'$(TurboBin)/%(Identity).dll')" />
+    <!-- The plugin's tables in memory. -->
+    <PackageReference
+      Include="Microsoft.EntityFrameworkCore.Sqlite"
+      Version="$(TurboSqliteVersion)"
+      Condition="'$(ManagePackageVersionsCentrally)' != 'true'"
+    />
+    <PackageReference
+      Include="Microsoft.EntityFrameworkCore.Sqlite"
+      VersionOverride="$(TurboSqliteVersion)"
+      Condition="'$(ManagePackageVersionsCentrally)' == 'true'"
+    />
+    <!-- What the server compiles plugins with: the kit compiles the plugin's sources as the server does. -->
+    <None
+      Include="$(TurboBin)/plugin-sdk/**"
+      Link="plugin-sdk/%(RecursiveDir)%(Filename)%(Extension)"
+      CopyToOutputDirectory="PreserveNewest"
+      Visible="false"
+    />
+  </ItemGroup>
+</Project>

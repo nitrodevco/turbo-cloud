@@ -283,10 +283,15 @@ public sealed class PluginTemplateTests : IDisposable
             Path.Combine("server", "Skills.csproj"),
             Path.Combine("tests", "Skills.Tests", "Skills.Tests.csproj"),
         }
+            .Select(project => XDocument.Load(Path.Combine(Template, project)))
             .SelectMany(project =>
-                XDocument.Load(Path.Combine(Template, project)).Descendants("Reference")
+                project
+                    .Descendants("Reference")
+                    .Select(r => r.Attribute("Include")!.Value)
+                    .Concat(
+                        project.Descendants("Import").Select(i => i.Attribute("Project")!.Value)
+                    )
             )
-            .Select(r => r.Attribute("Include")!.Value)
             .ToList();
 
         references.Should().NotBeEmpty();

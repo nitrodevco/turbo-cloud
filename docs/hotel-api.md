@@ -119,6 +119,11 @@ without a reference stays for things given once per call.
 
 ## FakeHotel
 
+A plugin's tests usually reach it through a test hotel, which loads the plugin as the server
+does and gives it this `FakeHotel` as its hotel (`docs/plugin-testing.md`); on its own it tests one
+class of a plugin.
+
+
 `new FakeHotel()` (optionally from a start time) holds what the test adds and records what the
 plugin does:
 

@@ -26,7 +26,7 @@ const remove = (...parts) => {
 };
 
 for (const file of [ 'SkillBook.cs', `${assembly}Command.cs`, `${assembly}Messages.cs`, `${assembly}Permissions.cs`, `${assembly}Settings.cs`, `${assembly}WeeklyReset.cs` ]) remove('server', file);
-for (const file of [ 'SkillBookTests.cs', `${assembly}WeeklyResetTests.cs` ]) remove('tests', `${assembly}.Tests`, file);
+remove('tests', `${assembly}.Tests`, `${assembly}Tests.cs`);
 for (const file of [ 'skill.ts', 'skillStore.ts', `${assembly}Window.tsx` ]) remove('client', 'src', file);
 remove('client', 'tests', 'skill.test.ts');
 remove('wwwroot', `${key}.png`);

@@ -17,6 +17,22 @@ can notice (internals, core's own behaviour, tests) has no entry.
 
 ## 2026-10-27
 
+### A test kit: test a plugin in a hotel that loads it as the server does
+
+- **What**: `Turbo.Testing.TestHotel` loads a plugin from its sources through the server's compiler
+  and policy (one that would not compile or is refused fails with the server's reasons), registers
+  what it declares with the server's own registries, and runs it as the test's build of the same
+  sources. Tests then play the game: players who say commands and send named messages, purchases
+  asked of its policies, furni running its logic, scheduled tasks on a clock the test moves,
+  settings, web and admin routes, its tables in in-memory SQLite, and assertions in game terms
+  (`bob.Should().HaveReceived<T>()`, `hotel.Purchases.Should().HaveRefused(...)`). A test project
+  imports `plugin-sdk/Turbo.Plugin.Tests.props`. The template's tests use it, and `npm run make
+  command|message` writes a test with the piece.
+- **Who**: every plugin with tests.
+- **Breaks plugins**: no. Test projects that reference `Turbo.Testing.dll` by hand keep working.
+- **Action**: none; to move a test project onto the kit, `docs/plugin-testing.md`.
+- [turbo-cloud#473](https://github.com/nitrodevco/turbo-cloud/pull/473)
+
 ### Turbo Boost: the AI kit for plugin authors
 
 - **What**: the server ships `ai/` (a plugin guideline and ten Agent Skills, one per kind of plugin

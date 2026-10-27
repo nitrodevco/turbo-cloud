@@ -51,6 +51,7 @@ What already works (each with its guide):
 | Tools AI assistants call over MCP | `McpTool<TInput>` + `[RequiresPermission]`, `IMcpTools`, `Turbo.Testing.McpToolTester` | `plugin-mcp-tools.md` |
 | Install, update, rollback, uninstall with data choice | `IPluginAdministration`, `IPluginDataOwner` | `admin-panel.md` |
 | An AI assistant that knows all of this (guideline, skills, dev tools over MCP) | `ai/` shipped in `plugin-sdk/`, the template's `npm run ai`, `IServerLog` | `turbo-boost.md` |
+| Tests that play the game against the plugin, loaded as the server loads it | `Turbo.Testing.TestHotel` (`plugin-sdk/Turbo.Plugin.Tests.props`) | `plugin-testing.md` |
 
 ## 2. What is wrong with it today
 
