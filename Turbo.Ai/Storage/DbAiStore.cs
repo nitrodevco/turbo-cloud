@@ -153,7 +153,7 @@ internal sealed class DbAiStore(IDbContextFactory<TurboDbContext> db) : IAiStore
     {
         await using var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
 
-        return await ctx
+        var totals = await ctx
             .AiUsage.Where(x => x.CreatedAt >= since)
             .GroupBy(x => new
             {
@@ -161,21 +161,37 @@ internal sealed class DbAiStore(IDbContextFactory<TurboDbContext> db) : IAiStore
                 x.Provider,
                 x.Model,
             })
-            .Select(g => new AiUsageTotal(
+            .OrderBy(g => g.Key.PluginKey)
+            .ThenBy(g => g.Key.Provider)
+            .ThenBy(g => g.Key.Model)
+            .Select(g => new
+            {
                 g.Key.PluginKey,
                 g.Key.Provider,
                 g.Key.Model,
-                g.Count(),
-                g.Count(x => x.Outcome != "ok"),
-                g.Sum(x => (long)x.InputTokens),
-                g.Sum(x => (long)x.OutputTokens),
-                g.Sum(x => x.Cost)
-            ))
-            .OrderBy(x => x.Plugin)
-            .ThenBy(x => x.Provider)
-            .ThenBy(x => x.Model)
+                Calls = g.Count(),
+                Failed = g.Count(x => x.Outcome != "ok"),
+                Input = g.Sum(x => (long)x.InputTokens),
+                Output = g.Sum(x => (long)x.OutputTokens),
+                // As a double in the query: not every database sums decimals (SQLite).
+                Cost = g.Sum(x => (double)x.Cost),
+            })
             .ToListAsync(ct)
             .ConfigureAwait(false);
+
+        return
+        [
+            .. totals.Select(x => new AiUsageTotal(
+                x.PluginKey,
+                x.Provider,
+                x.Model,
+                x.Calls,
+                x.Failed,
+                x.Input,
+                x.Output,
+                Math.Round((decimal)x.Cost, 6)
+            )),
+        ];
     }
 
     private static string Cut(string text, int max) => text.Length <= max ? text : text[..max];
