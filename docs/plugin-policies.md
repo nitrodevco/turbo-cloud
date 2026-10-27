@@ -11,7 +11,7 @@ actions:
 Neither needs registering. A public class implementing a policy interface, or an
 `IEventHandler<T>` for one of the events, anywhere in the plugin's assembly is found as the plugin
 loads (built once with the plugin's services and the hotel's, `IHotel` included) and taken away as
-it unloads. `npm run make policy purchase|room-entry|placement|registration|avatar-effect|purchase-fulfilment|public-room-order [<name>]` in a plugin made from
+it unloads. `npm run make policy purchase|room-entry|placement|registration|avatar-effect|purchase-fulfilment|public-room-order|room-arrival [<name>]` in a plugin made from
 `templates/turbo-plugin` writes one.
 
 With no plugin policy the hotel decides as it always has: the official checks (the offer, the club
@@ -28,6 +28,7 @@ room's limits) are the hotel's own and are not policies.
 | `IPlacementPolicy` | before a player places a floor or wall item (from their inventory, the builders club or a sticky note pad) or saves the room's floor plan (`PlacementKind.FloorPlan`, the plan in `request.ModelData`) | `PlacementDecision.Allow`, `.Refuse("why")` |
 | `IAvatarEffectPolicy` | `Wear`: when the hotel puts an effect on an avatar in a room (the player's own, an effect tile, wired, a game team, riding, a freeze; the avatar's kind and player); `Show`: for each player in the room it is sent to, the arriving player included (`view.ViewerId`). Taking an effect off is never asked | the effect (`proposed`/`shown` to let it stand), another, or 0 for none |
 | `IPurchaseFulfilment` | `Fulfils`: after the purchase policies, for an offer bought for oneself or a room ad (never a gift); `FulfilAsync`: once its price is taken | `Fulfils` true to hand it over in the hotel's place; `FulfilAsync` throws to refund it |
+| `IRoomArrivalPolicy` | as the room makes the avatar of a player it has let in (every entry check, `IRoomEntryPolicy` included, has passed): `request.Method`, `request.SourceRoomId` and `request.Extension`, what a plugin's furni sent with the player (`IFurniContext.ForwardToRoomAsync`, `docs/plugin-wired.md`). Not asked for a player arriving inside a teleporter | `proposed` (the door), `proposed.StartAt(x, y, rotation)` to appear there instead of on the door, `proposed with { WalkTo = new(x, y) }` to walk on from where they appear. It never decides whether they come in; a start tile they cannot stand on (off the map, closed, a furni nobody stands on; other players are no obstacle) means the door |
 | `IPublicRoomOrder` | each time a navigator Public tab block is built (`category`: its id, name, kind, plugin key; `rooms`: in the order so far, the order staff set at the start, `Population` the players in each now). Not Habbo's: Habbo lists them as staff set, as the hotel does with none | the same rooms in the order to list them; a room it leaves out follows in its place before, one it adds is not listed |
 
 How the player hears of a refusal:
@@ -101,7 +102,7 @@ public sealed class PromotedRooms(PromotionBoard board) : IPurchaseFulfilment
 Policies of a kind run in `Order` (an `int Order => ...` on the class, 0 by default, lower first),
 then plugin key, then as registered. A purchase's policies each take the decision of the ones before
 (`proposed`), the offer's own price first, so they compose: a discount and a surcharge from two
-plugins both apply, in that order. Avatar effect policies and public room orders compose the same way. For room entry and
+plugins both apply, in that order. Avatar effect policies, public room orders and room arrivals compose the same way. For room entry and
 placement the first refusal is the answer; of purchase fulfilments, the first that takes the
 purchase hands it over.
 
@@ -118,7 +119,9 @@ other kind that throws is logged and passed over (it allows). A cancelled one ca
 
 A purchase policy runs on the buyer's purchase turn: it may read anything (the hotel API, a grain, its
 own tables) but must not buy for the same player. Room entry and placement policies run off the
-room's turn and may ask the room anything. Keep them quick: the player waits on each.
+room's turn and may ask the room anything. Keep them quick: the player waits on each. A room arrival
+policy runs on the room's turn, as the avatar is made: answer from the request and from memory, and
+never ask that room anything.
 
 ### HC members pay 50% for some furni
 

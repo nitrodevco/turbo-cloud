@@ -168,6 +168,7 @@ public sealed class PluginTemplateTests : IDisposable
                 "policy avatar-effect",
                 "policy purchase-fulfilment",
                 "policy public-room-order busiest-first",
+                "policy room-arrival",
             }
         )
             await MakeAsync(source, recipe);
@@ -228,6 +229,7 @@ public sealed class PluginTemplateTests : IDisposable
                 ("avatar-effect", "AvatarEffectPolicy"),
                 ("purchase-fulfilment", "PurchaseFulfilmentPolicy"),
                 ("public-room-order", "BusiestFirstPolicy"),
+                ("room-arrival", "RoomArrivalPolicy"),
             ]);
         host.Schedules.Keys.Should()
             .BeEquivalentTo($"{key}.SkillsWeeklyReset", $"{key}.WeeklyRotation");
@@ -515,6 +517,7 @@ public sealed class PluginTemplateTests : IDisposable
                 "policy avatar-effect",
                 "policy purchase-fulfilment",
                 "policy public-room-order busiest-first",
+                "policy room-arrival",
             }
         )
             await MakeAsync(source, recipe);

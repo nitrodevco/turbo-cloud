@@ -22,7 +22,7 @@
  *   migration <Name>                    the plugin's tables (server/Database) and a migration (dotnet ef)
  *   schedule <name> [--cron "0 18 * * MON" | --every 00:05:00] [--per-server]
  *                                       a scheduled task, run once per cluster (server/Tasks)
- *   policy <purchase|room-entry|placement|registration|avatar-effect|purchase-fulfilment|public-room-order> [<name>]
+ *   policy <purchase|room-entry|placement|registration|avatar-effect|purchase-fulfilment|public-room-order|room-arrival> [<name>]
  *                                       a game policy: allow, refuse or change the action (server/Policies)
  *
  * A file that is there already is left alone (the command says so and stops).
@@ -286,7 +286,9 @@ namespace ${assembly};
 /// <summary>
 /// The logic of the floor furniture whose logic is <c>${name}</c> in the hotel's furniture
 /// definitions; everything it does not override is the furni's as the hotel defines it. Found as
-/// the plugin loads; the furniture goes back to its old logic when it unloads.
+/// the plugin loads; the furniture goes back to its old logic when it unloads. LinkedPair = true
+/// on the attribute sells it in pairs like a teleporter; OnMessageAsync takes messages from the
+/// plugin's own handlers (IHotel.Rooms.InvokeFurniLogicAsync).
 /// </summary>
 [FurniLogic("${name}")]
 public sealed class ${type} : FurniLogic
@@ -469,6 +471,13 @@ public sealed class ${type} : IScheduledTask
                 summary: 'Orders a navigator Public tab category\'s rooms each time its block is built (not Habbo\'s, which keeps the order staff\n/// set): here the busiest first, the rest as staff set. Answer from the rooms given, at once.',
                 members: `    public IReadOnlyList<RoomInfoSnapshot> OrderRooms(PublicRoomCategory category, IReadOnlyList<RoomInfoSnapshot> rooms) =>
         [.. rooms.OrderByDescending(x => x.Population)];`,
+            },
+            'room-arrival': {
+                contract: 'IRoomArrivalPolicy',
+                decision: 'RoomArrivalDecision',
+                parameters: 'RoomArrivalRequest request, RoomArrivalDecision proposed, CancellationToken ct',
+                body: 'ValueTask.FromResult(proposed)',
+                summary: 'Asked on the room\'s turn, once a player has been let in, for where they appear: return proposed (the door),\n/// proposed.StartAt(x, y, rotation) to skip the door, or proposed with { WalkTo = new(x, y) }. request.Extension is\n/// what your furni sent with them. It never decides whether they come in; a tile they cannot stand on means the door.',
             },
         };
         const policy = kinds[name];

@@ -14,7 +14,7 @@ namespace Turbo.Players.Policies;
 /// <summary>
 /// Registers the game policies an assembly declares (<see cref="IPurchasePolicy"/>,
 /// <see cref="IRoomEntryPolicy"/>, <see cref="IPlacementPolicy"/>, <see cref="IRegistrationPolicy"/>, <see cref="IAvatarEffectPolicy"/>,
-/// <see cref="IPurchaseFulfilment"/>, <see cref="IPublicRoomOrder"/>), so a plugin's policies run
+/// <see cref="IPurchaseFulfilment"/>, <see cref="IPublicRoomOrder"/>, <see cref="IRoomArrivalPolicy"/>), so a plugin's policies run
 /// while it is loaded and go when it unloads. Each class is built once with the plugin's services
 /// (one implementing several kinds is one instance) and must be public to be found.
 /// </summary>
@@ -35,6 +35,7 @@ internal sealed class GamePolicyFeatureProcessor(GamePolicies policies) : IAssem
             typeof(IAvatarEffectPolicy),
             typeof(IPurchaseFulfilment),
             typeof(IPublicRoomOrder),
+            typeof(IRoomArrivalPolicy),
         }
             .SelectMany(kind => AssemblyExplorer.FindAssignees(asm, kind))
             .Distinct()

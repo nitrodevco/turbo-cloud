@@ -327,6 +327,69 @@ public sealed class GamePolicyTests : IAsyncDisposable
             .Be(OPEN_ROOM);
     }
 
+    /// <summary>
+    /// A plugin's arrival policy only places a player the hotel let in: a player its furni sent
+    /// with an entry extension still meets the room entry policies, and one refused never gets an
+    /// avatar to place.
+    /// </summary>
+    [Fact]
+    public async Task A_player_carrying_an_entry_extension_is_still_refused_by_a_room_entry_policy()
+    {
+        await LoadAsync(
+            (
+                "portals",
+                $$"""
+                public sealed class ClosedRoom : IRoomEntryPolicy
+                {
+                    public ValueTask<RoomEntryDecision> DecideAsync(RoomEntryRequest request, CancellationToken ct) =>
+                        ValueTask.FromResult(
+                            request.RoomId.Value == {{CLOSED_ROOM}}
+                                ? RoomEntryDecision.Refuse("Closed for the party.")
+                                : RoomEntryDecision.Allow
+                        );
+                }
+
+                public sealed class PortalArrival : IRoomArrivalPolicy
+                {
+                    public ValueTask<RoomArrivalDecision> DecideAsync(
+                        RoomArrivalRequest request, RoomArrivalDecision proposed, CancellationToken ct
+                    ) => ValueTask.FromResult(proposed.StartAt(3, 3, Turbo.Primitives.Rooms.Enums.Rotation.East));
+                }
+                """
+            )
+        );
+        var fakes = EntryFakes();
+        fakes.Handlers["GetPendingRoomEntryAsync"] = _ =>
+            Task.FromResult(
+                new RoomEntrySnapshot
+                {
+                    Method = RoomEntryMethodType.Default,
+                    TeleportId = 0,
+                    SourceRoomId = OPEN_ROOM,
+                    Extension = new RoomEntryExtension("portals", "{}"),
+                }
+            );
+
+        await Rooms(fakes)
+            .OpenRoomForPlayerIdAsync(
+                ActionContext.CreateForPlayer(PLAYER, -1),
+                PLAYER,
+                CLOSED_ROOM,
+                RoomEntryAccessType.Allowed,
+                Ct
+            );
+
+        _policies.Registered.Select(x => x.Kind).Should().Contain("room-arrival");
+        fakes
+            .Sent<CantConnectMessageComposer>()
+            .Should()
+            .ContainSingle()
+            .Which.ErrorType.Should()
+            .Be(RoomConnectionErrorType.NoEntry);
+        fakes.Log.Of("SetActiveRoomAsync").Should().BeEmpty();
+        fakes.Log.Of("GetEntryViewAsync").Should().BeEmpty("the room is not streamed");
+    }
+
     [Fact]
     public async Task A_room_entry_policy_can_send_the_player_to_another_room_instead()
     {

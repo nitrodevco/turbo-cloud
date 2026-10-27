@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Contracts.Hotel;
 using Turbo.Database.Context;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Orleans;
@@ -104,6 +105,13 @@ internal sealed class HostHotelRooms(
             .GetRoomGrain(room)
             .WhisperToPlayerAsync(player, text, ct)
             .ConfigureAwait(false);
+
+    public Task<FurniLogicReply> InvokeFurniLogicAsync(
+        RoomId room,
+        int itemId,
+        FurniLogicMessage message,
+        CancellationToken ct
+    ) => grains.GetRoomGrain(room).InvokeFurniLogicAsync(itemId, message, ct);
 
     public Task LoadAsync(RoomId room, CancellationToken ct) =>
         grains.GetRoomGrain(room).EnsureRoomActiveAsync(ct);

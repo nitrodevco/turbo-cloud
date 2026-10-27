@@ -478,7 +478,10 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   `RoomEntryMethodType.Teleport` entry naming the far half, the avatar module starts the player
   inside it instead of at the door (a module asks the interface; it never names the furni), and
   the entry handlers let a teleport arrival past the door — doorbell and password, not bans or
-  capacity (`IGrainFactory.IsArrivingByTeleportAsync`). The pending entry expires after
+  capacity (`IGrainFactory.PassesRoomDoorAsync`). A plugin's linked pair passes the door the
+  same way when core finds it sending someone to its other half's room
+  (`RoomEntrySnapshot.ThroughLinkedPair`), but it is no teleporter arrival: the arrival policies
+  still place them and the entry method stays a plain one. The pending entry expires after
   `PlayerConfig.PendingRoomEntryTtlMs`, so a forward never followed cannot open a door later.
 - One player at a time. While a teleporter holds someone, their own walk requests are refused
   (`IRoomAvatar.IsTeleporting`) without stopping the walk the teleporter has them on; every

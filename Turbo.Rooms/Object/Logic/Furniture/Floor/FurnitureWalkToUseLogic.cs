@@ -55,27 +55,49 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
     /// Uses it for the avatar from the first of <paramref name="useTiles"/> (best first) when it
     /// stands there, or walks it to the first of them it can reach and uses it on arrival.
     /// </summary>
-    protected async Task WalkToUseAsync(
+    protected Task WalkToUseAsync(
         ActionContext ctx,
         IRoomAvatar avatar,
         IEnumerable<int> useTiles,
         CancellationToken ct
+    ) =>
+        WalkToAsync(
+            avatar,
+            useTiles,
+            (arrived, token) => UseFromTileAsync(ctx, arrived, token),
+            ct
+        );
+
+    /// <summary>
+    /// Runs <paramref name="onArrived"/> for the avatar at once when it stands still on the first
+    /// of <paramref name="tiles"/> (best first), or walks it to the first of them it can reach and
+    /// runs it on arrival, in a tick of this furni. False when it can reach none of them. A later
+    /// walk for the same avatar replaces this one; walking off elsewhere or taking too long
+    /// forgets it.
+    /// </summary>
+    protected async Task<bool> WalkToAsync(
+        IRoomAvatar avatar,
+        IEnumerable<int> tiles,
+        Func<IRoomAvatar, CancellationToken, Task> onArrived,
+        CancellationToken ct
     )
     {
         var map = MapModule;
-        var tiles = useTiles.ToList();
+        var list = tiles.ToList();
 
-        if (tiles.Count == 0)
-            return;
+        if (list.Count == 0)
+            return false;
 
-        if (map.ToIdx(avatar.X, avatar.Y) == tiles[0] && !avatar.IsWalking)
+        if (map.ToIdx(avatar.X, avatar.Y) == list[0] && !avatar.IsWalking)
         {
-            await UseFromTileAsync(ctx, avatar, ct);
+            _approaching.Remove(avatar.ObjectId);
 
-            return;
+            await onArrived(avatar, ct);
+
+            return true;
         }
 
-        foreach (var tileIdx in tiles)
+        foreach (var tileIdx in list)
         {
             var (x, y) = map.GetTileXY(tileIdx);
 
@@ -84,14 +106,16 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
 
             _approaching[avatar.ObjectId] = new()
             {
-                Ctx = ctx,
+                Arrive = onArrived,
                 TileIdx = tileIdx,
                 UntilMs = NowMs() + WalkTimeoutMs,
             };
             ScheduleTick();
 
-            return;
+            return true;
         }
+
+        return false;
     }
 
     /// <summary>
@@ -204,13 +228,13 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
                 _approaching.Remove(objectId);
 
                 if (avatar.NextTileId == tileIdx || MapModule.ToIdx(avatar.X, avatar.Y) == tileIdx)
-                    await UseFromTileAsync(approach.Ctx, avatar, ct);
+                    await approach.Arrive(avatar, ct);
             }
             else if (arrived)
             {
                 _approaching.Remove(objectId);
 
-                await UseFromTileAsync(approach.Ctx, avatar, ct);
+                await approach.Arrive(avatar, ct);
             }
             else if (!avatar.IsWalking || now >= approach.UntilMs || avatar.GoalTileId != tileIdx)
                 _approaching.Remove(objectId);
@@ -224,8 +248,8 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
 
     private sealed class Approach
     {
-        /// <summary>The use request.</summary>
-        public required ActionContext Ctx { get; init; }
+        /// <summary>What happens once the avatar is there: the use, for a use request.</summary>
+        public required Func<IRoomAvatar, CancellationToken, Task> Arrive { get; init; }
 
         /// <summary>The tile the avatar was sent to.</summary>
         public required int TileIdx { get; init; }

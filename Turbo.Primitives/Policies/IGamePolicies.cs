@@ -9,9 +9,10 @@ namespace Turbo.Primitives.Policies;
 /// <summary>
 /// The host's side of the game policies (<see cref="IPurchasePolicy"/>,
 /// <see cref="IRoomEntryPolicy"/>, <see cref="IPlacementPolicy"/>, <see cref="IRegistrationPolicy"/>,
-/// <see cref="IAvatarEffectPolicy"/>, <see cref="IPurchaseFulfilment"/>, <see cref="IPublicRoomOrder"/>): every registered one of a kind,
-/// run in order (<c>Order</c>, then plugin key, then as registered). A purchase's, an avatar
-/// effect's and a public room order's policies each take the decision of the ones before; for room entry, placement and
+/// <see cref="IAvatarEffectPolicy"/>, <see cref="IPurchaseFulfilment"/>, <see cref="IPublicRoomOrder"/>,
+/// <see cref="IRoomArrivalPolicy"/>): every registered one of a kind, run in order (<c>Order</c>,
+/// then plugin key, then as registered). A purchase's, an avatar effect's, a public room order's
+/// and a room arrival's policies each take the decision of the ones before; for room entry, placement and
 /// registration the first refusal is the answer; the first purchase fulfilment that takes an
 /// offer fulfils it. With
 /// none the hotel decides as it always does. Two plugins with a policy of the same kind both run,
@@ -39,6 +40,17 @@ public interface IGamePolicies
 
     ValueTask<RegistrationDecision> DecideRegistrationAsync(
         RegistrationRequest request,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Where a player let into a room appears (<see cref="IRoomArrivalPolicy"/>, each on what the
+    /// one before decided); <paramref name="proposed"/>, the door, with none. Runs on the room's
+    /// turn, after every entry check.
+    /// </summary>
+    ValueTask<RoomArrivalDecision> DecideRoomArrivalAsync(
+        RoomArrivalRequest request,
+        RoomArrivalDecision proposed,
         CancellationToken ct
     );
 
@@ -80,7 +92,8 @@ public interface IGamePolicies
 
 /// <summary>
 /// One registered policy: its kind (<c>purchase</c>, <c>room-entry</c>, <c>placement</c>,
-/// <c>registration</c>, <c>avatar-effect</c>, <c>purchase-fulfilment</c>, <c>public-room-order</c>), the
+/// <c>registration</c>, <c>avatar-effect</c>, <c>purchase-fulfilment</c>, <c>public-room-order</c>,
+/// <c>room-arrival</c>), the
 /// plugin that registered it (<c>core</c> for the host's own), its class and order, and the other
 /// owners with a policy of the same kind (empty when it has the kind to itself).
 /// </summary>

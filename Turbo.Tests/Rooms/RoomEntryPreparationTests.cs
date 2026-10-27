@@ -5,6 +5,7 @@ using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Rooms.Grains.Modules;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -486,6 +487,103 @@ public class RoomEntryPreparationTests
         );
         Assert.DoesNotContain(PacketHarness.Outgoing("RoomChatSettingsMessageComposer"), headers);
         Assert.Equal(PacketHarness.Outgoing("ItemsMessageComposer"), headers[^1]);
+    }
+
+    /// <summary>
+    /// A teleporter's far half lets a player past a room's door (doorbell, password). The data a
+    /// plugin's furni sends with a player (<see cref="RoomEntrySnapshot.Extension"/>, for the room's
+    /// arrival policies) never does: only core's own linked-pair check
+    /// (<see cref="RoomEntrySnapshot.ThroughLinkedPair"/>, the next test) passes the door; otherwise
+    /// the room checks the door, bans and capacity as for anyone walking in.
+    /// </summary>
+    [Theory]
+    [InlineData(RoomEntryMethodType.Teleport, false, true)]
+    [InlineData(RoomEntryMethodType.Default, false, false)]
+    [InlineData(RoomEntryMethodType.RoomNetwork, false, false)]
+    [InlineData(RoomEntryMethodType.Default, true, true)]
+    public async Task An_entry_extension_never_lets_a_player_past_the_door(
+        RoomEntryMethodType method,
+        bool throughLinkedPair,
+        bool passesDoor
+    )
+    {
+        var harness = CreateHarness(RoomEntryAccessType.Banned);
+        harness.Fakes.Handlers["GetPendingRoomEntryAsync"] = _ =>
+            Task.FromResult(
+                new RoomEntrySnapshot
+                {
+                    Method = method,
+                    TeleportId = method == RoomEntryMethodType.Teleport ? 5 : 0,
+                    SourceRoomId = 7,
+                    Extension = new RoomEntryExtension("portals", "{}"),
+                    ThroughLinkedPair = throughLinkedPair,
+                }
+            );
+
+        await OpenRoomAsync(harness);
+
+        var check = Assert.Single(harness.Fakes.Log.Of("CheckEntryAccessAsync"));
+        Assert.Equal("password", check.Args[1]);
+        Assert.Equal(passesDoor, check.Args[2]);
+    }
+
+    /// <summary>
+    /// The room's door for a player a plugin's linked pair sent to its other half's room
+    /// (<see cref="RoomEntrySnapshot.ThroughLinkedPair"/>, checked by core): no doorbell and no
+    /// password, as for a teleporter's arrival, but a ban and a full room still refuse them. The
+    /// same entry without the pair (a plain forward carrying a plugin's data) still rings and
+    /// still asks.
+    /// </summary>
+    [Theory]
+    [InlineData(RoomDoorModeType.Locked, true, false, false, RoomEntryAccessType.Allowed)]
+    [InlineData(RoomDoorModeType.Password, true, false, false, RoomEntryAccessType.Allowed)]
+    [InlineData(RoomDoorModeType.Locked, false, false, false, RoomEntryAccessType.Doorbell)]
+    [InlineData(
+        RoomDoorModeType.Password,
+        false,
+        false,
+        false,
+        RoomEntryAccessType.InvalidPassword
+    )]
+    [InlineData(RoomDoorModeType.Locked, true, true, false, RoomEntryAccessType.Banned)]
+    [InlineData(RoomDoorModeType.Locked, true, false, true, RoomEntryAccessType.Full)]
+    public async Task A_linked_pairs_entry_passes_the_door_but_not_a_ban_or_a_full_room(
+        RoomDoorModeType door,
+        bool throughLinkedPair,
+        bool banned,
+        bool full,
+        RoomEntryAccessType expected
+    )
+    {
+        const int VISITOR = 500;
+        var room = new LiveRoomHarness();
+        room.State.RoomSnapshot = room.State.RoomSnapshot with
+        {
+            DoorMode = door,
+            Password = "secret",
+            PlayersMax = 1,
+        };
+
+        if (banned)
+            room.State.BannedUntilByPlayerId[VISITOR] = DateTime.UtcNow.AddHours(1);
+
+        if (full)
+            room.State.AvatarsByPlayerId[501] = 501;
+
+        var entry = new RoomEntrySnapshot
+        {
+            Method = RoomEntryMethodType.Default,
+            TeleportId = 0,
+            SourceRoomId = 7,
+            Extension = new RoomEntryExtension("portals", "{}"),
+            ThroughLinkedPair = throughLinkedPair,
+        };
+
+        Assert.Equal(
+            expected,
+            await room.Module<RoomEntryModule>()
+                .CheckAccessAsync(VISITOR, "wrong", bypassDoor: entry.PassesDoor)
+        );
     }
 
     private static async Task<PacketHarness> ApprovedHarnessAsync(

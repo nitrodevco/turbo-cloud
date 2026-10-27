@@ -42,7 +42,7 @@ What already works (each with its guide):
 | Own tables and migrations | `PluginDbContextBase` (found and migrated as the plugin loads) | `database.md` |
 | Packet handlers and packet middleware | `IMessageHandler<T>`, `IMessageBehavior<T>` | `plugin-packets.md` |
 | Commands | `ICommand<TArgs>` | `commands.md` |
-| Furni and wired logic | `FurniLogic` + `[FurniLogic]`, `WiredEffect`/`WiredTrigger<TEvent>`/`WiredCondition`/`WiredSelector` + `[WiredBox]`, `IHotel.Wired` (contracts only) | `plugin-wired.md` |
+| Furni and wired logic | `FurniLogic` + `[FurniLogic]` (walk-to with arrival, user actions, forward with an entry extension, linked pairs (a forward to the other half's room passes its door as a teleporter does), messages from the plugin's handlers), `WiredEffect`/`WiredTrigger<TEvent>`/`WiredCondition`/`WiredSelector` + `[WiredBox]`, `IHotel.Wired` (contracts only) | `plugin-wired.md` |
 | Observe rooms | `IRoomEventListener` | `plugin-room-events.md` |
 | Games | `IRoomGame`, `IGameAccessPolicy` | `plugin-games.md` |
 | Permissions | `IPermissionNodeSource`, `[RequiresPermission]` | `permissions.md` |
@@ -95,7 +95,7 @@ say which in its guide. One kind per problem keeps the surface learnable.
 | Kind | Use it to | May change the outcome? | Runs |
 | --- | --- | --- | --- |
 | **Event** | observe something that happened (`PurchaseCompletedEvent`, `PlayerLoggedInEvent`, `PlayerLoginFailedEvent`, `PlayerRegisteredEvent`, `PlayerRegistrationFailedEvent`, `PlayerIdentityLinkedEvent`, `RoomEnteredEvent`, `HotelAvailabilityChangedEvent`: `docs/plugin-policies.md`) | no | after the fact |
-| **Pipeline / policy** | allow, refuse or adjust an action before it commits (`IPurchasePolicy` incl. room ads, `IRoomEntryPolicy`, `IPlacementPolicy`, `IRegistrationPolicy`: `docs/plugin-policies.md`) | yes, explicitly | before commit, in the owner's context |
+| **Pipeline / policy** | allow, refuse or adjust an action before it commits (`IPurchasePolicy` incl. room ads, `IRoomEntryPolicy`, `IRoomArrivalPolicy`, `IPlacementPolicy`, `IRegistrationPolicy`: `docs/plugin-policies.md`) | yes, explicitly | before commit, in the owner's context |
 | **Service contract** | replace or add an implementation of a named contract | yes, the whole behaviour | wherever the contract is called |
 | **Registry** | add a new thing of a known kind (command, logic, game, message, web route) | n/a | as registered |
 | **Template patch** | change or extend an existing window, as data | presentation only | where the template is read |

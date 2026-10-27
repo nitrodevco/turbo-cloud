@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Contracts.Hotel;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Plugins.Messages;
@@ -49,6 +50,7 @@ public sealed class FakeRooms : IHotelRooms
     private readonly List<FakeRoom> _rooms = [];
     private readonly List<(RoomId Room, object Message)> _sent = [];
     private readonly List<(RoomId Room, PlayerId Player, string Text)> _whispers = [];
+    private readonly List<(RoomId Room, int ItemId, FurniLogicMessage Message)> _furniMessages = [];
 
     internal FakeRooms(FakeHotel hotel) => _hotel = hotel;
 
@@ -57,6 +59,16 @@ public sealed class FakeRooms : IHotelRooms
     public IReadOnlyList<(RoomId Room, object Message)> Sent => _sent;
 
     public IReadOnlyList<(RoomId Room, PlayerId Player, string Text)> Whispers => _whispers;
+
+    /// <summary>Every furni logic message handed to a room, in order.</summary>
+    public IReadOnlyList<(RoomId Room, int ItemId, FurniLogicMessage Message)> FurniMessages =>
+        _furniMessages;
+
+    /// <summary>
+    /// What a furni logic message is answered with; <see cref="FurniLogicReply.UnknownItem"/> when
+    /// unset, as a room without that item answers.
+    /// </summary>
+    public Func<RoomId, int, FurniLogicMessage, FurniLogicReply>? FurniLogic { get; set; }
 
     /// <summary>The id the next <see cref="Add"/> gets (1 to start); set it to match the ids a test needs.</summary>
     public int NextId { get; set; } = 1;
@@ -120,6 +132,20 @@ public sealed class FakeRooms : IHotelRooms
         _whispers.Add((room, player, text));
 
         return Task.FromResult(true);
+    }
+
+    public Task<FurniLogicReply> InvokeFurniLogicAsync(
+        RoomId room,
+        int itemId,
+        FurniLogicMessage message,
+        CancellationToken ct
+    )
+    {
+        _furniMessages.Add((room, itemId, message));
+
+        return Task.FromResult(
+            FurniLogic?.Invoke(room, itemId, message) ?? FurniLogicReply.UnknownItem
+        );
     }
 
     public Task LoadAsync(RoomId room, CancellationToken ct)

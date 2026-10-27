@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Object;
@@ -24,6 +25,21 @@ public partial interface IRoomGrain
         ActionContext ctx,
         RoomObjectId itemId,
         bool confirmed,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Hands <paramref name="message"/> to the plugin furni logic of floor item
+    /// <paramref name="itemId"/> (its <c>FurniLogic.OnMessageAsync</c>), in the room's turn: one way
+    /// for a plugin's packet handler, command or task to reach its own furni. Never throws for the
+    /// caller: an item not in the room is <see cref="FurniLogicReplyStatus.UnknownItem"/>, one not
+    /// running the logic <see cref="FurniLogicMessage.Key"/> names is
+    /// <see cref="FurniLogicReplyStatus.WrongLogic"/>, and a logic that throws is
+    /// <see cref="FurniLogicReplyStatus.Failed"/>. Loads the room's furni when it is not loaded.
+    /// </summary>
+    public Task<FurniLogicReply> InvokeFurniLogicAsync(
+        int itemId,
+        FurniLogicMessage message,
         CancellationToken ct
     );
 

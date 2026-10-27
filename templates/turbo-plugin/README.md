@@ -94,7 +94,7 @@ guide to read (turbo-cloud `docs/`).
 | `npm run make patch habbo-friend-list-com/friend_list_xml` | an entry in `wwwroot/template-patches.json` to fill with ops | the client, as the plugin loads |
 | `npm run make migration AddPrizes` | `server/Database/SkillsDb.cs` (once; its `TablePrefix` in `manifest.json`) and the migration, by `dotnet ef migrations add` | the host, which migrates the tables as the plugin loads |
 | `npm run make schedule weekly-rotation --cron "0 18 * * MON"` | `server/Tasks/WeeklyRotation.cs`: a scheduled task (`--every 00:05:00` for an interval) | the scheduled task scan |
-| `npm run make policy purchase club-discount` | `server/Policies/ClubDiscountPolicy.cs`: allows, refuses or changes a purchase (`room-entry`, `placement`, `registration`, `avatar-effect`, `purchase-fulfilment`, `public-room-order` for the others) | the game policy scan |
+| `npm run make policy purchase club-discount` | `server/Policies/ClubDiscountPolicy.cs`: allows, refuses or changes a purchase (`room-entry`, `placement`, `registration`, `avatar-effect`, `purchase-fulfilment`, `public-room-order`, `room-arrival` for the others) | the game policy scan |
 
 `make migration` needs `dotnet ef` once per machine (`dotnet tool install --global dotnet-ef`) and
 a built server (`TurboBin`): the context needs no design-time factory. The first run writes the
