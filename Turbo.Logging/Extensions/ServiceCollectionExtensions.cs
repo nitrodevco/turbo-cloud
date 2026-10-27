@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Turbo.Logging.Factories;
+using Turbo.Primitives.Logging;
 
 namespace Turbo.Logging.Extensions;
 
@@ -21,6 +22,12 @@ public static class ServiceCollectionExtensions
         builder.Logging.ClearProviders();
         builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
         builder.Logging.AddTurboConsoleLogger();
+
+        // What the console is given, kept in memory for a developer's tools (IServerLog).
+        var log = new ServerLog();
+
+        builder.Logging.AddProvider(log);
+        services.AddSingleton<IServerLog>(log);
 
         return services;
     }
