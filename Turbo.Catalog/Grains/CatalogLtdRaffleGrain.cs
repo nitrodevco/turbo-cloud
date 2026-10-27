@@ -23,6 +23,7 @@ using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Wallet;
+using Turbo.Primitives.Policies;
 
 namespace Turbo.Catalog.Grains;
 
@@ -41,6 +42,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
     private readonly CatalogConfig _config;
     private readonly IGrainFactory _grainFactory;
     private readonly ICatalogService _catalogService;
+    private readonly IGamePolicies _policies;
     private readonly EventSystem _events;
     private readonly ILogger<ICatalogLtdRaffleGrain> _logger;
 
@@ -53,6 +55,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         IOptions<CatalogConfig> config,
         IGrainFactory grainFactory,
         ICatalogService catalogService,
+        IGamePolicies policies,
         EventSystem events,
         ILogger<ICatalogLtdRaffleGrain> logger
     )
@@ -61,6 +64,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         _config = config.Value;
         _grainFactory = grainFactory;
         _catalogService = catalogService;
+        _policies = policies;
         _events = events;
         _logger = logger;
 
@@ -198,6 +202,28 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
             if (alreadyWon)
                 return LtdRaffleEntryResult.Failed(LtdRaffleEntryErrorType.AlreadyWon);
         }
+
+        // The hotel's plugins may refuse the entry (IPurchasePolicy), as any purchase; a sale won
+        // is charged the offer's own price, so a refusal is all they decide here.
+        var decision = await _policies.DecidePurchaseAsync(
+            new PurchaseRequest(
+                playerId,
+                PurchaseKind.LimitedEdition,
+                CatalogType.Normal,
+                offer,
+                1
+            ),
+            new PurchaseDecision
+            {
+                CostCredits = offer.CostCredits,
+                CostSilver = offer.CostSilver,
+                CostActivityPoints = offer.CostCurrency,
+            },
+            ct
+        );
+
+        if (!decision.Allowed)
+            return LtdRaffleEntryResult.Refused(decision.Error, decision.Reason);
 
         if (buffer <= 0 || _state.RaffleFinished)
         {
@@ -425,7 +451,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
             if (_state.Series is { } held)
                 _state.Series = held with { RemainingQuantity = series.RemainingQuantity };
 
-            await _grainFactory
+            var granted = await _grainFactory
                 .GetInventoryGrain(playerId)
                 .GrantLtdFurnitureAsync(
                     series.CatalogProductEntityId,
@@ -462,6 +488,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                 new PurchaseCompletedEvent
                 {
                     PlayerId = PlayerId.Parse(playerId),
+                    Kind = PurchaseKind.LimitedEdition,
                     CatalogType = CatalogType.Normal,
                     OfferId = offer.Id,
                     ProductCode = offer.LocalizationId,
@@ -470,6 +497,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
                     CostSilver = offer.CostSilver,
                     CostActivityPoints = offer.CostCurrency,
                     ActivityPointType = offer.ActivityPointType,
+                    ItemIds = [.. granted.Select(x => x.ItemId)],
                 }
             );
 

@@ -14,7 +14,9 @@ namespace Turbo.Pipeline;
 /// <summary>
 /// Dispatches envelopes to their registered handlers and behaviors. A handler or behavior that
 /// fails is logged here and does not stop its siblings, and the failure is not rethrown: this is
-/// the one place a handler failure is logged, so callers must not log it again.
+/// the one place a handler failure is logged, so callers must not log it again. A behavior that
+/// fails before it passes the envelope on (or cannot be built) drops it: the behaviors after it
+/// and the handlers never see it, and nobody is answered (<see cref="IBehavior{TEnvelope, TContext}"/>).
 /// </summary>
 public class EnvelopeHost<TEnvelope, TMeta, TContext>(
     IServiceProvider host,
@@ -275,17 +277,19 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
         }
         catch (Exception ex)
         {
+            // Closed, as one that throws: a behavior there to stop an envelope must not let it
+            // through because it could not be built.
             _logger.LogError(
                 ex,
-                "Failed to activate behavior {BehaviorType} for {EnvelopeType}",
+                "Failed to activate behavior {BehaviorType} for {EnvelopeType}; the envelope is dropped",
                 beh.BehaviorType,
                 env.GetType()
             );
 
-            await next(env, ctx, ct).ConfigureAwait(false);
-
             return;
         }
+
+        var passedOn = false;
 
         try
         {
@@ -293,19 +297,31 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
                     inst,
                     env,
                     ctx,
-                    async () => await next(env, ctx, ct).ConfigureAwait(false),
+                    async () =>
+                    {
+                        passedOn = true;
+                        await next(env, ctx, ct).ConfigureAwait(false);
+                    },
                     ct
                 )
                 .ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            _logger.LogError(
-                ex,
-                "Behavior {BehaviorType} failed for {EnvelopeType}",
-                beh.BehaviorType,
-                env.GetType()
-            );
+            if (passedOn)
+                _logger.LogError(
+                    ex,
+                    "Behavior {BehaviorType} failed for {EnvelopeType} after passing it on",
+                    beh.BehaviorType,
+                    env.GetType()
+                );
+            else
+                _logger.LogError(
+                    ex,
+                    "Behavior {BehaviorType} failed for {EnvelopeType} before passing it on; the envelope is dropped",
+                    beh.BehaviorType,
+                    env.GetType()
+                );
         }
         finally
         {

@@ -11,6 +11,7 @@ using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Movements;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Policies;
 
 namespace Turbo.Catalog.Grains;
 
@@ -97,6 +98,17 @@ internal sealed partial class CatalogPurchaseGrain
         if (club.DaysConsumed / _giftIntervalDays - claimed <= 0)
             throw new CatalogPurchaseException(CatalogPurchaseErrorType.PurchaseFailed);
 
+        // The hotel's plugins may refuse it (IPurchasePolicy); it costs nothing, so that is all
+        // they decide.
+        var request = new PurchaseRequest(
+            playerId,
+            PurchaseKind.ClubGiftClaim,
+            CatalogType.Normal,
+            offer,
+            1
+        );
+        await DecideAsync(request, new PurchaseDecision(), ct);
+
         // The claim is written before the gift is handed over: a row that is there for a gift
         // nobody received costs the player one gift, while a gift given with no row would let
         // them take every offer on the shelf.
@@ -113,7 +125,7 @@ internal sealed partial class CatalogPurchaseGrain
             await dbCtx.SaveChangesAsync(ct);
         }
 
-        await _grainFactory
+        var granted = await _grainFactory
             .GetInventoryGrain(playerId)
             .GrantCatalogOfferAsync(
                 offer,
@@ -128,6 +140,10 @@ internal sealed partial class CatalogPurchaseGrain
             playerId,
             offer.Id,
             offer.LocalizationId
+        );
+
+        _events.PublishCommitted(
+            Completed(request, new PurchaseDecision(), 1, [.. granted.Select(x => x.ItemId)])
         );
 
         return offer;

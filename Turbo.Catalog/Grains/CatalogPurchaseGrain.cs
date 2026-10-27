@@ -42,6 +42,7 @@ using Turbo.Primitives.Policies;
 using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Catalog.Grains;
@@ -186,8 +187,17 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
                 : quantity;
 
         // The hotel's plugins may refuse it, or change what it costs or gives (IPurchasePolicy).
-        var request = new PurchaseRequest(this.GetPlayerId(), catalogType, offer, quantity);
-        var decision = await DecideAsync(request, offer, quantity, units, ct);
+        var request = new PurchaseRequest(
+            this.GetPlayerId(),
+            offer.Products.Any(x => x.SubscriptionType is not null)
+                ? PurchaseKind.ClubMembership
+                : PurchaseKind.Catalog,
+            catalogType,
+            offer,
+            quantity,
+            ExtraParam: extraParam
+        );
+        var decision = await DecideAsync(request, Priced(offer, quantity, units), ct);
 
         units = decision.Units;
 
@@ -217,7 +227,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
                     ct
                 );
 
-            _events.PublishCommitted(Completed(catalogType, offer, decision, units, null));
+            _events.PublishCommitted(Completed(request, decision, units, []));
 
             return new CatalogPurchaseResult { Offer = offer };
         }
@@ -279,7 +289,9 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         if (catalogType == CatalogType.Normal)
             await RecordReceptionProgressAsync(offer, debitRequests, quantity, ct);
 
-        _events.PublishCommitted(Completed(catalogType, offer, decision, units, null));
+        _events.PublishCommitted(
+            Completed(request, decision, units, [.. granted.Select(x => x.ItemId)])
+        );
 
         // The confirmation lists the furni bought after the offer, floor and wall apart.
         return new CatalogPurchaseResult
@@ -772,6 +784,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         // A new promotion needs a free room; an extension needs a running one.
         var request = new PurchaseRequest(
             playerId,
+            PurchaseKind.RoomAd,
             CatalogType.Normal,
             offer,
             1,
@@ -792,13 +805,13 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
 
         // The hotel's plugins may refuse it or change its price, as for any offer (IPurchasePolicy);
         // an ad is one ad, so the units they decide are not read.
-        var decision = await DecideAsync(request, offer, 1, 1, ct);
+        var decision = await DecideAsync(request, Priced(offer, 1, 1), ct);
 
         if (fulfilment is not null)
         {
             await FulfilByPluginAsync(fulfilment, request, offer, decision, cause, ct);
             _events.PublishCommitted(
-                Completed(CatalogType.Normal, offer, decision, 1, null) with
+                Completed(request, decision, 1, []) with
                 {
                     RoomAdExtended = extended,
                 }
@@ -854,7 +867,7 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
         await GrantBadgesAsync(offer, ct);
 
         _events.PublishCommitted(
-            Completed(CatalogType.Normal, offer, decision, 1, null) with
+            Completed(request, decision, 1, []) with
             {
                 RoomAd = created,
                 RoomAdExtended = extended,
@@ -877,38 +890,32 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
 
     /// <summary>Takes the price, or throws the refusal the client shows for a short balance.</summary>
     /// <summary>
-    /// The purchase as the purchase policies leave it, from the offer's own price for
-    /// <paramref name="quantity"/> and <paramref name="units"/> given; a refusal is thrown with
-    /// its reason.
+    /// The purchase as the purchase policies leave it, from <paramref name="proposed"/>; a refusal
+    /// is thrown with its error and reason, before any money moves.
     /// </summary>
     private async Task<PurchaseDecision> DecideAsync(
         PurchaseRequest request,
-        CatalogOfferSnapshot offer,
-        int quantity,
-        int units,
+        PurchaseDecision proposed,
         CancellationToken ct
     )
     {
-        var decision = await _policies.DecidePurchaseAsync(
-            request,
-            new PurchaseDecision
-            {
-                CostCredits = offer.CostCredits * quantity,
-                CostSilver = offer.CostSilver * quantity,
-                CostActivityPoints = offer.CostCurrency * quantity,
-                Units = units,
-            },
-            ct
-        );
+        var decision = await _policies.DecidePurchaseAsync(request, proposed, ct);
 
         if (!decision.Allowed)
-            throw new CatalogPurchaseException(
-                CatalogPurchaseErrorType.PurchaseFailed,
-                refusal: decision.Reason
-            );
+            throw new CatalogPurchaseException(decision.Error, refusal: decision.Reason);
 
         return decision;
     }
+
+    /// <summary>The offer's own price for <paramref name="quantity"/>, <paramref name="units"/> given.</summary>
+    private static PurchaseDecision Priced(CatalogOfferSnapshot offer, int quantity, int units) =>
+        new()
+        {
+            CostCredits = offer.CostCredits * quantity,
+            CostSilver = offer.CostSilver * quantity,
+            CostActivityPoints = offer.CostCurrency * quantity,
+            Units = units,
+        };
 
     /// <summary>
     /// A purchase a plugin hands over (<see cref="IPurchaseFulfilment"/>): its price is taken once,
@@ -971,28 +978,29 @@ internal sealed partial class CatalogPurchaseGrain : Grain, ICatalogPurchaseGrai
             }
         ).ToDebitRequests(1);
 
-    private PurchaseCompletedEvent Completed(
-        CatalogType catalogType,
-        CatalogOfferSnapshot offer,
+    private static PurchaseCompletedEvent Completed(
+        PurchaseRequest request,
         PurchaseDecision decision,
         int units,
-        PlayerId? giftReceiverId
+        ImmutableArray<RoomObjectId> itemIds
     ) =>
         new()
         {
-            PlayerId = this.GetPlayerId(),
-            CatalogType = catalogType,
-            OfferId = offer.Id,
-            ProductCode = offer.LocalizationId,
+            PlayerId = request.PlayerId,
+            Kind = request.Kind,
+            CatalogType = request.CatalogType,
+            OfferId = request.Offer.Id,
+            ProductCode = request.Offer.LocalizationId,
             Units = units,
             CostCredits = decision.CostCredits,
             CostSilver = decision.CostSilver,
             CostActivityPoints = decision.CostActivityPoints,
-            ActivityPointType = offer.ActivityPointType,
-            GivesCreditFurni = offer.Products.Any(x =>
+            ActivityPointType = request.Offer.ActivityPointType,
+            GivesCreditFurni = request.Offer.Products.Any(x =>
                 x.ClassName is { } name && CreditFurniValue.TryParse(name, out _)
             ),
-            GiftReceiverId = giftReceiverId,
+            GiftReceiverId = request.GiftReceiverId,
+            ItemIds = itemIds,
         };
 
     private async Task DebitAsync(

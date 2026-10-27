@@ -76,6 +76,14 @@ public class PurchaseFromCatalogMessageHandler(
             return;
         }
 
+        if (result.Error == LtdRaffleEntryErrorType.Refused)
+        {
+            await ctx.SendPurchaseRefusalAsync(result.RefusedWith, result.Refusal, ct)
+                .ConfigureAwait(false);
+
+            return;
+        }
+
         if (result.BalanceFailure is { } balanceFailure)
         {
             await ctx.SendBalanceFailureAsync(balanceFailure, ct).ConfigureAwait(false);

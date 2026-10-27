@@ -102,7 +102,8 @@ public partial interface IInventoryGrain
     /// <param name="seriesSize">The total series size (e.g., 500).</param>
     /// <param name="cause">Why it is granted, for its movement.</param>
     /// <param name="ct">Cancellation token.</param>
-    public Task GrantLtdFurnitureAsync(
+    /// <returns>The item granted.</returns>
+    public Task<ImmutableArray<FurnitureItemSnapshot>> GrantLtdFurnitureAsync(
         int catalogProductId,
         int serialNumber,
         int seriesSize,

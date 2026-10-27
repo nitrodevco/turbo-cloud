@@ -5,6 +5,7 @@ using Orleans.Runtime;
 using Turbo.Catalog;
 using Turbo.Catalog.Exceptions;
 using Turbo.Database.Entities.Catalog;
+using Turbo.Players.Policies;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Grains;
@@ -15,6 +16,7 @@ using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Players.Wallet;
+using Turbo.Primitives.Policies;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Tests.Support;
 using Xunit;
@@ -207,9 +209,31 @@ public sealed class GiftPurchaseTests : IDisposable
         );
     }
 
-    private async Task RefusedAsync(CatalogGiftRequest request, CatalogPurchaseErrorType error)
+    [Fact]
+    public async Task AGiftAPurchasePolicyRefuses_ChargesNothing_AndWrapsNothing()
     {
-        var give = () => GiveAsync(request);
+        var policies = GamePolicies.None;
+        var refusing = new RefusingPolicy();
+
+        policies.Register("alpha", refusing);
+
+        await RefusedAsync(
+            Request(sprite: WRAP, box: 3, ribbon: 5),
+            CatalogPurchaseErrorType.PurchaseFailed,
+            policies
+        );
+        refusing.Asked.Should().ContainSingle();
+        refusing.Asked[0].Kind.Should().Be(PurchaseKind.Gift);
+        refusing.Asked[0].GiftReceiverId!.Value.Value.Should().Be(RECEIVER);
+    }
+
+    private async Task RefusedAsync(
+        CatalogGiftRequest request,
+        CatalogPurchaseErrorType error,
+        IGamePolicies? policies = null
+    )
+    {
+        var give = () => GiveAsync(request, policies);
 
         (await give.Should().ThrowAsync<CatalogPurchaseException>())
             .Which.ErrorType.Should()
@@ -296,7 +320,7 @@ public sealed class GiftPurchaseTests : IDisposable
         };
 
     /// <summary>The buyer's purchase grain giving an offer from the catalog as published.</summary>
-    private async Task GiveAsync(CatalogGiftRequest request)
+    private async Task GiveAsync(CatalogGiftRequest request, IGamePolicies? policies = null)
     {
         var provider = _catalog.NormalProvider();
 
@@ -321,6 +345,9 @@ public sealed class GiftPurchaseTests : IDisposable
             "_giftWrappingProvider",
             fakes.Create<Turbo.Primitives.Catalog.Providers.IGiftWrappingProvider>()
         );
+
+        if (policies is not null)
+            GrainHarness.Replace(grain, policies);
         typeof(Grain)
             .GetProperty(
                 "GrainContext",
@@ -347,4 +374,20 @@ public sealed class GiftPurchaseTests : IDisposable
             .GetType()
             .GetField(field, BindingFlags.Instance | BindingFlags.NonPublic)!
             .SetValue(grain, value);
+
+    private sealed class RefusingPolicy : IPurchasePolicy
+    {
+        public List<PurchaseRequest> Asked { get; } = [];
+
+        public ValueTask<PurchaseDecision> DecideAsync(
+            PurchaseRequest request,
+            PurchaseDecision proposed,
+            CancellationToken ct
+        )
+        {
+            Asked.Add(request);
+
+            return ValueTask.FromResult(PurchaseDecision.Refuse());
+        }
+    }
 }

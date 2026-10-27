@@ -196,6 +196,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Inventory.Grains.IInventoryGrain
   11832CF3: GrantFurnitureAsync(int, string?, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot?>
   B7335FE5: GrantFurnitureOnceAsync(int, string, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<bool>
   D9E3A80F: GrantLtdFurnitureAsync(int, int, int, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task
+  D9E3A80F: GrantLtdFurnitureAsync(int, int, int, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot>>
   3B9E90DC: ReceiveFurnitureAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot>, System.Threading.CancellationToken) -> Task
   BB173BAD: ReceivePresentAsync(Turbo.Primitives.Inventory.PresentGrantRequest, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task
   2BB63B2B: ReceiveStaffPresentAsync(Turbo.Primitives.Inventory.StaffPresentGrantRequest, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot>

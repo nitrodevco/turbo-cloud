@@ -80,13 +80,16 @@ internal sealed partial class CatalogPurchaseGrain
         var buyer = await _grainFactory.GetPlayerGrain(buyerId).GetSummaryAsync(ct);
 
         // A gift holds one item whatever a policy says of the amount; its price it may change.
-        var decision = await DecideAsync(
-            new PurchaseRequest(buyerId, CatalogType.Normal, offer, 1, receiverId),
+        var purchase = new PurchaseRequest(
+            buyerId,
+            PurchaseKind.Gift,
+            CatalogType.Normal,
             offer,
             1,
-            1,
-            ct
+            receiverId,
+            ExtraParam: request.ExtraParam
         );
+        var decision = await DecideAsync(purchase, Priced(offer, 1, 1), ct);
 
         var debitRequests = ToDebitRequests(decision, offer);
 
@@ -139,7 +142,7 @@ internal sealed partial class CatalogPurchaseGrain
             receiverId
         );
 
-        _events.PublishCommitted(Completed(CatalogType.Normal, offer, decision, 1, receiverId));
+        _events.PublishCommitted(Completed(purchase, decision, 1, []));
 
         return offer;
     }

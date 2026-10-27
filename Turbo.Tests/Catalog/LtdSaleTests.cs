@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Reflection;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -9,16 +10,19 @@ using Turbo.Catalog;
 using Turbo.Catalog.Configuration;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Players;
+using Turbo.Players.Policies;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Events;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Catalog.Snapshots;
+using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Collectibles;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Wallet;
+using Turbo.Primitives.Policies;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Tests.Support;
 using Xunit;
@@ -121,6 +125,24 @@ public sealed class LtdSaleTests : IDisposable
     }
 
     [Fact]
+    public async Task AnEntryAPurchasePolicyRefuses_IsNotSold_AndTheBuyerIsToldItsReason()
+    {
+        var policies = GamePolicies.None;
+
+        policies.Register("alpha", new RefusingPolicy());
+
+        var (grain, _) = await SeriesAsync(raffled: true, policies);
+
+        var entry = await grain.EnterRaffleAsync(7, Ct);
+
+        entry.Error.Should().Be(LtdRaffleEntryErrorType.Refused);
+        entry.Refusal.Should().Be("Limited LimitedEdition");
+        _catalog.Fakes.Log.Of("TryDebitAsync").Should().BeEmpty();
+        _serials.Should().BeEmpty();
+        Remaining().Should().Be(SIZE);
+    }
+
+    [Fact]
     public async Task ARunningBatch_KeepsTheGrainLoadedPastItsWindow()
     {
         var (grain, _) = await SeriesAsync(raffled: false);
@@ -192,7 +214,7 @@ public sealed class LtdSaleTests : IDisposable
     private async Task<(
         ICatalogLtdRaffleGrain Grain,
         Turbo.Catalog.Providers.CatalogSnapshotProvider<Turbo.Primitives.Catalog.Tags.NormalCatalog> Catalog
-    )> SeriesAsync(bool raffled)
+    )> SeriesAsync(bool raffled, IGamePolicies? policies = null)
     {
         _catalog.Db.Insert(
             new LtdSeriesEntity
@@ -241,7 +263,7 @@ public sealed class LtdSaleTests : IDisposable
         {
             _serials.Enqueue((int)call.Args[1]!);
 
-            return Task.CompletedTask;
+            return Task.FromResult(ImmutableArray<FurnitureItemSnapshot>.Empty);
         };
         fakes.Handlers["SendComposerAsync"] = call =>
         {
@@ -283,6 +305,9 @@ public sealed class LtdSaleTests : IDisposable
         Set(grain, "_catalogService", fakes.Create<ICatalogService>());
         Set(grain, "_events", _bus.System);
         Set(grain, "_config", Unweighted());
+
+        if (policies is not null)
+            Set(grain, "_policies", policies);
         await ((Grain)grain).OnActivateAsync(Ct);
 
         return ((ICatalogLtdRaffleGrain)grain, catalog);
@@ -338,4 +363,14 @@ public sealed class LtdSaleTests : IDisposable
             .GetType()
             .GetField(field, BindingFlags.Instance | BindingFlags.NonPublic)!
             .SetValue(grain, value);
+
+    /// <summary>Refuses every purchase, naming the kind it was asked for.</summary>
+    private sealed class RefusingPolicy : IPurchasePolicy
+    {
+        public ValueTask<PurchaseDecision> DecideAsync(
+            PurchaseRequest request,
+            PurchaseDecision proposed,
+            CancellationToken ct
+        ) => ValueTask.FromResult(PurchaseDecision.Refuse($"Limited {request.Kind}"));
+    }
 }

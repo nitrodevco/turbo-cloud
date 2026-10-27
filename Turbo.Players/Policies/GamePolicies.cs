@@ -88,9 +88,18 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                LogFailure(ex, entry, request.PlayerId.Value);
+                // Closed, not passed over: a policy there to stop a purchase that fails must not
+                // let it through, and money moves on what this returns.
+                logger.LogError(
+                    ex,
+                    "The {Kind} policy {Policy} of {Owner} failed for player {PlayerId}; the purchase is refused",
+                    entry.Kind,
+                    entry.Policy.GetType().Name,
+                    entry.Owner,
+                    request.PlayerId.Value
+                );
 
-                continue;
+                return PurchaseDecision.Refuse().Clamped();
             }
 
             decision = next.Clamped();

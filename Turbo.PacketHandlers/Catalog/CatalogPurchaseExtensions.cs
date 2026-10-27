@@ -61,13 +61,26 @@ internal static class CatalogPurchaseExtensions
         CatalogPurchaseException ex,
         CancellationToken ct
     ) =>
-        ex.BalanceFailure is { } balanceFailure ? ctx.SendBalanceFailureAsync(balanceFailure, ct)
-        : !string.IsNullOrEmpty(ex.Refusal)
+        ex.BalanceFailure is { } balanceFailure
+            ? ctx.SendBalanceFailureAsync(balanceFailure, ct)
+            : ctx.SendPurchaseRefusalAsync(ex.ErrorType, ex.Refusal, ct);
+
+    /// <summary>
+    /// A purchase refused with <paramref name="errorType"/>: a purchase policy's reason in its
+    /// pop-up when it gave one, else the purchase error.
+    /// </summary>
+    public static Task SendPurchaseRefusalAsync(
+        this MessageContext ctx,
+        CatalogPurchaseErrorType errorType,
+        string? refusal,
+        CancellationToken ct
+    ) =>
+        !string.IsNullOrEmpty(refusal)
             ? ctx.SendComposerAsync(
-                PolicyRefusals.Notification(PolicyRefusals.PURCHASE, ex.Refusal),
+                PolicyRefusals.Notification(PolicyRefusals.PURCHASE, refusal),
                 ct
             )
-        : ctx.SendPurchaseErrorAsync(ex.ErrorType, ct);
+            : ctx.SendPurchaseErrorAsync(errorType, ct);
 
     /// <summary>
     /// Tells the client which currency the buyer was short of.
