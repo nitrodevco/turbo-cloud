@@ -67,6 +67,9 @@ public static class PluginContributionKinds
 
     /// <summary>A tool assistants call over MCP (<c>docs/plugin-mcp-tools.md</c>): its name, read-only or not and its nodes.</summary>
     public const string MCP_TOOL = "mcp-tool";
+
+    /// <summary>What carries out approved requests of a kind (<c>docs/approvals.md</c>): the kind, the class.</summary>
+    public const string APPROVAL_HANDLER = "approval-handler";
     public const string ADMIN_PAGE = "admin-page";
     public const string ADMIN_ENDPOINT = "admin-endpoint";
     public const string DATABASE = "database";

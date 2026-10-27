@@ -19,6 +19,7 @@ using Turbo.Operations.Scheduling;
 using Turbo.Players.Permissions;
 using Turbo.Players.Policies;
 using Turbo.Plugins;
+using Turbo.Plugins.Approvals;
 using Turbo.Plugins.Configuration;
 using Turbo.Primitives.ClientModules;
 using Turbo.Primitives.Commands;
@@ -40,7 +41,7 @@ namespace Turbo.Tests.Support;
 
 /// <summary>
 /// A hotel's plugin host with the registries a plugin's pieces go to: modules, messages, texts,
-/// settings, web routes, MCP tools, commands, permission nodes, furni logic, room listeners, scheduled tasks
+/// settings, web routes, MCP tools, approval handlers, commands, permission nodes, furni logic, room listeners, scheduled tasks
 /// (<see cref="Schedules"/>, reaching the scheduler grain through the fake grain factory), and a migrator
 /// with migrations off (asked for each context, touching no database).
 /// </summary>
@@ -96,6 +97,16 @@ internal sealed class PluginTestHost
             .AddSingleton(fakes.Create<IPluginSettingSections>())
             .AddSingleton(WebRoutes)
             .AddSingleton(sp => new McpTools(sp, McpLog))
+            .AddSingleton(sp => new ApprovalHandlers([
+                new McpToolApprovalHandler(sp.GetRequiredService<McpTools>()),
+            ]))
+            .AddSingleton(sp => new HotelApprovals(
+                db,
+                sp.GetRequiredService<ApprovalHandlers>(),
+                sp,
+                TimeProvider.System,
+                ApprovalsLog
+            ))
             .AddSingleton(database)
             .AddSingleton(
                 new DatabaseMigrator(database, fakes.Create<IMigrationLock>(), MigratorLog)
@@ -166,6 +177,11 @@ internal sealed class PluginTestHost
     public McpTools Mcp => Services.GetRequiredService<McpTools>();
 
     public CapturingLogger<McpTools> McpLog { get; } = new();
+
+    /// <summary>The hotel's approvals, in the test's database, and what they logged.</summary>
+    public HotelApprovals Approvals => Services.GetRequiredService<HotelApprovals>();
+
+    public CapturingLogger<HotelApprovals> ApprovalsLog { get; } = new();
 
     /// <summary>What clients report of the plugins' client halves, and what it logged.</summary>
     public ClientExtensionReports Reports { get; }

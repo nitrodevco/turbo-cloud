@@ -135,6 +135,14 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             SecurityLevelType.Moderator
         ),
         new(
+            PermissionNodes.Approvals.DECIDE,
+            "Approve or deny actions waiting for a person's yes (an assistant's or a plugin's), when they name no node of their own."
+        ),
+        new(
+            PermissionNodes.Approvals.VIEW,
+            "See the Approvals inbox in the admin panel: what was asked, by whom and what became of it."
+        ),
+        new(
             PermissionNodes.Moderation.FILTER_MANAGE,
             "Change the hotel's word filter in the admin panel: add words and take them off."
         ),
