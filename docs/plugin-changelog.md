@@ -17,6 +17,22 @@ can notice (internals, core's own behaviour, tests) has no entry.
 
 ## 2026-10-27
 
+### Turbo Boost: the AI kit for plugin authors
+
+- **What**: the server ships `ai/` (a plugin guideline and ten Agent Skills, one per kind of plugin
+  code) and its guides (`docs/**/*.md`) in `plugin-sdk/` beside its assemblies. The template's
+  `npm run ai` / `ai:update` write the guideline into a `<turbo-boost>` block of `CLAUDE.md` and
+  `AGENTS.md` (the rest is kept), install the skills in `.claude/skills` and `.agents/skills`
+  (with those of the plugins in `Dependencies` that ship `ai/`), and add the dev hotel's MCP server
+  to `.mcp.json`; `npm run ai:rule` records a project rule. `IServerLog`
+  (`Turbo.Primitives.Logging`) holds the server's latest log entries for a plugin to read.
+- **Who**: plugin authors who work with an AI assistant; plugins others build on, which can ship
+  `ai/guidelines.md` and `ai/skills/`.
+- **Breaks plugins**: no.
+- **Action**: a plugin made from an earlier template copies `tools/ai.mjs` and the three `ai`
+  scripts of `package.json` from the template, then runs `npm run ai`; `docs/turbo-boost.md`.
+- [turbo-cloud#472](https://github.com/nitrodevco/turbo-cloud/pull/472)
+
 ### MCP tools: a plugin contribution kind for AI assistants
 
 - **What**: a public `McpTool<TInput>` / `McpTool<TInput, TOutput>` (`Turbo.Contracts.Plugins.Mcp`)

@@ -109,6 +109,24 @@ run it again, or write the context first (turbo-cloud `docs/database.md`). Furni
 boxes are built against `Turbo.Contracts` alone (turbo-cloud `docs/plugin-wired.md`); the furniture
 definition whose logic is the key is what the hotel places.
 
+## Working with an AI assistant
+
+```sh
+npm run ai          # once: CLAUDE.md, AGENTS.md, the skill folders and .mcp.json
+npm run ai:update   # after updating the server: the same, from the new one
+npm run ai:rule -- "Prices come from the settings" "Never hard-code a price: read the plugin's settings."
+```
+
+`npm run ai` installs Turbo Boost, the kit the server ships for plugin authors (turbo-cloud
+`docs/turbo-boost.md`): the plugin guideline in a `<turbo-boost>` block of `CLAUDE.md` and
+`AGENTS.md` (what you write outside the block is kept), one skill per kind of code in the skill
+folders of `.claude/` and `.agents/`, and `.mcp.json` naming your dev hotel's MCP server, whose dev
+tools search the server's guides and show the plugin's compile errors, the server log, message
+schemas and the plugin's tables. Make a token in the admin panel (MCP > New token) and set
+`TURBO_MCP_TOKEN` where the assistant runs. Guidelines, skill folders and rules of your own go
+under `.ai/`, and a plugin listed in `Dependencies` that ships an `ai/` folder (beside this one, or
+`--plugins <dir>`) is added too: turbo-cloud `docs/turbo-boost.md` says where.
+
 ## The rest
 
 | Command | What |

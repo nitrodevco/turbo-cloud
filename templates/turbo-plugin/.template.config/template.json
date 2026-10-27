@@ -62,6 +62,7 @@
     },
     "sources": [
         {
+            "copyOnly": [ "tools/ai.mjs" ],
             "exclude": [
                 "**/[Bb]in/**",
                 "**/[Oo]bj/**",
