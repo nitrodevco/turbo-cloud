@@ -99,6 +99,8 @@ extension inspector). Client guide: nitro-next `docs/template-patches.md`.
 Fed by a room watch's envelope (turbo-room-holds-watches skill), whose carried field the client
 reads with its own parser:
 
+<!-- typed with: declare const roomB: number; -->
+
 ```ts
 const portal = api.room.createSecondary(roomB, { offset: { x: 12, y: 0, z: 0 }, greyscale: 1, alpha: 0.75 });
 

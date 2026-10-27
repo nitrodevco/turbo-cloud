@@ -2,21 +2,29 @@
  * `npm run ai` / `npm run ai:update`: sets the plugin up for AI assistants (Turbo Boost, turbo-cloud
  * docs/turbo-boost.md), from the server the plugin builds against (TurboBin's plugin-sdk/ai):
  *
- *   - CLAUDE.md and AGENTS.md: the kit's guideline, the plugin's own (.ai/guidelines/*.md), those of
- *     the plugins it depends on (their ai/guidelines.md) and the index of its rules (.ai/rules), in a
- *     <turbo-boost> block; everything outside the block is left as it is;
- *   - the skills (the kit's, the dependencies' ai/skills, the plugin's .ai/skills) in .claude/skills
- *     and .agents/skills;
- *   - .mcp.json: the dev hotel's MCP server (turbo-mcp-plugin), its token from TURBO_MCP_TOKEN.
+ *   - each chosen agent's instructions file (CLAUDE.md, AGENTS.md, .cursor/rules/turbo-boost.mdc,
+ *     .github/copilot-instructions.md, .junie/guidelines.md): the kit's guideline, the plugin's own
+ *     (.ai/guidelines/*.md), those of the plugins it depends on (their ai/guidelines.md) and the index
+ *     of its rules (.ai/rules), in a <turbo-boost> block; everything outside the block is left as it is;
+ *   - the skills (the kit's, the dependencies' ai/skills, the plugin's .ai/skills) in the agent's
+ *     skills folder;
+ *   - the agent's MCP config: the dev hotel's MCP server (turbo-mcp-plugin) as the entry `turbo`, its
+ *     token from TURBO_MCP_TOKEN; the file's other entries are kept.
  *
- *   node tools/ai.mjs [install|update] [--agents claude,codex] [--mcp-url <url>] [--plugins <dir>,<dir>]
+ *   node tools/ai.mjs [install|update] [--agents claude,codex,cursor,copilot,junie|all] [--mcp-url <url>]
+ *                     [--plugins <dir>,<dir>] [--no-interaction]
  *   node tools/ai.mjs rule "<title>" "<the rule>"     a project rule in .ai/rules, then update
+ *
+ * `install` without --agents, in a terminal and with no earlier choice, asks which agents to set up
+ * (those whose folders the plugin has are proposed); otherwise it takes the earlier choice, else
+ * the agents found, else claude and codex.
  *
  * What it chose is kept in .ai/turbo-boost.json, so `update` writes the same again. `dotnet new`
  * copies this file as it is (template.json's copyOnly): its folder names are not the sample's.
  */
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { createInterface } from 'node:readline/promises';
 
 import { turboBin } from './host.mjs';
 
@@ -27,11 +35,59 @@ const own = path.join(root, '.ai');
 const stateFile = path.join(own, 'turbo-boost.json');
 const BEGIN = '<turbo-boost>';
 const END = '</turbo-boost>';
-const AGENTS = {
-    claude: { guidelines: 'CLAUDE.md', skills: path.join('.claude', 'skills'), mcp: true },
-    codex: { guidelines: 'AGENTS.md', skills: path.join('.agents', 'skills'), mcp: false },
-};
+const TOKEN = 'TURBO_MCP_TOKEN';
 const DEFAULT_MCP_URL = 'http://127.0.0.1:8092/api/plugins/mcp/mcp';
+
+/**
+ * What each agent reads: its instructions file (`front` heads a new one), its skills folder, its
+ * MCP config (the file, the object its servers are under and the dev hotel's entry, or a TOML
+ * table) and the folders or files that say a plugin uses it.
+ */
+const AGENTS = {
+    claude: {
+        name: 'Claude Code',
+        guidelines: 'CLAUDE.md',
+        skills: '.claude/skills',
+        mcp: { file: '.mcp.json', under: 'mcpServers', entry: url => ({ type: 'http', url, headers: { Authorization: `Bearer \${${TOKEN}}` } }) },
+        found: [ '.claude', 'CLAUDE.md' ],
+    },
+    codex: {
+        name: 'Codex',
+        guidelines: 'AGENTS.md',
+        skills: '.agents/skills',
+        mcp: { file: '.codex/config.toml', toml: url => `[mcp_servers.turbo]\nurl = ${JSON.stringify(url)}\nbearer_token_env_var = "${TOKEN}"` },
+        found: [ '.codex', 'AGENTS.md' ],
+    },
+    cursor: {
+        name: 'Cursor',
+        guidelines: '.cursor/rules/turbo-boost.mdc',
+        front: '---\ndescription: Turbo plugin development (Turbo Boost)\nalwaysApply: true\n---\n\n',
+        skills: '.cursor/skills',
+        mcp: { file: '.cursor/mcp.json', under: 'mcpServers', entry: url => ({ url, headers: { Authorization: `Bearer \${env:${TOKEN}}` } }) },
+        found: [ '.cursor' ],
+    },
+    copilot: {
+        name: 'GitHub Copilot (VS Code)',
+        guidelines: '.github/copilot-instructions.md',
+        skills: '.github/skills',
+        // VS Code asks for the token once and keeps it.
+        mcp: {
+            file: '.vscode/mcp.json',
+            under: 'servers',
+            entry: url => ({ type: 'http', url, headers: { Authorization: 'Bearer ${input:turbo-mcp-token}' } }),
+            inputs: [ { type: 'promptString', id: 'turbo-mcp-token', description: 'The dev hotel\'s MCP token, tmcp_... (admin panel > MCP > New token)', password: true } ],
+        },
+        found: [ '.vscode', '.github/copilot-instructions.md' ],
+    },
+    junie: {
+        name: 'Junie',
+        guidelines: '.junie/guidelines.md',
+        skills: '.junie/skills',
+        // Junie starts MCP servers as commands: mcp-remote speaks HTTP for it, the token from the environment.
+        mcp: { file: '.junie/mcp/mcp.json', under: 'mcpServers', entry: url => ({ command: 'npx', args: [ '-y', 'mcp-remote', url, '--header', `Authorization:Bearer \${${TOKEN}}` ] }) },
+        found: [ '.junie', '.idea' ],
+    },
+};
 
 const [ command = 'install', ...rest ] = process.argv.slice(2);
 
@@ -144,8 +200,8 @@ const rules = () => {
 
 const markdownFiles = folder => (existsSync(folder) ? readdirSync(folder).filter(file => file.endsWith('.md')).sort().map(file => path.join(folder, file)) : []);
 
-/** The block's text: the guideline, this plugin, its own guidelines, its dependencies', its rules and the skills. */
-const block = (kit, dependencies, skills) => {
+/** The block's text: the guideline, this plugin, its own guidelines, its dependencies', its rules and the skills (in `skillsFolder`). */
+const block = (kit, dependencies, skills, skillsFolder) => {
     const parts = [
         `<!-- Written by \`npm run ai\` from ${kit.from.replace(/\\/g, '/')}. Edit outside this block: \`npm run ai:update\` replaces it. -->`,
         '',
@@ -177,25 +233,31 @@ const block = (kit, dependencies, skills) => {
     }
 
     if (skills.length) {
-        parts.push('', '### Skills', '', 'Read the skill whose description matches the task before writing that kind of code (`.claude/skills/<name>/SKILL.md`, `.agents/skills/<name>/SKILL.md`):', '');
+        parts.push('', '### Skills', '', `Read the skill whose description matches the task before writing that kind of code (\`${skillsFolder}/<name>/SKILL.md\`):`, '');
         skills.forEach(skill => parts.push(`- \`${skill.name}\`: ${skill.description}`));
     }
 
     return `${BEGIN}\n${parts.join('\n')}\n${END}`;
 };
 
-/** `file` with its block replaced (or added at the end); what is outside it kept byte for byte. */
-const writeBlock = (file, text) => {
+/**
+ * `file` with its block (`text`, from `begin` to `end`) replaced, or added at the end (a new file
+ * starts with `front`); what is outside it kept byte for byte.
+ */
+const writeBlock = (file, text, { begin = BEGIN, end: close = END, front = '' } = {}) => {
     const before = read(file) ?? '';
-    const start = before.indexOf(BEGIN);
-    const end = before.indexOf(END, start);
+    const start = before.indexOf(begin);
+    const end = before.indexOf(close, start);
     let after;
 
-    if (start >= 0 && end > start) after = before.slice(0, start) + text + before.slice(end + END.length);
-    else if (start >= 0) fail(`${path.relative(root, file)} has ${BEGIN} and no ${END}: fix it by hand, then run this again.`);
-    else after = before ? `${before.replace(/\s*$/, '')}\n\n${text}\n` : `${text}\n`;
+    if (start >= 0 && end > start) after = before.slice(0, start) + text + before.slice(end + close.length);
+    else if (start >= 0) fail(`${path.relative(root, file)} has ${begin} and no ${close}: fix it by hand, then run this again.`);
+    else after = before ? `${before.replace(/\s*$/, '')}\n\n${text}\n` : `${front}${text}\n`;
 
-    if (after !== before) writeFileSync(file, after);
+    if (after !== before) {
+        mkdirSync(path.dirname(file), { recursive: true });
+        writeFileSync(file, after);
+    }
 
     return after !== before;
 };
@@ -240,79 +302,129 @@ const installSkills = (target, skills, before) => {
     }
 };
 
-const writeMcp = (url) => {
-    const file = path.join(root, '.mcp.json');
+/**
+ * The dev hotel's entry `turbo` in the agent's MCP config: a JSON file's other servers and inputs
+ * are kept, a TOML file everything outside its marked block.
+ */
+const writeMcp = (mcp, url) => {
+    const file = path.join(root, mcp.file);
+
+    if (mcp.toml) return writeBlock(file, `# ${BEGIN} written by npm run ai\n${mcp.toml(url)}\n# ${END}`, { begin: `# ${BEGIN}`, end: `# ${END}` });
+
+    const before = read(file);
     const config = readJson(file, {});
 
-    config.mcpServers = {
-        ...config.mcpServers,
-        turbo: { type: 'http', url, headers: { Authorization: 'Bearer ${TURBO_MCP_TOKEN}' } },
-    };
-    writeFileSync(file, `${JSON.stringify(config, null, 4)}\n`);
+    config[mcp.under] = { ...config[mcp.under], turbo: mcp.entry(url) };
+
+    if (mcp.inputs) config.inputs = [ ...(config.inputs ?? []).filter(input => !mcp.inputs.some(x => x.id === input.id)), ...mcp.inputs ];
+
+    const after = `${JSON.stringify(config, null, 4)}\n`;
+
+    if (after === before) return false;
+
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, after);
+
+    return true;
 };
 
-const install = () => {
-    const state = readJson(stateFile, {});
-    const agents = (option('agents') ?? state.agents?.join(',') ?? Object.keys(AGENTS).join(',')).split(',').map(x => x.trim()).filter(Boolean);
+/** The agents whose folders or files the plugin has. */
+const foundAgents = () => Object.keys(AGENTS).filter(agent => AGENTS[agent].found.some(x => existsSync(path.join(root, x))));
+
+const parseAgents = (text) => {
+    const agents = text.trim() === 'all' ? Object.keys(AGENTS) : [ ...new Set(text.split(/[\s,]+/).map(x => x.trim().toLowerCase()).filter(Boolean)) ];
     const unknown = agents.filter(agent => !AGENTS[agent]);
 
-    if (unknown.length) fail(`${unknown.join(', ')}: an agent is one of ${Object.keys(AGENTS).join(', ')}.`);
+    if (unknown.length) fail(`${unknown.join(', ')}: an agent is one of ${Object.keys(AGENTS).join(', ')}, or all.`);
+    if (!agents.length) fail('Choose at least one agent.');
 
+    return agents;
+};
+
+/** --agents; else the earlier choice; else, in a terminal, asked; else the agents found, else claude and codex. */
+const chooseAgents = async (state) => {
+    if (option('agents')) return parseAgents(option('agents'));
+    if (state.agents?.length) return parseAgents(state.agents.join(','));
+
+    const found = foundAgents();
+    const proposed = found.length ? found : [ 'claude', 'codex' ];
+
+    if (rest.includes('--no-interaction') || !process.stdin.isTTY || !process.stdout.isTTY) return proposed;
+
+    console.log('Which AI agents do you write this plugin with?');
+    Object.entries(AGENTS).forEach(([ id, agent ]) => console.log(`  ${id.padEnd(8)} ${agent.name}: ${agent.guidelines}, ${agent.skills}/, ${agent.mcp.file}`));
+
+    const prompt = createInterface({ input: process.stdin, output: process.stdout });
+    const answer = await prompt.question(`Agents, comma separated, or all [${proposed.join(',')}]: `);
+
+    prompt.close();
+
+    return parseAgents(answer.trim() || proposed.join(','));
+};
+
+const install = async () => {
+    const state = readJson(stateFile, {});
+    const agents = await chooseAgents(state);
     const url = option('mcp-url') ?? state.mcpUrl ?? DEFAULT_MCP_URL;
     const searchPaths = (option('plugins') ?? process.env.TurboPlugins ?? state.plugins?.join(',') ?? '').split(/[,;]/).map(x => x.trim()).filter(Boolean).map(x => path.resolve(root, x));
     const kit = findKit();
     const { dependencies, missing } = findDependencies(searchPaths);
     const skills = collectSkills(kit, dependencies);
-    const text = block(kit, dependencies, skills);
+    const done = new Set();
     const written = [];
 
     for (const agent of agents) {
-        const { guidelines, skills: target, mcp } = AGENTS[agent];
+        const { guidelines, front, skills: target, mcp } = AGENTS[agent];
 
-        if (writeBlock(path.join(root, guidelines), text)) written.push(guidelines);
+        for (const [ file, write ] of [
+            [ guidelines, () => writeBlock(path.join(root, guidelines), block(kit, dependencies, skills, target), { front }) ],
+            [ `${target}/`, () => installSkills(target, skills, state.skills ?? []) ?? true ],
+            [ mcp.file, () => writeMcp(mcp, url) ],
+        ]) {
+            if (done.has(file)) continue;
 
-        installSkills(target, skills, state.skills ?? []);
-        written.push(`${target.replace(/\\/g, '/')}/ (${skills.length} skills)`);
+            done.add(file);
 
-        if (mcp) {
-            writeMcp(url);
-            written.push('.mcp.json');
+            if (write()) written.push(file.endsWith('/') ? `${file} (${skills.length} skills)` : file);
         }
     }
 
     mkdirSync(own, { recursive: true });
     writeFileSync(stateFile, `${JSON.stringify({ agents, mcpUrl: url, plugins: searchPaths.map(x => path.relative(root, x)), skills: skills.map(skill => skill.name) }, null, 4)}\n`);
 
-    console.log(`Turbo Boost from ${kit.from}:`);
+    console.log(`Turbo Boost from ${kit.from}, for ${agents.map(agent => AGENTS[agent].name).join(', ')}:`);
     written.forEach(file => console.log(`  ${file}`));
 
     if (dependencies.length) console.log(`  with ${dependencies.map(x => x.manifest.Key).join(', ')}`);
     if (missing.length) console.warn(`  not found, skipped: ${missing.join(', ')} (put them beside this plugin, or name their folder with --plugins <dir>)`);
 
     console.log(`
-The dev tools (search_docs, plugin_errors, server_log, message_schema, plugin_tables) are the dev
-hotel's MCP server at ${url}:
+The dev tools (search_docs, read_doc, plugin_errors, client_errors, server_log, message_schema,
+plugin_tables, plugin_query) are the dev hotel's MCP server at ${url}:
   1. load the MCP plugin (turbo-mcp-plugin) on your dev hotel, with Turbo:Web:Enabled;
   2. admin panel > MCP > New token (read-only), and give your rank plugin.mcp.use and the
      plugin.mcp.tool.* nodes of the tools;
-  3. set TURBO_MCP_TOKEN=tmcp_... where the assistant runs (Claude Code reads .mcp.json; other
-     agents: add this address as an HTTP MCP server with that bearer token).`);
+  3. set ${TOKEN}=tmcp_... where the assistant runs (VS Code asks for it once instead); an agent
+     may ask you to allow the server "turbo" the first time.
+Try the tools by hand: npm run mcp:inspect.`);
 };
 
-const recordRule = () => {
-    const [ title, ...words ] = rest.filter(arg => !arg.startsWith('--'));
+/** A project rule: its title, what to do and why, and (`--seen`) where the code already does it. */
+const recordRule = async () => {
+    const seen = option('seen');
+    const [ title, ...words ] = rest.filter((arg, i) => !arg.startsWith('--') && rest[i - 1] !== '--seen');
 
-    if (!title || !words.length) fail('npm run ai:rule -- "<title>" "<the rule: what to do, and why>"');
+    if (!title || !words.length) fail('npm run ai:rule -- "<title>" "<the rule: what to do, and why>" [--seen "<files that do it>"]');
 
     const folder = path.join(own, 'rules');
     const file = path.join(folder, `${slug(title)}.md`);
 
     mkdirSync(folder, { recursive: true });
-    writeFileSync(file, `# ${title}\n\n${words.join(' ')}\n`);
+    writeFileSync(file, `# ${title}\n\n${words.join(' ')}\n${seen ? `\nSeen in: ${seen}\n` : ''}`);
     console.log(`${path.relative(root, file)}`);
-    install();
+    await install();
 };
 
-if (command === 'install' || command === 'update') install();
-else if (command === 'rule') recordRule();
+if (command === 'install' || command === 'update') await install();
+else if (command === 'rule') await recordRule();
 else fail(`${command}: one of install, update, rule.`);

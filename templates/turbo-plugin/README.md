@@ -95,6 +95,7 @@ guide to read (turbo-cloud `docs/`).
 | `npm run make listener entered` | `server/Listeners/EnteredListener.cs`: hears every room's events | the room event listener scan |
 | `npm run make setting rate --type int --default 5` | `Rate` in the `[PluginSettings]` class (`int`, `long`, `bool`, `string`, `double`) | the panel's Settings page |
 | `npm run make route rares/values --anonymous` | `server/Routes/RaresValuesRoute.cs`: `GET /api/plugins/skills/rares/values` (`--method POST`) | the web route scan |
+| `npm run make mcp-tool OnlinePlayers` | `server/Mcp/OnlinePlayersTool.cs`: the MCP tool `skills_online_players` for AI assistants, its node `skills.mcp.online_players`, and its test with `McpToolTester` | the MCP tool and permission scans |
 | `npm run make window news` | `client/src/made/NewsWindow.tsx`, opened by the link `skills/news`, and its title text | `client/src/made/index.ts` |
 | `npm run make patch habbo-friend-list-com/friend_list_xml` | an entry in `wwwroot/template-patches.json` to fill with ops | the client, as the plugin loads |
 | `npm run make migration AddPrizes` | `server/Database/SkillsDb.cs` (once; its `TablePrefix` in `manifest.json`) and the migration, by `dotnet ef migrations add` | the host, which migrates the tables as the plugin loads |
@@ -112,18 +113,23 @@ definition whose logic is the key is what the hotel places.
 ## Working with an AI assistant
 
 ```sh
-npm run ai          # once: CLAUDE.md, AGENTS.md, the skill folders and .mcp.json
+npm run ai          # once: asks which agents you use, then their instructions, skill folders and MCP config
+npm run ai -- --agents claude,cursor   # the same without asking (claude, codex, cursor, copilot, junie, all)
 npm run ai:update   # after updating the server: the same, from the new one
 npm run ai:rule -- "Prices come from the settings" "Never hard-code a price: read the plugin's settings."
+npm run mcp:inspect # the MCP Inspector on your dev hotel's MCP server, to try a tool by hand
 ```
 
 `npm run ai` installs Turbo Boost, the kit the server ships for plugin authors (turbo-cloud
-`docs/turbo-boost.md`): the plugin guideline in a `<turbo-boost>` block of `CLAUDE.md` and
-`AGENTS.md` (what you write outside the block is kept), one skill per kind of code in the skill
-folders of `.claude/` and `.agents/`, and `.mcp.json` naming your dev hotel's MCP server, whose dev
-tools search the server's guides and show the plugin's compile errors, the server log, message
-schemas and the plugin's tables. Make a token in the admin panel (MCP > New token) and set
-`TURBO_MCP_TOKEN` where the assistant runs. Guidelines, skill folders and rules of your own go
+`docs/turbo-boost.md`), for each agent you choose: the plugin guideline in a `<turbo-boost>` block
+of its instructions file (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules/turbo-boost.mdc`,
+`.github/copilot-instructions.md`, `.junie/guidelines.md`; what you write outside the block is
+kept), one skill per kind of code in its skill folder, and your dev hotel's MCP server in its MCP
+config, whose dev tools search the server's guides and show the plugin's compile errors, client
+errors, the server log, message schemas and the plugin's tables and rows. Make a token in the admin
+panel (MCP > New token) and set `TURBO_MCP_TOKEN` where the assistant runs. The skill
+`turbo-infer-conventions` reads this plugin's own conventions and, once you approve them, records
+them as rules. Guidelines, skill folders and rules of your own go
 under `.ai/`, and a plugin listed in `Dependencies` that ships an `ai/` folder (beside this one, or
 `--plugins <dir>`) is added too: turbo-cloud `docs/turbo-boost.md` says where.
 

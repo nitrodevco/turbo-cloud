@@ -89,6 +89,8 @@ public sealed class Spectators(IHotel hotel)
 
 ## On the client
 
+<!-- typed with: declare const roomB: number; -->
+
 ```ts
 const portal = api.room.createSecondary(roomB, { offset: { x: 12, y: 0, z: 0 }, greyscale: 1, alpha: 0.75 });
 
