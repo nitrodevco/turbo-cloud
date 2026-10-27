@@ -44,6 +44,7 @@
     - [Media Library](media-library.md)
     - [Telemetry](telemetry.md)
     - [MCP Tools](plugin-mcp-tools.md)
+    - [Human Approval](approvals.md)
 - ## Database
     - [Getting Started](database.md)
     - [Plugin Tables & Migrations](database.md#a-plugins-tables)

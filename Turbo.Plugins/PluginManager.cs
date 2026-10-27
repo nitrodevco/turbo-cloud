@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Turbo.Contracts.Approvals;
 using Turbo.Contracts.Hotel;
 using Turbo.Contracts.Plugins;
 using Turbo.Contracts.Plugins.Admin;
@@ -23,6 +24,7 @@ using Turbo.Contracts.Plugins.Web;
 using Turbo.Database.Context;
 using Turbo.Database.Migrations;
 using Turbo.Logging.Extensions;
+using Turbo.Plugins.Approvals;
 using Turbo.Plugins.ClientBuild;
 using Turbo.Plugins.Compilation;
 using Turbo.Plugins.Configuration;
@@ -113,6 +115,8 @@ public sealed class PluginManager(
     private PluginWebRoutes? WebRoutes => host.GetService<PluginWebRoutes>();
 
     private McpTools? Mcp => host.GetService<McpTools>();
+
+    private ApprovalHandlers? ApprovalHandlers => host.GetService<ApprovalHandlers>();
 
     private static readonly ServiceProviderOptions SP_OPTIONS = new()
     {
@@ -580,6 +584,7 @@ public sealed class PluginManager(
             Routes?.Reloading(m.Key);
             WebRoutes?.Reloading(m.Key);
             Mcp?.Off(m.Key);
+            ApprovalHandlers?.Off(m.Key);
 
             if (_status.TryGetValue(m.Key, out var was))
                 _status[m.Key] = was with
@@ -640,6 +645,7 @@ public sealed class PluginManager(
                 // Its web routes stop answering, and its tools are unlisted, before it stops.
                 WebRoutes?.Off(key);
                 Mcp?.Off(key);
+                ApprovalHandlers?.Off(key);
 
                 var unloading = await StopAndTearDownAsync(env, ct).ConfigureAwait(false);
 
@@ -794,10 +800,27 @@ public sealed class PluginManager(
                 )
                 : [];
 
+            // Its approval handlers are built (and a kind another owner has refused) before it
+            // starts, and carry out approved requests once it has.
+            var approvalHandlers = ApprovalHandlers is { } handlers
+                ? handlers.Build(
+                    m.Key,
+                    asm.Assembly,
+                    new CompositeServiceProvider(sp, _hostForPlugins)
+                )
+                : [];
+
             if (admin is not null && host.GetService<IPermissionRegistryProvider>() is { } nodes)
                 disposables.Insert(0, nodes.Register(admin.Nodes));
 
             NoteContributions(contributions, folder, contexts, settings, admin, web, mcp);
+
+            foreach (var handler in approvalHandlers)
+                contributions.Add(
+                    PluginContributionKinds.APPROVAL_HANDLER,
+                    handler.Kind,
+                    handler.GetType().Name
+                );
 
             // The host services it replaces are built before it starts (one that can't be fails
             // the load) and go in their slots once it has; they are taken out first when it stops.
@@ -856,6 +879,9 @@ public sealed class PluginManager(
 
             if (mcp.Length > 0 && Mcp is { } mcpTools)
                 disposables.Insert(0, mcpTools.Live(m.Key, mcp));
+
+            if (approvalHandlers.Length > 0 && ApprovalHandlers is { } liveHandlers)
+                disposables.Insert(0, liveHandlers.Live(m.Key, approvalHandlers));
 
             if (host.GetService<IReplaceableServices>() is { } replaceable)
                 foreach (var (type, implementation) in replacements)
@@ -977,6 +1003,10 @@ public sealed class PluginManager(
             services.AddSingleton(bound);
             services.AddSingleton(bound.Rooms);
         }
+
+        // Approvals it asks for are recorded as its own.
+        if (host.GetService<HotelApprovals>() is { } approvals)
+            services.AddSingleton<IApprovals>(new PluginApprovals(approvals, manifest.Key));
 
         if (host.GetService<IConfiguration>() is { } configuration)
         {
@@ -1547,6 +1577,7 @@ public sealed class PluginManager(
             Routes?.Off(m.Key);
             WebRoutes?.Off(m.Key);
             Mcp?.Off(m.Key);
+            ApprovalHandlers?.Off(m.Key);
         }
 
         _status[m.Key] = new PluginStatus(m, folder, state, error, [], null);
@@ -1606,6 +1637,7 @@ public sealed class PluginManager(
             Routes?.Off(key);
             WebRoutes?.Off(key);
             Mcp?.Off(key);
+            ApprovalHandlers?.Off(key);
 
             if (_status.TryRemove(key, out var status) && Directory.Exists(status.Folder))
                 Directory.Delete(status.Folder, recursive: true);

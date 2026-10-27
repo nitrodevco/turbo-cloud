@@ -114,6 +114,7 @@ internal sealed class AdminApiServer(
         ActivatorUtilities.CreateInstance<MessageLogEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<CurrencyLogEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<ReportEndpoints>(services).Map(secured);
+        ActivatorUtilities.CreateInstance<ApprovalEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<WordFilterEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<RoomVisitEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<PerformanceEndpoints>(services).Map(secured);

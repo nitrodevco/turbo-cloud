@@ -22,6 +22,21 @@ can notice (internals, core's own behaviour, tests) has no entry.
 
 ## 2026-10-27
 
+### Human approval: actions that wait for a staff member's yes
+
+- **What**: `IApprovals` (`Turbo.Contracts.Approvals`) saves a request for an action (kind,
+  summary, arguments, who asked, the node an approver needs, an expiry); a staff member holding the
+  node approves or denies it in the panel's new Approvals inbox, never their own; on approval the
+  `ApprovalHandler<TArgs>` of its kind (a public class in a plugin, found as it loads) carries it
+  out once. `ApprovalRequestedEvent`, `ApprovalDecidedEvent` and `ApprovalExecutedEvent` tell of
+  it. An MCP tool with `RequiresApproval = true` answers `McpToolCallStatus.PendingApproval` with the
+  request's id and runs on approval. New nodes `admin.approvals.view` and `approvals.decide`.
+- **Who**: plugins and AI agents whose actions a person should approve; MCP tools that change the
+  hotel; the MCP server plugin (a new call status, not an error).
+- **Breaks plugins**: no.
+- **Action**: none; to use it, read `docs/approvals.md`.
+- [turbo-cloud#475](https://github.com/nitrodevco/turbo-cloud/pull/475)
+
 ### The documentation has a sidebar and a website
 
 - **What**: `docs/documentation.md` orders every page under a sidebar, and each page opens with a

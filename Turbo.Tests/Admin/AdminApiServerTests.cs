@@ -266,6 +266,7 @@ public sealed class AdminApiServerTests : IDisposable
                 typeof(IOptionsMonitor<Turbo.Database.Configuration.MovementsConfig>),
                 typeof(IOptionsMonitor<Turbo.Database.Configuration.ClientTelemetryConfig>),
                 typeof(Microsoft.Extensions.Hosting.IHostApplicationLifetime),
+                typeof(Turbo.Contracts.Approvals.IApprovals),
             }
         )
             services.AddSingleton(iface, fakes.Create(iface));

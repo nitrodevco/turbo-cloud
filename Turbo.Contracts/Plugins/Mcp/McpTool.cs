@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Contracts.Plugins.Mcp;
 
@@ -34,6 +35,16 @@ public interface IMcpTool
     /// <summary>It reaches past the hotel, to the web or another service (<c>openWorldHint</c>).</summary>
     bool OpenWorld { get; }
 
+    /// <summary>
+    /// A person must approve each call before it runs (<c>docs/approvals.md</c>): over MCP the
+    /// call answers "pending approval" with the request's id, and the tool runs, once, when a
+    /// staff member holding <see cref="ApprovalNode"/> approves it. Never for a read-only tool.
+    /// </summary>
+    bool RequiresApproval { get; }
+
+    /// <summary>The node an approver of a call must hold; <c>approvals.decide</c> by default.</summary>
+    string ApprovalNode { get; }
+
     /// <summary>The arguments' type: a record or class, its properties the arguments.</summary>
     Type InputType { get; }
 
@@ -66,6 +77,10 @@ public abstract class McpTool<TInput> : IMcpTool
     public virtual bool Idempotent => ReadOnly;
 
     public virtual bool OpenWorld => false;
+
+    public virtual bool RequiresApproval => false;
+
+    public virtual string ApprovalNode => PermissionNodes.Approvals.DECIDE;
 
     public Type InputType => typeof(TInput);
 

@@ -51,6 +51,9 @@ public sealed class AdminActionLog(
     /// </summary>
     public const string MEDIA = "media";
 
+    /// <summary>A request approved or denied in the Approvals inbox: <c>approval approve|deny &lt;id&gt; &lt;kind&gt;</c>.</summary>
+    public const string APPROVAL = "approval";
+
     public const string SOURCE = "panel";
 
     /// <summary>The source of a change a plugin made through the hotel API, logged as no player (0).</summary>

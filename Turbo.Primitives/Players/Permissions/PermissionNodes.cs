@@ -287,6 +287,22 @@ public static class PermissionNodes
         public const string SUPERUSER = "permissions.superuser";
     }
 
+    /// <summary>Human approval of actions asked for by plugins, AI agents and MCP tools (docs/approvals.md).</summary>
+    public static class Approvals
+    {
+        /// <summary>
+        /// Approve or deny a request that names no node of its own. Nobody approves a request they
+        /// asked for, or that was asked for them.
+        /// </summary>
+        public const string DECIDE = "approvals.decide";
+
+        /// <summary>
+        /// See the Approvals inbox in the panel: what was asked, by whom, the arguments and what
+        /// became of it. Deciding needs each request's node as well.
+        /// </summary>
+        public const string VIEW = "admin.approvals.view";
+    }
+
     public static class Admin
     {
         /// <summary>Sign in to the admin panel. What can be done there is checked node by node.</summary>

@@ -9,8 +9,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Turbo.Contracts.Approvals;
 using Turbo.Contracts.Hotel;
 using Turbo.Contracts.Plugins.Mcp;
+using Turbo.Plugins.Approvals;
 using Turbo.Runtime.AssemblyProcessing;
 
 namespace Turbo.Plugins;
@@ -65,6 +67,10 @@ internal sealed class McpTools(IServiceProvider host, ILogger<McpTools> logger) 
 
         try
         {
+            if (tool.RequiresApproval)
+                return await RequestApprovalAsync(tool, arguments, caller, ct)
+                    .ConfigureAwait(false);
+
             return await tool.CallAsync(arguments, new McpToolContext(caller, holds), ct)
                 .ConfigureAwait(false);
         }
@@ -81,6 +87,83 @@ internal sealed class McpTools(IServiceProvider host, ILogger<McpTools> logger) 
 
             return McpToolCallResult.Failed(tool.Name);
         }
+    }
+
+    /// <summary>
+    /// Runs an approved call (<see cref="McpToolApprovalHandler"/>): the tool, still live, for the
+    /// staff member who asked, who must still hold one of its nodes.
+    /// </summary>
+    internal async Task<McpToolCallResult> RunApprovedAsync(
+        McpToolApproval call,
+        McpCaller caller,
+        CancellationToken ct
+    )
+    {
+        var holds = Holds(caller);
+
+        if (
+            All.FirstOrDefault(x => string.Equals(x.Name, call.Tool, StringComparison.Ordinal))
+                is not { RequiresApproval: true } tool
+            || !await tool.IsAvailableToAsync(caller, holds, ct).ConfigureAwait(false)
+        )
+            return McpToolCallResult.Unavailable(call.Tool);
+
+        if (tool.CheckArguments(call.Arguments, out var input) is { } invalid)
+            return invalid;
+
+        return await tool.RunAsync(input!, new McpToolContext(caller, holds), ct)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The tool needs a person's yes: its checked arguments are saved as an approval of
+    /// <see cref="McpToolApproval.KIND"/> asked for the caller, and the assistant is told the id.
+    /// </summary>
+    private async Task<McpToolCallResult> RequestApprovalAsync(
+        McpToolDefinition tool,
+        JsonElement? arguments,
+        McpCaller caller,
+        CancellationToken ct
+    )
+    {
+        if (tool.CheckArguments(arguments, out var input) is { } invalid)
+            return invalid;
+
+        var args = tool.WriteArguments(input!);
+        var summary = $"Run the MCP tool {tool.Title} ({tool.Name}) with {args.GetRawText()}";
+
+        if (summary.Length > ApprovalRequest.SUMMARY_MAX_LENGTH)
+            summary = summary[..(ApprovalRequest.SUMMARY_MAX_LENGTH - 3)] + "...";
+
+        var approval = await host.GetRequiredService<HotelApprovals>()
+            .RequestAsync(
+                new ApprovalRequest
+                {
+                    Kind = McpToolApproval.KIND,
+                    Summary = summary,
+                    Arguments = new McpToolApproval(tool.Name, args),
+                    Requester = ApprovalRequester.Token(caller.Player, "MCP"),
+                    Node = tool.Tool.ApprovalNode,
+                },
+                tool.Owner,
+                ct
+            )
+            .ConfigureAwait(false);
+
+        return new McpToolCallResult(
+            McpToolCallStatus.PendingApproval,
+            [
+                $"{tool.Name} was not run yet: it needs a person's approval. Pending approval {approval.Id}; it runs when a staff member approves it in the admin panel, and is dropped if nobody does by {approval.ExpiresAtUtc:yyyy-MM-dd HH:mm} UTC. Don't call it again for the same thing.",
+            ],
+            JsonSerializer.SerializeToElement(
+                new
+                {
+                    approvalId = approval.Id,
+                    state = "pending",
+                    expiresAt = approval.ExpiresAtUtc,
+                }
+            )
+        );
     }
 
     /// <summary>

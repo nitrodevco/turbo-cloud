@@ -68,6 +68,9 @@ public sealed class McpToolDefinition
 
     public bool OpenWorld => Tool.OpenWorld;
 
+    /// <summary>A person approves each call before it runs (<see cref="IMcpTool.RequiresApproval"/>).</summary>
+    public bool RequiresApproval => Tool.RequiresApproval;
+
     /// <summary>The nodes of its <c>[RequiresPermission]</c>: a caller holding any one may call it.</summary>
     public ImmutableArray<string> Nodes { get; }
 
@@ -112,6 +115,16 @@ public sealed class McpToolDefinition
                 $"The MCP tool {name} has no [RequiresPermission]: every tool needs a permission node, so staff are given each tool on purpose."
             );
 
+        if (tool.RequiresApproval && tool.ReadOnly)
+            throw new InvalidOperationException(
+                $"The MCP tool {name} is read-only and needs approval: a tool that changes nothing has nothing to approve."
+            );
+
+        if (tool.RequiresApproval && string.IsNullOrWhiteSpace(tool.ApprovalNode))
+            throw new InvalidOperationException(
+                $"The MCP tool {name} needs approval with no ApprovalNode: an approver must hold one."
+            );
+
         var json = Options();
         var input = Schema(json, tool.InputType, name, "input");
         var output = tool.OutputType is { } outputType
@@ -153,6 +166,19 @@ public sealed class McpToolDefinition
         CancellationToken ct
     )
     {
+        if (CheckArguments(arguments, out var input) is { } invalid)
+            return invalid;
+
+        return await RunAsync(input!, ctx, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Checks <paramref name="arguments"/> against the input schema and reads them into
+    /// <paramref name="input"/>: null when they fit, else the <see cref="McpToolCallStatus.InvalidArguments"/>
+    /// answer with each problem as a sentence.
+    /// </summary>
+    public McpToolCallResult? CheckArguments(JsonElement? arguments, out object? input)
+    {
         var args = arguments
             is { ValueKind: not JsonValueKind.Undefined and not JsonValueKind.Null }
             ? arguments.Value
@@ -161,7 +187,7 @@ public sealed class McpToolDefinition
 
         Check(args, _input, string.Empty, problems);
 
-        object? input = null;
+        input = null;
 
         if (problems.Count == 0)
         {
@@ -183,6 +209,20 @@ public sealed class McpToolDefinition
                 ]
             );
 
+        return null;
+    }
+
+    /// <summary>The arguments as they are saved with an approval: checked, in camelCase, defaults filled in.</summary>
+    public JsonElement WriteArguments(object input) =>
+        JsonSerializer.SerializeToElement(input, Tool.InputType, _json);
+
+    /// <summary>Runs the tool with arguments <see cref="CheckArguments"/> read, and writes its answer.</summary>
+    public async Task<McpToolCallResult> RunAsync(
+        object input,
+        McpToolContext ctx,
+        CancellationToken ct
+    )
+    {
         var result = await Tool.InvokeAsync(input, ctx, ct).ConfigureAwait(false);
 
         if (result.IsError)

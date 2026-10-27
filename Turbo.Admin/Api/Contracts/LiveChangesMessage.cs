@@ -11,5 +11,6 @@ public sealed record LiveChangesMessage(
     int[] Players,
     int[] Permissions,
     bool Notifications,
-    bool Reports
+    bool Reports,
+    bool Approvals = false
 );

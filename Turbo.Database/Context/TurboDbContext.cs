@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Achievements;
 using Turbo.Database.Entities.Admin;
+using Turbo.Database.Entities.Approvals;
 using Turbo.Database.Entities.Assets;
 using Turbo.Database.Entities.Badges;
 using Turbo.Database.Entities.Bots;
@@ -312,6 +313,8 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<MovementConsumerCursorEntity> MovementConsumerCursors { get; init; }
 
     public DbSet<ScheduledTaskRunEntity> ScheduledTaskRuns { get; init; }
+
+    public DbSet<ApprovalEntity> Approvals { get; init; }
 
     public DbSet<FurnitureGrantReceiptEntity> FurnitureGrantReceipts { get; init; }
 

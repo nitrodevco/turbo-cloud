@@ -355,6 +355,107 @@ namespace Turbo.Database.Migrations
                     b.ToTable("admin_sessions");
                 });
 
+            modelBuilder.Entity("Turbo.Database.Entities.Approvals.ApprovalEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Arguments")
+                        .IsRequired()
+                        .HasMaxLength(16000)
+                        .HasColumnType("text")
+                        .HasColumnName("arguments");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<DateTime>("CreatedAt"));
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("decided_at");
+
+                    b.Property<int?>("DecidedByPlayerId")
+                        .HasColumnType("int")
+                        .HasColumnName("decided_by_player_id");
+
+                    b.Property<DateTime?>("ExecutedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("executed_at");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Node")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("node");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("PluginKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("plugin_key");
+
+                    b.Property<string>("RequesterKind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasColumnName("requester_kind");
+
+                    b.Property<string>("RequesterName")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("requester_name");
+
+                    b.Property<int?>("RequesterPlayerId")
+                        .HasColumnType("int")
+                        .HasColumnName("requester_player_id");
+
+                    b.Property<string>("Result")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("result");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasColumnName("state");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("summary");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Kind");
+
+                    b.HasIndex("State", "ExpiresAt");
+
+                    b.ToTable("approvals");
+                });
+
             modelBuilder.Entity("Turbo.Database.Entities.Assets.AssetBrokenIgnoreEntity", b =>
                 {
                     b.Property<int>("Id")

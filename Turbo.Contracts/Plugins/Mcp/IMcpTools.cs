@@ -25,7 +25,9 @@ public interface IMcpTools
     /// Calls the tool for <paramref name="caller"/>. A tool that is not live, or one the caller may
     /// not call, answers <see cref="McpToolCallStatus.Unavailable"/> alike, so a caller can't tell
     /// a tool it may not see from none; one that throws answers <see cref="McpToolCallStatus.Failed"/>
-    /// and is logged with its plugin's key.
+    /// and is logged with its plugin's key. A tool that needs approval does not run: its checked
+    /// arguments are saved as a request and it answers <see cref="McpToolCallStatus.PendingApproval"/>
+    /// with the request's id; it runs when a staff member approves it.
     /// </summary>
     Task<McpToolCallResult> CallAsync(
         string name,
@@ -52,6 +54,12 @@ public enum McpToolCallStatus
 
     /// <summary>It threw; the error is in the server's log, not in the answer.</summary>
     Failed,
+
+    /// <summary>
+    /// It did not run yet: it needs a person's approval (<see cref="IMcpTool.RequiresApproval"/>),
+    /// and runs when a staff member approves the request the text names.
+    /// </summary>
+    PendingApproval,
 }
 
 /// <summary>
@@ -64,8 +72,9 @@ public sealed record McpToolCallResult(
     JsonElement? Structured = null
 )
 {
-    /// <summary>MCP's <c>isError</c>: anything but <see cref="McpToolCallStatus.Ok"/>.</summary>
-    public bool IsError => Status != McpToolCallStatus.Ok;
+    /// <summary>MCP's <c>isError</c>: anything but <see cref="McpToolCallStatus.Ok"/> and <see cref="McpToolCallStatus.PendingApproval"/>.</summary>
+    public bool IsError =>
+        Status is not (McpToolCallStatus.Ok or McpToolCallStatus.PendingApproval);
 
     public static McpToolCallResult Unavailable(string name) =>
         new(
