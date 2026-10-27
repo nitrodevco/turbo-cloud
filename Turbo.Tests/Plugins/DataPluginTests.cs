@@ -1476,7 +1476,9 @@ public sealed class DataPluginTests : IDisposable
 
         var after = before;
 
-        for (var i = 0; i < 100 && after == before; i++)
+        // Between the old version's parts going and the new one's coming the plugin has none: a
+        // look in that moment is not the end of the reload.
+        for (var i = 0; i < 100 && (after is null || after == before); i++)
         {
             await Task.Delay(100, Ct);
             after = Address();
