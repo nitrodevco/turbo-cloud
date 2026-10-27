@@ -32,10 +32,12 @@ public sealed record TrainSkill(string Skill) : IPluginMessage;
   public constructor), an array of any of them (`T[]`, `ImmutableArray<T>`, `IReadOnlyList<T>`), or
   a dictionary keyed by `string` of any of them (`Dictionary<string, T>`, `IDictionary<string, T>`,
   `IReadOnlyDictionary<string, T>`, `ImmutableDictionary<string, T>`); the client reads a dictionary
-  as a plain object. Anything else (a dictionary with other keys, a nullable, a record that contains
+  as a plain object. The last field, and only the last, may be an `IComposer`: a whole packet of the
+  hotel's carried after the others (see "Carrying a core packet"). Anything else (a dictionary with other keys, a nullable, a record that contains
   itself) refuses the plugin's load, and the message names the field
   (`skills.state.Skills[].Name: ...`).
-- A message has no direction: any message can be sent either way.
+- A message has no direction: any message can be sent either way, except one that carries a
+  packet, which goes only to clients (a handler for it refuses the plugin's load).
 - Messages, nested records and handlers must be `public` to be found.
 
 The plugin needs nothing but `Turbo.Contracts` and `Turbo.Primitives`.
@@ -80,11 +82,24 @@ that accepted `client.messages` (§5); a message whose plugin has gone by then i
 
 ### Carrying a core packet
 
-`PluginEnvelopeComposer.For(message, packet)` sends your message with a whole packet of the
-hotel's after its fields (another room's furni or avatars, relayed): its short header and body as
-the session's encoder writes it, for the client module to read with `api.packets.parseCore`. The
-carried packet is written once for every session it goes to. A room watch builds these for you;
-see `docs/plugin-room-watch.md`.
+A message whose last field is an `IComposer` carries a whole packet of the hotel's after its other
+fields (another room's furni or avatars, relayed):
+
+```csharp
+[PluginMessage("portals.room")]
+public sealed record PortalRoom(int RoomId, IComposer? Carried = null) : IPluginMessage;
+
+await hotel.Players.SendAsync(player, new PortalRoom(12, corePacket), ct);
+```
+
+Its schema says so (`["carried","packet"]`), and it is sent as a `PluginEnvelopeComposer`: the
+fields, then the carried packet's short header and body as the session's encoder writes it. The
+client reads that field with its own parser for the header, so the module gets the parsed packet
+(`{ header, packet }` in nitro-next's `api.messages.on`). The carried packet is written once for
+every session it goes to. The sends above take such a message as they take any other; code that
+holds another room send passes `PluginMessageComposer.Compose(message)` (for a message that carries
+no packet it is `PluginMessageComposer.For(message)`, which refuses one that does). A room watch
+fills the field for you, one of the room's packets at a time; see `docs/plugin-room-watch.md`.
 
 ## 4. Headers
 
@@ -127,10 +142,11 @@ A plugin message itself is `int length`, `short header`, then its fields in orde
 | `["array", T]` | `int` count, then each item as `T` |
 | `["map", T]` | `int` count, then per entry its key as a `"string"` and its value as `T`, in the dictionary's order (a key sent twice keeps its last value) |
 | `["object", fields]` | each field in order, nothing around them |
+| `"packet"` | the last field only: the rest of the packet is a whole packet of the hotel's, its `short` header and body as the server writes that packet alone (no length) |
 
 The **schema** is compact JSON: an array of `[name, type]` fields, names in camelCase, where a type
 is one of `"int"`, `"long"`, `"bool"`, `"string"`, `"double"`, `["array", type]`,
-`["map", type]` or `["object", fields]`. `SkillsState` above is:
+`["map", type]`, `["object", fields]` or, as the last field only, `"packet"`. `SkillsState` above is:
 
 ```json
 [["total","int"],["skills",["array",["object",[["name","string"],["level","int"],["xp","long"]]]]],["max","bool"]]

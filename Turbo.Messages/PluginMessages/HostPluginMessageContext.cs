@@ -20,5 +20,5 @@ internal sealed class HostPluginMessageContext(MessageContext ctx) : PluginMessa
     // The session that sent a named message learned its header from client.messages, so it is
     // one that accepted it.
     public override Task ReplyAsync(IPluginMessage message, CancellationToken ct) =>
-        ctx.SendComposerAsync(PluginMessageComposer.For(message), ct);
+        ctx.SendComposerAsync(PluginMessageComposer.Compose(message), ct);
 }

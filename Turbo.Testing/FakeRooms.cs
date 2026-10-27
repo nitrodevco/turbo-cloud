@@ -195,7 +195,8 @@ public sealed class FakeRooms : IHotelRooms
     /// <summary>
     /// The running hotel's rules in memory: an online player not in the room, not banned from it
     /// and not kept out by its door (<see cref="FakeRoom.DoorClosed"/>), at most
-    /// <see cref="RoomWatchLimits.MAX_WATCHES_PER_PLAYER"/> rooms, until the lease runs out.
+    /// <see cref="RoomWatchLimits.MAX_WATCHES_PER_PLAYER"/> rooms, until the lease runs out. An
+    /// envelope with no carried packet field is refused as the hotel refuses it.
     /// </summary>
     public Task<RoomWatchOutcome> WatchAsync(
         PlayerId player,
@@ -205,6 +206,7 @@ public sealed class FakeRooms : IHotelRooms
         CancellationToken ct
     )
     {
+        PluginEnvelopeComposer.OuterOf(envelope);
         DropExpired();
 
         if (!_hotel.Players.IsOnline(player))

@@ -414,7 +414,7 @@ internal sealed class HostHotelPlayers(
     }
 
     public Task<bool> SendAsync(PlayerId player, IPluginMessage message, CancellationToken ct) =>
-        grains.TrySendComposerToPlayerAsync(player, PluginMessageComposer.For(message), ct);
+        grains.TrySendComposerToPlayerAsync(player, PluginMessageComposer.Compose(message), ct);
 
     public Task<bool> SendAsync(PlayerId player, IComposer composer, CancellationToken ct) =>
         grains.TrySendComposerToPlayerAsync(player, composer, ct);

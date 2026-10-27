@@ -148,7 +148,7 @@ public static class GrainFactoryExtensions
         PlayerId playerId,
         IPluginMessage message,
         CancellationToken ct
-    ) => factory.SendComposerToPlayerAsync(playerId, PluginMessageComposer.For(message), ct);
+    ) => factory.SendComposerToPlayerAsync(playerId, PluginMessageComposer.Compose(message), ct);
 
     /// <summary>The same plugin message to several players, written once.</summary>
     public static Task SendPluginMessageToPlayersAsync(
@@ -156,7 +156,7 @@ public static class GrainFactoryExtensions
         IEnumerable<PlayerId> playerIds,
         IPluginMessage message,
         CancellationToken ct
-    ) => factory.SendComposerToPlayersAsync(playerIds, PluginMessageComposer.For(message), ct);
+    ) => factory.SendComposerToPlayersAsync(playerIds, PluginMessageComposer.Compose(message), ct);
 
     public static IPlayerPresenceGrain GetPlayerPresenceGrain(
         this IGrainFactory factory,

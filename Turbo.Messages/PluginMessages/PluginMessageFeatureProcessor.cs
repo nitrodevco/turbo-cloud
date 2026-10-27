@@ -72,6 +72,11 @@ internal sealed class PluginMessageFeatureProcessor(
                 // Its schema refuses a type that is no message, before anything is registered.
                 var schema = PluginMessageSchema.For(messageType);
 
+                if (schema.CarriesPacket)
+                    throw new ArgumentException(
+                        $"{concrete.Name} handles {schema.Name}, which carries a packet: such a message goes only from the server to clients."
+                    );
+
                 sp.Contributes(PluginContributionKinds.MESSAGE_HANDLER, concrete.Name, schema.Name);
 
                 var invoker =

@@ -1,5 +1,7 @@
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Collections.Immutable;
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Messages.PluginMessages;
@@ -18,10 +20,10 @@ using Xunit;
 namespace Turbo.Tests.Plugins;
 
 /// <summary>
-/// An envelope (<see cref="PluginEnvelopeComposer"/>): a plugin message whose fields are followed
-/// by a whole packet of the hotel's, its short header and body exactly as the session's encoder
-/// writes it alone, for a client module to hand to <c>api.packets.parseCore</c>. The carried
-/// packet is written once for every session it goes to.
+/// An envelope (<see cref="PluginEnvelopeComposer"/>): a plugin message whose last field carries
+/// a whole packet of the hotel's (schema type <c>"packet"</c>), its short header and body exactly
+/// as the session's encoder writes it alone, for the client to read with its own parser. The
+/// carried packet is written once for every session it goes to.
 /// </summary>
 public sealed class PluginEnvelopeComposerTests : IDisposable
 {
@@ -116,6 +118,97 @@ public sealed class PluginEnvelopeComposerTests : IDisposable
         Encode(envelope).Should().BeEmpty();
     }
 
+    [Fact]
+    public void A_client_reading_by_the_schema_it_was_sent_finds_the_carried_packet_after_the_fields()
+    {
+        var inner = new TurboServerCapabilitiesMessage { Capabilities = [] };
+        var alone = Encode(inner);
+        var schema = _directory.Messages.Single(x => x.Name == "test.portal").Schema;
+
+        schema.Should().Be("""[["roomId","int"],["carried","packet"]]""");
+
+        var bytes = Encode(PluginMessageComposer.Compose(new Portal(42, inner)));
+        var read = ReadAsClient(bytes, schema);
+
+        read["roomId"].Should().Be(42);
+        read["carried"]
+            .Should()
+            .BeOfType<byte[]>()
+            .Which.Should()
+            .Equal(alone[4..], "the core packet's short header and body");
+    }
+
+    [Fact]
+    public void A_message_that_carries_a_packet_is_sent_only_as_an_envelope_and_never_read_from_a_client()
+    {
+        var inner = new TurboServerCapabilitiesMessage { Capabilities = [] };
+
+        FluentActions
+            .Invoking(() => PluginMessageComposer.For(new Portal(1, inner)))
+            .Should()
+            .Throw<ArgumentException>()
+            .WithMessage("*carries a packet*");
+        FluentActions
+            .Invoking(() => PluginEnvelopeComposer.For(new Portal(1)))
+            .Should()
+            .Throw<ArgumentException>("its packet is null");
+        FluentActions
+            .Invoking(() => PluginEnvelopeComposer.OuterOf(new Ping(1)))
+            .Should()
+            .Throw<ArgumentException>("a watch's envelope needs a packet field")
+            .WithMessage("*no carried packet*");
+        FluentActions
+            .Invoking(() =>
+                PluginMessageSchema
+                    .For(typeof(Portal))
+                    .Read(new ClientPacket(1, new byte[] { 0, 0, 0, 1, 0, 1 }))
+            )
+            .Should()
+            .Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData(typeof(PacketFirst))]
+    [InlineData(typeof(PacketsListed))]
+    [InlineData(typeof(PacketNested))]
+    public void A_carried_packet_is_only_a_messages_last_field(Type type) =>
+        FluentActions
+            .Invoking(() => PluginMessageSchema.For(type))
+            .Should()
+            .Throw<ArgumentException>()
+            .WithMessage("*only the message's last field*");
+
+    // What a client does with the schema it was sent (nitro-next's pluginMessageCodec): each field
+    // in order, a carried packet as the rest of the body.
+    private static Dictionary<string, object> ReadAsClient(byte[] bytes, string schema)
+    {
+        var read = new Dictionary<string, object>();
+        var at = 6;
+
+        foreach (var field in JsonDocument.Parse(schema).RootElement.EnumerateArray())
+        {
+            var name = field[0].GetString()!;
+
+            switch (field[1].GetString())
+            {
+                case "int":
+                    read[name] = BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(at));
+                    at += 4;
+                    break;
+                case "packet":
+                    read[name] = bytes[at..];
+                    at = bytes.Length;
+                    break;
+                default:
+                    throw new InvalidOperationException(field[1].ToString());
+            }
+        }
+
+        at.Should().Be(bytes.Length);
+
+        return read;
+    }
+
     private byte[] Encode(IComposer composer)
     {
         var writer = new ArrayBufferWriter<byte>();
@@ -126,10 +219,22 @@ public sealed class PluginEnvelopeComposerTests : IDisposable
     }
 
     [PluginMessage("test.portal")]
-    public sealed record Portal(int RoomId) : IPluginMessage;
+    public sealed record Portal(int RoomId, IComposer? Carried = null) : IPluginMessage;
 
     [PluginMessage("test.ping")]
     public sealed record Ping(int Value) : IPluginMessage;
+
+    [PluginMessage("test.first")]
+    public sealed record PacketFirst(IComposer? Carried, int RoomId) : IPluginMessage;
+
+    [PluginMessage("test.listed")]
+    public sealed record PacketsListed(int RoomId, ImmutableArray<IComposer> Carried)
+        : IPluginMessage;
+
+    [PluginMessage("test.nested")]
+    public sealed record PacketNested(int RoomId, Holder Holder) : IPluginMessage;
+
+    public sealed record Holder(IComposer? Carried);
 
     private sealed record Counted(int Value) : IComposer;
 

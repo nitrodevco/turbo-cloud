@@ -31,11 +31,11 @@ public sealed class PresenceRoomWatchTests
     private static readonly RoomId WATCHED = RoomId.Parse(9);
 
     private readonly SessionHarness _hotel = new();
-    private readonly PluginMessageComposer _envelope = new()
-    {
-        Name = "portals.room",
-        Body = [0, 0, 0, 9],
-    };
+
+    // As IHotel.Rooms.WatchAsync writes a plugin's envelope: the fields before its carried packet.
+    private readonly PluginMessageComposer _envelope = PluginEnvelopeComposer.OuterOf(
+        new PortalRoom(9)
+    );
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -373,9 +373,19 @@ public sealed class PresenceRoomWatchTests
 
     private int Views() => _hotel.Fakes.Log.Of(nameof(IRoomGrain.GetWatchViewAsync)).Count();
 
-    /// <summary>The packets carried in envelopes to the session, in order.</summary>
-    private IEnumerable<IComposer> Carried(SessionKey key) =>
-        _hotel.Received(key).OfType<PluginEnvelopeComposer>().Select(x => x.Inner);
+    /// <summary>
+    /// The packets carried in envelopes to the session, in order: the entry view's and the
+    /// stream's alike, each in the plugin's carried packet field.
+    /// </summary>
+    private IEnumerable<IComposer> Carried(SessionKey key)
+    {
+        var envelopes = _hotel.Received(key).OfType<PluginEnvelopeComposer>().ToList();
+
+        foreach (var envelope in envelopes)
+            envelope.Outer.Should().Be(_envelope);
+
+        return envelopes.Select(x => x.Inner);
+    }
 
     // Watching shows as the room's packets arriving in the envelope.
     private async Task AssertWatchingAsync() => (await DeliveredAsync()).Should().BeTrue();
@@ -410,4 +420,7 @@ public sealed class PresenceRoomWatchTests
             .Select(x => ((string)x.Args[0]!, (string)x.Args[1]!, (PlayerId)x.Args[2]!));
 
     private static IComposer Core() => new TurboServerCapabilitiesMessage { Capabilities = [] };
+
+    [PluginMessage("portals.room")]
+    public sealed record PortalRoom(int RoomId, IComposer? Carried = null) : IPluginMessage;
 }

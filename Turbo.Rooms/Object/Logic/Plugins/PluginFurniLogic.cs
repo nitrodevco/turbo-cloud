@@ -218,6 +218,8 @@ internal sealed class PluginFurniLogic(
         CancellationToken ct
     )
     {
+        var outer = PluginEnvelopeComposer.OuterOf(envelope);
+
         if (
             leases is null
             || !TryGetAvatar(user, out var avatar)
@@ -235,7 +237,7 @@ internal sealed class PluginFurniLogic(
                 plugin,
                 player.PlayerId,
                 room,
-                PluginMessageComposer.For(envelope),
+                outer,
                 lease,
                 throughPair,
                 CancellationToken.None
