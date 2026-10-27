@@ -18,8 +18,8 @@ A **plugin** is the package. One folder, installed, updated, rolled back and rem
 plugins/skills/
   manifest.json                 key, version, dependencies, table prefix, API version
   server/*.cs                   server half, compiled by the server: services, handlers, commands, listeners, migrations
-  wwwroot/                      client half and its files, served at /gamedata/plugins/skills/
-    skills.js                   a client module (docs/client-modules.md)
+  client/src/index.tsx          client half: a client module the server builds (docs/client-modules.md)
+  wwwroot/                      its files, served at /gamedata/plugins/skills/ (no JavaScript)
     template-patches.json       changes to existing windows, as data (§4.5)
     icons/...
   gamedata/
@@ -365,6 +365,11 @@ links a Discord account it has proven to an existing player through `IHotel.Play
   `Turbo.Events` and `Turbo.Pipeline`; `IMessageHandler<T>`, `IMessageBehavior<T>` and
   `MessageContext`, from `Turbo.Messages`). A service an extension needs from an implementation
   project gets a contract it implements, registered beside it (`IEventPublisher` for `EventSystem`).
+- **Upgrading**: a change that alters what plugin authors write or see is listed in
+  `docs/plugin-changelog.md` (newest first: what changed, who it affects, whether it breaks
+  plugins, what to do), and a breaking one says how to move in `docs/upgrading.md` (first: from
+  plugin assemblies to source-only plugins). Each pull request says so in its "Plugin authors"
+  section.
 - **Compatibility checks**: example plugins are compiled and loaded by the test suite
   (`HelloExamplePluginTests`); every new primitive gets an example there. Template patch reports name
   targets a new client release removed, so a release can be checked against installed plugins

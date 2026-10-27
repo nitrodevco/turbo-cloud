@@ -2,7 +2,7 @@
 
 A plugin can bring code that runs in the client: a **client module**, a JavaScript ES module the
 client loads and runs beside its own. The plugin brings its TypeScript source and the server builds
-the module from it (§1, "How the server builds a module"): a plugin brings no built JavaScript. Server code stays in the plugin's assembly; the module adds
+the module from it (§1, "How the server builds a module"): a plugin brings no built JavaScript. Server code stays in the plugin's C# sources; the module adds
 what the player sees (a toolbar icon, a window, a drawing over an avatar) and talks to the plugin
 through the plugin's named messages (`docs/plugin-messages.md`) or its own packets (`docs/plugin-packets.md`). A hotel turns a feature on or off by
 installing or removing one plugin: its server half and its client half come and go together.
@@ -15,7 +15,8 @@ them (the Flash client, any other port) is never told of one and works as before
 ```
 plugins/hello/
   manifest.json
-  Hello.dll
+  server/             the server half's C# sources, which the server compiles
+    HelloPlugin.cs
   client/src/         the module's TypeScript, which the server builds into hello.js
     index.ts
   wwwroot/            the files the module loads (icons, images, data); no JavaScript
@@ -122,7 +123,7 @@ served; older ones are deleted.
 ### Start from the template
 
 `templates/turbo-plugin` is a `dotnet new` template for a plugin with both halves: the server
-assembly (a `TurboPlugin` of one line, a `[PluginSettings]` class for the panel, a permission node
+sources (a `TurboPlugin` of one line, a `[PluginSettings]` class for the panel, a permission node
 source, a command, named messages and their handlers) and a client module in TypeScript and React written with nitro-next's
 `@nitrodevco/client-module-sdk` (a window, a toolbar icon, a patch to the purse), with server and
 client tests. Three commands:

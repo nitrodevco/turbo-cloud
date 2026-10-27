@@ -90,56 +90,33 @@ Hooks are repository-managed in `.githooks`:
 - Run in Development: `dotnet run --project Turbo.Main/Turbo.Main.csproj`
 
 ## Local Dev Plugins
-Plugin loading supports both the runtime plugin folder and dev-specific paths:
-- Default folder: `<runtime>/plugins`
-- Optional config: `Turbo:Plugin:DevPluginPaths`
-
-Example:
+A plugin is a folder of sources: `manifest.json`, its C# under `server/`, its client module under
+`client/src/`, its files. The server compiles it as it loads it and loads no plugin assembly
+(`docs/plugin-loading.md`). Plugins load from the runtime plugin folder (`<runtime>/plugins`) and
+from `Turbo:Plugin:DevPluginPaths`:
 
 ```json
 {
   "Turbo": {
     "Plugin": {
       "DevPluginPaths": [
-        "C:/Users/you/RiderProjects/turbo-sample-plugin/TurboSamplePlugin/bin/Debug/net10.0"
+        "C:/Users/you/plugins/skills/dist/skills"
       ]
     }
   }
 }
 ```
 
-If the same plugin key exists in both places, `DevPluginPaths` wins and a warning is logged.
+If the same plugin key exists in both places, `DevPluginPaths` wins and a warning is logged. You can
+list several plugin folders when developing several plugins at once.
 
 A new plugin with a server half and a client module: `dotnet new turbo-plugin` from `templates/turbo-plugin` gives both, tests and one `npm run dev` (`docs/client-modules.md`, "Start from the template").
+`npm run dev` keeps `dist/<key>/` current; in the Development environment with
+`Turbo:Plugin:HotReloadEnabled`, a saved source compiles and reloads the plugin in-process.
+`npm run check` compiles the sources as the server does.
 
-### Plugin project setup
-Your plugin's `.csproj` must copy `manifest.json` to the build output:
-
-```xml
-<ItemGroup>
-  <Content Include="manifest.json">
-    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-  </Content>
-</ItemGroup>
-```
-
-You can list multiple plugin paths in `DevPluginPaths` when developing several plugins at once.
-
-### Two-terminal dev workflow
-Terminal 1 (run emulator):
-
-```bash
-dotnet run --project Turbo.Main
-```
-
-Terminal 2 (watch plugin):
-
-```bash
-cd C:/path/to/your-plugin
-dotnet watch build
-```
-
-When `dotnet watch` rebuilds your plugin, Turbo Cloud detects the new DLL and hot-reloads the plugin in-process.
+A plugin made before the server compiled plugins (one that ships a `.dll`): `docs/upgrading.md`.
+Every change that affects plugin authors, newest first: `docs/plugin-changelog.md`.
 
 ### Plugin hot-reload limitations
 - Grain types cannot be hot-reloaded because Orleans grain type registration happens at silo startup.

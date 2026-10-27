@@ -145,6 +145,10 @@ by constructor (`SkillBook` alerts a player who levels up); its tests use `FakeH
 `Turbo.Testing.dll` in the same bin folder, with assertions such as
 `hotel.Notify.AssertAlerted(alice, SkillBook.LEVELLED)` (turbo-cloud `docs/hotel-api.md`).
 
+When Turbo changes what plugins write or see, turbo-cloud `docs/plugin-changelog.md` says what
+changed, newest first, and whether it breaks plugins; `docs/upgrading.md` is the step-by-step move
+for a breaking change (a plugin made before plugins were compiled from their sources starts there).
+
 ## The plugin's tables from a route or a task
 
 The plugin's database context is scoped (one per request), and its routes, scheduled tasks,
