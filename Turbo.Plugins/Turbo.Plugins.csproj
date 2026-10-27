@@ -13,5 +13,6 @@
     <ProjectReference Include="..\Turbo.Runtime\Turbo.Runtime.csproj" />
     <ProjectReference Include="..\Turbo.Plugins.Policy\Turbo.Plugins.Policy.csproj" />
     <InternalsVisibleTo Include="Turbo.Tests" />
+    <InternalsVisibleTo Include="Turbo.Testing" />
   </ItemGroup>
 </Project>

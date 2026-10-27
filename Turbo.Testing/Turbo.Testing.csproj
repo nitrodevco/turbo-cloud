@@ -1,14 +1,31 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    The hotel API in memory, for plugins' tests: FakeHotel and its assertions (docs/hotel-api.md).
-    It builds on the contracts alone, so a plugin's test project references it as it does them,
-    from the server's bin folder.
+    The plugin test kit (docs/plugin-testing.md): TestHotel, which loads a plugin as the server
+    does and plays the game against it, and FakeHotel, the hotel API in memory (docs/hotel-api.md).
+    It ships beside the server's assemblies; a plugin's test project imports
+    plugin-sdk/Turbo.Plugin.Tests.props, which references it and what it builds on. It is never in
+    what the server compiles plugins against (PluginReferences.HOST).
   -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <!-- A plugin's test project brings it (plugin-sdk/Turbo.Plugin.Tests.props); the server ships without it. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Turbo.Contracts\Turbo.Contracts.csproj" />
     <ProjectReference Include="..\Turbo.Primitives\Turbo.Primitives.csproj" />
+    <ProjectReference Include="..\Turbo.Commands\Turbo.Commands.csproj" />
+    <ProjectReference Include="..\Turbo.Database\Turbo.Database.csproj" />
+    <ProjectReference Include="..\Turbo.Events\Turbo.Events.csproj" />
+    <ProjectReference Include="..\Turbo.Messages\Turbo.Messages.csproj" />
+    <ProjectReference Include="..\Turbo.Networking\Turbo.Networking.csproj" />
+    <ProjectReference Include="..\Turbo.Operations\Turbo.Operations.csproj" />
+    <ProjectReference Include="..\Turbo.Players\Turbo.Players.csproj" />
+    <ProjectReference Include="..\Turbo.Plugins\Turbo.Plugins.csproj" />
+    <ProjectReference Include="..\Turbo.Rooms\Turbo.Rooms.csproj" />
+    <ProjectReference Include="..\Turbo.Runtime\Turbo.Runtime.csproj" />
   </ItemGroup>
 </Project>

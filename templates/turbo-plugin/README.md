@@ -159,9 +159,26 @@ in `client/src/skill.ts` (`api.messages.on/send`). The server numbers them and t
 there is nothing to keep in step but the names and fields.
 
 The server half reaches the hotel (players, rooms, wallet, furni, notices) through `IHotel`, taken
-by constructor (`SkillBook` alerts a player who levels up); its tests use `FakeHotel` from
-`Turbo.Testing.dll` in the same bin folder, with assertions such as
-`hotel.Notify.AssertAlerted(alice, SkillBook.LEVELLED)` (turbo-cloud `docs/hotel-api.md`).
+by constructor (`SkillBook` alerts a player who levels up).
+
+## Tests
+
+`tests/Skills.Tests` loads the plugin in a test hotel (turbo-cloud `docs/plugin-testing.md`), from
+the server it builds against (`plugin-sdk/Turbo.Plugin.Tests.props`): its sources are compiled as
+the hotel compiles them, so a test fails where the hotel would refuse the plugin, and the tests then
+play the game against it. Players send its messages and say its commands, the clock moves on to the
+weekly reset, and the hotel API is `FakeHotel`, with assertions such as
+`hotel.Notify.AssertAlerted(alice, SkillBook.LEVELLED)` (turbo-cloud `docs/hotel-api.md`):
+
+```csharp
+var alice = _hotel.Player("Alice");
+
+await alice.SendsAsync(new TrainMessage(), Ct);
+
+Assert.Equal(new SkillMessage(1, 25, 100), alice.Should().HaveReceived<SkillMessage>());
+```
+
+`npm run make command` and `npm run make message` write a test beside what they add.
 
 When Turbo changes what plugins write or see, turbo-cloud `docs/plugin-changelog.md` says what
 changed, newest first, and whether it breaks plugins; `docs/upgrading.md` is the step-by-step move

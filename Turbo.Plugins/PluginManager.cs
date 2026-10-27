@@ -63,8 +63,13 @@ public sealed class PluginManager(
         Path.Combine(config.Value.PluginFolderPath, PluginClientBuilder.CACHE_FOLDER)
     );
 
+    // A test host's changes to how a plugin loads (Turbo.Testing's TestHotel); none on a server.
+    private readonly PluginTestHooks? _testHooks = host.GetService<PluginTestHooks>();
+
     // The host's services behind a plugin's own: never asked for the plugin's types.
-    private readonly IServiceProvider _hostForPlugins = new PluginHostServiceProvider(host);
+    private readonly IServiceProvider _hostForPlugins = new PluginHostServiceProvider(
+        host.GetService<PluginTestHooks>()?.PluginHost?.Invoke(host) ?? host
+    );
 
     private readonly ConcurrentDictionary<string, PluginEnvelope> _live = new(
         StringComparer.OrdinalIgnoreCase
@@ -556,6 +561,16 @@ public sealed class PluginManager(
         // leaves that version running.
         var fingerprint = PluginHelpers.CodeFingerprint(folder);
         var code = await _compiler.LoadAsync(m, folder, ct).ConfigureAwait(false);
+
+        // A test host runs its own build of the sources that just compiled, so its types are the plugin's.
+        if (_testHooks?.BuiltCode(m) is { } built)
+        {
+            if (code.Assembly.Alc is { } compiled)
+                AssemblyMemoryLoader.BeginUnload(compiled);
+
+            code = code with { Assembly = new LoadedAssembly(built, null, folder) };
+        }
+
         var asm = code.Assembly;
         WeakReference? unloading = null;
 
@@ -981,6 +996,7 @@ public sealed class PluginManager(
             .ToList();
 
         AddConventionalServices(services, assembly);
+        _testHooks?.Services?.Invoke(manifest, services);
         BuildOwnTypesOverTheHost(services, assembly);
 
         var contexts = services
@@ -1449,6 +1465,14 @@ public sealed class PluginManager(
         foreach (var (template, ops) in PluginHelpers.ReadTemplatePatches(folder, _logger))
             log.Add(PluginContributionKinds.TEMPLATE_PATCH, template, $"{ops} op(s)");
     }
+
+    /// <summary>A live plugin's own services; null when it is not live.</summary>
+    internal IServiceProvider? ServicesOf(string key) =>
+        _live.TryGetValue(key, out var env) ? env.ServiceProvider : null;
+
+    /// <summary>The assembly a live plugin runs; null when it is not live.</summary>
+    internal Assembly? AssemblyOf(string key) =>
+        _live.TryGetValue(key, out var env) ? env.Assembly : null;
 
     /// <summary>The live plugin's folder, or where a known plugin with the key lies.</summary>
     internal string? FolderOf(string key) =>

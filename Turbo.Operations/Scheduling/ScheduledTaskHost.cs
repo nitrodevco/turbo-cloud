@@ -41,6 +41,10 @@ internal sealed class ScheduledTaskHost(
     /// <summary>The keys of the tasks loaded here, for tests and the log.</summary>
     internal IReadOnlyCollection<string> Keys => [.. _tasks.Keys];
 
+    /// <summary>The tasks loaded here, by key, with their plugin: a test host runs them on its own clock.</summary>
+    internal IReadOnlyList<(string Key, string Plugin, ScheduledTaskDefinition Definition)> Tasks =>
+        [.. _tasks.Values.Select(t => (t.Definition.Key, t.Plugin, t.Definition))];
+
     /// <summary>Done when every run in progress here has ended and been reported, for tests.</summary>
     internal Task IdleAsync() => Task.WhenAll(_tasks.Values.Select(t => t.Running).OfType<Task>());
 

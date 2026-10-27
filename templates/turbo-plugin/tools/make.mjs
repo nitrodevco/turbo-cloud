@@ -135,6 +135,27 @@ const efVersion = () => {
     return fail(`No server build in ${bin} to read its EF Core version from: build the server, or set TurboBin to its bin folder.`);
 };
 
+/**
+ * A test of a made piece in a test hotel (turbo-cloud docs/plugin-testing.md), beside the plugin's
+ * other tests: written when the plugin has a test project (tests/<name>.Tests).
+ */
+const test = (file, body) => {
+    const tests = path.join(root, 'tests', `${assembly}.Tests`);
+
+    if (!existsSync(tests)) return;
+
+    write(path.join(tests, file), `
+using System.Threading;
+using System.Threading.Tasks;
+using Turbo.Testing;
+using Xunit;
+
+namespace ${assembly}.Tests;
+${body}`);
+};
+
+const FIELD_DEFAULTS = { int: '0', long: '0', bool: 'false', string: '""', double: '0' };
+
 const FIELD_TYPES = { int: 'int', long: 'long', bool: 'bool', string: 'string', double: 'double' };
 
 const recipes = {
@@ -184,6 +205,29 @@ public sealed class ${type}Permission : IPermissionNodeSource
         [new(${type}.PERMISSION, "Use :${name}", GrantedByDefault: true)];
 
     public IEnumerable<PermissionMetaDefinition> MetaKeys => [];
+}
+`);
+
+        test(path.join('Commands', `${type}Tests.cs`), `
+public sealed class ${type}Tests : IAsyncLifetime
+{
+    private readonly TestHotel _hotel = TestHotel.Create();
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    public async ValueTask InitializeAsync() => await _hotel.LoadAsync<${type}>(ct: Ct);
+
+    public ValueTask DisposeAsync() => _hotel.DisposeAsync();
+
+    [Fact]
+    public async Task ${pascal(name)}_answers_the_player_who_says_it()
+    {
+        var bob = _hotel.Player("Bob").InRoom(1);
+
+        await bob.SaysAsync(":${name}", Ct);
+
+        bob.Should().HaveBeenWhispered("Done.");
+    }
 }
 `);
 
@@ -254,6 +298,31 @@ export const ${NAME}_SCHEMA = [ ${schema} ] as const;
 export type ${pascal(messageName)} = ClientModuleMessageOf<typeof ${NAME}_SCHEMA>;
 ${use}`);
         listMade();
+
+        if (!toClient)
+            test(path.join('Messages', `${type}Tests.cs`), `
+public sealed class ${type}Tests : IAsyncLifetime
+{
+    private readonly TestHotel _hotel = TestHotel.Create();
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    public async ValueTask InitializeAsync() => await _hotel.LoadAsync<${type}>(ct: Ct);
+
+    public ValueTask DisposeAsync() => _hotel.DisposeAsync();
+
+    [Fact]
+    public async Task ${pascal(messageName)}_from_the_client_is_handled()
+    {
+        var bob = _hotel.Player("Bob");
+
+        await bob.SendsAsync(new ${type}(${fields.map(field => FIELD_DEFAULTS[field.type]).join(', ')}), Ct);
+
+        // What the handler does: bob.Should().HaveReceived<...>(), _hotel.Wallet...
+        _hotel.Logs.Should().HaveNoWarnings();
+    }
+}
+`);
 
         return [ 'plugin-messages.md' ];
     },

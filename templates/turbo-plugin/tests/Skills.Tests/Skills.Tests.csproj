@@ -5,22 +5,14 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
+  <!-- The plugin test kit (turbo-cloud docs/plugin-testing.md), from the server the plugin builds against. -->
+  <Import Project="$(TurboBin)/plugin-sdk/Turbo.Plugin.Tests.props" />
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
     <PackageReference Include="xunit.v3" Version="3.2.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../server/Skills.csproj" />
-  </ItemGroup>
-  <!-- Here the server's assemblies are copied: the tests run without a server. -->
-  <ItemGroup>
-    <Reference Include="$(TurboBin)/Turbo.Contracts.dll" />
-    <Reference Include="$(TurboBin)/Turbo.Primitives.dll" />
-    <!-- FakeHotel: the hotel API in memory, which the server ships for plugins' tests. -->
-    <Reference Include="$(TurboBin)/Turbo.Testing.dll" />
-    <Reference Include="$(TurboBin)/Orleans.Core.Abstractions.dll" />
-    <Reference Include="$(TurboBin)/Orleans.Serialization.Abstractions.dll" />
   </ItemGroup>
 </Project>

@@ -10,7 +10,9 @@
       ai/           the AI kit for plugin authors, guidelines and skills (docs/turbo-boost.md), so a
                     plugin's `npm run ai` installs the ones of the server it builds against;
       docs/         this server's guides (docs/**/*.md), which the kit points to and the MCP
-                    plugin's search_docs searches.
+                    plugin's search_docs searches;
+      Turbo.Plugin.Tests.props   what a plugin's test project imports: the test kit (Turbo.Testing,
+                    docs/plugin-testing.md), with Turbo.Versions.props, the package versions it needs.
     Imported by the projects that run plugins: Turbo.Main and Turbo.Tests.
   -->
   <Target Name="TurboPluginSdkFiles" DependsOnTargets="ResolveReferences">
@@ -49,6 +51,29 @@
       <_TurboPluginSdkFile
         Include="@(_TurboPluginDoc)"
         SdkPath="plugin-sdk/docs/%(RecursiveDir)%(Filename)%(Extension)"
+      />
+      <_TurboPluginSdkFile
+        Include="$(MSBuildThisFileDirectory)Turbo.Plugin.Tests.props"
+        SdkPath="plugin-sdk/Turbo.Plugin.Tests.props"
+      />
+      <_TurboSqliteVersion
+        Include="@(PackageVersion)"
+        Condition="'%(Identity)' == 'Microsoft.EntityFrameworkCore.Sqlite'"
+      />
+    </ItemGroup>
+    <PropertyGroup>
+      <_TurboVersionsProps>$(IntermediateOutputPath)Turbo.Versions.props</_TurboVersionsProps>
+    </PropertyGroup>
+    <WriteLinesToFile
+      File="$(_TurboVersionsProps)"
+      Lines="&lt;Project&gt;&lt;PropertyGroup&gt;&lt;TurboSqliteVersion&gt;%(_TurboSqliteVersion.Version)&lt;/TurboSqliteVersion&gt;&lt;/PropertyGroup&gt;&lt;/Project&gt;"
+      Overwrite="true"
+      WriteOnlyWhenDifferent="true"
+    />
+    <ItemGroup>
+      <_TurboPluginSdkFile
+        Include="$(_TurboVersionsProps)"
+        SdkPath="plugin-sdk/Turbo.Versions.props"
       />
     </ItemGroup>
   </Target>
