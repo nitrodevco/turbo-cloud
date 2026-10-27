@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentAssertions;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Commands;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Plugins.Messages;
 using Turbo.Testing;
 using Xunit;
@@ -95,6 +96,48 @@ public sealed class TestHotelTests : IAsyncLifetime
                     settings.CurrentValue.Seeds.ToString()
                 );
             }
+        }
+
+        [Command("rain", Description = "Rain on every garden")]
+        [RequiresPermission("plugin.garden.rain")]
+        public sealed class RainCommand(IHotel hotel) : IOperatorCommand<RainCommand.Arguments>
+        {
+            public sealed record Arguments;
+
+            public IReadOnlyDictionary<string, string> DefaultTexts { get; } =
+                new Dictionary<string, string>
+                {
+                    ["reaches"] = "That rains on %0% gardens.",
+                    ["rained"] = "It rained on %0% gardens.",
+                };
+
+            public async ValueTask<CommandResult> ExecuteAsync(IOperatorCommandContext ctx, Arguments arguments, CancellationToken ct)
+            {
+                var gardens = ctx.SnapshotRecipients("rain", hotel.Players.OnlineIds());
+
+                if (ctx.ShouldConfirm(gardens.Count))
+                    return CommandResult.Confirm("reaches", gardens.Count.ToString());
+
+                foreach (var player in gardens)
+                    await ctx.NotifyAsync(player, "garden.rain", "Rain falls on your garden.", [], ct);
+
+                return CommandResult.Done("rained", gardens.Count.ToString());
+            }
+        }
+
+        [Command("drench", Description = "Drench a player's garden")]
+        [RequiresPermission("plugin.garden.rain")]
+        public sealed class DrenchCommand : IOperatorCommand<DrenchCommand.Arguments>
+        {
+            public sealed record Arguments(PlayerTarget Gardener);
+
+            public IReadOnlyDictionary<string, string> DefaultTexts { get; } =
+                new Dictionary<string, string> { ["drenched"] = "Drenched the garden of %0%." };
+
+            public async ValueTask<CommandResult> ExecuteAsync(IOperatorCommandContext ctx, Arguments arguments, CancellationToken ct) =>
+                await ctx.ResolveAsync(arguments.Gardener, ct) is { Players: [var gardener] }
+                    ? CommandResult.Done("drenched", gardener.Name)
+                    : CommandResult.Fail(CommandReplyKeys.PLAYER_NOT_FOUND, arguments.Gardener.Text);
         }
 
         [PluginMessage("garden.water")]
@@ -238,6 +281,60 @@ public sealed class TestHotelTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task An_operator_command_runs_through_the_hotels_runner_waits_for_confirm_and_is_logged()
+    {
+        await _hotel.LoadAsync(_folder, ct: Ct);
+        _hotel.Settings.Set("Turbo:Commands:ConfirmAtPlayers", 3);
+        var bob = _hotel
+            .Player("bob")
+            .InRoom(5)
+            .WithPermissions("plugin.garden.rain", PermissionNodes.Command.LOG);
+        _hotel.Player("alice");
+        _hotel.Player("carol");
+        // With the room's owner, 4 players are online.
+
+        await bob.SaysAsync(":rain", Ct);
+
+        bob.Should().HaveHadCommand(CommandOutcome.AwaitingConfirmation);
+        bob.Should()
+            .HaveBeenWhispered(
+                "That rains on 4 gardens. Type :confirm within 30 seconds to go ahead."
+            );
+        _hotel.Notify.Alerts.Should().BeEmpty();
+
+        await bob.SaysAsync(":confirm", Ct);
+
+        bob.Should().HaveBeenWhispered("It rained on 4 gardens.");
+        _hotel
+            .Notify.Alerts.Select(x => x.Text)
+            .Should()
+            .Equal(Enumerable.Repeat("Rain falls on your garden.", 4));
+        _hotel
+            .CommandLog.Entries.Select(x => (x.Command, x.Outcome))
+            .Should()
+            .Equal(("rain", "confirm"), ("rain", "completed"), ("confirm", "completed"));
+    }
+
+    [Fact]
+    public async Task An_operator_command_finds_a_player_by_name_as_the_hotel_spells_it()
+    {
+        await _hotel.LoadAsync(_folder, ct: Ct);
+        _hotel.Player("Carol");
+        var bob = _hotel.Player("bob").InRoom(5).WithPermissions("plugin.garden.rain");
+
+        await bob.SaysAsync(":drench CAROL", Ct);
+        await bob.SaysAsync(":drench nobody", Ct);
+
+        bob.Whispers.Should()
+            .Equal(
+                "Drenched the garden of Carol.",
+                CommandReplyKeys
+                    .Defaults[CommandReplyKeys.PLAYER_NOT_FOUND]
+                    .Replace("%0%", "nobody")
+            );
+    }
+
+    [Fact]
     public async Task A_message_from_the_client_reaches_the_plugins_handler_and_its_reply_reads_back_as_the_record()
     {
         var plugin = await _hotel.LoadAsync(_folder, ct: Ct);
@@ -306,6 +403,36 @@ public sealed class TestHotelTests : IAsyncLifetime
 
         sprinkler.State.Should().Be(1);
         _hotel.Room(5).Should().HaveSaid("Splash!").Speaker.Should().Be("bob");
+    }
+
+    [Fact]
+    public async Task A_second_hotel_takes_the_first_ones_compile_and_starts_from_nothing()
+    {
+        Write(SOURCE + "\npublic static class Visits { public static int Count; }");
+        await using var first = TestHotel.Create();
+        await using var second = TestHotel.Create();
+
+        var before = await first.LoadAsync(_folder, ct: Ct);
+        first.Settings.Set("Garden:Seeds", 5);
+        await first
+            .Player("bob")
+            .InRoom(5)
+            .WithPermissions("plugin.garden.plant")
+            .SaysAsync(":plant", Ct);
+        before.Assembly.GetType("Garden.Visits")!.GetField("Count")!.SetValue(null, 7);
+
+        var after = await second.LoadAsync(_folder, ct: Ct);
+        var bob = second.Player("bob").InRoom(5).WithPermissions("plugin.garden.plant");
+        await bob.SaysAsync(":plant", Ct);
+
+        second
+            .Logs.Entries.Select(x => x.Message)
+            .Should()
+            .Contain(x => x.StartsWith("Plugin garden was compiled before in this process"))
+            .And.NotContain(x => x.StartsWith("Compiled plugin garden"));
+        after.Assembly.Should().NotBeSameAs(before.Assembly);
+        after.Assembly.GetType("Garden.Visits")!.GetField("Count")!.GetValue(null).Should().Be(0);
+        bob.Should().HaveBeenWhispered("Planted 1 of 3.");
     }
 
     private void Write(string source)

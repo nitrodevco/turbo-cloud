@@ -18,8 +18,11 @@ namespace Turbo.Testing;
 /// <summary>
 /// A <c>:command</c> said in a <see cref="TestRoom"/>, run in the order the room runs one
 /// (turbo-cloud <c>RoomCommandSystem</c>): a node it needs, the room level it needs, its arguments
-/// bound by the hotel's own binder, then the command, and its result whispered. Operator commands,
-/// which leave the room for the hotel, and the plugins' command vetoes are not run here.
+/// bound by the hotel's own binder, then the command, and its result whispered. An operator
+/// command said by a holder of its node leaves the room for the hotel's own runner
+/// (<c>OperatorCommandRunner</c>), which does the rest as on a server: its arguments, the
+/// plugins' vetoes, the command, <c>:confirm</c>, its reply and the command log. The plugins'
+/// vetoes of a room command are not run here.
 /// </summary>
 internal static class TestCommands
 {
@@ -38,15 +41,27 @@ internal static class TestCommands
             return;
         }
 
-        if (descriptor.IsOperator)
-            throw new NotSupportedException(
-                $":{descriptor.Name} is an operator command, which the test hotel does not run: call the command's class instead."
-            );
+        var holdsANode = descriptor.Nodes.Any(node => hotel.Grants(speaker.Fake, node));
+
+        if (descriptor.IsOperator && holdsANode)
+        {
+            speaker.LastCommand = await hotel
+                .OperatorCommands.RunAsync(
+                    descriptor,
+                    new TestOperatorExecutor(hotel, speaker, room),
+                    argumentText,
+                    checkNode: false,
+                    ct
+                )
+                .ConfigureAwait(false);
+
+            return;
+        }
 
         var executor = Avatar(hotel, speaker);
         var scope = new CommandRoom(hotel, room, speaker);
 
-        if (!descriptor.Nodes.Any(node => hotel.Grants(speaker.Fake, node)))
+        if (!holdsANode)
         {
             await ReplyAsync(
                     hotel,

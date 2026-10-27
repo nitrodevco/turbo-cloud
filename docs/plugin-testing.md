@@ -88,6 +88,11 @@ default). One test at a time; dispose it at the end.
 4. it runs as the test's own build of those same sources (the `ProjectReference`), so the test
    names the plugin's types: `new TrainMessage()`, `plugin.Service<SkillBook>()`.
 
+A test run compiles each plugin's sources once: the first hotel to load them compiles them (a few
+seconds, most of it the compiler starting), and every later hotel (or one loading them at the same
+time) takes that compile, checked and refused alike, and builds its own registrations, services,
+tables and settings from it, so tests share nothing else. Sources changed in any way compile again.
+
 `LoadAsync(folder)` with no build runs what the server compiled, in a context of its own, whose
 types the test cannot name: for a test of the load itself. `hotel.UnloadAsync("skills")` unloads a
 live plugin as disabling it does. A plugin that depends on another loads after it: load both.
@@ -159,8 +164,7 @@ the room level it needs (the room's owner is its owner, a player holding `*` a m
 arguments bound by the hotel's own binder, then the command. Each refusal is the hotel's reply,
 whispered; a result's status is whispered from the plugin's texts (`command.plant.planted` in
 `gamedata/external_texts.txt`), else core's, else the command's `DefaultTexts`. A line that is no
-command is kept as said in the room. Operator commands (`IOperatorCommand`), which leave the room
-for the hotel, are not run by the kit: call the command's service.
+command is kept as said in the room.
 
 ```csharp
 var bob = hotel.Player("bob").InRoom(5).WithPermissions("plugin.garden.plant");
@@ -169,6 +173,25 @@ await bob.SaysAsync(":plant");
 
 bob.Should().HaveHadCommand(CommandOutcome.Completed);
 bob.Should().HaveBeenWhispered("Planted 1 of 3.");
+```
+
+An operator command (`IOperatorCommand`), said by a holder of its node, leaves the room for the
+hotel's own operator command runner, as on a server: the player's nodes are asked again, its
+arguments bound, the plugins' vetoes asked (`CommandExecutingEvent`), then the command, given who
+was in the room as the line was said. A command that reaches `Turbo:Commands:ConfirmAtPlayers`
+players waits for core's `:confirm` (`hotel.Settings.Set("Turbo:Commands:ConfirmAtPlayers", 3)`
+changes it for the test). Its replies are whispered, its notices to players are alerts
+(`hotel.Notify.Alerts`), and a use the hotel writes down (by a holder of `command.log`, or a line
+that named a group of players) is in `hotel.CommandLog.Entries`.
+
+```csharp
+var alice = hotel.Player("alice").InRoom(10).WithPermissions("events.event");
+
+await alice.SaysAsync(":event Falling Furni");
+alice.Should().HaveHadCommand(CommandOutcome.AwaitingConfirmation);
+
+await alice.SaysAsync(":confirm");
+alice.Should().HaveBeenWhispered("Falling Furni started");
 ```
 
 ### Messages
@@ -324,7 +347,7 @@ The `FakeHotel`'s own assertions (`hotel.Wallet.AssertCredited(bob, "credits", 5
 
 ## Not in the kit
 
-- Operator commands (`:alert`, a plugin's `IOperatorCommand`): call the service the command calls.
+- Operator commands typed at the server console or run from the admin panel: a player says them.
 - A room's own simulation (walking, rolling, wired stacks): a furni's walk arrives at once, and a
   wired event a plugin fires is recorded, not run through the room's boxes.
 - Plain chat reaching plugin code (chat policies, room event listeners): `SaysAsync` runs commands only.

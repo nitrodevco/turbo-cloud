@@ -174,7 +174,7 @@ public class CommandFinalizationTests
                 Microsoft.Extensions.Logging.Abstractions.NullLogger<ICommandBatchExecutor>.Instance
             ),
             hotel.Fakes.Create<Turbo.Primitives.Players.Notifications.IPlayerNoticeService>(),
-            hotel.Fakes.Create<IDbContextFactory<TurboDbContext>>(),
+            new CommandLogWriter(hotel.Fakes.Create<IDbContextFactory<TurboDbContext>>()),
             Options.Create(hotel.Config),
             hotel.Clock,
             hotel.Log

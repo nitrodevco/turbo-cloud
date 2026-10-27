@@ -41,8 +41,14 @@ internal sealed record PluginCode(LoadedAssembly Assembly, string? Documentation
 /// (sources embedded, so a stack trace names the plugin's file and line) and its doc comments are
 /// kept.</item>
 /// </list>
+/// A host given a <see cref="PluginCompileMemory"/> (a test run) takes a compile of the same
+/// sources made for another host from it, so each set of sources compiles once a process.
 /// </summary>
-internal sealed class PluginCompiler(string pluginFolderPath, ILogger logger)
+internal sealed class PluginCompiler(
+    string pluginFolderPath,
+    ILogger logger,
+    PluginCompileMemory? memory = null
+)
 {
     /// <summary>The C# the server itself is built with.</summary>
     public const LanguageVersion LANGUAGE = LanguageVersion.CSharp14;
@@ -66,11 +72,15 @@ internal sealed class PluginCompiler(string pluginFolderPath, ILogger logger)
     /// <summary>
     /// The plugin's code, loaded in a context of its own; an empty assembly for a data plugin.
     /// Throws <see cref="PluginRejectedException"/> for a plugin the server refuses and
-    /// <see cref="PluginCompileException"/> for one that does not compile.
+    /// <see cref="PluginCompileException"/> for one that does not compile. Given
+    /// <paramref name="run"/> (a test's own build of the same sources), the sources are compiled
+    /// and held to the policy all the same, and <paramref name="run"/> is the code, the compiled
+    /// assembly never loaded.
     /// </summary>
     public async Task<PluginCode> LoadAsync(
         PluginManifest manifest,
         string folder,
+        System.Reflection.Assembly? run,
         CancellationToken ct
     )
     {
@@ -99,7 +109,9 @@ internal sealed class PluginCompiler(string pluginFolderPath, ILogger logger)
 
         if (sources.Count == 0)
             return new PluginCode(
-                AssemblyMemoryLoader.Empty(folder, $"TurboDataPlugin.{manifest.Key}"),
+                run is null
+                    ? AssemblyMemoryLoader.Empty(folder, $"TurboDataPlugin.{manifest.Key}")
+                    : new LoadedAssembly(run, null, folder),
                 null
             );
 
@@ -115,17 +127,36 @@ internal sealed class PluginCompiler(string pluginFolderPath, ILogger logger)
                 manifest.Key
             );
 
-        if (compiled is null)
+        if (compiled is null && memory is not null)
+        {
+            // Compiled once for everyone waiting, so not stopped by one of them giving up.
+            (compiled, var shared) = await memory
+                .GetOrCompileAsync(
+                    hash,
+                    () =>
+                        Task.Run(() =>
+                            CompileAsync(manifest, folder, files, CancellationToken.None)
+                        ),
+                    ct
+                )
+                .ConfigureAwait(false);
+            _cache.Write(manifest.Key, hash, compiled);
+
+            if (shared)
+                logger.LogDebug(
+                    "Plugin {Key} was compiled before in this process: its assembly is that compile ({Ms} ms)",
+                    manifest.Key,
+                    sw.ElapsedMilliseconds
+                );
+            else
+                LogCompiled(manifest, files.Count, sw);
+        }
+        else if (compiled is null)
         {
             compiled = await Task.Run(() => CompileAsync(manifest, folder, files, ct), ct)
                 .ConfigureAwait(false);
             _cache.Write(manifest.Key, hash, compiled);
-            logger.LogInformation(
-                "Compiled plugin {Key} from {Files} source files in {Ms} ms",
-                manifest.Key,
-                files.Count,
-                sw.ElapsedMilliseconds
-            );
+            LogCompiled(manifest, files.Count, sw);
         }
         else
             logger.LogDebug(
@@ -135,10 +166,20 @@ internal sealed class PluginCompiler(string pluginFolderPath, ILogger logger)
             );
 
         return new PluginCode(
-            AssemblyMemoryLoader.Load(compiled.Assembly, compiled.Symbols, folder),
+            run is null
+                ? AssemblyMemoryLoader.Load(compiled.Assembly, compiled.Symbols, folder)
+                : new LoadedAssembly(run, null, folder),
             _cache.DocumentationPath(manifest.Key, hash)
         );
     }
+
+    private void LogCompiled(PluginManifest manifest, int files, Stopwatch sw) =>
+        logger.LogInformation(
+            "Compiled plugin {Key} from {Files} source files in {Ms} ms",
+            manifest.Key,
+            files,
+            sw.ElapsedMilliseconds
+        );
 
     /// <summary>Everything a compile reads, hashed: the cache's key.</summary>
     private static string HashOf(

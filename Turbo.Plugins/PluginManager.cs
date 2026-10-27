@@ -52,7 +52,11 @@ public sealed class PluginManager(
     private readonly ExportRegistry _exports = new();
     private readonly PluginConfig _config = config.Value;
     private readonly ILogger _logger = logger;
-    private readonly PluginCompiler _compiler = new(config.Value.PluginFolderPath, logger);
+    private readonly PluginCompiler _compiler = new(
+        config.Value.PluginFolderPath,
+        logger,
+        host.GetService<PluginTestHooks>()?.Compiles
+    );
 
     // The plugins refused (an executable file in the folder, code the policy does not allow), with
     // their folder's fingerprint then: not tried again until something in the folder changed.
@@ -563,17 +567,11 @@ public sealed class PluginManager(
         // is fingerprinted before it is read: a change while it loads is seen by the next scan.
         // It is compiled before the live version stops: one that is refused or does not compile
         // leaves that version running.
-        var fingerprint = PluginHelpers.CodeFingerprint(folder);
-        var code = await _compiler.LoadAsync(m, folder, ct).ConfigureAwait(false);
-
         // A test host runs its own build of the sources that just compiled, so its types are the plugin's.
-        if (_testHooks?.BuiltCode(m) is { } built)
-        {
-            if (code.Assembly.Alc is { } compiled)
-                AssemblyMemoryLoader.BeginUnload(compiled);
-
-            code = code with { Assembly = new LoadedAssembly(built, null, folder) };
-        }
+        var fingerprint = PluginHelpers.CodeFingerprint(folder);
+        var code = await _compiler
+            .LoadAsync(m, folder, _testHooks?.BuiltCode(m), ct)
+            .ConfigureAwait(false);
 
         var asm = code.Assembly;
         WeakReference? unloading = null;
@@ -1935,6 +1933,11 @@ public sealed class PluginManager(
             return;
 
         SerializerCaches.Clear();
+
+        // A test still holds the plugin's code (its TestPlugin, the types it named), so the
+        // context cannot go while it runs: a test host does not collect for it.
+        if (_testHooks is not null)
+            return;
 
         if (
             !await AssemblyMemoryLoader
