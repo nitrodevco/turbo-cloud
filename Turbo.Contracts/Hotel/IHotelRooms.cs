@@ -52,6 +52,15 @@ public interface IHotelRooms
     Task<bool> WhisperAsync(RoomId room, PlayerId player, string text, CancellationToken ct);
 
     /// <summary>
+    /// Kicks the player out of the room as <paramref name="by"/> would from the client: the room's
+    /// "who can kick" setting, rights and ranks decide, and <paramref name="by"/> must outrank
+    /// them. The player goes back to the hotel view. False when they are not in the room or
+    /// <paramref name="by"/> may not kick them.
+    /// </summary>
+    [HotelCall(HotelCallContext.NotFromItsGrain)]
+    Task<bool> KickAsync(RoomId room, PlayerId player, PlayerId by, CancellationToken ct);
+
+    /// <summary>
     /// Hands <paramref name="message"/> to the plugin furni logic of the room's floor item
     /// <paramref name="itemId"/> (<c>FurniLogic.OnMessageAsync</c>), in the room's turn, and
     /// answers its reply: never throws for an item that is not there

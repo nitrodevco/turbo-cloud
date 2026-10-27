@@ -57,6 +57,7 @@ public sealed class FakeRooms : IHotelRooms
     private readonly List<FakeRoom> _rooms = [];
     private readonly List<(RoomId Room, object Message)> _sent = [];
     private readonly List<(RoomId Room, PlayerId Player, string Text)> _whispers = [];
+    private readonly List<(RoomId Room, PlayerId Player, PlayerId By)> _kicks = [];
     private readonly List<(RoomId Room, int ItemId, FurniLogicMessage Message)> _furniMessages = [];
     private readonly Dictionary<(RoomId Room, string Holder), DateTimeOffset> _holds = [];
     private readonly Dictionary<(PlayerId Player, RoomId Room), FakeWatch> _watches = [];
@@ -68,6 +69,9 @@ public sealed class FakeRooms : IHotelRooms
     public IReadOnlyList<(RoomId Room, object Message)> Sent => _sent;
 
     public IReadOnlyList<(RoomId Room, PlayerId Player, string Text)> Whispers => _whispers;
+
+    /// <summary>Each kick made: the room, the player kicked and who kicked them.</summary>
+    public IReadOnlyList<(RoomId Room, PlayerId Player, PlayerId By)> Kicks => _kicks;
 
     /// <summary>Every furni logic message handed to a room, in order.</summary>
     public IReadOnlyList<(RoomId Room, int ItemId, FurniLogicMessage Message)> FurniMessages =>
@@ -139,6 +143,21 @@ public sealed class FakeRooms : IHotelRooms
             return Task.FromResult(false);
 
         _whispers.Add((room, player, text));
+
+        return Task.FromResult(true);
+    }
+
+    /// <summary>
+    /// Takes the player out of the room and notes the kick (<see cref="Kicks"/>); the room's owner
+    /// stays, as no one outranks them in their own room. False when they are not in it.
+    /// </summary>
+    public Task<bool> KickAsync(RoomId room, PlayerId player, PlayerId by, CancellationToken ct)
+    {
+        if (Find(room) is not { } r || !r.Players.Contains(player) || r.Owner.Id == player)
+            return Task.FromResult(false);
+
+        r.Players.Remove(player);
+        _kicks.Add((room, player, by));
 
         return Task.FromResult(true);
     }

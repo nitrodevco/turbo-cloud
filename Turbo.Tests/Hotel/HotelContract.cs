@@ -272,6 +272,7 @@ public abstract class HotelContract
         var owner = world.AddPlayer("Owner", online: true);
         var lobby = world.AddRoom("Lobby", owner, isPublic: true);
         var den = world.AddRoom("Den", owner);
+        var visitor = world.AddPlayer("Visitor", online: true);
         await world.StartAsync(Ct);
         var rooms = world.Hotel.Rooms;
 
@@ -291,6 +292,13 @@ public abstract class HotelContract
         (await world.Hotel.Players.CurrentRoomAsync(owner, Ct)).Should().Be(den);
         (await rooms.SendAsync(den, new HotelPing(2), Ct)).Should().BeTrue();
         (await rooms.WhisperAsync(den, owner, "hi", Ct)).Should().BeTrue();
+
+        (await rooms.KickAsync(den, visitor, owner, Ct)).Should().BeFalse("they are not in it");
+
+        world.Enter(den, visitor);
+
+        (await rooms.KickAsync(den, visitor, owner, Ct)).Should().BeTrue();
+        (await rooms.PlayersAsync(den, Ct)).Should().Equal(owner);
     }
 
     [Fact]

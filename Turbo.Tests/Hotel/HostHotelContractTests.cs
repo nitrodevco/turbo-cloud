@@ -128,6 +128,12 @@ public sealed class HostHotelContractTests : HotelContract
                 Task.FromResult(
                     In(new RoomId((int)(long)call.Key!)).Contains((PlayerId)call.Args[0]!)
                 );
+            // The room service's kick as the room grain answers it: out when they were in.
+            fakes.Handlers[nameof(IRoomService.KickPlayerAsync)] = call =>
+                Task.FromResult(
+                    In(((Turbo.Primitives.Action.ActionContext)call.Args[0]!).RoomId)
+                        .Remove((PlayerId)call.Args[1]!)
+                );
             fakes.Handlers[nameof(INavigatorService.GetOfficialRoomsAsync)] = _ =>
                 Task.FromResult(ImmutableArray.CreateRange(_public.Select(Listed)));
             fakes.Handlers[nameof(IPlayerNoticeService.SendAsync)] = call =>
@@ -369,6 +375,7 @@ public sealed class HostHotelContractTests : HotelContract
                 .AddSingleton(fakes.Create<IGrainFactory>())
                 .AddSingleton(fakes.Create<ISessionGateway>())
                 .AddSingleton(fakes.Create<INavigatorService>())
+                .AddSingleton(fakes.Create<IRoomService>())
                 .AddSingleton(fakes.Create<IPlayerNoticeService>())
                 .AddSingleton(fakes.Create<ICatalogSnapshotProvider<NormalCatalog>>())
                 .AddSingleton(fakes.Create<ICatalogEditService>())
