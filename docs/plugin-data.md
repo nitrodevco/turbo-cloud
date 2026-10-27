@@ -17,6 +17,7 @@ plugins/mytheme/
   theme.json               its style properties (below)
   wwwroot/
     template-patches.json  its window patches, listed for clients without naming it
+    windows/welcome.json   a window of its own, as data (below), listed for clients without naming it
     frame.png              files its patches and styles name
     styles/pixel.woff2     a font its text.fonts names ({ "Pixel": "styles/pixel.woff2" })
   gamedata/
@@ -45,6 +46,23 @@ list the server can't read, or a bitmap that isn't an image, is logged and the p
 [ { "clientStyleId": 39, "assetId": "mytheme_plane", "clubOnly": true,
     "regPoints": { "scale9": { "x": 7, "y": 7, "width": 37, "height": 9 }, "pointerY": 21 } } ]
 ```
+
+### Windows of its own
+
+A theme can bring windows the game does not have - a welcome card, a rules dialog - with no code:
+each `wwwroot/windows/<name>.json` is one, a Habbo window template with what its buttons do and where
+players open it from (the format is nitro-next `docs/template-patches.md`, "Windows as data"). While
+the plugin is loaded each is listed for clients in `templates.windows` by `<plugin key>/<name>`, and
+the link `window/<plugin key>/<name>` opens it from a notice, a hotel view button, a catalogue page or
+a habbo page. In the panel: **Theme studio > New window** (an info card, a dialog, a list, tabs, blank,
+or a copy of a window of the game), then its card above the preview - title, a me menu entry or a
+toolbar icon, what each button does (close it, open another window or a link, show a page) - and the
+studio's editors for how it looks. Admin API:
+`GET /plugins/{key}/windows`, `PUT /plugins/{key}/windows/{name}` (the whole file; refused with what is
+wrong when no client could draw it: a template without its size or elements, an element without a
+tag or its rect, a button naming no element (or showing none), a link that is no in-client link, an entry without its
+caption or icon), `DELETE /plugins/{key}/windows/{name}`; `admin.plugins.manage`, written to the
+command log. **Make a plugin** packages them with the rest of the theme.
 
 ## Style properties (`theme.json`)
 

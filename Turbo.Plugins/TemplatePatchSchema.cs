@@ -109,7 +109,7 @@ internal static partial class TemplatePatchSchema
 
         if (!TemplatePattern().IsMatch(template) && !FramePattern().IsMatch(template))
             problems.Add(
-                $"The template \"{template}\" is named <library>/<asset>, as habbo-toolbar-com/purse_xml, or a window drawn without a template by its frame id, as wired-setup."
+                $"The template \"{template}\" is named <library>/<asset>, as habbo-toolbar-com/purse_xml, a plugin's window defined as data by <plugin>/windows/<name>, or a window drawn without a template by its frame id, as wired-setup."
             );
 
         if (ops.ValueKind != JsonValueKind.Array || ops.GetArrayLength() == 0)
@@ -448,7 +448,8 @@ internal static partial class TemplatePatchSchema
 
     private static bool IsStyle(string value) => StylePattern().IsMatch(value);
 
-    [GeneratedRegex(@"^[a-z0-9][a-z0-9._-]*/[A-Za-z0-9_.-]+$")]
+    // A plugin's window defined as data is <plugin>/windows/<name> (DataWindowSchema).
+    [GeneratedRegex(@"^[a-z0-9][a-z0-9._-]*/(windows/)?[A-Za-z0-9_.-]+$")]
     private static partial Regex TemplatePattern();
 
     /// <summary>A frame id, as nitro-next's <c>skins.json</c> lists a window drawn without a template (<c>wired-setup</c>).</summary>

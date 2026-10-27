@@ -423,6 +423,144 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         }
     }
 
+    public async Task<ImmutableArray<PluginWindow>?> WindowsAsync(
+        string pluginKey,
+        CancellationToken ct
+    )
+    {
+        if (FolderOf(pluginKey) is not { } folder)
+            return null;
+
+        var windows = Path.Combine(folder, WWWROOT, DataWindowSchema.FOLDER);
+
+        if (!Directory.Exists(windows))
+            return [];
+
+        var list = new List<PluginWindow>();
+
+        foreach (
+            var path in Directory
+                .EnumerateFiles(windows, "*.json")
+                .Order(StringComparer.OrdinalIgnoreCase)
+        )
+        {
+            var name = Path.GetFileNameWithoutExtension(path);
+
+            if (!DataWindowSchema.IsName(name))
+                continue;
+
+            list.Add(
+                Window(
+                    pluginKey,
+                    name,
+                    await File.ReadAllBytesAsync(path, ct).ConfigureAwait(false)
+                )
+            );
+        }
+
+        return [.. list];
+    }
+
+    public async Task<PluginWindow> SaveWindowAsync(
+        string pluginKey,
+        string name,
+        JsonElement file,
+        CancellationToken ct
+    )
+    {
+        if (!DataWindowSchema.IsName(name))
+            throw new ArgumentException(
+                $"\"{name}\" is a window name of small letters, digits, '-' and '_'.",
+                nameof(name)
+            );
+
+        var problems = DataWindowSchema.Problems(file);
+
+        if (problems.Count > 0)
+            throw new ArgumentException(string.Join(" ", problems), nameof(file));
+
+        var folder = EditableFolderOf(pluginKey);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(file, JSON);
+
+        await _changes.WaitAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            if (pluginKey == IHotelDataPlugin.KEY)
+                Ensure();
+
+            var path = Path.Combine(folder, WWWROOT, DataWindowSchema.FOLDER, $"{name}.json");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllBytesAsync(path, bytes, ct).ConfigureAwait(false);
+
+            // Its address is by hash: loaded again, clients are given the new one.
+            await manager.ReloadAsync(pluginKey, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _changes.Release();
+        }
+
+        return Window(pluginKey, name, bytes);
+    }
+
+    public async Task<bool> RemoveWindowAsync(string pluginKey, string name, CancellationToken ct)
+    {
+        if (!DataWindowSchema.IsName(name))
+            return false;
+
+        var folder = EditableFolderOf(pluginKey);
+
+        await _changes.WaitAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            var path = Path.Combine(folder, WWWROOT, DataWindowSchema.FOLDER, $"{name}.json");
+
+            if (!File.Exists(path))
+                return false;
+
+            File.Delete(path);
+            await manager.ReloadAsync(pluginKey, ct).ConfigureAwait(false);
+
+            return true;
+        }
+        finally
+        {
+            _changes.Release();
+        }
+    }
+
+    private PluginWindow Window(string pluginKey, string name, byte[] bytes)
+    {
+        JsonElement? file;
+
+        try
+        {
+            file = JsonSerializer.Deserialize<JsonElement>(bytes);
+        }
+        catch (JsonException)
+        {
+            file = null;
+        }
+
+        var title =
+            file is { ValueKind: JsonValueKind.Object } read
+            && read.TryGetProperty("title", out var value)
+            && value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null;
+
+        return new PluginWindow(
+            name,
+            title,
+            host.GetService<IClientModuleDirectory>()
+                ?.AddressOf(pluginKey, $"{DataWindowSchema.FOLDER}/{name}.json"),
+            file
+        );
+    }
+
     public Task<bool> RemoveImageAsync(string pluginKey, string path, CancellationToken ct) =>
         RemoveStyleFileAsync(pluginKey, path, IMAGES, ct);
 

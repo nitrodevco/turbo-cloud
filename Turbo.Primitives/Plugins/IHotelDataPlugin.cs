@@ -52,6 +52,14 @@ public sealed record PluginFont(
 /// </summary>
 public sealed record PluginTemplatePatch(string Template, JsonElement Ops, int? Order);
 
+/// <summary>
+/// A window a plugin defines as data (nitro-next <c>docs/template-patches.md</c>, "Windows as data"):
+/// its <c>wwwroot/windows/&lt;name&gt;.json</c>, <see cref="Name"/> the file's name without its type,
+/// <see cref="Title"/> what staff call it, <see cref="Url"/> the address clients load the file at
+/// (null while the plugin is not loaded) and <see cref="File"/> the file as it is (null: not JSON).
+/// </summary>
+public sealed record PluginWindow(string Name, string? Title, string? Url, JsonElement? File);
+
 /// <summary>A plugin made from the hotel's changes, as the panel names it.</summary>
 public sealed record PluginExportRequest(string Key, string Name, string Version, string? Author);
 
@@ -117,6 +125,29 @@ public interface IHotelDataPlugin
         string pluginKey,
         CancellationToken ct
     );
+
+    /// <summary>
+    /// The windows the plugin defines as data, by name; none without a <c>wwwroot/windows/</c>, null
+    /// for no plugin with the key. A file that isn't JSON is listed with a null <c>File</c>.
+    /// </summary>
+    public Task<ImmutableArray<PluginWindow>?> WindowsAsync(string pluginKey, CancellationToken ct);
+
+    /// <summary>
+    /// Writes the window <paramref name="name"/> into the plugin <paramref name="pluginKey"/>'s
+    /// <c>wwwroot/windows/</c> (one by that name is replaced) and loads the plugin again, so clients
+    /// are given it as they next load. Throws <see cref="System.ArgumentException"/> listing what is
+    /// wrong with a file that isn't a window (<c>docs/template-patches.md</c>, "Windows as data"), a
+    /// name that isn't one, or a plugin staff can't edit (<see cref="EditableFolderOf"/>).
+    /// </summary>
+    public Task<PluginWindow> SaveWindowAsync(
+        string pluginKey,
+        string name,
+        JsonElement file,
+        CancellationToken ct
+    );
+
+    /// <summary>Takes the window away from the plugin; false when it has none by the name.</summary>
+    public Task<bool> RemoveWindowAsync(string pluginKey, string name, CancellationToken ct);
 
     /// <summary>
     /// Keeps a file staff uploaded in the hotel's plugin's <c>wwwroot/</c> at
