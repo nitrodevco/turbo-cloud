@@ -133,6 +133,9 @@ public sealed class DemoPermissions : IPermissionNodeSource
 ```
 
 - `[RequiresPermission]` is required on every command. A node starts with the plugin's key.
+- Results: `CommandResult.Done(status, params)` / `Fail(status, params)` whisper the text
+  `command.<name>.<status>` (`%0%`, `%1%` are the params); `CommandResult.Ok` answers nothing (the
+  command said or showed something itself); `Confirm(status, ...)` asks the executor to confirm.
 - `ctx.Room`: `SayAsync`, `WhisperAsync`, `NoticeAsync`, `KickAsync`, `MuteAsync`, `FloorItemsAt(x, y)`.
   `ctx.Executor` is the player who typed it (`PlayerId`, `Name`), `ctx.ArgumentText` the raw rest.
 - Keep the work in a service (tested with `FakeHotel`) and the command thin.
