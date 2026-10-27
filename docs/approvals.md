@@ -253,7 +253,11 @@ Every approve and deny, refused ones included, goes to the command log as
 
 ## Testing
 
-`HotelApprovals` is the server's implementation; in `Turbo.Tests`, `PluginTestHost.Approvals` is
+A plugin's tests play its approvals with the test kit: `hotel.Approvals` lists the pending
+requests, approves or denies one as a staff member holding its node (the plugin's handler runs as
+on a server), and expires them as the clock moves (`docs/plugin-testing.md`, "Approvals").
+
+In core, `HotelApprovals` is the server's implementation; in `Turbo.Tests`, `PluginTestHost.Approvals` is
 it over the test's database. `ApprovalTests` (request, approve, deny, expiry, own request, node,
 two approvals at once, restart, no handler, a handler that throws), `ApprovalPluginTests` (an MCP
 tool's pending call and its approval, a plugin's handler, unloading) and `ApprovalEndpointsTests`

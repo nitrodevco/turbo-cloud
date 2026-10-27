@@ -9,6 +9,7 @@
     - [Messages](#messages)
 - [Rooms and furni](#rooms-and-furni)
 - [Purchases](#purchases)
+- [Approvals](#approvals)
 - [Time and scheduled tasks](#time-and-scheduled-tasks)
 - [Settings and the database](#settings-and-the-database)
 - [Web routes and admin endpoints](#web-routes-and-admin-endpoints)
@@ -262,6 +263,41 @@ hotel.Purchases.Should().HaveRefused(7, CatalogPurchaseErrorType.RequiresHabboCl
 hotel.Purchases.Should().HaveAllowed(offer.Id).Decision.CostCredits.Should().Be(10);
 ```
 
+## Approvals
+
+`hotel.Approvals` is the admin panel's Approvals inbox (`docs/approvals.md`) over the server's own
+approvals: what the plugin asks for with `IApprovals` is saved as on a server, and a staff member
+approves or denies it. An approval is refused for the reasons a server gives (the approver does not
+hold the request's node, it is their own, it was decided already or expired), and otherwise runs
+the plugin's `ApprovalHandler<TArgs>` for its kind, once. A decision returns after the handlers of
+the events it raised (`ApprovalDecidedEvent`, `ApprovalExecutedEvent`) have run.
+
+```csharp
+var bob = hotel.Player("bob").InRoom(5).WithPermissions("plugin.shop.refund");
+var staff = hotel.Player("staff").WithPermissions("plugin.shop.refund.approve");
+
+await bob.SaysAsync(":refund 50");
+var asked = hotel.Approvals.Should().HavePending("shop.refund");
+
+var decision = await hotel.Approvals.ApproveAsync(asked.Id, staff, note: "ok");   // or ApproveAsync("shop.refund", staff)
+decision.Status.Should().Be(ApprovalDecisionStatus.Executed);
+bob.Should().HaveBalance("credits", 50);
+
+// Also: DenyAsync(id or kind, staff, note) (nothing runs), PendingAsync(kind?) (newest first),
+// AllAsync(kind?) (in any state), GetAsync(id), and RequestAsync(request) to ask as core and test
+// a handler on its own. hotel.Approvals.Decisions lists the decisions made, refused ones too.
+```
+
+A request expires as the clock moves past it: the next thing asked of `hotel.Approvals` finds it
+expired, as the server's sweep each minute does, and the plugin hears of it through
+`ApprovalDecidedEvent`:
+
+```csharp
+hotel.Clock.Advance(TimeSpan.FromHours(4));
+hotel.Approvals.Should().HaveBeen("shop.refund", ApprovalState.Expired);
+bob.Should().HaveBeenNotified("shop.refund.expired");   // what the plugin's event handler did
+```
+
 ## Time and scheduled tasks
 
 `hotel.Clock.Advance(by)` / `.Set(at)` move the clock the plugin reads. `hotel.Schedule` runs the
@@ -338,6 +374,9 @@ hotel.Logs.Should().HaveLogged("Reloaded plugin skills");
 | `room.Should().HaveActed("Kick(Bob)")` | a command or furni asked it for that |
 | `hotel.Purchases.Should().HaveRefused(offerId, error?, reason?)` | its last purchase was refused so |
 | `hotel.Purchases.Should().HaveAllowed(offerId)` | its last purchase was allowed (returns it) |
+| `hotel.Approvals.Should().HavePending(kind)` | a request of `kind` waits for a decision (returns the newest) |
+| `hotel.Approvals.Should().NotHavePending(kind?)` | none (of `kind`) does |
+| `hotel.Approvals.Should().HaveBeen(kind, state)` | the newest request of `kind` is `state` (`Executed`, `Denied`, `Expired`, ...) |
 | `hotel.Events.Should().HavePublished<T>(match?)` / `NotHavePublished<T>()` | an event was (not) published |
 | `hotel.Logs.Should().HaveNoWarnings()` / `HaveLogged(text, level)` | the logs |
 
@@ -352,3 +391,5 @@ The `FakeHotel`'s own assertions (`hotel.Wallet.AssertCredited(bob, "credits", 5
   wired event a plugin fires is recorded, not run through the room's boxes.
 - Plain chat reaching plugin code (chat policies, room event listeners): `SaysAsync` runs commands only.
 - The client module build (`client/src/index.tsx`): the client module's own tests cover it.
+- An MCP tool's call that needs approval: `McpToolTester` runs the tool; test its approval as a
+  request of its own with `hotel.Approvals`.

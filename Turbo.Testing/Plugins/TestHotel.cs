@@ -17,6 +17,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Commands;
+using Turbo.Contracts.Approvals;
 using Turbo.Contracts.Hotel;
 using Turbo.Contracts.Plugins;
 using Turbo.Database.Context;
@@ -31,6 +32,7 @@ using Turbo.Pipeline;
 using Turbo.Players.Permissions;
 using Turbo.Players.Policies;
 using Turbo.Plugins;
+using Turbo.Plugins.Approvals;
 using Turbo.Plugins.Compilation;
 using Turbo.Plugins.Configuration;
 using Turbo.Primitives.Commands;
@@ -60,10 +62,11 @@ namespace Turbo.Testing;
 /// plugin as a server does (its sources compiled and held to the policy, its commands, messages,
 /// handlers, policies, furni logic, scheduled tasks, web and admin routes, settings and tables
 /// registered, its services started), and the test then plays the game against it: players who
-/// say commands and send messages, purchases asked of its policies, furni walked on and used, a
-/// clock that moves when told. The hotel API it gets is <see cref="FakeHotel"/>, its tables live in
-/// an in-memory SQLite database, and a host service the kit does not play is a recording stand-in
-/// (<see cref="Host"/>). One test at a time; dispose it at the end.
+/// say commands and send messages, purchases asked of its policies, requests approved by staff,
+/// furni walked on and used, a clock that moves when told. The hotel API it gets is
+/// <see cref="FakeHotel"/>, its tables live in an in-memory SQLite database, and a host service the
+/// kit does not play is a recording stand-in (<see cref="Host"/>). One test at a time; dispose it at
+/// the end.
 /// </summary>
 public sealed class TestHotel : IAsyncDisposable
 {
@@ -91,6 +94,7 @@ public sealed class TestHotel : IAsyncDisposable
     private readonly Dictionary<int, TestRoom> _rooms = [];
     private readonly List<Action<PluginManifest, IServiceCollection>> _replacements = [];
     private readonly TestLifetime _lifetime = new();
+    private readonly TestServerDatabase _serverDb = new();
 
     private TestHotel(DateTimeOffset? now)
     {
@@ -108,6 +112,7 @@ public sealed class TestHotel : IAsyncDisposable
         Events = new TestEvents(this);
         Texts = new TestTexts(this);
         Ai = new AiFake(Fake);
+        Approvals = new TestApprovals(this);
 
         AnswerHostCalls();
 
@@ -155,6 +160,16 @@ public sealed class TestHotel : IAsyncDisposable
                 sp.GetRequiredService<ILogger<ScheduledTaskHost>>()
             ))
             .AddSingleton<IPluginStopping>(sp => sp.GetRequiredService<ScheduledTaskHost>())
+            // The server's approvals: the plugins' handlers join ApprovalHandlers as they load.
+            .AddSingleton(_ => new ApprovalHandlers([]))
+            .AddSingleton(sp => new HotelApprovals(
+                _serverDb,
+                sp.GetRequiredService<ApprovalHandlers>(),
+                sp,
+                Fake.Clock,
+                sp.GetRequiredService<ILogger<HotelApprovals>>()
+            ))
+            .AddSingleton<IApprovals>(sp => sp.GetRequiredService<HotelApprovals>())
             .AddSingleton<PluginTestDatabase>(new SqlitePluginDatabase(_db))
             .AddSingleton(
                 new PluginTestHooks
@@ -186,6 +201,7 @@ public sealed class TestHotel : IAsyncDisposable
         WebRoutes = sp.GetRequiredService<PluginWebRoutes>();
         AdminRoutes = sp.GetRequiredService<PluginAdminRoutes>();
         OperatorCommands = sp.GetRequiredService<IOperatorCommandRunner>();
+        HotelApprovals = sp.GetRequiredService<HotelApprovals>();
 
         // Core's :confirm, which an operator command that reaches many players waits for.
         Commands.Register([new ConfirmCommand()]);
@@ -291,6 +307,12 @@ public sealed class TestHotel : IAsyncDisposable
     /// <summary>The hotel's language models, scripted (<see cref="AiFake"/>): a plugin declaring <c>"ai"</c> is allowed them.</summary>
     public AiFake Ai { get; }
 
+    /// <summary>
+    /// The requests for a person's approval the plugins asked for, approved or denied here as
+    /// staff do in the panel, the plugins' handlers carrying them out.
+    /// </summary>
+    public TestApprovals Approvals { get; }
+
     /// <summary>The live plugins, by key.</summary>
     public IReadOnlyDictionary<string, TestPlugin> Plugins => _plugins;
 
@@ -317,6 +339,8 @@ public sealed class TestHotel : IAsyncDisposable
     internal IOperatorCommandRunner OperatorCommands { get; }
 
     internal TestTexts Texts { get; }
+
+    internal HotelApprovals HotelApprovals { get; }
 
     internal SqliteConnection Database => _db;
 
@@ -624,6 +648,7 @@ public sealed class TestHotel : IAsyncDisposable
             _lifetime.Dispose();
             await _host.DisposeAsync().ConfigureAwait(false);
             await _db.DisposeAsync().ConfigureAwait(false);
+            _serverDb.Dispose();
 
             try
             {
