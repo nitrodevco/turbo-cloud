@@ -175,6 +175,69 @@ public sealed class DataPluginTests : IDisposable
     }
 
     [Fact]
+    public async Task A_window_staff_make_is_listed_for_clients_and_one_no_client_could_draw_is_refused()
+    {
+        var hotel = Hotel();
+        var windows = hotel.HotelPlugin;
+
+        var bad = () =>
+            windows.SaveWindowAsync(
+                IHotelDataPlugin.KEY,
+                "welcome",
+                JsonDocument
+                    .Parse(
+                        """
+                        { "template": { "name": "w", "width": 300, "height": 200, "elements": [
+                            { "tag": "frame", "x": 0, "y": 0, "width": 300, "height": 200, "children": [
+                                { "tag": "button", "name": "ok", "x": 10, "y": 10, "width": 60 } ] } ] },
+                          "buttons": { "ok": { "link": "https://example.com" }, "gone": { "close": true } },
+                          "entries": [ { "where": "memenu" } ] }
+                        """
+                    )
+                    .RootElement,
+                Ct
+            );
+        var refused = await bad.Should().ThrowAsync<ArgumentException>();
+
+        refused.Which.Message.Should().Contain("\"ok\": \"height\" is a number");
+        refused.Which.Message.Should().Contain("not an in-client link");
+        refused.Which.Message.Should().Contain("Button \"gone\": the template has no element");
+        refused.Which.Message.Should().Contain("A me menu entry has a \"caption\"");
+
+        var saved = await windows.SaveWindowAsync(
+            IHotelDataPlugin.KEY,
+            "welcome",
+            JsonDocument
+                .Parse(
+                    """
+                    { "title": "Welcome", "template": { "name": "welcome", "width": 300, "height": 200, "elements": [
+                        { "tag": "frame", "x": 0, "y": 0, "width": 300, "height": 200, "vars": {}, "children": [
+                            { "tag": "button", "name": "ok", "x": 10, "y": 10, "width": 60, "height": 24 } ] } ] },
+                      "buttons": { "ok": { "close": true } },
+                      "entries": [ { "where": "memenu", "caption": "Welcome" } ] }
+                    """
+                )
+                .RootElement,
+            Ct
+        );
+
+        saved.Title.Should().Be("Welcome");
+        Part(hotel, ExternalVariablesFile.TEMPLATE_WINDOWS)
+            .GetProperty($"{IHotelDataPlugin.KEY}/welcome")
+            .GetString()
+            .Should()
+            .Contain("windows/welcome.json?v=");
+        (await windows.WindowsAsync(IHotelDataPlugin.KEY, Ct))!
+            .Value.Should()
+            .ContainSingle()
+            .Which.Name.Should()
+            .Be("welcome");
+
+        (await windows.RemoveWindowAsync(IHotelDataPlugin.KEY, "welcome", Ct)).Should().BeTrue();
+        hotel.Loaded.OwnedPartsOf(ExternalVariablesFile.TEMPLATE_WINDOWS).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Staff_patches_live_in_the_hotel_s_data_plugin_and_a_disabled_one_is_not_sent()
     {
         var hotel = Hotel();

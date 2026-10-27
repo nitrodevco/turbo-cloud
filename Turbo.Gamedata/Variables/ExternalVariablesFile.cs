@@ -56,6 +56,13 @@ internal static class ExternalVariablesFile
     /// </summary>
     public const string TEMPLATE_PATCHES = "templates.patches";
 
+    /// <summary>
+    /// The windows plugins define as data (nitro-next <c>docs/template-patches.md</c>, "Windows as
+    /// data"): <c>{ "&lt;plugin key&gt;/&lt;name&gt;": "&lt;url&gt;" }</c>. Each <c>wwwroot/windows/&lt;name&gt;.json</c>
+    /// of a plugin is its entry without it naming it; the hotel takes one away with an empty url.
+    /// </summary>
+    public const string TEMPLATE_WINDOWS = "templates.windows";
+
     /// <summary>The template libraries the client loads in place of its own: a url per library.</summary>
     public const string TEMPLATE_BUNDLES = "asset.bundles.templates.overrides";
 
@@ -112,7 +119,8 @@ internal static class ExternalVariablesFile
     /// <summary>
     /// The variables a plugin brings a part of rather than the whole: a JSON object whose entries
     /// several plugins add to (<c>asset.bundles.templates.overrides</c>, a url per template
-    /// library; <see cref="TEMPLATE_PATCHES"/>, a url per plugin; <see cref="FRAME_OVERRIDES"/>, a
+    /// library; <see cref="TEMPLATE_PATCHES"/>, a url per plugin; <see cref="TEMPLATE_WINDOWS"/>, a url per
+    /// window; <see cref="FRAME_OVERRIDES"/>, a
     /// style per window; <see cref="ASSET_OVERLAYS"/>, a url per bitmap; <see cref="TEMPLATE_STYLES"/>,
     /// a value per theme style; <see cref="LOADING_SCREEN"/>, a look per key of the loading screen;
     /// <see cref="TEXT_STYLES"/>, a format per text style; <see cref="TEXT_FONTS"/>, a font file per family). Each loaded plugin's entries are written into the client's file
@@ -122,6 +130,7 @@ internal static class ExternalVariablesFile
     [
         TEMPLATE_BUNDLES,
         TEMPLATE_PATCHES,
+        TEMPLATE_WINDOWS,
         FRAME_OVERRIDES,
         ASSET_OVERLAYS,
         TEMPLATE_STYLES,

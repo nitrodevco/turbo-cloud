@@ -83,6 +83,9 @@ internal sealed class PluginNoCodeEndpoints(
         group.MapPut("/{key}/overlays", SetOverlaysAsync);
         group.MapGet("/{key}/texts", TextsAsync);
         group.MapPut("/{key}/texts", SetTextsAsync);
+        group.MapGet("/{key}/windows", WindowsAsync);
+        group.MapPut("/{key}/windows/{name}", SaveWindowAsync);
+        group.MapDelete("/{key}/windows/{name}", RemoveWindowAsync);
         group.MapPost("/{key}/package", PackageAsync);
     }
 
@@ -693,6 +696,55 @@ internal sealed class PluginNoCodeEndpoints(
                     : AdminResults.Error(StatusCodes.Status404NotFound, "There is no such patch.")
         );
 
+    private async Task<IResult> WindowsAsync(string key, HttpContext http, CancellationToken ct)
+    {
+        if (hotelService is null)
+            return AdminResults.Error(StatusCodes.Status404NotFound, "The server runs no plugins.");
+
+        if (await Hotel.WindowsAsync(key, ct).ConfigureAwait(false) is not { } windows)
+            return AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN);
+
+        return Results.Ok(
+            new PluginWindowsResponse(
+                key,
+                windows,
+                await HoldsAsync(http, PermissionNodes.Admin.PLUGINS_MANAGE, ct)
+                    .ConfigureAwait(false)
+            )
+        );
+    }
+
+    private Task<IResult> SaveWindowAsync(
+        string key,
+        string name,
+        JsonElement file,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ManageAsync(
+            http,
+            $"window {key} {name}",
+            ct,
+            async _ =>
+                Results.Ok(await Hotel.SaveWindowAsync(key, name, file, ct).ConfigureAwait(false))
+        );
+
+    private Task<IResult> RemoveWindowAsync(
+        string key,
+        string name,
+        HttpContext http,
+        CancellationToken ct
+    ) =>
+        ManageAsync(
+            http,
+            $"window {key} {name} removed",
+            ct,
+            async _ =>
+                await Hotel.RemoveWindowAsync(key, name, ct).ConfigureAwait(false)
+                    ? Results.NoContent()
+                    : AdminResults.Error(StatusCodes.Status404NotFound, "There is no such window.")
+        );
+
     private Task<IResult> PackageAsync(
         string key,
         PluginExportRequest request,
@@ -826,6 +878,13 @@ internal sealed record PluginThemeView(
 internal sealed record PluginThemesResponse(
     string Base,
     ImmutableArray<PluginThemeView> Themes,
+    bool CanManage
+);
+
+/// <summary>The windows a plugin defines as data (its <c>wwwroot/windows/</c>); <c>canManage</c>: may change them.</summary>
+internal sealed record PluginWindowsResponse(
+    string Key,
+    ImmutableArray<PluginWindow> Windows,
     bool CanManage
 );
 

@@ -62,6 +62,12 @@ internal sealed class PluginGamedataSeeds(
     /// </summary>
     public const string TEMPLATE_PATCHES_FILE = "template-patches.json";
 
+    /// <summary>
+    /// The windows it defines as data (nitro-next <c>docs/template-patches.md</c>, "Windows as data"),
+    /// in its <c>wwwroot/</c>: each listed for clients in <see cref="ExternalVariablesFile.TEMPLATE_WINDOWS"/>.
+    /// </summary>
+    public const string WINDOWS_FOLDER = "windows";
+
     private const string WWWROOT = "wwwroot";
 
     public async Task SeedAsync(string pluginKey, string folder, CancellationToken ct)
@@ -86,6 +92,13 @@ internal sealed class PluginGamedataSeeds(
             {
                 [pluginKey] = patches,
             }.ToJsonString();
+
+        // Each window it defines as data is its entry of the windows list, by "<key>/<name>".
+        if (
+            !parts.ContainsKey(ExternalVariablesFile.TEMPLATE_WINDOWS)
+            && WindowEntries(pluginKey, Path.Combine(folder, WWWROOT)) is { } windows
+        )
+            parts[ExternalVariablesFile.TEMPLATE_WINDOWS] = windows;
 
         if (parts.TryGetValue(ExternalVariablesFile.ASSET_OVERLAYS, out var overlays))
             parts[ExternalVariablesFile.ASSET_OVERLAYS] = AddressEntries(
@@ -299,6 +312,37 @@ internal sealed class PluginGamedataSeeds(
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// The windows a plugin defines as data (<see cref="WINDOWS_FOLDER"/>), each by
+    /// <c>"&lt;key&gt;/&lt;name&gt;"</c> with its file's address by hash; null when it has none.
+    /// </summary>
+    private string? WindowEntries(string pluginKey, string wwwroot)
+    {
+        var folder = Path.Combine(wwwroot, WINDOWS_FOLDER);
+
+        if (!Directory.Exists(folder))
+            return null;
+
+        var entries = new JsonObject();
+
+        foreach (
+            var file in Directory
+                .EnumerateFiles(folder, "*.json")
+                .Order(StringComparer.OrdinalIgnoreCase)
+        )
+        {
+            var name = Path.GetFileNameWithoutExtension(file);
+
+            if (
+                modules.AddressOf(pluginKey, wwwroot, $"{WINDOWS_FOLDER}/{name}.json") is
+                { } address
+            )
+                entries[$"{pluginKey}/{name}"] = address;
+        }
+
+        return entries.Count > 0 ? entries.ToJsonString() : null;
     }
 
     /// <summary>
