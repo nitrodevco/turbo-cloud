@@ -35,7 +35,7 @@ can notice (internals, core's own behaviour, tests) has no entry.
   hotel; the MCP server plugin (a new call status, not an error).
 - **Breaks plugins**: no.
 - **Action**: none; to use it, read `docs/approvals.md`.
-- [turbo-cloud#APPROVALS_PR](https://github.com/nitrodevco/turbo-cloud/pull/APPROVALS_PR)
+- [turbo-cloud#475](https://github.com/nitrodevco/turbo-cloud/pull/475)
 
 ### The documentation has a sidebar and a website
 
