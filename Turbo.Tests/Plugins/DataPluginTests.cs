@@ -233,6 +233,16 @@ public sealed class DataPluginTests : IDisposable
             .Which.Name.Should()
             .Be("welcome");
 
+        // Patched as any template is, by the id the client reads it under.
+        await windows.SavePatchAsync(
+            IHotelDataPlugin.KEY,
+            Patch("Welcome caption", """[ { "element": "ok", "set": { "caption": "OK" } } ]""") with
+            {
+                Template = $"{IHotelDataPlugin.KEY}/windows/welcome",
+            },
+            Ct
+        );
+
         (await windows.RemoveWindowAsync(IHotelDataPlugin.KEY, "welcome", Ct)).Should().BeTrue();
         hotel.Loaded.OwnedPartsOf(ExternalVariablesFile.TEMPLATE_WINDOWS).Should().BeEmpty();
     }
