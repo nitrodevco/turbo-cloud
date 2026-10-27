@@ -78,6 +78,14 @@ by its schema, a name and bytes, so it crosses grain calls and room streams what
 record is; the session's encoder frames it with the header the name has. It goes only to a session
 that accepted `client.messages` (§5); a message whose plugin has gone by then is dropped and logged.
 
+### Carrying a core packet
+
+`PluginEnvelopeComposer.For(message, packet)` sends your message with a whole packet of the
+hotel's after its fields (another room's furni or avatars, relayed): its short header and body as
+the session's encoder writes it, for the client module to read with `api.packets.parseCore`. The
+carried packet is written once for every session it goes to. A room watch builds these for you;
+see `docs/plugin-room-watch.md`.
+
 ## 4. Headers
 
 Headers are the host's business. Each message gets one header, the same both ways, from the plugin

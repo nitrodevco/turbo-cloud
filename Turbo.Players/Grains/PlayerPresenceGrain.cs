@@ -75,6 +75,7 @@ internal sealed partial class PlayerPresenceGrain
         _state.OutgoingQueue.Clear();
         DropHolds();
 
+        await EndAllWatchesAsync();
         await UnregisterSessionObserverAsync(_state.SessionKey, ct);
     }
 
@@ -94,6 +95,9 @@ internal sealed partial class PlayerPresenceGrain
         _state.IsProcessingQueue = false;
         _state.OutgoingQueue.Clear();
         DropHolds();
+
+        // What the last session watched, its client drew; the new one starts with none.
+        await EndAllWatchesAsync();
         _sessionObserver = observer;
 
         // A new session starts outside any room; the first flush tells it otherwise. No flush is
@@ -124,6 +128,8 @@ internal sealed partial class PlayerPresenceGrain
 
     private async Task FlushPendingMessengerUpdatesAsync(CancellationToken ct)
     {
+        await EndExpiredWatchesAsync(DateTime.UtcNow);
+
         if (
             _state.AchievementOnlineSinceUtc is { } since
             && (DateTime.UtcNow - since).TotalSeconds
@@ -160,6 +166,8 @@ internal sealed partial class PlayerPresenceGrain
         _state.OutgoingQueue.Clear();
         DropHolds();
         _sessionObserver = null;
+
+        await EndAllWatchesAsync();
 
         _presenceTimer?.Dispose();
         _presenceTimer = null;
@@ -222,6 +230,17 @@ internal sealed partial class PlayerPresenceGrain
 
     public Task OnNextAsync(RoomOutboundSnapshot item, StreamSequenceToken? token = null)
     {
+        if (
+            item.RoomId != _state.ActiveRoomId
+            && _state.Watches.TryGetValue(item.RoomId, out var watch)
+        )
+        {
+            EnqueueWatched(item, watch);
+            StartOutgoingFlush();
+
+            return Task.CompletedTask;
+        }
+
         if (
             _sessionObserver is not null
             && !item.Composers.IsDefaultOrEmpty

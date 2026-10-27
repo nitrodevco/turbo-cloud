@@ -933,9 +933,15 @@ public sealed class PluginManager(
         services.ConfigurePrefixedLogging(host, manifest.Name);
 
         // The hotel API: the plugin's own services take it by constructor, as the classes its
-        // assembly declares do from the host (docs/hotel-api.md).
+        // assembly declares do from the host (docs/hotel-api.md). Bound to the plugin, so the
+        // rooms it holds and has watched through it are its own and let go as it unloads.
         if (host.GetService<IHotel>() is { } hotel)
-            services.AddSingleton(hotel);
+        {
+            var bound = hotel is IPluginBoundHotel scoped ? scoped.ForPlugin(manifest.Key) : hotel;
+
+            services.AddSingleton(bound);
+            services.AddSingleton(bound.Rooms);
+        }
 
         if (host.GetService<IConfiguration>() is { } configuration)
         {

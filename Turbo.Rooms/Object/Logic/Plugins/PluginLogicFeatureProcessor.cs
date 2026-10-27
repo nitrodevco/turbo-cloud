@@ -14,6 +14,7 @@ using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Providers;
+using Turbo.Primitives.Rooms.Watching;
 using Turbo.Runtime;
 using Turbo.Runtime.AssemblyProcessing;
 
@@ -35,6 +36,9 @@ internal sealed class PluginLogicFeatureProcessor(IRoomObjectLogicProvider logic
     )
     {
         var batch = new CompositeDisposable();
+
+        // The plugin's holds and watches end with it.
+        var plugin = sp.GetService<Turbo.Contracts.Plugins.PluginManifest>()?.Key ?? string.Empty;
 
         foreach (var type in AssemblyExplorer.FindAssignees(asm, typeof(WiredBox)))
         {
@@ -66,7 +70,9 @@ internal sealed class PluginLogicFeatureProcessor(IRoomObjectLogicProvider logic
                             services.GetRequiredService<IStuffDataFactory>(),
                             ctx,
                             (FurniLogic)ActivatorUtilities.CreateInstance(services, type),
-                            attribute.LinkedPair
+                            attribute.LinkedPair,
+                            plugin,
+                            services.GetService<IPluginRoomLeases>()
                         )
                 )
             );
