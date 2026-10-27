@@ -25,6 +25,7 @@ public sealed class PluginExtensionsTests
             new ServiceCollection()
                 .AddSingleton<IExtensionPacketRegistry>(host)
                 .BuildServiceProvider(),
+            "plugin",
             extensions
         );
         var fakes = new Fakes();

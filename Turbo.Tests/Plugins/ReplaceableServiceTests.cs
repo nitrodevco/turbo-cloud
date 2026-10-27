@@ -161,6 +161,112 @@ public sealed class ReplaceableServiceTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_replacement_calling_its_service_through_the_host_reaches_the_one_under_it_not_itself()
+    {
+        // It happened: a plugin's calendar called the calendar through Host<T>() at each login, got
+        // itself, and the stack overflow took the server down.
+        var seen = new List<ICampaignCalendarService>();
+        var host = Host(services => services.AddSingleton(seen));
+
+        await LoadAsync(host, ("advent", CalendarThroughTheHost("advent")), ("reader", Reader));
+
+        var calendars = host.GetRequiredService<ICampaignCalendarService>();
+
+        (await NamesAsync(calendars))
+            .Should()
+            .Equal(["advent"], "it adds to the host's list (empty), not to its own");
+        (await NamesAsync(seen.Single()))
+            .Should()
+            .Equal(["advent"], "another plugin calls the plugin's, as the host does");
+
+        await _manager!.ReloadAsync("advent", Ct);
+
+        (await NamesAsync(calendars)).Should().Equal(["advent"], "a reload goes on top again");
+
+        await _manager.UnloadAllAsync(Ct);
+
+        (await NamesAsync(calendars)).Should().BeEmpty();
+        (await NamesAsync(seen.Single())).Should().BeEmpty("the host's is back for that too");
+    }
+
+    [Fact]
+    public async Task Stacked_replacements_calling_through_the_host_each_reach_the_one_under_their_own()
+    {
+        var host = Host();
+
+        await LoadAsync(
+            host,
+            ("first", CalendarThroughTheHost("first")),
+            ("second", CalendarThroughTheHost("second"))
+        );
+
+        var replacements = host.GetRequiredService<IReplaceableServices>().Replacements;
+        var top = replacements.Single(x => x.InUse).Owner;
+        var under = replacements.Single(x => !x.InUse).Owner;
+        var calendars = host.GetRequiredService<ICampaignCalendarService>();
+
+        // The one under reaches the host's, not the later one on top of it (that would loop).
+        (await NamesAsync(calendars))
+            .Should()
+            .Equal(under, top);
+
+        await _manager!.DisableAsync(top, Ct);
+
+        (await NamesAsync(calendars)).Should().Equal(under);
+    }
+
+    [Fact]
+    public async Task A_replacement_taking_its_own_service_by_constructor_fails_the_load_instead_of_calling_itself()
+    {
+        var host = Host();
+
+        PluginBuilder.Write(
+            _folder,
+            "wrapper",
+            """
+            using Microsoft.Extensions.DependencyInjection;
+            using Turbo.Contracts.Plugins;
+            using Turbo.Primitives.Campaigns;
+
+            namespace wrapper;
+
+            public sealed class Plugin : TurboPlugin
+            {
+                protected override void Services(IServiceCollection services) =>
+                    services.AddSingleton<ICampaignCalendarService, Wrapper>();
+            }
+
+            public sealed class Wrapper(ICampaignCalendarService inner) : ICampaignCalendarService
+            {
+                private readonly ICampaignCalendarService _inner = inner;
+
+                public System.Threading.Tasks.Task<Turbo.Primitives.Messages.Outgoing.Campaign.CampaignCalendarDataMessageComposer?> GetCalendarAsync(Turbo.Primitives.Players.PlayerId playerId, System.Threading.CancellationToken ct) => _inner.GetCalendarAsync(playerId, ct);
+                public System.Threading.Tasks.Task<Turbo.Primitives.Messages.Outgoing.Campaign.CampaignCalendarDoorOpenedMessageComposer> OpenDoorAsync(Turbo.Primitives.Players.PlayerId playerId, string campaignName, int dayIndex, bool asStaff, System.Threading.CancellationToken ct) => _inner.OpenDoorAsync(playerId, campaignName, dayIndex, asStaff, ct);
+                public System.Threading.Tasks.Task<System.Collections.Immutable.ImmutableArray<CampaignCalendarDefinition>> ListAsync(System.Threading.CancellationToken ct) => _inner.ListAsync(ct);
+                public System.Threading.Tasks.Task<CampaignCalendarDefinition?> GetAsync(int id, System.Threading.CancellationToken ct) => _inner.GetAsync(id, ct);
+                public System.Threading.Tasks.Task<CampaignCalendarDefinition> SaveAsync(CampaignCalendarDefinition campaign, System.Threading.CancellationToken ct) => _inner.SaveAsync(campaign, ct);
+                public System.Threading.Tasks.Task<bool> DeleteAsync(int id, System.Threading.CancellationToken ct) => _inner.DeleteAsync(id, ct);
+            }
+            """
+        );
+        _manager = new PluginManager(
+            host,
+            new AssemblyProcessor([]),
+            Options.Create(new PluginConfig { PluginFolderPath = _folder }),
+            _managerLog
+        );
+
+        await _manager.LoadAllAsync(ct: Ct);
+
+        // Its own container gives it itself: refused as it builds, before anything calls it.
+        var status = _manager.Snapshot().Single();
+
+        status.State.Should().Be(PluginStateType.Failed);
+        status.Error.Should().Contain("circular dependency");
+        host.GetRequiredService<IServiceSlot<ICampaignCalendarService>>().Owner.Should().BeNull();
+    }
+
+    [Fact]
     public async Task A_plugin_registering_a_host_service_the_host_does_not_let_it_replace_is_told_so()
     {
         var host = Host(services => services.AddSingleton(_fakes.Create<IHotelTextProvider>()));
@@ -340,6 +446,105 @@ public sealed class ReplaceableServiceTests : IAsyncDisposable
                 public Task<bool> DeleteAsync(int id, CancellationToken ct) => Task.FromResult(true);
             }
             """;
+
+    /// <summary>
+    /// A plugin's calendar that adds one named for it to the list of the calendar it gets through
+    /// the host (<see cref="IPluginContext.Host{T}"/>, asked as it starts, before it is in the
+    /// slot). A list that comes back to it more than three deep is "itself" instead of a stack
+    /// overflow.
+    /// </summary>
+    private static string CalendarThroughTheHost(string key) =>
+        $$"""
+            using System.Collections.Immutable;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using Microsoft.Extensions.DependencyInjection;
+            using Turbo.Contracts.Plugins;
+            using Turbo.Primitives.Campaigns;
+            using Turbo.Primitives.Messages.Outgoing.Campaign;
+            using Turbo.Primitives.Players;
+
+            namespace {{key}};
+
+            public sealed class Plugin : TurboPlugin
+            {
+                protected override void Services(IServiceCollection services) =>
+                    services.AddSingleton<ICampaignCalendarService, Calendar>();
+
+                protected override Task StartingAsync(IPluginContext context, CancellationToken ct)
+                {
+                    ((Calendar)context.Services.GetRequiredService<ICampaignCalendarService>()).Host =
+                        context.Host<ICampaignCalendarService>();
+
+                    return Task.CompletedTask;
+                }
+            }
+
+            public sealed class Calendar : ICampaignCalendarService
+            {
+                private int _depth;
+
+                public ICampaignCalendarService? Host { get; set; }
+
+                public Task<CampaignCalendarDataMessageComposer?> GetCalendarAsync(PlayerId playerId, CancellationToken ct) =>
+                    Task.FromResult<CampaignCalendarDataMessageComposer?>(null);
+
+                public Task<CampaignCalendarDoorOpenedMessageComposer> OpenDoorAsync(
+                    PlayerId playerId, string campaignName, int dayIndex, bool asStaff, CancellationToken ct
+                ) => Task.FromResult(CampaignCalendarDoorOpenedMessageComposer.NotOpened);
+
+                public async Task<ImmutableArray<CampaignCalendarDefinition>> ListAsync(CancellationToken ct)
+                {
+                    if (++_depth > 3)
+                    {
+                        _depth--;
+
+                        return ImmutableArray.Create(new CampaignCalendarDefinition { Name = "itself" });
+                    }
+
+                    try
+                    {
+                        return (await Host!.ListAsync(ct)).Add(new CampaignCalendarDefinition { Name = "{{key}}" });
+                    }
+                    finally
+                    {
+                        _depth--;
+                    }
+                }
+
+                public Task<CampaignCalendarDefinition?> GetAsync(int id, CancellationToken ct) =>
+                    Task.FromResult<CampaignCalendarDefinition?>(null);
+
+                public Task<CampaignCalendarDefinition> SaveAsync(CampaignCalendarDefinition campaign, CancellationToken ct) =>
+                    Task.FromResult(campaign);
+
+                public Task<bool> DeleteAsync(int id, CancellationToken ct) => Task.FromResult(false);
+            }
+            """;
+
+    /// <summary>A plugin that replaces nothing and hands the test the calendar the host gives it.</summary>
+    private const string Reader = """
+        using System.Collections.Generic;
+        using System.Threading;
+        using System.Threading.Tasks;
+        using Turbo.Contracts.Plugins;
+        using Turbo.Primitives.Campaigns;
+
+        namespace reader;
+
+        public sealed class Plugin : TurboPlugin
+        {
+            protected override Task StartingAsync(IPluginContext context, CancellationToken ct)
+            {
+                context.Host<List<ICampaignCalendarService>>().Add(context.Host<ICampaignCalendarService>());
+
+                return Task.CompletedTask;
+            }
+        }
+        """;
+
+    private static async Task<string[]> NamesAsync(ICampaignCalendarService calendars) =>
+        [.. (await calendars.ListAsync(Ct)).Select(x => x.Name)];
 
     private async Task<string> OpenDoorAsync(OpenCampaignCalendarDoorMessageHandler door)
     {

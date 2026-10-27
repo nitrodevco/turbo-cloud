@@ -228,7 +228,9 @@ took the contract before it loaded, and nothing keeps a replaced one. The slot i
 furni logic override (§2.8) showed it must be: the last plugin loaded is used, an overlap is logged
 as a conflict and listed in the inspector (kind `service`), and on unload the one under it is back,
 another plugin's or the host's. A replacement adds to the one it replaced through
-`IServiceSlot<T>.Under(this)`. A host service a plugin registers that is not replaceable stays in the
+`IServiceSlot<T>.Under(this)`, or through `Host<T>()`, which gives a plugin the one under its own
+replacement, never itself (a plugin that called itself overflowed the stack and took the server
+down); one that takes its own contract by constructor fails the load. A host service a plugin registers that is not replaceable stays in the
 plugin's container, and the load logs it. Adding to host multi-registrations
 (`IAchievementFactListener`, `IIncomeRewardSource`, §2.7) is still to come.
 

@@ -931,7 +931,7 @@ public sealed class PluginManager(
         services.AddSingleton<IPluginContributionLog>(contributions);
         services.AddSingleton<IPluginCatalog>(new PluginCatalog(_exports));
         services.AddSingleton<IHostServices>(
-            new HostServices(_hostForPlugins, extensions, clientModules)
+            new HostServices(_hostForPlugins, manifest.Key, extensions, clientModules)
         );
         services.ConfigurePrefixedLogging(host, manifest.Name);
 
@@ -1040,7 +1040,10 @@ public sealed class PluginManager(
     /// constructor without a <c>Host&lt;T&gt;</c> factory. They reach the host as
     /// <see cref="IHostServices"/> does (the plugin's own packet registry and client modules), and
     /// the host is never asked for one of the plugin's types (<see cref="PluginHostServiceProvider"/>).
-    /// Open generics and keyed services stay as registered.
+    /// Open generics and keyed services stay as registered. A class that needs itself to be built
+    /// (a replacement taking the contract it replaces by constructor, which its own container gives
+    /// as itself) fails the load, as the container's own check would: built through a factory, it
+    /// would otherwise recurse until the stack overflows and take the server down.
     /// </summary>
     private void BuildOwnTypesOverTheHost(IServiceCollection services, Assembly assembly)
     {
@@ -1061,17 +1064,39 @@ public sealed class PluginManager(
             services[i] = ServiceDescriptor.Describe(
                 descriptor.ServiceType,
                 sp =>
-                    ActivatorUtilities.CreateInstance(
-                        new CompositeServiceProvider(
-                            sp,
-                            sp.GetService<IHostServices>() as IServiceProvider ?? hostForPlugins
-                        ),
-                        type
-                    ),
+                {
+                    var building = _building ??= new HashSet<ServiceDescriptor>(
+                        ReferenceEqualityComparer.Instance
+                    );
+
+                    if (!building.Add(descriptor))
+                        throw new InvalidOperationException(
+                            $"A circular dependency was detected for {descriptor.ServiceType.Name}: building {type.Name} needs {type.Name} again (its constructor takes it, directly or through another of the plugin's services). A replacement reaches the host service it replaces through Host<T>() or IServiceSlot<T>.Under(this)."
+                        );
+
+                    try
+                    {
+                        return ActivatorUtilities.CreateInstance(
+                            new CompositeServiceProvider(
+                                sp,
+                                sp.GetService<IHostServices>() as IServiceProvider ?? hostForPlugins
+                            ),
+                            type
+                        );
+                    }
+                    finally
+                    {
+                        building.Remove(descriptor);
+                    }
+                },
                 descriptor.Lifetime
             );
         }
     }
+
+    // The plugin classes this thread is building over the host (they are built synchronously).
+    [ThreadStatic]
+    private static HashSet<ServiceDescriptor>? _building;
 
     /// <summary>
     /// Binds the plugin's <see cref="PluginSettingsAttribute"/> classes to their sections and

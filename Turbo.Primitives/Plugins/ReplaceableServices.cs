@@ -16,7 +16,8 @@ public sealed class ReplaceableServiceAttribute : Attribute;
 /// <summary>
 /// The slot of one replaceable host service: the implementation in use, the host's own, and the
 /// one under a replacement, for a replacement that adds to what it replaces instead of starting
-/// over. A replacement that called the contract through the host would reach itself.
+/// over. A plugin whose replacement is in the slot gets that one under it from the host too
+/// (<c>Host&lt;T&gt;()</c>), never its own.
 /// </summary>
 public interface IServiceSlot<T>
     where T : class
