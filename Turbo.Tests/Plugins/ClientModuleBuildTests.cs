@@ -208,7 +208,11 @@ public sealed class ClientModuleBuildTests : IDisposable
         File.WriteAllText(shipped.File, "/* not built from this source */");
 
         var cache = Path.Combine(_folder, PluginClientBuilder.CACHE_FOLDER);
-        var target = Path.Combine(cache, KEY, Path.GetFileName(Path.GetDirectoryName(shipped.File)!));
+        var target = Path.Combine(
+            cache,
+            KEY,
+            Path.GetFileName(Path.GetDirectoryName(shipped.File)!)
+        );
 
         Directory.CreateDirectory(target);
         File.Copy(shipped.File, Path.Combine(target, Path.GetFileName(shipped.File)));

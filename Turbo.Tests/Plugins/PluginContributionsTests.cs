@@ -41,9 +41,11 @@ public sealed class PluginContributionsTests : IDisposable
         _fakes.Handlers["get_LogicTypes"] = _ => (IReadOnlyList<string>)["default_floor"];
         PluginBuilder.Write(_folder, "inspect", EVERYTHING);
         var wwwroot = Path.Combine(_folder, "inspect", "wwwroot");
+        var client = Path.Combine(_folder, "inspect", "client", "src");
         Directory.CreateDirectory(wwwroot);
+        Directory.CreateDirectory(client);
         await File.WriteAllTextAsync(
-            Path.Combine(wwwroot, "inspect.js"),
+            Path.Combine(client, "index.ts"),
             "export default { activate() {} };",
             Ct
         );
@@ -73,7 +75,7 @@ public sealed class PluginContributionsTests : IDisposable
                 (PluginContributionKinds.PERMISSION_NODE, "inspect.use"),
                 (PluginContributionKinds.SETTING, "Inspect"),
                 (PluginContributionKinds.WEB_ROUTE, "GET values"),
-                (PluginContributionKinds.CLIENT_MODULE, "inspect.js"),
+                (PluginContributionKinds.CLIENT_MODULE, "client/src/index.ts"),
                 (PluginContributionKinds.TEMPLATE_PATCH, "habbo-toolbar-com/purse_xml"),
                 (PluginContributionKinds.HOSTED_SERVICE, "Ticker"),
                 (PluginContributionKinds.SCHEDULED_TASK, "inspect.Rotation"),
