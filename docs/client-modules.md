@@ -90,6 +90,11 @@ What a module may import:
 | `@nitrodevco/client-module-sdk`, `.../theme` | the SDK, which the server ships (a copy of nitro-next's runtime files, `Turbo.Plugins/ClientBuild/sdk/`) |
 | `react`, `react/jsx-runtime`, `zustand` | the client's own, read as the module runs (the SDK's preset does the same) |
 
+The copy is never edited by hand: `node scripts/client-module-sdk.mjs <nitro-next folder>` compares it
+with nitro-next (`--ref origin/pixi-render` for a branch rather than the checkout), and `--write` takes
+nitro-next's files and records their hashes and commit in `Turbo.Plugins/ClientBuild/sdk-pins.json`,
+which a test checks the copy against.
+
 Anything else fails the build: a package (`lodash`, `react-dom`, a `node_modules` the plugin brings:
 none is read), a `.js` file (prebuilt or minified code), a file outside `client/src/`, a `data:` or
 `https:` import. The plugin's own `tsconfig.json` is not read (its `paths` cannot point a package at

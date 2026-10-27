@@ -1,0 +1,12 @@
+{
+  "nitroNextCommit": "ae25e263affabc88ba8de92b9c4e6681846ad6a9",
+  "files": {
+    "client-module-sdk/host.ts": "c06f849c096841b9ab5e2e6753d8d6c7b1f48de959807fd83576465d68b5604c",
+    "client-module-sdk/index.ts": "3504c9717de3e5b28830d452ff3d751d1c63b62bfe2bfb96eea9625062d8fa69",
+    "client-module-sdk/theme.ts": "be79dc27cf37e4cab8b50bd96cbf658f59a27b14ea922ecb1606022a1ab211eb",
+    "shared/react/index.js": "1c51754d84bedac0407d9342049243db0f0b7d70f071616112ecf4c235c57efc",
+    "shared/react/jsx-dev-runtime.js": "9d30e787405cff8282121752be9e2d07b1dc9e3135ce32eddb385e133cacd6d0",
+    "shared/react/jsx-runtime.js": "9d30e787405cff8282121752be9e2d07b1dc9e3135ce32eddb385e133cacd6d0",
+    "shared/zustand/index.js": "5552cff459a0b4a2748b312ad0cdf66fd4ee984bd002a0b9d5775343ca5aa8a6"
+  }
+}
