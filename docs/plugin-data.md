@@ -54,12 +54,13 @@ each `wwwroot/windows/<name>.json` is one, a Habbo window template with what its
 players open it from (the format is nitro-next `docs/template-patches.md`, "Windows as data"). While
 the plugin is loaded each is listed for clients in `templates.windows` by `<plugin key>/<name>`, and
 the link `window/<plugin key>/<name>` opens it from a notice, a hotel view button, a catalogue page or
-a habbo page. In the panel: **Theme studio > New window** (an info card, a dialog, a list, blank, or
-a copy of a window of the game), then its card above the preview - title, a me menu entry or a toolbar
-icon, what each button does - and the studio's editors for how it looks. Admin API:
+a habbo page. In the panel: **Theme studio > New window** (an info card, a dialog, a list, tabs, blank,
+or a copy of a window of the game), then its card above the preview - title, a me menu entry or a
+toolbar icon, what each button does (close it, open another window or a link, show a page) - and the
+studio's editors for how it looks. Admin API:
 `GET /plugins/{key}/windows`, `PUT /plugins/{key}/windows/{name}` (the whole file; refused with what is
 wrong when no client could draw it: a template without its size or elements, an element without a
-tag or its rect, a button naming no element, a link that is no in-client link, an entry without its
+tag or its rect, a button naming no element (or showing none), a link that is no in-client link, an entry without its
 caption or icon), `DELETE /plugins/{key}/windows/{name}`; `admin.plugins.manage`, written to the
 command log. **Make a plugin** packages them with the rest of the theme.
 

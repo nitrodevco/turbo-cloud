@@ -189,8 +189,9 @@ public sealed class DataPluginTests : IDisposable
                         """
                         { "template": { "name": "w", "width": 300, "height": 200, "elements": [
                             { "tag": "frame", "x": 0, "y": 0, "width": 300, "height": 200, "children": [
-                                { "tag": "button", "name": "ok", "x": 10, "y": 10, "width": 60 } ] } ] },
-                          "buttons": { "ok": { "link": "https://example.com" }, "gone": { "close": true } },
+                                { "tag": "button", "name": "ok", "x": 10, "y": 10, "width": 60 },
+                                { "tag": "button", "name": "tab", "x": 80, "y": 10, "width": 60, "height": 24 } ] } ] },
+                          "buttons": { "ok": { "link": "https://example.com" }, "gone": { "close": true }, "tab": { "show": "nowhere" } },
                           "entries": [ { "where": "memenu" } ] }
                         """
                     )
@@ -203,6 +204,7 @@ public sealed class DataPluginTests : IDisposable
         refused.Which.Message.Should().Contain("not an in-client link");
         refused.Which.Message.Should().Contain("Button \"gone\": the template has no element");
         refused.Which.Message.Should().Contain("A me menu entry has a \"caption\"");
+        refused.Which.Message.Should().Contain("Button \"tab\" shows \"nowhere\"");
 
         var saved = await windows.SaveWindowAsync(
             IHotelDataPlugin.KEY,

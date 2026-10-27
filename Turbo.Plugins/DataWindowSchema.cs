@@ -8,7 +8,7 @@ namespace Turbo.Plugins;
 /// <summary>
 /// What a window defined as data is (nitro-next <c>docs/template-patches.md</c>, "Windows as data"):
 /// a plugin's <c>wwwroot/windows/&lt;name&gt;.json</c>, a template in the shape the client's template
-/// bundles carry, what its buttons do (open an in-client link, close the window) and where players
+/// bundles carry, what its buttons do (open an in-client link, close the window, show one of its pages) and where players
 /// open it from (a me menu entry, a toolbar icon). The client skips what it can't draw; this
 /// refuses, before a window is saved, what no client could.
 /// </summary>
@@ -178,23 +178,30 @@ internal static partial class DataWindowSchema
                 action.ValueKind == JsonValueKind.Object
                 && action.TryGetProperty("close", out var closes)
                 && closes.ValueKind == JsonValueKind.True;
-            var link =
-                action.ValueKind == JsonValueKind.Object
-                && action.TryGetProperty("link", out var linked)
-                && linked.ValueKind == JsonValueKind.String
-                    ? linked.GetString()
-                    : null;
+            var link = TextOf(action, "link");
+            var show = TextOf(action, "show");
 
-            if (close == (link is not null))
+            if ((close ? 1 : 0) + (link is null ? 0 : 1) + (show is null ? 0 : 1) != 1)
                 problems.Add(
-                    $"Button \"{button.Name}\" either closes the window ({{ \"close\": true }}) or opens a link ({{ \"link\": \"...\" }})."
+                    $"Button \"{button.Name}\" closes the window ({{ \"close\": true }}), opens a link ({{ \"link\": \"...\" }}) or shows a page ({{ \"show\": \"<element>\" }}): one of them."
                 );
             else if (link is not null && !IsClientLink(link))
                 problems.Add(
                     $"Button \"{button.Name}\": \"{link}\" is not an in-client link (navigator/goto/<room>, habbopages/<page>, window/<plugin>/<name>, ...)."
                 );
+            else if (show is not null && !names.Contains(show))
+                problems.Add(
+                    $"Button \"{button.Name}\" shows \"{show}\": the template has no element by that name."
+                );
         }
     }
+
+    private static string? TextOf(JsonElement action, string key) =>
+        action.ValueKind == JsonValueKind.Object
+        && action.TryGetProperty(key, out var value)
+        && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
 
     private static void EntryProblems(JsonElement entries, List<string> problems)
     {
