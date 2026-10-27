@@ -20,8 +20,8 @@ public readonly record struct NewRoomFurni(
 /// room (its row, its floor plan, its furni) commits all of it or none. The furni are written as
 /// every furni the hotel makes is, through its one writer of who holds a furni and where, with a
 /// movement each under the caller's <see cref="MovementCause"/> (<c>docs/movements.md</c>).
-/// Take it by constructor; the room must not be loaded yet (a loaded room does not read rows
-/// written behind it).
+/// Take it by constructor. The room must not be loaded yet (a loaded room does not read rows
+/// written behind it): a loaded room throws <see cref="System.InvalidOperationException"/>.
 /// </summary>
 public interface IRoomFurniWriter
 {

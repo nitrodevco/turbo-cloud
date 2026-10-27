@@ -1,4 +1,6 @@
+using System.Collections.Immutable;
 using FluentAssertions;
+using Orleans;
 using Turbo.Database.Furniture;
 using Turbo.Furniture.Custody;
 using Turbo.Plugins;
@@ -51,7 +53,10 @@ public sealed class PluginSurfaceTests : IDisposable
         _world.AddPlayer(OWNER, "owner");
         _world.AddDefinition(CHAIR, "chair", "default_floor");
         _world.AddRoom(ROOM, OWNER);
-        IRoomFurniWriter writer = new RoomFurniWriter(TestCustody.Over(_world.Db));
+        IRoomFurniWriter writer = new RoomFurniWriter(
+            TestCustody.Over(_world.Db),
+            new Fakes().Create<IGrainFactory>()
+        );
         NewRoomFurni[] furni =
         [
             new(CHAIR, null, new RoomPosition(1, 1, 0, Rotation.South, null)),
@@ -89,6 +94,40 @@ public sealed class PluginSurfaceTests : IDisposable
         }
 
         _world.Rows().Should().HaveCount(2, "the rolled back write left nothing");
+    }
+
+    /// <summary>
+    /// A loaded room holds its furni in memory and never reads rows written behind it, so making
+    /// furni straight into one is refused and writes nothing.
+    /// </summary>
+    [Fact]
+    public async Task Furni_are_not_made_straight_into_a_loaded_room()
+    {
+        _world.AddPlayer(OWNER, "owner");
+        _world.AddDefinition(CHAIR, "chair", "default_floor");
+        _world.AddRoom(ROOM, OWNER);
+        var fakes = new Fakes();
+        fakes.Handlers["GetActiveRoomIdsAsync"] = _ =>
+            Task.FromResult<ImmutableArray<RoomId>>([ROOM]);
+        IRoomFurniWriter writer = new RoomFurniWriter(
+            TestCustody.Over(_world.Db),
+            fakes.Create<IGrainFactory>()
+        );
+
+        await using var db = await _world.Db.CreateDbContextAsync(Ct);
+
+        var write = () =>
+            writer.CreateInRoomAsync(
+                db,
+                ROOM,
+                OWNER,
+                [new(CHAIR, null, new RoomPosition(1, 1, 0, Rotation.South, null))],
+                TestCustody.Cause(),
+                Ct
+            );
+
+        await write.Should().ThrowAsync<InvalidOperationException>();
+        _world.Rows().Should().BeEmpty();
     }
 
     [Fact]
