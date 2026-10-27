@@ -55,4 +55,16 @@ internal sealed class WatchedRoom
     public required PluginMessageComposer Envelope { get; set; }
     public required DateTime ExpiresAtUtc { get; set; }
     public StreamSubscriptionHandle<RoomOutboundSnapshot>? Subscription { get; set; }
+
+    /// <summary>
+    /// The room's publishes that arrive while its first view is on its way, held until the view
+    /// is queued; null once it is.
+    /// </summary>
+    public List<RoomOutboundSnapshot>? AwaitingView { get; set; } = [];
+
+    /// <summary>
+    /// The last publish the first view already shows: one up to it that arrives late is dropped.
+    /// Null once a later one has arrived, after which every publish is the room's next.
+    /// </summary>
+    public long? ShownUpTo { get; set; }
 }

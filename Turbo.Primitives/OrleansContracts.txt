@@ -576,6 +576,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Rooms.Grains.IRoomGrain")] Turbo
   4B810ED7: GetTileSnapshotAsync(int, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Mapping.RoomTileSnapshot>
   AAD986FC: GetTradePartiesAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.TradePartiesSnapshot?>
   C2E80E81: GetWallItemSnapshotByIdAsync(Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomWallItemSnapshot?>
+  7C389042: GetWatchViewAsync(Turbo.Primitives.Players.PlayerId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Watching.RoomWatchView>
   DE845C53: GetWiredDataSnapshotByFloorItemIdAsync(Turbo.Primitives.Action.ActionContext, Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.WiredDataSnapshot?>
   BCB49AE7: GetWiredEntityPermanentVariablesAsync(Turbo.Primitives.Action.ActionContext, int, int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Rooms.Snapshots.Wired.Variables.WiredEntityPermanentVariablesSnapshot?>
   DC1CF048: GetWiredErrorLogsAsync(Turbo.Primitives.Action.ActionContext, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Snapshots.Wired.WiredErrorLogSnapshot>?>

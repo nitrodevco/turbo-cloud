@@ -312,8 +312,9 @@ no second serializer, and a mismatch between halves is detected, not misread.
 client and the SDK's `ClientModuleMessageOf<typeof schema>`; see `docs/plugin-messages.md`. The map
 is its own packet, sent before the module list; a `.d.ts` generator is still to come. A message
 can carry a whole core packet after its fields (`PluginEnvelopeComposer`, read on the client with
-`api.packets.parseCore`), which is how a room watch relays another room to a player
-(`docs/plugin-room-watch.md`: room holds and watches, each the plugin's and ended by its unload).
+`api.packets.parseCore`), which is how a room watch relays another room to a player, starting
+with the room as an entry draws it (`docs/plugin-room-watch.md`: room holds and watches, each the
+plugin's and ended by its unload).
 
 ### 4.8 Web routes (a registry)
 

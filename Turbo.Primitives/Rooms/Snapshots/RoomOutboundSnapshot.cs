@@ -33,4 +33,12 @@ public sealed record RoomOutboundSnapshot
     /// </summary>
     [Id(4)]
     public OutboundHold ReleasesHold { get; init; }
+
+    /// <summary>
+    /// The room's count of its publishes, this one included: a watcher's first view of the room
+    /// (<c>IRoomGrain.GetWatchViewAsync</c>) names the last publish it already shows, so the
+    /// watcher drops what came before it and keeps what came after.
+    /// </summary>
+    [Id(5)]
+    public long Sequence { get; init; }
 }

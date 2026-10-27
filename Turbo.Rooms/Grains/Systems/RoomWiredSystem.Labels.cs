@@ -19,19 +19,22 @@ public sealed partial class RoomWiredSystem
     /// What a player who walks in is told about the room's wired, in Habbo's order. It goes in
     /// their entry (<c>RoomGrain.BuildEntryTailAsync</c>), after the room's configuration states.
     /// </summary>
-    public ImmutableArray<IComposer> GetEntryState() =>
-        [
-            BuildEnvironment(),
-            new FurnitureLabelsAndRegionsMessageComposer
-            {
-                Entries =
-                [
-                    .. FurniModule
-                        .Items.OfType<IRoomFloorItem>()
-                        .Select(x => x.Logic)
-                        .OfType<FurnitureLabelLogic>()
-                        .Select(x => x.GetLabelSnapshot()),
-                ],
-            },
-        ];
+    public ImmutableArray<IComposer> GetEntryState() => [BuildEnvironment(), GetLabelsAndRegions()];
+
+    /// <summary>
+    /// The room's labels, which the room engine draws (AS3 <c>RoomMessageHandler
+    /// .onFurnitureLabelsAndRegions</c>): a watcher's first view has them too.
+    /// </summary>
+    public FurnitureLabelsAndRegionsMessageComposer GetLabelsAndRegions() =>
+        new()
+        {
+            Entries =
+            [
+                .. FurniModule
+                    .Items.OfType<IRoomFloorItem>()
+                    .Select(x => x.Logic)
+                    .OfType<FurnitureLabelLogic>()
+                    .Select(x => x.GetLabelSnapshot()),
+            ],
+        };
 }

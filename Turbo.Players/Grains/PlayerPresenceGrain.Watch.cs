@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Capabilities;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Plugins.Messages;
@@ -18,7 +19,9 @@ namespace Turbo.Players.Grains;
 /// Watches: another room's stream, besides the active room's, whose packets reach the session in
 /// a plugin's envelope (<see cref="PluginEnvelopeComposer"/>), queued in order with everything
 /// else the player is sent. The room's packets are the same instances its players get, so each
-/// is still serialized once for everyone; only the envelope's frame is per player.
+/// is still serialized once for everyone; only the envelope's frame is per player. A watch
+/// starts with the room as an entry draws it (<c>IRoomGrain.GetWatchViewAsync</c>), before any of
+/// its publishes.
 /// </summary>
 internal sealed partial class PlayerPresenceGrain
 {
@@ -36,6 +39,15 @@ internal sealed partial class PlayerPresenceGrain
             return RoomWatchOutcome.InThatRoom;
 
         var existing = _state.Watches.GetValueOrDefault(roomId);
+
+        // A lease that ran out before the presence's tick ended it: the watch starts again, its
+        // first view and all, as after the tick. The room may have let go of it meanwhile (its
+        // hold had the same lease); a hold of this plugin's the room still has, it renews below.
+        if (existing is not null && existing.ExpiresAtUtc <= DateTime.UtcNow)
+        {
+            await EndWatchAsync(roomId, releaseHold: existing.Plugin != request.Plugin);
+            existing = null;
+        }
 
         if (existing is not null && existing.Plugin != request.Plugin)
             return RoomWatchOutcome.WatchedForAnotherPlugin;
@@ -103,12 +115,18 @@ internal sealed partial class PlayerPresenceGrain
         // In place before the subscription, so the room's first publish finds it.
         _state.Watches[roomId] = watch;
 
+        RoomWatchView view;
+
         try
         {
             var stream = GetRoomStream(roomId);
 
             await PurgeStaleSubscriptionsAsync(stream, roomId);
             watch.Subscription = await stream.SubscribeAsync(this);
+
+            // Asked once the subscription is in place, so every publish after the ones the view
+            // shows reaches the watch; those that arrive meanwhile wait for it.
+            view = await room.GetWatchViewAsync(_state.PlayerId, ct);
         }
         catch
         {
@@ -117,7 +135,33 @@ internal sealed partial class PlayerPresenceGrain
             throw;
         }
 
+        // Ended while the view was on its way: nothing more of the room is for this session.
+        if (!ReferenceEquals(_state.Watches.GetValueOrDefault(roomId), watch))
+            return RoomWatchOutcome.NotOnline;
+
+        ShowFirstView(watch, view);
+
         return RoomWatchOutcome.Watching;
+    }
+
+    /// <summary>
+    /// The room as an entry draws it, before anything it publishes: then the publishes that
+    /// arrived meanwhile, less those the view already shows, and from then on each as it comes.
+    /// </summary>
+    private void ShowFirstView(WatchedRoom watch, RoomWatchView view)
+    {
+        foreach (var composer in view.Composers)
+            EnqueueInEnvelope(composer, watch);
+
+        var arrived = watch.AwaitingView ?? [];
+
+        watch.AwaitingView = null;
+        watch.ShownUpTo = view.Sequence;
+
+        foreach (var item in arrived)
+            EnqueueWatched(item, watch);
+
+        StartOutgoingFlush();
     }
 
     public async Task<bool> UnwatchRoomAsync(RoomId roomId, string plugin, CancellationToken ct) =>
@@ -131,6 +175,23 @@ internal sealed partial class PlayerPresenceGrain
     /// </summary>
     private void EnqueueWatched(RoomOutboundSnapshot item, WatchedRoom watch)
     {
+        if (watch.AwaitingView is { } waiting)
+        {
+            waiting.Add(item);
+
+            return;
+        }
+
+        // Publishes are numbered in the room's turns and arrive in that order, so the first one
+        // past the view's is the end of those it showed.
+        if (watch.ShownUpTo is { } shown)
+        {
+            if (item.Sequence <= shown)
+                return;
+
+            watch.ShownUpTo = null;
+        }
+
         if (
             _sessionObserver is null
             || item.Composers.IsDefaultOrEmpty
@@ -139,12 +200,15 @@ internal sealed partial class PlayerPresenceGrain
             return;
 
         foreach (var composer in item.Composers)
-        {
-            if (composer is ICapabilityComposer extension && !AcceptsExtension(extension))
-                continue;
+            EnqueueInEnvelope(composer, watch);
+    }
 
-            Enqueue(new PluginEnvelopeComposer { Outer = watch.Envelope, Inner = composer });
-        }
+    private void EnqueueInEnvelope(IComposer composer, WatchedRoom watch)
+    {
+        if (composer is ICapabilityComposer extension && !AcceptsExtension(extension))
+            return;
+
+        Enqueue(new PluginEnvelopeComposer { Outer = watch.Envelope, Inner = composer });
     }
 
     /// <summary>

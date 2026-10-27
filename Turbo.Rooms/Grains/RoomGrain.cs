@@ -139,6 +139,10 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
     public readonly RoomWiredTransactionSystem WiredTransactionSystem;
 
     internal IAsyncStream<RoomOutboundSnapshot> _roomOutbound = default!;
+
+    // The last publish's RoomOutboundSnapshot.Sequence: counted as each is made, in the turn
+    // that makes it, so a watch view taken in a turn knows which publishes it already shows.
+    private long _outboundSequence;
     private IGrainTimer? _tickTimer;
 
     // Calls into the room still running, and whether its tick is: an interleaving call that ends
@@ -694,6 +698,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
                 RoomId = _state.RoomId,
                 Composers = [WrittenExtensionPacket.For(composer, _extensions)],
                 PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
+                Sequence = ++_outboundSequence,
                 ReleasesHold = releases,
             }
         );
@@ -714,6 +719,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
                 Composers = [WrittenExtensionPacket.For(composer, _extensions)],
                 ExcludedPlayerIds = excludedPlayerIds,
                 PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
+                Sequence = ++_outboundSequence,
             }
         );
 
@@ -734,6 +740,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
                 RoomId = _state.RoomId,
                 Composers = WrittenExtensionPacket.For(composers, _extensions),
                 PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
+                Sequence = ++_outboundSequence,
             }
         );
     }
@@ -758,6 +765,7 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
                 Composers = WrittenExtensionPacket.For(composers, _extensions),
                 ExcludedPlayerIds = excludedPlayerIds,
                 PublishedAtUtcTicks = RoomTelemetry.GetPublicationTimestamp(),
+                Sequence = ++_outboundSequence,
             }
         );
     }

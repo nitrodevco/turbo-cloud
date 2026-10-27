@@ -17,7 +17,9 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Primitives.Rooms.Snapshots.Avatars;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Primitives.Rooms.Watching;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Grains;
@@ -98,25 +100,26 @@ public sealed partial class RoomGrain
     }
 
     public Task<RoomEntryViewSnapshot> GetEntryViewAsync(PlayerId playerId, CancellationToken ct) =>
-        Task.FromResult(
-            new RoomEntryViewSnapshot
-            {
-                Room = _state.RoomSnapshot,
-                Map = MapModule.GetMapSnapshot(ct),
-                OwnerNames = FurniModule.GetOwnerNames(),
-                FloorItems = FurniModule.GetShownFloorItemSnapshots(),
-                WallItems = FurniModule.GetShownWallItemSnapshots(),
-                Avatars = AvatarModule.GetAvatarSnapshots(),
-                Properties = [.. _state.RoomProperties],
-                AreaHides =
-                [
-                    .. FurniModule
-                        .Items.Select(x => (x.Logic as FurnitureAreaHideLogic)?.GetActiveArea())
-                        .OfType<AreaHideDataSnapshot>(),
-                ],
-                WiredVisualization = [.. WiredSystem.GetVisualizationEntryState()],
-            }
-        );
+        Task.FromResult(TakeEntryView(ct));
+
+    private RoomEntryViewSnapshot TakeEntryView(CancellationToken ct) =>
+        new()
+        {
+            Room = _state.RoomSnapshot,
+            Map = MapModule.GetMapSnapshot(ct),
+            OwnerNames = FurniModule.GetOwnerNames(),
+            FloorItems = FurniModule.GetShownFloorItemSnapshots(),
+            WallItems = FurniModule.GetShownWallItemSnapshots(),
+            Avatars = AvatarModule.GetAvatarSnapshots(),
+            Properties = [.. _state.RoomProperties],
+            AreaHides =
+            [
+                .. FurniModule
+                    .Items.Select(x => (x.Logic as FurnitureAreaHideLogic)?.GetActiveArea())
+                    .OfType<AreaHideDataSnapshot>(),
+            ],
+            WiredVisualization = [.. WiredSystem.GetVisualizationEntryState()],
+        };
 
     /// <summary>
     /// The end of a player's entry, after the room itself (RoomReady through Items), for them
@@ -218,44 +221,131 @@ public sealed partial class RoomGrain
         // stands facing the wall until it first moves.
         tail.Add(new UserUpdateMessageComposer { Avatars = [avatar.GetSnapshot(), .. others] });
 
-        // Neither a dance, an effect nor a sleep travels in the Users packet, so all three are
-        // replayed to the arriving player as their own updates. Any avatar can carry them; one
-        // that the client does not draw as a user simply never has one to replay.
-        tail.AddRange(
-            others
-                .Where(x => x.DanceType != AvatarDanceType.None)
-                .Select(x => new DanceMessageComposer
-                {
-                    ObjectId = x.ObjectId,
-                    DanceType = x.DanceType,
-                })
-        );
-        // As the arriving player is shown each (IAvatarEffectPolicy.Show).
-        tail.AddRange(
-            others
-                .Where(x => x.EffectId > 0)
-                .Select(x => new AvatarEffectMessageComposer
-                {
-                    ObjectId = x.ObjectId,
-                    EffectId = AvatarModule.ShownTo(
-                        playerId,
-                        x.ObjectId,
-                        x.AvatarType,
-                        x.AvatarType == RoomObjectType.Player ? x.WebId : null,
-                        x.EffectId
-                    ),
-                    DelayMilliseconds = 0,
-                })
-                .Where(x => x.EffectId > 0)
-        );
-        tail.AddRange(
-            others
-                .Where(x => x.IsIdle)
-                .Select(x => new SleepMessageComposer { ObjectId = x.ObjectId, IsSleeping = true })
-        );
+        tail.AddRange(DancesOf(others));
+        tail.AddRange(EffectsOf(others, playerId));
+        tail.AddRange(SleepsOf(others));
 
         return [.. tail];
     }
+
+    // Neither a dance, an effect nor a sleep travels in the Users packet, so all three are
+    // replayed to an arriving player (or a watcher) as their own updates, in this order. Any
+    // avatar can carry them; one that the client does not draw as a user simply never has one to
+    // replay.
+    private static IEnumerable<IComposer> DancesOf(IEnumerable<RoomAvatarSnapshot> avatars) =>
+        avatars
+            .Where(x => x.DanceType != AvatarDanceType.None)
+            .Select(x => new DanceMessageComposer
+            {
+                ObjectId = x.ObjectId,
+                DanceType = x.DanceType,
+            });
+
+    /// <summary>As <paramref name="viewer"/> is shown each (<c>IAvatarEffectPolicy.Show</c>).</summary>
+    private IEnumerable<IComposer> EffectsOf(
+        IEnumerable<RoomAvatarSnapshot> avatars,
+        PlayerId viewer
+    ) =>
+        avatars
+            .Where(x => x.EffectId > 0)
+            .Select(x => new AvatarEffectMessageComposer
+            {
+                ObjectId = x.ObjectId,
+                EffectId = AvatarModule.ShownTo(
+                    viewer,
+                    x.ObjectId,
+                    x.AvatarType,
+                    x.AvatarType == RoomObjectType.Player ? x.WebId : null,
+                    x.EffectId
+                ),
+                DelayMilliseconds = 0,
+            })
+            .Where(x => x.EffectId > 0);
+
+    private static IEnumerable<IComposer> SleepsOf(IEnumerable<RoomAvatarSnapshot> avatars) =>
+        avatars
+            .Where(x => x.IsIdle)
+            .Select(x => new SleepMessageComposer { ObjectId = x.ObjectId, IsSleeping = true });
+
+    /// <summary>
+    /// A watcher's first view: the room as an entry shows it (<see cref="RoomEntryComposers.RoomOf"/>),
+    /// then of the entry's tail what the room engine draws, in the tail's order: the configuration
+    /// states (invisible furni), the WIRED labels, everyone's status, dances, effects and sleeps
+    /// (AS3 <c>RoomMessageHandler.onConfigurationItemStates</c> and
+    /// <c>onFurnitureLabelsAndRegions</c> hand them to the room engine). Left out is what only
+    /// someone standing in the room is told: their own avatar, RoomEntryInfo (whose answer opens
+    /// the room info), the wired notice, the event card, WiredEnvironment, rights, ownership,
+    /// WiredPermissions, the rating and the raid protection. Taken in one turn, without awaiting,
+    /// with the number of the last publish it already shows.
+    /// </summary>
+    public Task<RoomWatchView> GetWatchViewAsync(PlayerId watcherId, CancellationToken ct)
+    {
+        var shared = TakeSharedWatchView(ct);
+
+        return Task.FromResult(
+            new RoomWatchView
+            {
+                Sequence = shared.Sequence,
+                Composers =
+                [
+                    .. shared.Before,
+                    .. EffectsOf(shared.Avatars, watcherId),
+                    .. shared.Sleeps,
+                ],
+            }
+        );
+    }
+
+    /// <summary>
+    /// The watch view's packets every watcher gets alike, taken again once the room has
+    /// published since or a tick has passed (what a turn changes it publishes in that turn or
+    /// on the next tick). Watchers starting together get the same instances, so the encoder's
+    /// payload cache writes each once for all of them.
+    /// </summary>
+    private SharedWatchView TakeSharedWatchView(CancellationToken ct)
+    {
+        var nowMs = UtcNow.ToUnixTimeMilliseconds();
+
+        if (
+            _sharedWatchView is { } cached
+            && cached.Sequence == _outboundSequence
+            && nowMs - cached.TakenAtMs < _roomConfig.RoomTickMs
+        )
+            return cached;
+
+        var view = TakeEntryView(ct);
+        var avatars = view.Avatars;
+        var before = new List<IComposer>(
+            RoomEntryComposers.RoomOf(_state.RoomId, view, _roomConfig)
+        )
+        {
+            FurnitureConfigurationControlLogic.GetConfigurationItemStates(FurniModule),
+            WiredSystem.GetLabelsAndRegions(),
+        };
+
+        if (!avatars.IsDefaultOrEmpty)
+            before.Add(new UserUpdateMessageComposer { Avatars = avatars });
+
+        before.AddRange(DancesOf(avatars));
+
+        return _sharedWatchView = new SharedWatchView(
+            _outboundSequence,
+            nowMs,
+            avatars,
+            [.. before],
+            [.. SleepsOf(avatars)]
+        );
+    }
+
+    private SharedWatchView? _sharedWatchView;
+
+    private sealed record SharedWatchView(
+        long Sequence,
+        long TakenAtMs,
+        ImmutableArray<RoomAvatarSnapshot> Avatars,
+        ImmutableArray<IComposer> Before,
+        ImmutableArray<IComposer> Sleeps
+    );
 
     /// <summary>
     /// The arriving player's status for everyone already here, after the Users that drew them:
