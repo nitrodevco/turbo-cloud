@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentAssertions;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Commands;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Plugins.Messages;
 using Turbo.Testing;
 using Xunit;
@@ -94,6 +95,33 @@ public sealed class TestHotelTests : IAsyncLifetime
                     (await db.Plants.CountAsync(ct)).ToString(),
                     settings.CurrentValue.Seeds.ToString()
                 );
+            }
+        }
+
+        [Command("rain", Description = "Rain on every garden")]
+        [RequiresPermission("plugin.garden.rain")]
+        public sealed class RainCommand(IHotel hotel) : IOperatorCommand<RainCommand.Arguments>
+        {
+            public sealed record Arguments;
+
+            public IReadOnlyDictionary<string, string> DefaultTexts { get; } =
+                new Dictionary<string, string>
+                {
+                    ["reaches"] = "That rains on %0% gardens.",
+                    ["rained"] = "It rained on %0% gardens.",
+                };
+
+            public async ValueTask<CommandResult> ExecuteAsync(IOperatorCommandContext ctx, Arguments arguments, CancellationToken ct)
+            {
+                var gardens = ctx.SnapshotRecipients("rain", hotel.Players.OnlineIds());
+
+                if (ctx.ShouldConfirm(gardens.Count))
+                    return CommandResult.Confirm("reaches", gardens.Count.ToString());
+
+                foreach (var player in gardens)
+                    await ctx.NotifyAsync(player, "garden.rain", "Rain falls on your garden.", [], ct);
+
+                return CommandResult.Done("rained", gardens.Count.ToString());
             }
         }
 
@@ -235,6 +263,35 @@ public sealed class TestHotelTests : IAsyncLifetime
 
         alice.Should().HaveHadCommand(CommandOutcome.Refused);
         alice.Whispers.Should().Equal(CommandReplyKeys.Defaults[CommandReplyKeys.NO_PERMISSION]);
+    }
+
+    [Fact]
+    public async Task An_operator_command_runs_through_the_hotels_runner_waits_for_confirm_and_is_logged()
+    {
+        await _hotel.LoadAsync(_folder, ct: Ct);
+        _hotel.Settings.Set("Turbo:Commands:ConfirmAtPlayers", 3);
+        var bob = _hotel
+            .Player("bob")
+            .InRoom(5)
+            .WithPermissions("plugin.garden.rain", PermissionNodes.Command.LOG);
+        _hotel.Player("alice");
+        _hotel.Player("carol");
+        // With the room's owner, 4 players are online.
+
+        await bob.SaysAsync(":rain", Ct);
+
+        bob.Should().HaveHadCommand(CommandOutcome.AwaitingConfirmation);
+        bob.Should().HaveBeenWhispered("That rains on 4 gardens. Type :confirm within 30 seconds to go ahead.");
+        _hotel.Notify.Alerts.Should().BeEmpty();
+
+        await bob.SaysAsync(":confirm", Ct);
+
+        bob.Should().HaveBeenWhispered("It rained on 4 gardens.");
+        _hotel.Notify.Alerts.Select(x => x.Text).Should().Equal(Enumerable.Repeat("Rain falls on your garden.", 4));
+        _hotel
+            .CommandLog.Entries.Select(x => (x.Command, x.Outcome))
+            .Should()
+            .Equal(("rain", "confirm"), ("rain", "completed"), ("confirm", "completed"));
     }
 
     [Fact]

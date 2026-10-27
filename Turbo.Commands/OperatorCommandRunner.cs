@@ -6,11 +6,9 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
-using Turbo.Database.Context;
 using Turbo.Database.Entities.Room;
 using Turbo.Events;
 using Turbo.Primitives.Action;
@@ -40,7 +38,7 @@ public sealed class OperatorCommandRunner(
     ISessionGateway sessionGateway,
     ICommandBatchExecutor batchExecutor,
     IPlayerNoticeService notices,
-    IDbContextFactory<TurboDbContext> dbCtxFactory,
+    ICommandLogWriter commandLog,
     IOptions<CommandConfig> config,
     TimeProvider timeProvider,
     ILogger<IOperatorCommandRunner> logger
@@ -644,9 +642,7 @@ public sealed class OperatorCommandRunner(
             if (!context.UsedSelector && !await executor.HasAsync(PermissionNodes.Command.LOG, ct))
                 return;
 
-            await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct);
-
-            dbCtx.CommandLogs.Add(
+            await commandLog.WriteAsync(
                 new CommandLogEntity
                 {
                     RoomEntityId = executor.RoomId?.Value ?? 0,
@@ -683,10 +679,9 @@ public sealed class OperatorCommandRunner(
                             })
                         )
                         : null,
-                }
+                },
+                ct
             );
-
-            await dbCtx.SaveChangesAsync(ct);
         }
         catch (Exception ex)
         {

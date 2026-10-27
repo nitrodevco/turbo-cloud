@@ -69,6 +69,8 @@ public sealed class TestPlugin
     /// <summary>The plugin's text of <paramref name="key"/> (its <c>gamedata/external_texts.txt</c>); null when it has none.</summary>
     public string? Text(string key) => _texts.GetValueOrDefault(key);
 
+    internal IEnumerable<string> TextKeys => _texts.Keys;
+
     internal bool HasFurniLogic(string logic) =>
         AssemblyExplorer
             .FindAssignees(Assembly, typeof(FurniLogic))

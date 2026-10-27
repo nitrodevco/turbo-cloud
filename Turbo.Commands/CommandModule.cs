@@ -41,6 +41,7 @@ public sealed class CommandModule : IHostPluginModule
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<ICommandRegistryProvider, CommandRegistryProvider>();
         services.AddSingleton<ICommandBatchExecutor, CommandBatchExecutor>();
+        services.AddSingleton<ICommandLogWriter, CommandLogWriter>();
         services.AddSingleton<IOperatorCommandRunner, OperatorCommandRunner>();
         services.AddSingleton<SuggestionSourceRegistry>();
         services.AddSingleton<CommandArgumentParserRegistry>();

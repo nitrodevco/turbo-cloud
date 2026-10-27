@@ -37,6 +37,7 @@ using Turbo.Primitives.Events;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Extensions;
 using Turbo.Primitives.Players.Grains.Permissions;
+using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Plugins;
@@ -44,6 +45,7 @@ using Turbo.Primitives.Plugins.Messages;
 using Turbo.Primitives.Policies;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Providers;
+using Turbo.Primitives.Texts;
 using Turbo.Rooms;
 using Turbo.Rooms.Object.Logic;
 using Turbo.Runtime;
@@ -102,6 +104,7 @@ public sealed class TestHotel : IAsyncDisposable
         Web = new TestWeb(this);
         Admin = new TestAdmin(this);
         Events = new TestEvents(this);
+        Texts = new TestTexts(this);
 
         AnswerHostCalls();
 
@@ -136,6 +139,12 @@ public sealed class TestHotel : IAsyncDisposable
             .AddSingleton<EventRegistry>()
             .AddSingleton<EnvelopeInvokerFactory<EventContext>>()
             .AddSingleton<IEventPublisher>(_ => Events)
+            .AddSingleton(sp => new EventSystem(sp.GetRequiredService<EventRegistry>()))
+            .AddSingleton<IHotelTextProvider>(Texts)
+            .AddSingleton<IPlayerNoticeService>(new TestNotices(Fake, Texts))
+            .AddSingleton<ICommandLogWriter>(CommandLog)
+            .AddSingleton<ICommandBatchExecutor, CommandBatchExecutor>()
+            .AddSingleton<IOperatorCommandRunner, OperatorCommandRunner>()
             .AddSingleton(sp => new ScheduledTaskHost(
                 sp.GetRequiredService<IGrainFactory>(),
                 Fake.Clock,
@@ -153,6 +162,14 @@ public sealed class TestHotel : IAsyncDisposable
                 }
             );
 
+        // Core's command settings (Turbo:Commands), read as they are now: a test sets them at any time.
+        services
+            .AddOptions<CommandConfig>()
+            .Bind(_configuration.GetSection(CommandConfig.SECTION_NAME));
+        services.AddSingleton<IOptions<CommandConfig>>(sp => new CurrentOptions<CommandConfig>(
+            sp.GetRequiredService<IOptionsMonitor<CommandConfig>>()
+        ));
+
         _host = services.BuildServiceProvider();
 
         var sp = _host;
@@ -164,6 +181,10 @@ public sealed class TestHotel : IAsyncDisposable
         Schedules = sp.GetRequiredService<ScheduledTaskHost>();
         WebRoutes = sp.GetRequiredService<PluginWebRoutes>();
         AdminRoutes = sp.GetRequiredService<PluginAdminRoutes>();
+        OperatorCommands = sp.GetRequiredService<IOperatorCommandRunner>();
+
+        // Core's :confirm, which an operator command that reaches many players waits for.
+        Commands.Register([new ConfirmCommand()]);
 
         // What the server's own feature processors find in a plugin's assembly, with the same
         // registries behind them (their refusals fail the load as on a server).
@@ -257,6 +278,12 @@ public sealed class TestHotel : IAsyncDisposable
     /// <summary>Hotel events: what the plugins published, and events published to their handlers.</summary>
     public TestEvents Events { get; }
 
+    /// <summary>
+    /// The hotel's command log: the operator commands written down (by a holder of
+    /// <c>command.log</c>, or a line that named a group of players).
+    /// </summary>
+    public TestCommandLog CommandLog { get; } = new();
+
     /// <summary>The live plugins, by key.</summary>
     public IReadOnlyDictionary<string, TestPlugin> Plugins => _plugins;
 
@@ -279,6 +306,10 @@ public sealed class TestHotel : IAsyncDisposable
     internal PluginWebRoutes WebRoutes { get; }
 
     internal PluginAdminRoutes AdminRoutes { get; }
+
+    internal IOperatorCommandRunner OperatorCommands { get; }
+
+    internal TestTexts Texts { get; }
 
     internal SqliteConnection Database => _db;
 
@@ -438,7 +469,13 @@ public sealed class TestHotel : IAsyncDisposable
     internal bool Grants(FakePlayer player, string node) =>
         TestPlayer.Holds(player, node) || _defaultNodes.ContainsKey(node);
 
-    private readonly ConcurrentDictionary<string, byte> _defaultNodes = new(StringComparer.Ordinal);
+    // Core's nodes every rank holds by default (command.confirm, ...), then the live plugins'.
+    private readonly ConcurrentDictionary<string, byte> _defaultNodes = new(
+        new CorePermissionNodeSource()
+            .Nodes.Where(n => n.GrantedByDefault)
+            .Select(n => KeyValuePair.Create(n.Node, (byte)0)),
+        StringComparer.Ordinal
+    );
 
     private void AnswerHostCalls()
     {
@@ -548,6 +585,12 @@ public sealed class TestHotel : IAsyncDisposable
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }
+    }
+
+    private sealed class CurrentOptions<T>(IOptionsMonitor<T> monitor) : IOptions<T>
+        where T : class
+    {
+        public T Value => monitor.CurrentValue;
     }
 
     private sealed class Released(Action release) : IDisposable

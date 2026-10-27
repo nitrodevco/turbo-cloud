@@ -149,7 +149,7 @@ public sealed class OperatorFixture
                 Options.Create(new PlayerConfig()),
                 new CapturingLogger<IPlayerNoticeService>()
             ),
-            Db,
+            new CommandLogWriter(Db),
             Microsoft.Extensions.Options.Options.Create(Config),
             Clock,
             Log
