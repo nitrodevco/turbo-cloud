@@ -1,9 +1,9 @@
 /**
  * The "hello" client module: the smallest module that touches each part of the client module API
- * v1 (docs/client-modules.md). It needs no build step - it is plain JavaScript and takes React and
- * the theme from `api.libs` instead of importing them.
+ * v1 (docs/client-modules.md). The server builds it from this file; it imports nothing, taking React
+ * and the theme from `api.libs`.
  *
- * - a toolbar icon (hello.png, beside this file) that opens and closes a window;
+ * - a toolbar icon (the plugin's wwwroot/hello.png) that opens and closes a window;
  * - the window: the theme's `Frame` with a line of text and the number of clicks so far;
  * - a me menu entry and the `hello/open` link, which open the same window;
  * - a small bar over the user's own avatar in a room;

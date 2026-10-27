@@ -90,8 +90,8 @@ public sealed class PluginTemplateTests : IDisposable
         var status = manager.Snapshot().Single();
         status.State.Should().Be(PluginStateType.Loaded, status.Error);
 
-        // The plugin class registers neither: the module is wwwroot/<key>.js, the settings class
-        // is [PluginSettings].
+        // The plugin class registers neither: the module is built from client/src/index.tsx, the
+        // settings class is [PluginSettings].
         host.Modules.Modules.Should()
             .ContainSingle()
             .Which.Url.Should()
@@ -756,18 +756,25 @@ public sealed class PluginTemplateTests : IDisposable
     /// <summary>The plugin's files beside its assembly, and the module its client half builds.</summary>
     private static void CopyPluginFiles(string plugin, string folder, string key)
     {
-        foreach (var sub in new[] { "wwwroot", "gamedata" })
-        foreach (var file in Directory.EnumerateFiles(Path.Combine(plugin, sub)))
+        // Its client sources as they are: the server builds its module from them.
+        foreach (var sub in new[] { "wwwroot", "gamedata", "client/src" })
+        foreach (
+            var file in Directory.EnumerateFiles(
+                Path.Combine(plugin, sub),
+                "*",
+                SearchOption.AllDirectories
+            )
+        )
         {
-            Directory.CreateDirectory(Path.Combine(folder, sub));
-            File.Copy(file, Path.Combine(folder, sub, Path.GetFileName(file)));
-        }
+            var to = Path.Combine(
+                folder,
+                sub,
+                Path.GetRelativePath(Path.Combine(plugin, sub), file)
+            );
 
-        // npm run dev builds it; only its being there matters here.
-        File.WriteAllText(
-            Path.Combine(folder, "wwwroot", $"{key}.js"),
-            "export default { activate() {} };"
-        );
+            Directory.CreateDirectory(Path.GetDirectoryName(to)!);
+            File.Copy(file, to);
+        }
     }
 
     private static void CopyTemplate(string to)

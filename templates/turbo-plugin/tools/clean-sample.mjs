@@ -44,7 +44,7 @@ namespace ${assembly};
 /// The plugin's services, for its routes, tasks, commands and handlers to take by constructor. The
 /// rest is found as it loads: its key and version in manifest.json, its settings, commands,
 /// permission nodes, messages, handlers, routes and tasks in the assembly, and its client module,
-/// wwwroot/${key}.js (built from client/src). All of it goes when it unloads.
+/// built by the hotel from client/src. All of it goes when it unloads.
 /// </summary>
 public sealed class ${assembly}Plugin : TurboPlugin
 {
@@ -54,8 +54,8 @@ public sealed class ${assembly}Plugin : TurboPlugin
 
 rewrite(path.join('client', 'src', 'index.tsx'), `
 /**
- * The plugin's client module: built by \`npm run dev\` / \`npm run build\` into one file,
- * \`wwwroot/${key}.js\`, which the server lists for every client that runs modules.
+ * The plugin's client module: the hotel builds it from client/src into one file, \`${key}.js\`,
+ * which the server lists for every client that runs modules.
  */
 import { defineModule } from '@nitrodevco/client-module-sdk';
 

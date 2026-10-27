@@ -9,7 +9,7 @@ admin panel, and what a theme author puts in a folder. The patch format itself i
 A plugin whose `manifest.json` has no `AssemblyFile` is a **data plugin**: its files are all it
 has. It is installed, turned off and on, updated, rolled back and uninstalled from the Plugins page
 as any plugin is, and it runs no code - not on the server, and not in the client either (a
-`wwwroot/<key>.js` in it is served as a file, never run as a module).
+`client/src/` in it is never built, and no `.js` file is served).
 
 ```
 plugins/mytheme/

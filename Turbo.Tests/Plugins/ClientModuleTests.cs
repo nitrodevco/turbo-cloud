@@ -15,6 +15,7 @@ using Turbo.Messages.Registry;
 using Turbo.Networking.Extensions;
 using Turbo.PacketHandlers.Turbo;
 using Turbo.Plugins;
+using Turbo.Plugins.ClientBuild;
 using Turbo.Plugins.Configuration;
 using Turbo.Primitives.Availability;
 using Turbo.Primitives.ClientModules;
@@ -33,10 +34,11 @@ using Xunit;
 namespace Turbo.Tests.Plugins;
 
 /// <summary>
-/// <c>client.modules</c>: a plugin declares a JavaScript module in its folder's <c>wwwroot/</c>,
-/// the server works out its address and SHA-256 and tells every client that asked, again when the
-/// plugin goes, and the gamedata host serves the files, cached for good by their hash. A client
-/// that never asks is told nothing.
+/// <c>client.modules</c>: a plugin declares a module the server builds from its sources, the
+/// server works out its address and SHA-256 and tells every client that asked, again when the
+/// plugin goes, and the gamedata host serves it and its <c>wwwroot/</c>, cached for good by their
+/// hash. A client that never asks is told nothing. How the module is built:
+/// <see cref="ClientModuleBuildTests"/>.
 /// </summary>
 public sealed class ClientModuleTests : IAsyncDisposable
 {
@@ -87,10 +89,10 @@ public sealed class ClientModuleTests : IAsyncDisposable
     {
         PluginBuilder.Write(_folder, "hello", HELLO);
 
-        var wwwroot = Path.Combine(_folder, "hello", "wwwroot");
+        var sources = Path.Combine(_folder, "hello", "client", "src");
 
-        Directory.CreateDirectory(wwwroot);
-        File.WriteAllText(Path.Combine(wwwroot, "hello.js"), SCRIPT);
+        Directory.CreateDirectory(sources);
+        File.WriteAllText(Path.Combine(sources, "index.ts"), SCRIPT);
     }
 
     private PluginManager Manager() =>
@@ -126,7 +128,9 @@ public sealed class ClientModuleTests : IAsyncDisposable
         var status = manager.Snapshot().Single();
         status.State.Should().Be(PluginStateType.Loaded, status.Error);
 
-        var hash = Sha(SCRIPT);
+        var hash = Convert.ToHexStringLower(
+            SHA256.HashData(File.ReadAllBytes(_registry.FindFile("hello", "hello.js")!))
+        );
         var module = Sent().Should().ContainSingle().Which.Modules.Should().ContainSingle().Which;
 
         module
@@ -202,7 +206,6 @@ public sealed class ClientModuleTests : IAsyncDisposable
     {
         WriteHelloPlugin();
 
-        var root = Path.Combine(_folder, "hello", "wwwroot");
         var manifest = new PluginManifest
         {
             Name = "hello",
@@ -214,21 +217,31 @@ public sealed class ClientModuleTests : IAsyncDisposable
         using var plugin = new PluginClientModules(
             _registry,
             manifest,
-            Path.Combine(_folder, "hello")
+            Path.Combine(_folder, "hello"),
+            new PluginClientBuilder(Path.Combine(_folder, PluginClientBuilder.CACHE_FOLDER))
         );
+        var root = Path.Combine(_folder, "hello", "wwwroot");
+
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "hello.js"), SCRIPT);
 
         var outside = () => plugin.Register("hello", "../manifest.json");
-        var missing = () => plugin.Register("hello", "nope.js");
-        var other = () => plugin.Register("other", "hello.js");
-        var core = () => _registry.Register("hello", "hello.js");
+        var prebuilt = () => plugin.Register("hello", "wwwroot/hello.js");
+        var missing = () => plugin.Register("hello", "client/src/nope.ts");
+        var other = () => plugin.Register("other", "client/src/index.ts");
+        var core = () => _registry.Register("hello", "client/src/index.ts");
 
         outside.Should().Throw<ArgumentException>();
+        prebuilt
+            .Should()
+            .Throw<ArgumentException>()
+            .WithMessage("*.ts or .tsx file under client/src*");
         missing.Should().Throw<ArgumentException>();
         other.Should().Throw<ArgumentException>().WithMessage("*own key, hello*");
         core.Should().Throw<InvalidOperationException>();
 
-        using var registration = plugin.Register("hello", "hello.js");
-        var twice = () => plugin.Register("hello", "hello.js");
+        using var registration = plugin.Register("hello", "client/src/index.ts");
+        var twice = () => plugin.Register("hello", "client/src/index.ts");
 
         twice.Should().Throw<InvalidOperationException>();
         File.WriteAllText(Path.Combine(root, ".env"), "secret");
@@ -236,7 +249,13 @@ public sealed class ClientModuleTests : IAsyncDisposable
         _registry.FindFile("hello", "../manifest.json").Should().BeNull();
         _registry.FindFile("hello", "..%2Fmanifest.json").Should().BeNull();
         _registry.FindFile("other", "hello.js").Should().BeNull();
-        _registry.FindFile("hello", "hello.js").Should().Be(Path.Combine(root, "hello.js"));
+        _registry
+            .FindFile("hello", "hello.js")
+            .Should()
+            .StartWith(
+                Path.Combine(_folder, PluginClientBuilder.CACHE_FOLDER, "hello"),
+                "the module served is the one the server built, not wwwroot/hello.js"
+            );
     }
 
     [Fact]
@@ -244,7 +263,12 @@ public sealed class ClientModuleTests : IAsyncDisposable
     {
         using var registration = Add("hello", "hello.js");
         await File.WriteAllTextAsync(
-            Path.Combine(_folder, "hello", "wwwroot", "chunk.js"),
+            Path.Combine(_folder, "hello", "wwwroot", "icon.png"),
+            "png",
+            Ct
+        );
+        await File.WriteAllTextAsync(
+            Path.Combine(_folder, "hello", "wwwroot", "prebuilt.js"),
             "export {};",
             Ct
         );
@@ -259,17 +283,17 @@ public sealed class ClientModuleTests : IAsyncDisposable
         entry.Headers.CacheControl!.ToString().Should().Contain("immutable");
         (await entry.Content.ReadAsStringAsync(Ct)).Should().Be(SCRIPT);
 
-        // What the module imports beside it is asked for again each time, answered 304 while the same.
-        using var chunk = await http.GetAsync("/gamedata/plugins/hello/chunk.js", Ct);
+        // What the module loads beside it is asked for again each time, answered 304 while the same.
+        using var icon = await http.GetAsync("/gamedata/plugins/hello/icon.png", Ct);
 
-        chunk.StatusCode.Should().Be(HttpStatusCode.OK);
-        chunk.Headers.CacheControl!.NoCache.Should().BeTrue();
+        icon.StatusCode.Should().Be(HttpStatusCode.OK);
+        icon.Headers.CacheControl!.NoCache.Should().BeTrue();
 
         using var again = new HttpRequestMessage(
             HttpMethod.Get,
-            "/gamedata/plugins/hello/chunk.js"
+            "/gamedata/plugins/hello/icon.png"
         );
-        again.Headers.IfNoneMatch.Add(chunk.Headers.ETag!);
+        again.Headers.IfNoneMatch.Add(icon.Headers.ETag!);
         using var notModified = await http.SendAsync(again, Ct);
 
         notModified.StatusCode.Should().Be(HttpStatusCode.NotModified);
@@ -286,6 +310,8 @@ public sealed class ClientModuleTests : IAsyncDisposable
                 "hello/..%2F..%2Fhello%2Fmanifest.json",
                 "hello/missing.js",
                 "other/hello.js",
+                // No JavaScript from a wwwroot: the module the server built is the only code.
+                "hello/prebuilt.js",
             }
         )
         {
@@ -346,15 +372,17 @@ public sealed class ClientModuleTests : IAsyncDisposable
         packet.End.Should().BeTrue();
     }
 
+    /// <summary>A module as if built: <see cref="SCRIPT"/> served as <paramref name="entry"/>.</summary>
     private IDisposable Add(string key, string entry)
     {
         var root = Path.Combine(_folder, key, "wwwroot");
-        var file = Path.Combine(root, entry);
+        var built = Path.Combine(_folder, "built", key, $"{key}.js");
 
-        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-        File.WriteAllText(file, SCRIPT);
+        Directory.CreateDirectory(root);
+        Directory.CreateDirectory(Path.GetDirectoryName(built)!);
+        File.WriteAllText(built, SCRIPT);
 
-        return _registry.Add(new ClientModuleSource(key, "1.0.0", root, entry));
+        return _registry.Add(new ClientModuleSource(key, "1.0.0", root, entry, built));
     }
 
     private async Task<HttpClient> StartServerAsync()
@@ -416,7 +444,7 @@ public sealed class ClientModuleTests : IAsyncDisposable
             {
                 services.GetRequiredService<IHostServices>()
                     .GetRequiredService<IClientModuleRegistry>()
-                    .Register("hello", "hello.js");
+                    .Register("hello", "client/src/index.ts");
 
                 return Task.CompletedTask;
             }

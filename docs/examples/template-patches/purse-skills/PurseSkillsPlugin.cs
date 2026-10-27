@@ -18,7 +18,7 @@ using Turbo.Primitives.Packets;
 namespace PurseSkills;
 
 /// <summary>
-/// An add-on with both halves: the client module (<c>wwwroot/skills.js</c>) adds a Skills button to
+/// An add-on with both halves: the client module (<c>client/src/index.ts</c>) adds a Skills button to
 /// the purse and a window of its own; this server half keeps each player's experience and answers
 /// the window over its packets, and serves the hotel's best players over HTTP for the window and
 /// for the site (<see cref="TopRoute"/>, <see cref="MeRoute"/>, <c>docs/plugin-web-routes.md</c>). The experience is kept in memory to keep the example small: a real plugin keeps it in
@@ -55,7 +55,7 @@ public sealed class PurseSkillsPlugin : ITurboPlugin
         _registrations.Add(packets.RegisterParser(TRAIN, new Parser(() => new TrainMessage())));
         _registrations.Add(packets.RegisterSerializer(typeof(SkillMessage), new SkillSerializer()));
         _registrations.Add(
-            host.GetRequiredService<IClientModuleRegistry>().Register(Key, "skills.js")
+            host.GetRequiredService<IClientModuleRegistry>().Register(Key, "client/src/index.ts")
         );
 
         return Task.CompletedTask;

@@ -1,0 +1,118 @@
+<Project>
+  <!--
+    What the server builds plugins' client modules with (PluginClientBuilder): esbuild's standalone
+    binary, for the platform the server runs on, and the client module SDK's runtime files a module
+    is bundled with. The binary is the npm registry's @esbuild/<platform> package at the version
+    pinned here, checked against its pinned SHA-512 before it is unpacked: a build fetches it once
+    into obj/ and copies it beside the server as esbuild/esbuild(.exe). Imported by Turbo.Main;
+    its output (and a publish, for -r <rid> too) carries both.
+  -->
+  <PropertyGroup>
+    <TurboEsbuildVersion>0.28.2</TurboEsbuildVersion>
+    <_TurboEsbuildRid>$(RuntimeIdentifier)</_TurboEsbuildRid>
+    <_TurboEsbuildRid Condition="'$(_TurboEsbuildRid)' == ''"
+      >$(NETCoreSdkRuntimeIdentifier)</_TurboEsbuildRid
+    >
+    <!-- esbuild's Linux binaries are static, so a musl Linux runs them too. -->
+    <_TurboEsbuildPlatform Condition="'$(_TurboEsbuildRid)' == 'win-x64'"
+      >win32-x64</_TurboEsbuildPlatform
+    >
+    <_TurboEsbuildPlatform Condition="'$(_TurboEsbuildRid)' == 'win-arm64'"
+      >win32-arm64</_TurboEsbuildPlatform
+    >
+    <_TurboEsbuildPlatform
+      Condition="'$(_TurboEsbuildRid)' == 'linux-x64' Or '$(_TurboEsbuildRid)' == 'linux-musl-x64'"
+      >linux-x64</_TurboEsbuildPlatform
+    >
+    <_TurboEsbuildPlatform
+      Condition="'$(_TurboEsbuildRid)' == 'linux-arm64' Or '$(_TurboEsbuildRid)' == 'linux-musl-arm64'"
+      >linux-arm64</_TurboEsbuildPlatform
+    >
+    <_TurboEsbuildPlatform Condition="'$(_TurboEsbuildRid)' == 'osx-x64'"
+      >darwin-x64</_TurboEsbuildPlatform
+    >
+    <_TurboEsbuildPlatform Condition="'$(_TurboEsbuildRid)' == 'osx-arm64'"
+      >darwin-arm64</_TurboEsbuildPlatform
+    >
+    <!-- Each package's dist.integrity on the npm registry (npm view @esbuild/<platform>@<version> dist.integrity). -->
+    <_TurboEsbuildIntegrity Condition="'$(_TurboEsbuildPlatform)' == 'win32-x64'"
+      >sha512-5ebpxr3nWMzrL/rnUI755Jkuee0bHL/Gq0WTF9lvcpv73wAp5eu8MfBUgWK9bhWvZjj7yX8etf/8tI8Ney695g==</_TurboEsbuildIntegrity
+    >
+    <_TurboEsbuildIntegrity Condition="'$(_TurboEsbuildPlatform)' == 'win32-arm64'"
+      >sha512-PIhhEkE9uPBleRBrQEJpUn7MBnibZzbGzYWPmY3x+YoVg/95zbjB4CxPPOQ8l5tYYM4mMaCthF8/1DIfBQQyWQ==</_TurboEsbuildIntegrity
+    >
+    <_TurboEsbuildIntegrity Condition="'$(_TurboEsbuildPlatform)' == 'linux-x64'"
+      >sha512-4xTZr1FUmSoQW4XIWmit3tzQrUTZM+N3P0XV8xROKYF50XfI7xeO90+1bZvNwxIufQ9hDQVRJH5YhgPVF8A/HQ==</_TurboEsbuildIntegrity
+    >
+    <_TurboEsbuildIntegrity Condition="'$(_TurboEsbuildPlatform)' == 'linux-arm64'"
+      >sha512-pW4AC0P3it8c7do9MVM4p51FzHzdM/TZrerurgRcHJ2WTa1VQ1CIq18xncfpBJw4ojkiZZrKW2yIBWBP92j6Ug==</_TurboEsbuildIntegrity
+    >
+    <_TurboEsbuildIntegrity Condition="'$(_TurboEsbuildPlatform)' == 'darwin-x64'"
+      >sha512-uq6suIWYP37qzGddBKPw5QEQPi6HiLGsO7UmkpfyaYNQ3D+rN6w6WfwH+nuqcGXWvawGwxOEroO4YGnFh95azw==</_TurboEsbuildIntegrity
+    >
+    <_TurboEsbuildIntegrity Condition="'$(_TurboEsbuildPlatform)' == 'darwin-arm64'"
+      >sha512-n4KqkOQrraxHJcgjM1RvwbigfQKIKJVpM7xp+KsxiyUSrRdIXnt73VhrPAx0fV44hgfmIVKjxMN9J1t5jySVkw==</_TurboEsbuildIntegrity
+    >
+    <_TurboEsbuildWindows>$(_TurboEsbuildPlatform.StartsWith('win32'))</_TurboEsbuildWindows>
+    <_TurboEsbuildInPackage Condition="'$(_TurboEsbuildWindows)' == 'true'"
+      >package/esbuild.exe</_TurboEsbuildInPackage
+    >
+    <_TurboEsbuildInPackage Condition="'$(_TurboEsbuildWindows)' != 'true'"
+      >package/bin/esbuild</_TurboEsbuildInPackage
+    >
+    <_TurboEsbuildName Condition="'$(_TurboEsbuildWindows)' == 'true'"
+      >esbuild.exe</_TurboEsbuildName
+    >
+    <_TurboEsbuildName Condition="'$(_TurboEsbuildWindows)' != 'true'">esbuild</_TurboEsbuildName>
+    <_TurboEsbuildDir>$(BaseIntermediateOutputPath)esbuild/$(TurboEsbuildVersion)/$(_TurboEsbuildPlatform)/</_TurboEsbuildDir>
+    <_TurboEsbuildPackage>$(_TurboEsbuildDir)esbuild-$(_TurboEsbuildPlatform)-$(TurboEsbuildVersion).tgz</_TurboEsbuildPackage>
+    <_TurboEsbuildBinary>$(_TurboEsbuildDir)$(_TurboEsbuildInPackage)</_TurboEsbuildBinary>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None
+      Include="$(MSBuildThisFileDirectory)sdk/**/*"
+      Link="client-build/%(RecursiveDir)%(Filename)%(Extension)"
+      CopyToOutputDirectory="PreserveNewest"
+      CopyToPublishDirectory="PreserveNewest"
+      Visible="false"
+    />
+    <None
+      Include="$(_TurboEsbuildBinary)"
+      Link="esbuild/$(_TurboEsbuildName)"
+      CopyToOutputDirectory="PreserveNewest"
+      CopyToPublishDirectory="PreserveNewest"
+      Visible="false"
+    />
+  </ItemGroup>
+
+  <Target
+    Name="TurboFetchEsbuild"
+    BeforeTargets="AssignTargetPaths"
+    Condition="!Exists('$(_TurboEsbuildBinary)')"
+  >
+    <Error
+      Condition="'$(_TurboEsbuildPlatform)' == ''"
+      Text="Plugins' client modules are built with esbuild, which has no binary for the runtime $(_TurboEsbuildRid). Build for win-x64, win-arm64, linux-x64, linux-arm64, osx-x64 or osx-arm64."
+    />
+    <DownloadFile
+      SourceUrl="https://registry.npmjs.org/@esbuild/$(_TurboEsbuildPlatform)/-/$(_TurboEsbuildPlatform)-$(TurboEsbuildVersion).tgz"
+      DestinationFolder="$(_TurboEsbuildDir)"
+      DestinationFileName="esbuild-$(_TurboEsbuildPlatform)-$(TurboEsbuildVersion).tgz"
+      Retries="2"
+    />
+    <GetFileHash Files="$(_TurboEsbuildPackage)" Algorithm="SHA512" HashEncoding="base64">
+      <Output TaskParameter="Hash" PropertyName="_TurboEsbuildHash" />
+    </GetFileHash>
+    <Delete
+      Files="$(_TurboEsbuildPackage)"
+      Condition="'sha512-$(_TurboEsbuildHash)' != '$(_TurboEsbuildIntegrity)'"
+    />
+    <Error
+      Condition="'sha512-$(_TurboEsbuildHash)' != '$(_TurboEsbuildIntegrity)'"
+      Text="The esbuild package downloaded for $(_TurboEsbuildPlatform) is not the one pinned in ClientBuild.targets (sha512-$(_TurboEsbuildHash)); it was deleted and nothing was unpacked."
+    />
+    <Exec Command="tar -xzf &quot;$(_TurboEsbuildPackage)&quot; -C &quot;$(_TurboEsbuildDir)&quot; $(_TurboEsbuildInPackage)" />
+    <Delete Files="$(_TurboEsbuildPackage)" />
+  </Target>
+</Project>

@@ -122,7 +122,8 @@ internal static partial class PluginHelpers
 
     /// <summary>
     /// The files a plugin's code is loaded from. A change to one of them is a new version of the
-    /// plugin; its other files (texts, client module files) are read by reloading it.
+    /// plugin; its other files (texts, client module files) are read by reloading it. Its client
+    /// module's sources are code too (<see cref="IsClientSource"/>): the module is built from them.
     /// </summary>
     public static readonly string[] CODE_FILES = ["manifest.json", "*.dll", "*.pdb", "*.deps.json"];
 
@@ -131,10 +132,17 @@ internal static partial class PluginHelpers
         var fileName = Path.GetFileName(path);
 
         return !string.IsNullOrWhiteSpace(fileName)
-            && CODE_FILES.Any(glob =>
-                FileSystemName.MatchesSimpleExpression(glob, fileName, ignoreCase: true)
+            && (
+                CODE_FILES.Any(glob =>
+                    FileSystemName.MatchesSimpleExpression(glob, fileName, ignoreCase: true)
+                ) || IsClientSource(path)
             );
     }
+
+    /// <summary>A file under a <c>client/src/</c> its module is built from: TypeScript, or JSON data.</summary>
+    public static bool IsClientSource(string path) =>
+        Path.GetExtension(path).ToLowerInvariant() is ".ts" or ".tsx" or ".json"
+        && path.Replace('\\', '/').Contains("/client/src/", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// The names, sizes and write times of the plugin's code files: the same while none of them

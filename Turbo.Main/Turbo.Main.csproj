@@ -8,6 +8,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Turbo.Tests" />
   </ItemGroup>
+  <!-- esbuild and the client module SDK, which plugins' client modules are built with. -->
+  <Import Project="../Turbo.Plugins/ClientBuild/ClientBuild.targets" />
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />

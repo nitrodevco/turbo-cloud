@@ -15,9 +15,11 @@ namespace Turbo.Gamedata.ClientModules;
 
 /// <summary>
 /// The client modules the hotel's plugins brought (<see cref="IClientModuleDirectory"/>). Each is
-/// served from its plugin's <c>wwwroot/</c> by the gamedata host, under
-/// <see cref="GamedataServer.PLUGIN_FILES_ROUTE"/>; its address names its entry file's SHA-256
-/// (<c>?v=</c>), so a browser keeps a version for good and loads the next one when it changes. The
+/// the file the server built from the plugin's sources, served beside its plugin's <c>wwwroot/</c>
+/// by the gamedata host, under <see cref="GamedataServer.PLUGIN_FILES_ROUTE"/>; its address names
+/// the module's SHA-256 (<c>?v=</c>), so a browser keeps a version for good and loads the next one
+/// when it changes. No JavaScript is served from a <c>wwwroot/</c>: the only code a client is
+/// given is a module the server built. The
 /// address starts with <see cref="GamedataConfig.PublicUrl"/> when the hotel set one, and is
 /// site-relative otherwise. A registry reached outside a plugin has no folder to serve from and
 /// refuses <see cref="Register"/>: plugins are given one bound to their own folder. A loaded
@@ -31,6 +33,9 @@ internal sealed class ClientModuleRegistry(
 {
     /// <summary>How much of the hash the address carries: enough to tell versions apart.</summary>
     public const int VERSION_LENGTH = 16;
+
+    /// <summary>What a browser runs as code, never served from a <c>wwwroot/</c>.</summary>
+    private static readonly string[] SCRIPTS = [".js", ".mjs", ".cjs"];
 
     private readonly Lock _lock = new();
     private readonly ConcurrentDictionary<
@@ -64,15 +69,24 @@ internal sealed class ClientModuleRegistry(
         if (string.IsNullOrWhiteSpace(source.Key))
             throw new ArgumentException("A client module needs its plugin's key.", nameof(source));
 
-        var root = Path.GetFullPath(source.Root);
+        var entry = Normalize(source.Entry);
 
-        if (Resolve(root, source.Entry) is null)
+        if (
+            entry.Length == 0
+            || entry.Split('/').Any(x => x.Length == 0 || x[0] == '.')
+            || !File.Exists(source.Module)
+        )
             throw new ArgumentException(
-                $"The client module {source.Key}'s entry file {source.Entry} is not a file in its folder.",
+                $"The client module {source.Key} is served as {source.Entry} from the file the server built, {source.Module}, and there is none.",
                 nameof(source)
             );
 
-        source = source with { Root = root, Entry = Normalize(source.Entry) };
+        source = source with
+        {
+            Root = Path.GetFullPath(source.Root),
+            Entry = entry,
+            Module = Path.GetFullPath(source.Module),
+        };
 
         lock (_lock)
         {
@@ -137,7 +151,9 @@ internal sealed class ClientModuleRegistry(
     public string? FindFile(string key, string path)
     {
         if (_modules.TryGetValue(key, out var source))
-            return Resolve(source.Root, path);
+            return string.Equals(Normalize(path), source.Entry, StringComparison.OrdinalIgnoreCase)
+                ? Built(source)
+                : Resolve(source.Root, path);
 
         return _files.TryGetValue(key, out var root) ? Resolve(root, path) : null;
     }
@@ -177,15 +193,17 @@ internal sealed class ClientModuleRegistry(
         foreach (var path in _hashes.Keys.Where(x => IsUnder(source.Root, x)))
             _hashes.TryRemove(path, out _);
 
+        _hashes.TryRemove(source.Module, out _);
+
         logger.LogInformation("Client module {Key} taken away", source.Key);
 
         Changed?.Invoke();
     }
 
-    /// <summary>The module as clients are told of it; null while its entry file is gone.</summary>
+    /// <summary>The module as clients are told of it; null while its built file is gone.</summary>
     private ClientModuleSnapshot? Snapshot(ClientModuleSource source)
     {
-        var file = Resolve(source.Root, source.Entry);
+        var file = Built(source);
 
         if (file is null)
             return null;
@@ -224,9 +242,13 @@ internal sealed class ClientModuleRegistry(
         return $"{host}{GamedataServer.PLUGIN_FILES_ROUTE}{Uri.EscapeDataString(key)}/{escaped}?v={hash[..VERSION_LENGTH]}";
     }
 
+    private static string? Built(ClientModuleSource source) =>
+        File.Exists(source.Module) ? source.Module : null;
+
     /// <summary>
     /// The full path of <paramref name="path"/> under <paramref name="root"/>; null when it leaves
-    /// the folder, names a hidden file or folder (<c>.git</c>, <c>.env</c>), or is not a file. The
+    /// the folder, names a hidden file or folder (<c>.git</c>, <c>.env</c>), is JavaScript (a
+    /// client runs only the modules the server built), or is not a file. The
     /// root is compared in its full form, as the file is: a plugin folder named relatively or with
     /// the other separator (<c>../plugins</c>, <c>E:/plugins</c>) holds its files too.
     /// </summary>
@@ -234,7 +256,11 @@ internal sealed class ClientModuleRegistry(
     {
         var normalized = Normalize(path);
 
-        if (normalized.Length == 0 || normalized.Split('/').Any(x => x.Length == 0 || x[0] == '.'))
+        if (
+            normalized.Length == 0
+            || normalized.Split('/').Any(x => x.Length == 0 || x[0] == '.')
+            || SCRIPTS.Contains(Path.GetExtension(normalized), StringComparer.OrdinalIgnoreCase)
+        )
             return null;
 
         root = Path.GetFullPath(root);

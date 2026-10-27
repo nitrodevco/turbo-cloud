@@ -70,8 +70,11 @@ a panel sign-in gives (turbo-cloud `docs/admin-panel.md`, "Calling the admin API
 As it runs:
 
 - A saved `.cs` file rebuilds the server half; the hotel reloads the plugin (no restart).
-- A saved client file rebundles the module; the hotel sends clients its new version and they run
-  it in place (no page reload).
+- A saved client file is copied; the hotel builds the module from `client/src/` again, sends
+  clients its new version and they run it in place (no page reload). The hotel builds it: a
+  module that does not build fails the plugin with each error's `file:line:column` (server log,
+  the panel's plugin list), and it imports only its own files, the SDK, `react` and `zustand`
+  (turbo-cloud `docs/client-modules.md`, "How the server builds a module").
 - `gamedata/`, `wwwroot/` and `manifest.json` are copied as they change.
 
 ## Recipes

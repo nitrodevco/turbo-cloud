@@ -10,7 +10,7 @@ namespace Turbo.Contracts.Plugins;
 /// <summary>
 /// The plugin class by convention: everything an <see cref="ITurboPlugin"/> spells out is done by
 /// the host, so a plugin writes only what it adds. Its key and version are its manifest's; its
-/// <c>wwwroot/&lt;key&gt;.js</c> is registered as its client module, its
+/// <c>client/src/index.tsx</c> is built into its client module, its
 /// <see cref="PluginSettingsAttribute"/> classes are bound and its <c>PluginDbContextBase</c>
 /// contexts get their tables, without a line here. What it registers by hand in
 /// <see cref="StartingAsync"/> it hands to <see cref="IPluginContext.Track{T}"/>, and it goes
