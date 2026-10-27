@@ -80,6 +80,10 @@ public sealed class FindPlayerTool(IHotel hotel) : McpTool<FindPlayerInput, Find
 
   They are hints for the assistant and its user ("this tool deletes things, ask first"); what a
   caller may do is decided by permission nodes and the token, never by a hint.
+- **`RequiresApproval`** (`false` by default): a person approves each call before it runs. Over
+  MCP the call answers `PendingApproval` with the request's id, and the tool runs, for the caller,
+  when a staff member holding **`ApprovalNode`** (`approvals.decide` by default) approves it in the
+  panel (`docs/approvals.md`). Not for a read-only tool.
 - **`[RequiresPermission]`** (`Turbo.Primitives.Players.Permissions`) is required: the staff
   member the assistant acts as must hold one of its nodes. A tool without one fails the plugin's
   load. Declare the node with an `IPermissionNodeSource` or `IPluginAdmin`'s `Node`, and give each
@@ -142,7 +146,9 @@ Never offer a tool that runs SQL or any other arbitrary query.
   the tool's nodes now, and read-only access is offered read-only tools only.
 - `CallAsync(name, arguments, caller)`: calls one. A tool that is not live and one the caller may
   not call answer alike (`Unavailable`), so a caller can't learn of tools it may not see. A tool
-  that throws answers `Failed` with no detail; the exception is logged with the plugin's key.
+  that throws answers `Failed` with no detail; the exception is logged with the plugin's key. A
+  tool that needs approval answers `PendingApproval` (not an error) with the request's id, and runs
+  once it is approved.
 
 The nodes are asked at every call, so a staff member who loses a rank loses its tools at once.
 

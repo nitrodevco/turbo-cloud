@@ -30,6 +30,7 @@
     - [Discord accounts](#discord-accounts)
 - [Command log](#command-log)
 - [Reports](#reports)
+- [Approvals](#approvals)
 - [Word filter](#word-filter)
 - [Chat log](#chat-log)
 - [Messages](#messages)
@@ -1146,6 +1147,19 @@ it, and the report is closed without one. Tick **Close the other open reports ab
 to close them in one go; the sanction is given once. Closing picks the report for you first; a
 report another moderator holds stays theirs, and if one of a batch is theirs none is closed.
 
+## Approvals
+
+Staff with `admin.approvals.view` get **Approvals**: the actions plugins, AI agents and MCP tools
+asked to do that wait for a person's yes (`docs/approvals.md`), pending ones first by default, with
+how many are pending by its name in the menu. Narrow it by state, kind or plugin. A request's page
+shows what it will do, who asked and for whom, its arguments as text, the node deciding it needs,
+when it expires, and once decided who decided, their note and what carrying it out answered.
+
+**Approve** and **Deny**, each with an optional note, are offered on a pending request whose node
+you hold and that you did not ask for (or that was not asked for you). Approving carries it out at
+once and shows its answer; it runs once however many press approve. Every decision, refused ones
+too, is in the command log. The list, the request open and the count update live.
+
 ## Word filter
 
 The **Word filter** tab under Moderation lists the hotel's filter (`filter_words`): the words kept
@@ -1310,6 +1324,7 @@ passkey; they add more while signed in instead.
 | `admin.rooms.view` | The Rooms page: finding any room and seeing its settings, who is inside, rights and bans. |
 | `admin.rooms.transfer` | With `admin.rooms.view`: giving any room to another player. |
 | `admin.players.view` | The Players page: finding any player and seeing their profile, wallet, rooms and sanctions; and the Room visits log. |
+| `admin.approvals.view` | The Approvals page: what plugins, AI agents and MCP tools asked to do and wait for a yes, and what became of each. Deciding one needs its own node as well (`approvals.decide` unless it names another). |
 | `admin.commandlog.view` | The Command log page: every logged command, who ran it, where from, and how it went. |
 | `admin.chatlog.view` | The Chat log page: what players said in rooms, whispers included, and each line in context. |
 | `admin.telemetry.view` | The Client health and Usage pages under Overview: how clients run (frame rate, memory, latency, chat lag, login times) and the events they log, down to one player's or room's reports. |
@@ -1715,6 +1730,7 @@ data again when the hotel says it changed, instead of asking every few seconds:
 | Maintenance or a shutdown is scheduled, starts or is called off | The dashboard |
 | What a player holds changes | Their permissions page, and the staff list |
 | A call for help is sent, picked, let go, closed or taken back | The bell, and for staff with `moderation.tool` the reports and the report open |
+| An approval is asked for, decided, expires or is carried out | For staff with `admin.approvals.view`, the Approvals list, the request open and the count in the menu |
 
 Changes are gathered for a second (`LiveBatchMs`), so a busy hotel sends one message a beat rather
 than one per footstep. Staff are only told the room and player ids they may see: someone without
