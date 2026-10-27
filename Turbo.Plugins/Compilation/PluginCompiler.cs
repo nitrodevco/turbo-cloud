@@ -107,6 +107,13 @@ internal sealed class PluginCompiler(
             throw new PluginRejectedException(manifest.Key, [ex.Message]);
         }
 
+        // Code its Sources do not reach is a mistake, never a data plugin without its commands.
+        if (
+            sources.Count == 0
+            && PluginSourceFiles.UnreachedCode(folder, manifest) is { } unreached
+        )
+            throw new PluginRejectedException(manifest.Key, [unreached]);
+
         if (sources.Count == 0)
             return new PluginCode(
                 run is null

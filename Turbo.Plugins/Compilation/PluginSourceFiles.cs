@@ -19,7 +19,8 @@ internal static class PluginSourceFiles
 
     /// <summary>
     /// The plugin's source files, relative to <paramref name="folder"/> with <c>/</c>, in ordinal
-    /// order (the order they are compiled and hashed in). None: a data plugin.
+    /// order (the order they are compiled and hashed in). When none match, check
+    /// <see cref="UnreachedCode"/> before treating the plugin as data.
     /// </summary>
     public static IReadOnlyList<string> Find(string folder, PluginManifest manifest)
     {
@@ -47,6 +48,57 @@ internal static class PluginSourceFiles
                 .Order(StringComparer.Ordinal),
         ];
     }
+
+    /// <summary>
+    /// Why a plugin whose <see cref="PluginManifest.Sources"/> match no file is not a data plugin:
+    /// its folder holds code they do not reach (<c>.cs</c> files elsewhere, or a <c>.csproj</c>,
+    /// outside <c>bin/</c> and <c>obj/</c>), which would otherwise load as data, none of its
+    /// commands or handlers there. Null when they match a file, or when the folder holds no code.
+    /// </summary>
+    public static string? UnreachedCode(string folder, PluginManifest manifest)
+    {
+        if (!Directory.Exists(folder) || Find(folder, manifest).Count > 0)
+            return null;
+
+        var globs = manifest.Sources is { Count: > 0 } sources ? sources : [DEFAULT_GLOB];
+        var listed = $"the manifest's Sources ({string.Join(", ", globs)}) match no .cs files";
+        var code = CodeFiles(folder, "*.cs");
+
+        if (code.Count > 0)
+        {
+            var dirs = code.Select(file =>
+                    file.Contains('/') ? file[..(file.LastIndexOf('/') + 1)] : "the plugin's folder"
+                )
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var files = code.Count == 1 ? "1 .cs file is" : $"{code.Count} .cs files are";
+
+            return $"no sources found: {listed}, but {files} under {Names(dirs)}; move them under server/ or set Sources";
+        }
+
+        return CodeFiles(folder, "*.csproj") is { Count: > 0 } projects
+            ? $"no sources found: {listed}, but the folder holds {Names(projects)}; put the plugin's .cs files under server/ or set Sources"
+            : null;
+    }
+
+    /// <summary>
+    /// The files matching <paramref name="pattern"/> (<c>*.cs</c>, <c>*.csproj</c>) anywhere in
+    /// <paramref name="folder"/> but a local build's output, relative with <c>/</c>, in order.
+    /// </summary>
+    internal static List<string> CodeFiles(string folder, string pattern) =>
+        [
+            .. Directory
+                .EnumerateFiles(folder, pattern, SearchOption.AllDirectories)
+                .Select(file => Path.GetRelativePath(folder, file).Replace('\\', '/'))
+                .Where(file => !file.Split('/').SkipLast(1).Any(IsBuildOutput))
+                .Order(StringComparer.Ordinal),
+        ];
+
+    private static string Names(List<string> names) =>
+        names.Count <= 5
+            ? string.Join(", ", names)
+            : $"{string.Join(", ", names.Take(5))} and {names.Count - 5} more";
 
     /// <summary>What is wrong with <paramref name="glob"/>; null when it is a glob inside the folder.</summary>
     private static string? Problem(string glob) =>

@@ -61,10 +61,11 @@ gamedata/                     texts and variables, as before
 tests/<Name>.Tests/           the tests
 ```
 
-The server compiles `server/**/*.cs` unless the manifest says otherwise. **Check this first:** a
-plugin whose sources the manifest does not find has no code at all, so it loads as a data plugin
-(`docs/plugin-data.md`), shows Loaded, and none of its commands, handlers or settings exist. Move the
-sources under `server/`, or name them in `Sources` (step 3). Never let `Sources` reach your tests:
+The server compiles `server/**/*.cs` unless the manifest says otherwise. **Check this first:** when
+`Sources` matches no `.cs` files but the folder contains C# sources or a `.csproj` outside `bin/`
+and `obj/`, the server rejects the plugin with `no sources found`. The reason names the globs and
+where it found code. Move the sources under `server/`, or name them in `Sources` (step 3). A genuine
+data plugin with no code still loads (`docs/plugin-data.md`). Never let `Sources` reach your tests:
 `["**/*.cs"]` compiles `tests/` too, which does not build without xunit.
 
 ### 3. Manifest
@@ -227,7 +228,7 @@ abstractions). Move them to `tests/<Name>.Tests/` with a `ProjectReference` to
 
 | The panel says | Cause |
 | --- | --- |
-| Loaded, but its commands or handlers are missing | `Sources` found no file: step 2 |
+| Rejected: `no sources found` | `Sources` missed the code in the folder: step 2 |
 | Rejected: `server/bin/X.dll is a .dll file` | build output in the plugin's folder: step 9 |
 | Rejected: `server/X.cs(12,9): TPP005 ...` | a plugin rule: step 9 |
 | Failed: `CS0234 ... 'Rooms' does not exist in the namespace 'Turbo'` | an internal: step 7 |

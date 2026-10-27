@@ -185,15 +185,17 @@ internal static partial class PluginHelpers
     /// <summary>
     /// A plugin with no source in its folder, server (<see cref="PluginManifest.Sources"/>) or
     /// client (<see cref="PluginClientBuilder.CONVENTIONAL_ENTRIES"/>): its files only, no code
-    /// (<c>docs/plugin-data.md</c>). One whose globs can't be read has code: the server refuses it
-    /// rather than take it for data.
+    /// (<c>docs/plugin-data.md</c>). One whose globs can't be read, or whose folder holds code its
+    /// globs do not reach (<see cref="PluginSourceFiles.UnreachedCode"/>), has code: the server
+    /// refuses it rather than take it for data.
     /// </summary>
     public static bool IsDataOnly(PluginManifest manifest, string pluginDir)
     {
         try
         {
             return PluginClientBuilder.ConventionalEntry(pluginDir) is null
-                && PluginSourceFiles.Find(pluginDir, manifest).Count == 0;
+                && PluginSourceFiles.Find(pluginDir, manifest).Count == 0
+                && PluginSourceFiles.UnreachedCode(pluginDir, manifest) is null;
         }
         catch (ArgumentException)
         {
