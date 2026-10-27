@@ -327,6 +327,25 @@ public sealed class MarketplaceTests : IDisposable
     }
 
     [Fact]
+    public async Task Another_players_item_cannot_be_offered_alone_or_beside_ones_own()
+    {
+        var others = Give(OTHER, CHAIR);
+        var own = Give(SELLER, CHAIR);
+
+        (await _marketplace.MakeOfferAsync(SELLER, 100, [-others], Ct))
+            .Should()
+            .Be(MarketplaceMakeOfferCode.TechnicalError);
+        (await _marketplace.MakeOfferAsync(SELLER, 100, [-own, -others], Ct))
+            .Should()
+            .Be(MarketplaceMakeOfferCode.TechnicalError);
+
+        _inventories[OTHER].Keys.Should().Equal(others);
+        _inventories[SELLER].Keys.Should().Equal(own);
+        (await _marketplace.GetOwnOffersAsync(SELLER, 1, Ct)).Offers.Should().BeEmpty();
+        (await _marketplace.GetOwnOffersAsync(OTHER, 1, Ct)).Offers.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Taking_an_offer_back_names_the_offer()
     {
         var chair = Give(SELLER, CHAIR);
