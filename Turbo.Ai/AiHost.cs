@@ -148,7 +148,9 @@ public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger) : IPluginA
         }
 
         var payer = waiting.Pending is { } pending
-            ? System.Text.Json.JsonSerializer.Deserialize<AiRuntime.PendingRun>(pending, AiRuntime.Json)?.Payer
+            ? System
+                .Text.Json.JsonSerializer.Deserialize<AiRuntime.PendingRun>(pending, AiRuntime.Json)
+                ?.Payer
             : null;
         var response = await runtime
             .ResumeAsync(
@@ -186,7 +188,11 @@ public sealed class AiHost(AiRuntime runtime, ILogger<AiHost> logger) : IPluginA
         return PluginAi.Plain(response);
     }
 
-    private sealed record LivePlugin(PluginManifest Manifest, Assembly Assembly, IServiceProvider Services);
+    private sealed record LivePlugin(
+        PluginManifest Manifest,
+        Assembly Assembly,
+        IServiceProvider Services
+    );
 
     private sealed class Removal(AiHost owner, string key, LivePlugin live) : IDisposable
     {
@@ -241,7 +247,8 @@ internal sealed class PluginAi(AiRuntime runtime, PluginManifest manifest) : IAi
         AiCall? call = null,
         CancellationToken ct = default
     )
-        where TOutput : class => PromptAsync(new Anonymous<TOutput>(instructions), prompt, call, ct);
+        where TOutput : class =>
+        PromptAsync(new Anonymous<TOutput>(instructions), prompt, call, ct);
 
     public async Task<AiResponse> ResumeAsync(
         AiAgent agent,

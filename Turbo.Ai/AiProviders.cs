@@ -15,7 +15,12 @@ using Turbo.Contracts.Ai;
 namespace Turbo.Ai;
 
 /// <summary>Whose a model answer is, for the usage log.</summary>
-public sealed record AiUsageContext(string Plugin, string Agent, int? PlayerId, long? ConversationId);
+public sealed record AiUsageContext(
+    string Plugin,
+    string Agent,
+    int? PlayerId,
+    long? ConversationId
+);
 
 /// <summary>
 /// The hotel's providers (<see cref="AiConfig.Providers"/>): asks them in order until one answers,
@@ -42,11 +47,10 @@ public sealed class AiProviders(
     public IReadOnlyList<string> Usable(ImmutableArray<string> names)
     {
         var current = config.CurrentValue;
-        IEnumerable<string> order = names.Length > 0
-            ? names
-            : current.Failover.Count > 0
-                ? current.Failover
-                : current.Providers.Keys.Order(StringComparer.Ordinal);
+        IEnumerable<string> order =
+            names.Length > 0 ? names
+            : current.Failover.Count > 0 ? current.Failover
+            : current.Providers.Keys.Order(StringComparer.Ordinal);
 
         return
         [
@@ -85,14 +89,21 @@ public sealed class AiProviders(
             var name = names[i];
             var provider = current.Providers[name];
             var driver = _drivers[provider.Driver];
-            var model = i == 0 && !string.IsNullOrWhiteSpace(step.Model) ? step.Model : provider.Model;
+            var model =
+                i == 0 && !string.IsNullOrWhiteSpace(step.Model) ? step.Model : provider.Model;
             var timeout =
                 step.Timeout
                 ?? TimeSpan.FromSeconds(
                     provider.TimeoutSeconds > 0 ? provider.TimeoutSeconds : current.TimeoutSeconds
                 );
             var key = provider.NoKey ? null : Key(current, name);
-            var endpoint = new AiEndpoint(name, provider.Url, key, provider.Headers, provider.Options);
+            var endpoint = new AiEndpoint(
+                name,
+                provider.Url,
+                key,
+                provider.Headers,
+                provider.Options
+            );
             var started = Stopwatch.GetTimestamp();
 
             if (string.IsNullOrWhiteSpace(model))
@@ -128,7 +139,16 @@ public sealed class AiProviders(
                     + answer.OutputTokens * provider.OutputPricePerMillion / 1_000_000m;
                 var answered = string.IsNullOrEmpty(answer.Model) ? model : answer.Model;
 
-                await RecordAsync(usage, name, answered, answer.InputTokens, answer.OutputTokens, cost, started, "ok")
+                await RecordAsync(
+                        usage,
+                        name,
+                        answered,
+                        answer.InputTokens,
+                        answer.OutputTokens,
+                        cost,
+                        started,
+                        "ok"
+                    )
                     .ConfigureAwait(false);
 
                 return new AiAnswer(
@@ -142,12 +162,14 @@ public sealed class AiProviders(
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
                 failures.Add($"{name}: took longer than {timeout.TotalSeconds:0} s");
-                await RecordAsync(usage, name, model, 0, 0, 0, started, "timeout").ConfigureAwait(false);
+                await RecordAsync(usage, name, model, 0, 0, 0, started, "timeout")
+                    .ConfigureAwait(false);
             }
             catch (AiProviderException ex)
             {
                 failures.Add($"{name}: {DriverHttp.Redact(ex.Message, key)}");
-                await RecordAsync(usage, name, model, 0, 0, 0, started, ex.Kind).ConfigureAwait(false);
+                await RecordAsync(usage, name, model, 0, 0, 0, started, ex.Kind)
+                    .ConfigureAwait(false);
             }
 
             logger.LogWarning(
@@ -203,5 +225,9 @@ public sealed class AiProviders(
     private static string? Key(AiConfig config, string name) =>
         config.Keys.TryGetValue(name, out var key)
             ? key
-            : config.Keys.FirstOrDefault(x => string.Equals(x.Key, name, StringComparison.OrdinalIgnoreCase)).Value;
+            : config
+                .Keys.FirstOrDefault(x =>
+                    string.Equals(x.Key, name, StringComparison.OrdinalIgnoreCase)
+                )
+                .Value;
 }

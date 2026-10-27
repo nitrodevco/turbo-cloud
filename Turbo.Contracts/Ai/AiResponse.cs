@@ -52,7 +52,12 @@ public sealed record AiUsage(int InputTokens = 0, int OutputTokens = 0, decimal 
 }
 
 /// <summary>A tool the model called in a run, and how it went.</summary>
-public sealed record AiToolCall(string Name, JsonElement Arguments, AiToolOutcome Outcome, string Result);
+public sealed record AiToolCall(
+    string Name,
+    JsonElement Arguments,
+    AiToolOutcome Outcome,
+    string Result
+);
 
 /// <summary>How a tool call went.</summary>
 public enum AiToolOutcome

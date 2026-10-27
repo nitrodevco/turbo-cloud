@@ -78,7 +78,8 @@ public sealed class AiFake : IPluginAiHost
     public TimeProvider Clock { get; }
 
     /// <summary>The hotel's AI settings in the test: daily tokens, rate limits, memory, steps. The fake provider and the plugins it hands out are added to them.</summary>
-    public AiConfig Settings { get; set; } = new() { PlayerRunsPerMinute = 0, PluginRunsPerMinute = 0 };
+    public AiConfig Settings { get; set; } =
+        new() { PlayerRunsPerMinute = 0, PluginRunsPerMinute = 0 };
 
     /// <summary>Conversations and the usage log, in memory.</summary>
     public MemoryAiStore Store { get; } = new();
@@ -130,8 +131,11 @@ public sealed class AiFake : IPluginAiHost
         return new Recording(this, _host.ForPlugin(manifest));
     }
 
-    public IDisposable Live(PluginManifest manifest, Assembly assembly, IServiceProvider services) =>
-        _host.Live(manifest, assembly, services);
+    public IDisposable Live(
+        PluginManifest manifest,
+        Assembly assembly,
+        IServiceProvider services
+    ) => _host.Live(manifest, assembly, services);
 
     /// <summary>The hotel's owner has not allowed the plugin (its calls answer <see cref="AiStopReason.Unavailable"/>).</summary>
     public AiFake Refuse(string pluginKey)
@@ -149,10 +153,21 @@ public sealed class AiFake : IPluginAiHost
         Then(_ => Answer([new AiTextPart(text)], AiFinish.EndTurn, inputTokens, outputTokens));
 
     /// <summary>The model calls the tool <paramref name="name"/> with <paramref name="arguments"/> (an object written in camelCase, or JSON).</summary>
-    public AiFake CallTool(string name, object? arguments = null, int inputTokens = 10, int outputTokens = 5) =>
+    public AiFake CallTool(
+        string name,
+        object? arguments = null,
+        int inputTokens = 10,
+        int outputTokens = 5
+    ) =>
         Then(_ =>
             Answer(
-                [new AiToolCallPart($"call_{Interlocked.Increment(ref _calls)}", name, Json(arguments))],
+                [
+                    new AiToolCallPart(
+                        $"call_{Interlocked.Increment(ref _calls)}",
+                        name,
+                        Json(arguments)
+                    ),
+                ],
                 AiFinish.ToolUse,
                 inputTokens,
                 outputTokens
@@ -196,14 +211,27 @@ public sealed class AiFake : IPluginAiHost
         AiFinish finish,
         int inputTokens,
         int outputTokens
-    ) => new(new AiMessage(AiRole.Assistant, parts), finish, inputTokens, outputTokens, "fake-model");
+    ) =>
+        new(
+            new AiMessage(AiRole.Assistant, parts),
+            finish,
+            inputTokens,
+            outputTokens,
+            "fake-model"
+        );
 
     // --- Assertions ----------------------------------------------------------------------------
 
     /// <summary>A prompt held <paramref name="text"/> (the plugin's words or a player's).</summary>
     public AiFake AssertPrompted(string text)
     {
-        if (!Requests.Any(r => r.Messages.Any(m => m.Role == AiRole.User && m.Text.Contains(text, StringComparison.Ordinal))))
+        if (
+            !Requests.Any(r =>
+                r.Messages.Any(m =>
+                    m.Role == AiRole.User && m.Text.Contains(text, StringComparison.Ordinal)
+                )
+            )
+        )
             throw new HotelAssertionException(
                 $"No prompt held \"{text}\". Prompted: {Describe(Requests.SelectMany(r => r.Messages).Where(m => m.Role == AiRole.User).Select(m => m.Text).Distinct())}."
             );
@@ -214,7 +242,13 @@ public sealed class AiFake : IPluginAiHost
     /// <summary>No prompt held <paramref name="text"/>.</summary>
     public AiFake AssertNotPrompted(string text)
     {
-        if (Requests.Any(r => r.Messages.Any(m => m.Role == AiRole.User && m.Text.Contains(text, StringComparison.Ordinal))))
+        if (
+            Requests.Any(r =>
+                r.Messages.Any(m =>
+                    m.Role == AiRole.User && m.Text.Contains(text, StringComparison.Ordinal)
+                )
+            )
+        )
             throw new HotelAssertionException($"A prompt held \"{text}\".");
 
         return this;
@@ -234,7 +268,9 @@ public sealed class AiFake : IPluginAiHost
     {
         var calls = Responses.SelectMany(r => r.ToolCalls).ToList();
 
-        return calls.LastOrDefault(c => c.Name == name && (arguments is null || arguments(c.Arguments)))
+        return calls.LastOrDefault(c =>
+                c.Name == name && (arguments is null || arguments(c.Arguments))
+            )
             ?? throw new HotelAssertionException(
                 $"No run called {name}{(arguments is null ? "" : " with those arguments")}. Called: {Describe(calls.Select(c => $"{c.Name} {c.Arguments.GetRawText()} ({c.Outcome})"))}."
             );
@@ -243,7 +279,11 @@ public sealed class AiFake : IPluginAiHost
     /// <summary>The tool <paramref name="name"/> never ran (it may have been asked for, refused or waiting).</summary>
     public AiFake AssertToolNotRun(string name)
     {
-        if (Responses.SelectMany(r => r.ToolCalls).Any(c => c.Name == name && c.Outcome == AiToolOutcome.Ok))
+        if (
+            Responses
+                .SelectMany(r => r.ToolCalls)
+                .Any(c => c.Name == name && c.Outcome == AiToolOutcome.Ok)
+        )
             throw new HotelAssertionException($"{name} ran.");
 
         return this;
@@ -252,11 +292,14 @@ public sealed class AiFake : IPluginAiHost
     /// <summary>The last run stopped for <paramref name="reason"/>.</summary>
     public AiResponse AssertStoppedBy(AiStopReason reason)
     {
-        var last = Responses.LastOrDefault() ?? throw new HotelAssertionException("No run has ended.");
+        var last =
+            Responses.LastOrDefault() ?? throw new HotelAssertionException("No run has ended.");
 
         return last.Stop == reason
             ? last
-            : throw new HotelAssertionException($"The last run stopped by {last.Stop} ({last.Message}), not {reason}.");
+            : throw new HotelAssertionException(
+                $"The last run stopped by {last.Stop} ({last.Message}), not {reason}."
+            );
     }
 
     private static string Describe(IEnumerable<string> items)
@@ -272,7 +315,11 @@ public sealed class AiFake : IPluginAiHost
             null => JsonSerializer.SerializeToElement(new { }),
             JsonElement element => element,
             string text => JsonDocument.Parse(text).RootElement.Clone(),
-            _ => JsonSerializer.SerializeToElement(value, value.GetType(), new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+            _ => JsonSerializer.SerializeToElement(
+                value,
+                value.GetType(),
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            ),
         };
 
     private AiDriverAnswer Next(AiProviderRequest request)
@@ -334,15 +381,22 @@ public sealed class AiFake : IPluginAiHost
             DecideAsync(id, new AiApprovalDecision(true, by));
 
         /// <summary>Refuses the latest request (or <paramref name="id"/>), with <paramref name="note"/> for the model.</summary>
-        public Task<AiResponse?> DenyAsync(string? id = null, string? note = null, PlayerId? by = null) =>
-            DecideAsync(id, new AiApprovalDecision(false, by, note));
+        public Task<AiResponse?> DenyAsync(
+            string? id = null,
+            string? note = null,
+            PlayerId? by = null
+        ) => DecideAsync(id, new AiApprovalDecision(false, by, note));
 
         private async Task<AiResponse?> DecideAsync(string? id, AiApprovalDecision decision)
         {
-            id ??= Requests.LastOrDefault().Id ?? throw new HotelAssertionException("No approval was asked for.");
+            id ??=
+                Requests.LastOrDefault().Id
+                ?? throw new HotelAssertionException("No approval was asked for.");
             _decided[id] = decision;
 
-            var resumed = await fake._host.DecidedAsync(id, decision, CancellationToken.None).ConfigureAwait(false);
+            var resumed = await fake
+                ._host.DecidedAsync(id, decision, CancellationToken.None)
+                .ConfigureAwait(false);
 
             if (resumed is not null)
                 fake.Record(resumed);
@@ -355,23 +409,51 @@ public sealed class AiFake : IPluginAiHost
     {
         public AiAvailability Availability => inner.Availability;
 
-        public async Task<AiResponse> PromptAsync(AiAgent agent, AiPrompt prompt, AiCall? call = null, CancellationToken ct = default) =>
+        public async Task<AiResponse> PromptAsync(
+            AiAgent agent,
+            AiPrompt prompt,
+            AiCall? call = null,
+            CancellationToken ct = default
+        ) => Keep(await inner.PromptAsync(agent, prompt, call, ct).ConfigureAwait(false));
+
+        public async Task<AiResponse<TOutput>> PromptAsync<TOutput>(
+            AiAgent<TOutput> agent,
+            AiPrompt prompt,
+            AiCall? call = null,
+            CancellationToken ct = default
+        )
+            where TOutput : class =>
             Keep(await inner.PromptAsync(agent, prompt, call, ct).ConfigureAwait(false));
 
-        public async Task<AiResponse<TOutput>> PromptAsync<TOutput>(AiAgent<TOutput> agent, AiPrompt prompt, AiCall? call = null, CancellationToken ct = default)
-            where TOutput : class => Keep(await inner.PromptAsync(agent, prompt, call, ct).ConfigureAwait(false));
+        public async Task<AiResponse> AskAsync(
+            AiPrompt prompt,
+            string? instructions = null,
+            AiCall? call = null,
+            CancellationToken ct = default
+        ) => Keep(await inner.AskAsync(prompt, instructions, call, ct).ConfigureAwait(false));
 
-        public async Task<AiResponse> AskAsync(AiPrompt prompt, string? instructions = null, AiCall? call = null, CancellationToken ct = default) =>
-            Keep(await inner.AskAsync(prompt, instructions, call, ct).ConfigureAwait(false));
+        public async Task<AiResponse<TOutput>> AskAsync<TOutput>(
+            AiPrompt prompt,
+            string? instructions = null,
+            AiCall? call = null,
+            CancellationToken ct = default
+        )
+            where TOutput : class =>
+            Keep(
+                await inner.AskAsync<TOutput>(prompt, instructions, call, ct).ConfigureAwait(false)
+            );
 
-        public async Task<AiResponse<TOutput>> AskAsync<TOutput>(AiPrompt prompt, string? instructions = null, AiCall? call = null, CancellationToken ct = default)
-            where TOutput : class => Keep(await inner.AskAsync<TOutput>(prompt, instructions, call, ct).ConfigureAwait(false));
+        public async Task<AiResponse> ResumeAsync(
+            AiAgent agent,
+            AiCall call,
+            CancellationToken ct = default
+        ) => Keep(await inner.ResumeAsync(agent, call, ct).ConfigureAwait(false));
 
-        public async Task<AiResponse> ResumeAsync(AiAgent agent, AiCall call, CancellationToken ct = default) =>
-            Keep(await inner.ResumeAsync(agent, call, ct).ConfigureAwait(false));
-
-        public Task<bool> ForgetAsync(AiAgent agent, AiMemory memory, CancellationToken ct = default) =>
-            inner.ForgetAsync(agent, memory, ct);
+        public Task<bool> ForgetAsync(
+            AiAgent agent,
+            AiMemory memory,
+            CancellationToken ct = default
+        ) => inner.ForgetAsync(agent, memory, ct);
 
         private T Keep<T>(T response)
             where T : AiResponse
@@ -386,7 +468,11 @@ public sealed class AiFake : IPluginAiHost
     {
         public string Name => PROVIDER;
 
-        public Task<AiDriverAnswer> SendAsync(AiEndpoint endpoint, AiProviderRequest request, CancellationToken ct)
+        public Task<AiDriverAnswer> SendAsync(
+            AiEndpoint endpoint,
+            AiProviderRequest request,
+            CancellationToken ct
+        )
         {
             ct.ThrowIfCancellationRequested();
 
@@ -399,7 +485,10 @@ public sealed class AiFake : IPluginAiHost
         public Task<bool> HoldsAsync(PlayerId player, string node, CancellationToken ct) =>
             fake.Hotel is { } hotel
                 ? hotel.Players.HasPermissionAsync(player, node, ct)
-                : Task.FromResult(fake._grants.TryGetValue(player, out var nodes) && (nodes.Contains(node) || nodes.Contains("*")));
+                : Task.FromResult(
+                    fake._grants.TryGetValue(player, out var nodes)
+                        && (nodes.Contains(node) || nodes.Contains("*"))
+                );
     }
 
     private readonly ConcurrentDictionary<PlayerId, HashSet<string>> _grants = new();
@@ -422,11 +511,25 @@ public sealed class AiFake : IPluginAiHost
                 List<string> allowed;
 
                 lock (fake._lock)
-                    allowed = [.. s.Plugins.Concat(fake._allowed).Where(x => !fake._refused.Contains(x)).Distinct()];
+                    allowed =
+                    [
+                        .. s
+                            .Plugins.Concat(fake._allowed)
+                            .Where(x => !fake._refused.Contains(x))
+                            .Distinct(),
+                    ];
 
                 var providers = new Dictionary<string, AiProviderConfig>(s.Providers);
 
-                providers.TryAdd(PROVIDER, new AiProviderConfig { Driver = PROVIDER, Model = "fake-model", NoKey = true });
+                providers.TryAdd(
+                    PROVIDER,
+                    new AiProviderConfig
+                    {
+                        Driver = PROVIDER,
+                        Model = "fake-model",
+                        NoKey = true,
+                    }
+                );
 
                 return new AiConfig
                 {

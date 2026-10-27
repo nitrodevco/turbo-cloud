@@ -113,23 +113,21 @@ public sealed class MemoryAiStore : IAiStore
     public Task<IReadOnlyList<AiUsageTotal>> TotalsSinceAsync(DateTime since, CancellationToken ct)
     {
         lock (_lock)
-            return Task.FromResult<IReadOnlyList<AiUsageTotal>>(
-                [
-                    .. _usage
-                        .Where(x => x.At >= since)
-                        .GroupBy(x => (x.Plugin, x.Provider, x.Model))
-                        .Select(g => new AiUsageTotal(
-                            g.Key.Plugin,
-                            g.Key.Provider,
-                            g.Key.Model,
-                            g.Count(),
-                            g.Count(x => x.Outcome != "ok"),
-                            g.Sum(x => (long)x.InputTokens),
-                            g.Sum(x => (long)x.OutputTokens),
-                            g.Sum(x => x.Cost)
-                        )),
-                ]
-            );
+            return Task.FromResult<IReadOnlyList<AiUsageTotal>>([
+                .. _usage
+                    .Where(x => x.At >= since)
+                    .GroupBy(x => (x.Plugin, x.Provider, x.Model))
+                    .Select(g => new AiUsageTotal(
+                        g.Key.Plugin,
+                        g.Key.Provider,
+                        g.Key.Model,
+                        g.Count(),
+                        g.Count(x => x.Outcome != "ok"),
+                        g.Sum(x => (long)x.InputTokens),
+                        g.Sum(x => (long)x.OutputTokens),
+                        g.Sum(x => x.Cost)
+                    )),
+            ]);
     }
 
     private static AiConversationRecord Copy(AiConversationRecord x) =>

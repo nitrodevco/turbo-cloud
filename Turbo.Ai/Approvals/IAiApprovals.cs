@@ -40,7 +40,11 @@ public sealed record AiApprovalRequest(
 );
 
 /// <summary>A decision: approved or not, by whom, and why.</summary>
-public sealed record AiApprovalDecision(bool Approved, PlayerId? DecidedBy = null, string? Note = null);
+public sealed record AiApprovalDecision(
+    bool Approved,
+    PlayerId? DecidedBy = null,
+    string? Note = null
+);
 
 /// <summary>A hotel without approvals: a tool that would need one is never run by an agent.</summary>
 public sealed class NoApprovals : IAiApprovals

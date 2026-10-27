@@ -40,7 +40,11 @@ public sealed class AiSummarize(int keep = 20) : IAiMiddleware
                 step with
                 {
                     Instructions = INSTRUCTIONS,
-                    Messages = [.. messages[..split], AiMessage.User("Summarise the conversation so far.")],
+                    Messages =
+                    [
+                        .. messages[..split],
+                        AiMessage.User("Summarise the conversation so far."),
+                    ],
                     Tools = [],
                     RequireTool = false,
                     MaxTokens = Math.Min(step.MaxTokens, 512),
@@ -51,13 +55,20 @@ public sealed class AiSummarize(int keep = 20) : IAiMiddleware
         var answer = await next(
                 step with
                 {
-                    Messages = [AiMessage.User(PREFIX + summary.Message.Text), .. messages[split..]],
+                    Messages =
+                    [
+                        AiMessage.User(PREFIX + summary.Message.Text),
+                        .. messages[split..],
+                    ],
                     Used = step.Used + summary.Usage,
                 },
                 ct
             )
             .ConfigureAwait(false);
 
-        return answer with { Usage = answer.Usage + summary.Usage };
+        return answer with
+        {
+            Usage = answer.Usage + summary.Usage,
+        };
     }
 }

@@ -349,10 +349,10 @@ can't be built is logged and its run waits). A plugin that was not running then 
 later with `ai.ResumeAsync(agent, call)`. A new prompt on the conversation before it is decided answers
 the waiting call as not run.
 
-The hotel's approvals are the core approvals service; the SDK asks it through `IAiApprovals`
-(`Turbo.Ai.Approvals`), and the approvals' adapter calls `AiHost.DecidedAsync` when one is decided.
-A hotel without approvals takes none: such a tool is answered "needs a staff member's approval, and
-this hotel takes none" and never runs.
+The SDK asks for approvals through `IAiApprovals` (`Turbo.Ai.Approvals`); what answers it calls
+`AiHost.DecidedAsync(approvalId, decision)` when one is decided. Until the hotel's approvals answer
+it (`NoApprovals`, the default), the hotel takes none: such a tool is answered "needs a staff
+member's approval, and this hotel takes none" and never runs.
 
 ## Player text
 

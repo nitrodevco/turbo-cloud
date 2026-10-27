@@ -45,10 +45,17 @@ public sealed class AiProviderTests
             AiRole.Assistant,
             [
                 new AiTextPart("Looking."),
-                new AiToolCallPart("toolu_1", "find_player", JsonDocument.Parse("""{"name":"Al"}""").RootElement),
+                new AiToolCallPart(
+                    "toolu_1",
+                    "find_player",
+                    JsonDocument.Parse("""{"name":"Al"}""").RootElement
+                ),
             ]
         ),
-        new(AiRole.User, [new AiToolResultPart("toolu_1", "find_player", "{\"players\":[\"Alice\"]}")]),
+        new(
+            AiRole.User,
+            [new AiToolResultPart("toolu_1", "find_player", "{\"players\":[\"Alice\"]}")]
+        ),
         AiMessage.User("And Bob?"),
     ];
 
@@ -60,7 +67,11 @@ public sealed class AiProviderTests
             new AiToolSpec(
                 "find_player",
                 "Finds players.",
-                JsonDocument.Parse("""{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}""").RootElement
+                JsonDocument
+                    .Parse(
+                        """{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}"""
+                    )
+                    .RootElement
             ),
         ],
         RequireTool: true,
@@ -73,7 +84,10 @@ public sealed class AiProviderTests
     {
         var body = AnthropicDriver.Body(REQUEST, ANTHROPIC).ToJsonString();
 
-        SameJson(body, """{"model":"claude-haiku-5-5","max_tokens":512,"system":"You help staff.","messages":[{"role":"user","content":[{"type":"text","text":"Who is Alice?"}]},{"role":"assistant","content":[{"type":"text","text":"Looking."},{"type":"tool_use","id":"toolu_1","name":"find_player","input":{"name":"Al"}}]},{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"{\"players\":[\"Alice\"]}"},{"type":"text","text":"And Bob?"}]}],"temperature":0.2,"tools":[{"name":"find_player","description":"Finds players.","input_schema":{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}}],"tool_choice":{"type":"any"},"top_k":5}""");
+        SameJson(
+            body,
+            """{"model":"claude-haiku-5-5","max_tokens":512,"system":"You help staff.","messages":[{"role":"user","content":[{"type":"text","text":"Who is Alice?"}]},{"role":"assistant","content":[{"type":"text","text":"Looking."},{"type":"tool_use","id":"toolu_1","name":"find_player","input":{"name":"Al"}}]},{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"{\"players\":[\"Alice\"]}"},{"type":"text","text":"And Bob?"}]}],"temperature":0.2,"tools":[{"name":"find_player","description":"Finds players.","input_schema":{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}}],"tool_choice":{"type":"any"},"top_k":5}"""
+        );
 
         using var message = AnthropicDriver.Build(ANTHROPIC, REQUEST);
 
@@ -96,25 +110,42 @@ public sealed class AiProviderTests
         answer.Finish.Should().Be(AiFinish.ToolUse);
         answer.Message.Text.Should().Be("Let me look.");
         var call = answer.Message.Parts.OfType<AiToolCallPart>().Single();
-        (call.Id, call.Name, call.Arguments.GetRawText()).Should().Be(("toolu_2", "find_player", """{"name":"Bob"}"""));
+        (call.Id, call.Name, call.Arguments.GetRawText())
+            .Should()
+            .Be(("toolu_2", "find_player", """{"name":"Bob"}"""));
         (answer.InputTokens, answer.OutputTokens).Should().Be((150, 40));
     }
 
     [Fact]
     public void Openai_compatible_request_is_the_chat_completions_shape()
     {
-        var local = new AiEndpoint("local", "http://localhost:11434/v1", null, new Dictionary<string, string>(), new Dictionary<string, string>());
+        var local = new AiEndpoint(
+            "local",
+            "http://localhost:11434/v1",
+            null,
+            new Dictionary<string, string>(),
+            new Dictionary<string, string>()
+        );
 
-        var body = OpenAiCompatibleDriver.Body(REQUEST with { RequireTool = false }, local).ToJsonString();
+        var body = OpenAiCompatibleDriver
+            .Body(REQUEST with { RequireTool = false }, local)
+            .ToJsonString();
 
-        SameJson(body, """{"model":"claude-haiku-5-5","messages":[{"role":"system","content":"You help staff."},{"role":"user","content":"Who is Alice?"},{"role":"assistant","content":"Looking.","tool_calls":[{"id":"toolu_1","type":"function","function":{"name":"find_player","arguments":"{\"name\":\"Al\"}"}}]},{"role":"tool","tool_call_id":"toolu_1","content":"{\"players\":[\"Alice\"]}"},{"role":"user","content":"And Bob?"}],"max_tokens":512,"temperature":0.2,"tools":[{"type":"function","function":{"name":"find_player","description":"Finds players.","parameters":{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}}}]}""");
+        SameJson(
+            body,
+            """{"model":"claude-haiku-5-5","messages":[{"role":"system","content":"You help staff."},{"role":"user","content":"Who is Alice?"},{"role":"assistant","content":"Looking.","tool_calls":[{"id":"toolu_1","type":"function","function":{"name":"find_player","arguments":"{\"name\":\"Al\"}"}}]},{"role":"tool","tool_call_id":"toolu_1","content":"{\"players\":[\"Alice\"]}"},{"role":"user","content":"And Bob?"}],"max_tokens":512,"temperature":0.2,"tools":[{"type":"function","function":{"name":"find_player","description":"Finds players.","parameters":{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}}}]}"""
+        );
 
         using var message = OpenAiCompatibleDriver.Build(local, REQUEST);
 
         message.RequestUri!.ToString().Should().Be("http://localhost:11434/v1/chat/completions");
         message.Headers.Authorization.Should().BeNull("a local server without a key gets none");
-        OpenAiCompatibleDriver.Body(REQUEST).ToJsonString()
-            .Should().Contain("\"max_completion_tokens\":512").And.Contain("\"tool_choice\":\"required\"");
+        OpenAiCompatibleDriver
+            .Body(REQUEST)
+            .ToJsonString()
+            .Should()
+            .Contain("\"max_completion_tokens\":512")
+            .And.Contain("\"tool_choice\":\"required\"");
     }
 
     [Fact]
@@ -140,15 +171,19 @@ public sealed class AiProviderTests
     public async Task A_failing_provider_fails_over_to_the_next_and_each_attempt_is_logged_without_the_key()
     {
         var http = new ScriptedHttp(
-            (_, _) => Task.FromResult(new HttpResponseMessage((HttpStatusCode)529)
-            {
-                Content = new StringContent(
-                    $$$"""{"type":"error","error":{"type":"overloaded_error","message":"Overloaded for key {{{KEY}}}"}}"""
+            (_, _) =>
+                Task.FromResult(
+                    new HttpResponseMessage((HttpStatusCode)529)
+                    {
+                        Content = new StringContent(
+                            $$$"""{"type":"error","error":{"type":"overloaded_error","message":"Overloaded for key {{{KEY}}}"}}"""
+                        ),
+                    }
                 ),
-            }),
-            (_, _) => Json(
-                """{"model":"gpt-x","choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"Hi!"}}],"usage":{"prompt_tokens":8,"completion_tokens":2}}"""
-            )
+            (_, _) =>
+                Json(
+                    """{"model":"gpt-x","choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"Hi!"}}],"usage":{"prompt_tokens":8,"completion_tokens":2}}"""
+                )
         );
         var (providers, store, logs) = Providers(
             http,
@@ -156,8 +191,19 @@ public sealed class AiProviderTests
             {
                 Providers = new()
                 {
-                    ["claude"] = new() { Driver = "anthropic", Model = "claude-haiku-5-5", InputPricePerMillion = 1m },
-                    ["openai"] = new() { Driver = "openai-compatible", Model = "gpt-x", InputPricePerMillion = 1_000_000m, OutputPricePerMillion = 0 },
+                    ["claude"] = new()
+                    {
+                        Driver = "anthropic",
+                        Model = "claude-haiku-5-5",
+                        InputPricePerMillion = 1m,
+                    },
+                    ["openai"] = new()
+                    {
+                        Driver = "openai-compatible",
+                        Model = "gpt-x",
+                        InputPricePerMillion = 1_000_000m,
+                        OutputPricePerMillion = 0,
+                    },
                     ["unkeyed"] = new() { Driver = "openai-compatible", Model = "m" },
                 },
                 Keys = new() { ["claude"] = KEY, ["openai"] = "sk-proj-other0123456789" },
@@ -165,41 +211,79 @@ public sealed class AiProviderTests
             }
         );
 
-        var answer = await providers.SendAsync(Step(), new AiUsageContext("p", "agent", 7, null), CancellationToken.None);
+        var answer = await providers.SendAsync(
+            Step(),
+            new AiUsageContext("p", "agent", 7, null),
+            CancellationToken.None
+        );
 
         answer.Provider.Should().Be("openai");
         answer.Message.Text.Should().Be("Hi!");
         answer.Usage.Cost.Should().Be(8m);
-        http.Urls.Should().Equal("https://api.anthropic.com/v1/messages", "https://api.openai.com/v1/chat/completions");
-        store.Usage.Select(u => (u.Provider, u.Outcome, u.PlayerId)).Should().Equal(("claude", "http_529", 7), ("openai", "ok", 7));
-        logs.Entries.Should().ContainSingle().Which.Message.Should().Contain("overloaded_error").And.NotContain(KEY);
+        http.Urls.Should()
+            .Equal(
+                "https://api.anthropic.com/v1/messages",
+                "https://api.openai.com/v1/chat/completions"
+            );
+        store
+            .Usage.Select(u => (u.Provider, u.Outcome, u.PlayerId))
+            .Should()
+            .Equal(("claude", "http_529", 7), ("openai", "ok", 7));
+        logs.Entries.Should()
+            .ContainSingle()
+            .Which.Message.Should()
+            .Contain("overloaded_error")
+            .And.NotContain(KEY);
     }
 
     [Fact]
     public async Task When_every_provider_fails_the_failure_names_each_and_a_slow_one_times_out()
     {
-        var http = new ScriptedHttp((_, _) => throw new HttpRequestException("refused"), async (_, ct) =>
-        {
-            await Task.Delay(TimeSpan.FromSeconds(30), ct);
+        var http = new ScriptedHttp(
+            (_, _) => throw new HttpRequestException("refused"),
+            async (_, ct) =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(30), ct);
 
-            return await Json("{}");
-        });
+                return await Json("{}");
+            }
+        );
         var (providers, store, _) = Providers(
             http,
             new AiConfig
             {
                 Providers = new()
                 {
-                    ["a"] = new() { Driver = "openai-compatible", Model = "m", NoKey = true, Url = "http://a/v1" },
-                    ["b"] = new() { Driver = "openai-compatible", Model = "m", NoKey = true, Url = "http://b/v1", TimeoutSeconds = 1 },
+                    ["a"] = new()
+                    {
+                        Driver = "openai-compatible",
+                        Model = "m",
+                        NoKey = true,
+                        Url = "http://a/v1",
+                    },
+                    ["b"] = new()
+                    {
+                        Driver = "openai-compatible",
+                        Model = "m",
+                        NoKey = true,
+                        Url = "http://b/v1",
+                        TimeoutSeconds = 1,
+                    },
                 },
             }
         );
 
-        var act = () => providers.SendAsync(Step(), new AiUsageContext("p", "agent", null, null), CancellationToken.None);
+        var act = () =>
+            providers.SendAsync(
+                Step(),
+                new AiUsageContext("p", "agent", null, null),
+                CancellationToken.None
+            );
 
         (await act.Should().ThrowAsync<AiProviderException>())
-            .Which.Message.Should().Contain("a: could not reach it").And.Contain("b: took longer than 1 s");
+            .Which.Message.Should()
+            .Contain("a: could not reach it")
+            .And.Contain("b: took longer than 1 s");
         store.Usage.Select(u => u.Outcome).Should().Equal("network", "timeout");
     }
 
@@ -213,7 +297,12 @@ public sealed class AiProviderTests
                 Providers = new()
                 {
                     ["claude"] = new() { Driver = "anthropic", Model = "m" },
-                    ["odd"] = new() { Driver = "no-such-driver", Model = "m", NoKey = true },
+                    ["odd"] = new()
+                    {
+                        Driver = "no-such-driver",
+                        Model = "m",
+                        NoKey = true,
+                    },
                 },
             }
         );
@@ -222,7 +311,10 @@ public sealed class AiProviderTests
     }
 
     private static void SameJson(string actual, string expected) =>
-        JsonNode.DeepEquals(JsonNode.Parse(actual), JsonNode.Parse(expected)).Should().BeTrue(actual);
+        JsonNode
+            .DeepEquals(JsonNode.Parse(actual), JsonNode.Parse(expected))
+            .Should()
+            .BeTrue(actual);
 
     private static AiStep Step() =>
         new()
@@ -235,9 +327,14 @@ public sealed class AiProviderTests
         };
 
     private static Task<HttpResponseMessage> Json(string body) =>
-        Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) });
+        Task.FromResult(
+            new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) }
+        );
 
-    private static (AiProviders, MemoryAiStore, CapturingLogger<AiProviders>) Providers(ScriptedHttp http, AiConfig config)
+    private static (AiProviders, MemoryAiStore, CapturingLogger<AiProviders>) Providers(
+        ScriptedHttp http,
+        AiConfig config
+    )
     {
         var store = new MemoryAiStore();
         var logs = new CapturingLogger<AiProviders>();
@@ -271,14 +368,18 @@ public sealed class AiProviderTests
     }
 
     /// <summary>Answers each request with the next of its replies, keeping the addresses asked.</summary>
-    private sealed class ScriptedHttp(params Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>[] replies)
-        : HttpMessageHandler
+    private sealed class ScriptedHttp(
+        params Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>[] replies
+    ) : HttpMessageHandler
     {
         private int _next;
 
         public List<string> Urls { get; } = [];
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken ct
+        )
         {
             Urls.Add(request.RequestUri!.ToString());
 

@@ -21,7 +21,11 @@ public interface IAiDriver
     string Name { get; }
 
     /// <summary>Asks the provider. Throws <see cref="AiProviderException"/> when it can't answer.</summary>
-    Task<AiDriverAnswer> SendAsync(AiEndpoint endpoint, AiProviderRequest request, CancellationToken ct);
+    Task<AiDriverAnswer> SendAsync(
+        AiEndpoint endpoint,
+        AiProviderRequest request,
+        CancellationToken ct
+    );
 }
 
 /// <summary>Where and how to reach one provider: its name, address, key (null for none), headers and extra body fields.</summary>

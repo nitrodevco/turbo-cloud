@@ -69,11 +69,13 @@ public sealed class OpenAiCompatibleDriver(IHttpClientFactory http) : IAiDriver
         var messages = new JsonArray();
 
         if (!string.IsNullOrWhiteSpace(request.Instructions))
-            messages.Add(new JsonObject { ["role"] = "system", ["content"] = request.Instructions });
+            messages.Add(
+                new JsonObject { ["role"] = "system", ["content"] = request.Instructions }
+            );
 
         foreach (var message in request.Messages)
-            foreach (var written in Write(message))
-                messages.Add(written);
+        foreach (var written in Write(message))
+            messages.Add(written);
 
         var body = new JsonObject { ["model"] = request.Model, ["messages"] = messages };
 
@@ -86,20 +88,18 @@ public sealed class OpenAiCompatibleDriver(IHttpClientFactory http) : IAiDriver
 
         if (request.Tools.Length > 0)
         {
-            body["tools"] = new JsonArray(
-                [
-                    .. request.Tools.Select(t => new JsonObject
+            body["tools"] = new JsonArray([
+                .. request.Tools.Select(t => new JsonObject
+                {
+                    ["type"] = "function",
+                    ["function"] = new JsonObject
                     {
-                        ["type"] = "function",
-                        ["function"] = new JsonObject
-                        {
-                            ["name"] = t.Name,
-                            ["description"] = t.Description,
-                            ["parameters"] = JsonNode.Parse(t.InputSchema.GetRawText()),
-                        },
-                    }),
-                ]
-            );
+                        ["name"] = t.Name,
+                        ["description"] = t.Description,
+                        ["parameters"] = JsonNode.Parse(t.InputSchema.GetRawText()),
+                    },
+                }),
+            ]);
 
             if (request.RequireTool)
                 body["tool_choice"] = "required";
@@ -146,20 +146,18 @@ public sealed class OpenAiCompatibleDriver(IHttpClientFactory http) : IAiDriver
         var calls = message.Parts.OfType<AiToolCallPart>().ToList();
 
         if (calls.Count > 0)
-            assistant["tool_calls"] = new JsonArray(
-                [
-                    .. calls.Select(call => new JsonObject
+            assistant["tool_calls"] = new JsonArray([
+                .. calls.Select(call => new JsonObject
+                {
+                    ["id"] = call.Id,
+                    ["type"] = "function",
+                    ["function"] = new JsonObject
                     {
-                        ["id"] = call.Id,
-                        ["type"] = "function",
-                        ["function"] = new JsonObject
-                        {
-                            ["name"] = call.Name,
-                            ["arguments"] = call.Arguments.GetRawText(),
-                        },
-                    }),
-                ]
-            );
+                        ["name"] = call.Name,
+                        ["arguments"] = call.Arguments.GetRawText(),
+                    },
+                }),
+            ]);
 
         yield return assistant;
     }
@@ -209,8 +207,11 @@ public sealed class OpenAiCompatibleDriver(IHttpClientFactory http) : IAiDriver
             // Some servers say "stop" with tool calls: the calls decide.
             var finish = parts.OfType<AiToolCallPart>().Any()
                 ? AiFinish.ToolUse
-                : (choice.TryGetProperty("finish_reason", out var reason) ? reason.GetString() : null)
-                    switch
+                : (
+                    choice.TryGetProperty("finish_reason", out var reason)
+                        ? reason.GetString()
+                        : null
+                ) switch
                 {
                     "length" => AiFinish.MaxTokens,
                     "content_filter" => AiFinish.Refused,
@@ -219,7 +220,10 @@ public sealed class OpenAiCompatibleDriver(IHttpClientFactory http) : IAiDriver
             var input = 0;
             var output = 0;
 
-            if (root.TryGetProperty("usage", out var usage) && usage.ValueKind == JsonValueKind.Object)
+            if (
+                root.TryGetProperty("usage", out var usage)
+                && usage.ValueKind == JsonValueKind.Object
+            )
             {
                 input = Int(usage, "prompt_tokens");
                 output = Int(usage, "completion_tokens");
@@ -234,9 +238,18 @@ public sealed class OpenAiCompatibleDriver(IHttpClientFactory http) : IAiDriver
             );
         }
         catch (Exception ex)
-            when (ex is JsonException or KeyNotFoundException or InvalidOperationException or IndexOutOfRangeException)
+            when (ex
+                    is JsonException
+                        or KeyNotFoundException
+                        or InvalidOperationException
+                        or IndexOutOfRangeException
+            )
         {
-            throw new AiProviderException("unreadable", "answered something that is not a chat completion", ex);
+            throw new AiProviderException(
+                "unreadable",
+                "answered something that is not a chat completion",
+                ex
+            );
         }
     }
 
@@ -246,7 +259,9 @@ public sealed class OpenAiCompatibleDriver(IHttpClientFactory http) : IAiDriver
             root =>
                 root.TryGetProperty("error", out var error)
                     ? error.ValueKind == JsonValueKind.Object
-                        ? error.TryGetProperty("message", out var m) ? m.GetString() : null
+                        ? error.TryGetProperty("message", out var m)
+                            ? m.GetString()
+                            : null
                         : error.GetString()
                     : null
         );

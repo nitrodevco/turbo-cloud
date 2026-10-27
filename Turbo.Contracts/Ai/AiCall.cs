@@ -97,7 +97,8 @@ public sealed record AiMemory
     public bool Fresh { get; }
 
     /// <summary>The player's latest conversation with the agent, or a new one.</summary>
-    public static AiMemory ForPlayer(PlayerId player) => new($"player:{player.Value}", player, null, false);
+    public static AiMemory ForPlayer(PlayerId player) =>
+        new($"player:{player.Value}", player, null, false);
 
     /// <summary>The latest conversation under <paramref name="key"/> with the agent, or a new one.</summary>
     public static AiMemory ForKey(string key)

@@ -86,7 +86,10 @@ public sealed class AiRuntime(
         if (
             !limits.TryStart(
                 ($"plugin:{plugin.Key}", current.PluginRunsPerMinute),
-                (payer is { } p ? $"player:{p.Value}" : "player:none", payer is null ? 0 : current.PlayerRunsPerMinute)
+                (
+                    payer is { } p ? $"player:{p.Value}" : "player:none",
+                    payer is null ? 0 : current.PlayerRunsPerMinute
+                )
             )
         )
             return Stopped(
@@ -122,7 +125,10 @@ public sealed class AiRuntime(
             return refused;
 
         if (call.Memory is null)
-            return Stopped(AiStopReason.Unavailable, "Name the conversation to resume (AiCall.Memory).");
+            return Stopped(
+                AiStopReason.Unavailable,
+                "Name the conversation to resume (AiCall.Memory)."
+            );
 
         var run = await AiRun.StartAsync(this, plugin, agent, call, ct).ConfigureAwait(false);
 
@@ -150,14 +156,21 @@ public sealed class AiRuntime(
     {
         var found = memory.ConversationId is { } id
             ? await _store.FindAsync(id, ct).ConfigureAwait(false)
-            : await _store.LatestAsync(plugin.Key, agent.Name, memory.Participant, ct).ConfigureAwait(false);
+            : await _store
+                .LatestAsync(plugin.Key, agent.Name, memory.Participant, ct)
+                .ConfigureAwait(false);
 
         return found is not null
             && Owns(found, plugin, agent, memory)
             && await _store.DeleteAsync(found.Id, ct).ConfigureAwait(false);
     }
 
-    internal static bool Owns(AiConversationRecord found, PluginManifest plugin, AiAgent agent, AiMemory memory) =>
+    internal static bool Owns(
+        AiConversationRecord found,
+        PluginManifest plugin,
+        AiAgent agent,
+        AiMemory memory
+    ) =>
         string.Equals(found.Plugin, plugin.Key, StringComparison.OrdinalIgnoreCase)
         && found.Agent == agent.Name
         && found.Participant == memory.Participant;
@@ -237,11 +250,10 @@ public sealed class AiRuntime(
                 : JsonSerializer.Deserialize<List<AiMessage>>(conversation.Messages, Json) ?? [];
 
             // A resumed run acts as, and counts against, whom the waiting one did.
-            _actor = waiting is null
-                ? call.As
-                : waiting.ActorPlayer is { } player
-                    ? AiActor.AsPlayer(player)
-                    : AiActor.System([.. waiting.ActorNodes]);
+            _actor =
+                waiting is null ? call.As
+                : waiting.ActorPlayer is { } player ? AiActor.AsPlayer(player)
+                : AiActor.System([.. waiting.ActorNodes]);
             _payer = waiting is null ? call.Payer : waiting.Payer;
         }
 
@@ -322,7 +334,8 @@ public sealed class AiRuntime(
             var text = prompt.Text ?? string.Empty;
 
             if (prompt.PlayerWritten is { } written)
-                text = (text.Length > 0 ? text + "\n\n" : string.Empty)
+                text =
+                    (text.Length > 0 ? text + "\n\n" : string.Empty)
                     + JsonSerializer.Serialize(written);
 
             _messages.Add(AiMessage.User(text));
@@ -368,23 +381,40 @@ public sealed class AiRuntime(
                 while (true)
                 {
                     if (ct.IsCancellationRequested)
-                        return await EndAsync(AiStopReason.Cancelled, "The call was cancelled.", ct).ConfigureAwait(false);
+                        return await EndAsync(AiStopReason.Cancelled, "The call was cancelled.", ct)
+                            .ConfigureAwait(false);
 
                     if (_steps >= maxSteps)
-                        return await EndAsync(AiStopReason.MaxSteps, $"It took the most steps ({maxSteps}).", ct).ConfigureAwait(false);
+                        return await EndAsync(
+                                AiStopReason.MaxSteps,
+                                $"It took the most steps ({maxSteps}).",
+                                ct
+                            )
+                            .ConfigureAwait(false);
 
                     if (budget is { Tokens: { } tokens } && _usage.Tokens >= tokens)
-                        return await EndAsync(AiStopReason.Budget, $"It used its {tokens} tokens.", ct).ConfigureAwait(false);
+                        return await EndAsync(
+                                AiStopReason.Budget,
+                                $"It used its {tokens} tokens.",
+                                ct
+                            )
+                            .ConfigureAwait(false);
 
                     if (budget is { Cost: { } cost } && _usage.Cost >= cost)
-                        return await EndAsync(AiStopReason.Budget, $"It spent its budget of {cost}.", ct).ConfigureAwait(false);
+                        return await EndAsync(
+                                AiStopReason.Budget,
+                                $"It spent its budget of {cost}.",
+                                ct
+                            )
+                            .ConfigureAwait(false);
 
                     if (await DailyLimitReachedAsync(ct).ConfigureAwait(false))
                         return await EndAsync(
-                            AiStopReason.DailyBudget,
-                            "That's all the questions for today; come back tomorrow.",
-                            ct
-                        ).ConfigureAwait(false);
+                                AiStopReason.DailyBudget,
+                                "That's all the questions for today; come back tomorrow.",
+                                ct
+                            )
+                            .ConfigureAwait(false);
 
                     _steps++;
 
@@ -405,7 +435,12 @@ public sealed class AiRuntime(
                         Used = _usage,
                     };
                     AiStep? sent = null;
-                    var usage = new AiUsageContext(_plugin.Key, _agent.Name, _payer?.Value, _record?.Id);
+                    var usage = new AiUsageContext(
+                        _plugin.Key,
+                        _agent.Name,
+                        _payer?.Value,
+                        _record?.Id
+                    );
                     AiNext next = (s, c) =>
                     {
                         sent = s;
@@ -431,7 +466,12 @@ public sealed class AiRuntime(
                     {
                         _steps--;
 
-                        return await EndAsync(AiStopReason.Failed, $"No provider could answer: {ex.Message}.", ct).ConfigureAwait(false);
+                        return await EndAsync(
+                                AiStopReason.Failed,
+                                $"No provider could answer: {ex.Message}.",
+                                ct
+                            )
+                            .ConfigureAwait(false);
                     }
 
                     // What was sent is what is remembered: middleware that trimmed or summarised
@@ -460,28 +500,45 @@ public sealed class AiRuntime(
                             return await PauseAsync(paused.Value, ct).ConfigureAwait(false);
 
                         if (_output is not null)
-                            return await EndAsync(AiStopReason.Finished, null, ct).ConfigureAwait(false);
+                            return await EndAsync(AiStopReason.Finished, null, ct)
+                                .ConfigureAwait(false);
                     }
                     else if (answer.Finish == AiFinish.MaxTokens)
-                        return await EndAsync(AiStopReason.Truncated, "The answer was cut at the most tokens.", ct).ConfigureAwait(false);
+                        return await EndAsync(
+                                AiStopReason.Truncated,
+                                "The answer was cut at the most tokens.",
+                                ct
+                            )
+                            .ConfigureAwait(false);
                     else if (_respond is not null)
-                        _messages.Add(AiMessage.User($"Answer by calling the tool \"{RESPOND}\" with your answer."));
+                        _messages.Add(
+                            AiMessage.User(
+                                $"Answer by calling the tool \"{RESPOND}\" with your answer."
+                            )
+                        );
                     else
                         return await EndAsync(
-                            AiStopReason.Finished,
-                            answer.Finish == AiFinish.Refused ? "The model refused." : null,
-                            ct
-                        ).ConfigureAwait(false);
+                                AiStopReason.Finished,
+                                answer.Finish == AiFinish.Refused ? "The model refused." : null,
+                                ct
+                            )
+                            .ConfigureAwait(false);
 
                     var state = new AiRunState(_steps, _usage, _called);
 
                     if (stops.FirstOrDefault(x => x.ShouldStop(state)) is { } stop)
-                        return await EndAsync(AiStopReason.StopCondition, stop.Reason, ct).ConfigureAwait(false);
+                        return await EndAsync(AiStopReason.StopCondition, stop.Reason, ct)
+                            .ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                return await EndAsync(AiStopReason.Cancelled, "The call was cancelled.", CancellationToken.None).ConfigureAwait(false);
+                return await EndAsync(
+                        AiStopReason.Cancelled,
+                        "The call was cancelled.",
+                        CancellationToken.None
+                    )
+                    .ConfigureAwait(false);
             }
         }
 
@@ -494,7 +551,8 @@ public sealed class AiRuntime(
 
             var today = _rt._clock.GetUtcNow().UtcDateTime.Date;
 
-            return await _rt._store.TokensSinceAsync(payer.Value, today, ct).ConfigureAwait(false) >= limit;
+            return await _rt._store.TokensSinceAsync(payer.Value, today, ct).ConfigureAwait(false)
+                >= limit;
         }
 
         private string Instructions()
@@ -502,18 +560,23 @@ public sealed class AiRuntime(
             var text = _agent.Instructions.Trim() + "\n\n" + PlayerText.NOTE;
 
             if (_respond is not null)
-                text += $"\n\nWhen you have the answer, call the tool \"{RESPOND}\" with it: that is how you answer.";
+                text +=
+                    $"\n\nWhen you have the answer, call the tool \"{RESPOND}\" with it: that is how you answer.";
 
             return text;
         }
 
         private ImmutableArray<AiToolSpec> Specs() =>
-        [
-            .. _offered!.Values.Select(t => new AiToolSpec(t.Name, t.Description, t.InputSchema)),
-            .. _respond is { } respond
-                ? [new AiToolSpec(respond.Name, respond.Description, respond.InputSchema)]
-                : Array.Empty<AiToolSpec>(),
-        ];
+            [
+                .. _offered!.Values.Select(t => new AiToolSpec(
+                    t.Name,
+                    t.Description,
+                    t.InputSchema
+                )),
+                .. _respond is { } respond
+                    ? [new AiToolSpec(respond.Name, respond.Description, respond.InputSchema)]
+                    : Array.Empty<AiToolSpec>(),
+            ];
 
         /// <summary>The agent's tools its identity may call, and the answer tool for an output type.</summary>
         private async Task BuildToolsAsync(CancellationToken ct)
@@ -537,16 +600,19 @@ public sealed class AiRuntime(
             }
 
             foreach (var (name, definition) in offered.ToList())
-                if (!await definition.IsAvailableToAsync(caller, HoldsAsync, ct).ConfigureAwait(false))
+                if (
+                    !await definition
+                        .IsAvailableToAsync(caller, HoldsAsync, ct)
+                        .ConfigureAwait(false)
+                )
                     offered.Remove(name);
 
             _offered = offered;
 
             if (_agent.OutputType is { } output)
             {
-                _respondTool = (IRespondTool)Activator.CreateInstance(
-                    typeof(RespondTool<>).MakeGenericType(output)
-                )!;
+                _respondTool = (IRespondTool)
+                    Activator.CreateInstance(typeof(RespondTool<>).MakeGenericType(output))!;
                 _respond = McpToolDefinition.Create(_respondTool, _plugin.Key);
             }
         }
@@ -589,14 +655,22 @@ public sealed class AiRuntime(
                         results.Add(new AiToolResultPart(call.Id, call.Name, "Answer received."));
                     }
                     else
-                        results.Add(Result(call, answered.Status, string.Join("\n", answered.Text)));
+                        results.Add(
+                            Result(call, answered.Status, string.Join("\n", answered.Text))
+                        );
 
                     continue;
                 }
 
                 if (_output is not null)
                 {
-                    results.Add(Result(call, McpToolCallStatus.Error, "Not run: the answer was already given."));
+                    results.Add(
+                        Result(
+                            call,
+                            McpToolCallStatus.Error,
+                            "Not run: the answer was already given."
+                        )
+                    );
 
                     continue;
                 }
@@ -604,7 +678,11 @@ public sealed class AiRuntime(
                 if (!_offered!.TryGetValue(call.Name, out var tool))
                 {
                     results.Add(
-                        Result(call, McpToolCallStatus.Unavailable, string.Join("\n", McpToolCallResult.Unavailable(call.Name).Text))
+                        Result(
+                            call,
+                            McpToolCallStatus.Unavailable,
+                            string.Join("\n", McpToolCallResult.Unavailable(call.Name).Text)
+                        )
                     );
 
                     continue;
@@ -657,15 +735,21 @@ public sealed class AiRuntime(
                 _messages.Add(new AiMessage(AiRole.User, [.. results]));
         }
 
-        private async Task<AiPart> RunToolAsync(McpToolDefinition tool, AiToolCallPart call, CancellationToken ct)
+        private async Task<AiPart> RunToolAsync(
+            McpToolDefinition tool,
+            AiToolCallPart call,
+            CancellationToken ct
+        )
         {
             try
             {
-                var result = await tool.CallAsync(call.Arguments, Context(), ct).ConfigureAwait(false);
+                var result = await tool.CallAsync(call.Arguments, Context(), ct)
+                    .ConfigureAwait(false);
 
                 return Result(call, result.Status, string.Join("\n", result.Text));
             }
-            catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+            catch (Exception ex)
+                when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             {
                 _rt._logger.LogError(
                     ex,
@@ -675,7 +759,11 @@ public sealed class AiRuntime(
                     _agent.Name
                 );
 
-                return Result(call, McpToolCallStatus.Failed, string.Join("\n", McpToolCallResult.Failed(call.Name).Text));
+                return Result(
+                    call,
+                    McpToolCallStatus.Failed,
+                    string.Join("\n", McpToolCallResult.Failed(call.Name).Text)
+                );
             }
         }
 
@@ -710,7 +798,10 @@ public sealed class AiRuntime(
         }
 
         /// <summary>Asks for the first call's approval and keeps the run in its conversation until it is decided.</summary>
-        private async Task<AiResponse> PauseAsync(ImmutableArray<AiToolCallPart> calls, CancellationToken ct)
+        private async Task<AiResponse> PauseAsync(
+            ImmutableArray<AiToolCallPart> calls,
+            CancellationToken ct
+        )
         {
             var first = calls[0];
             var tool = _offered![first.Name];
@@ -750,24 +841,28 @@ public sealed class AiRuntime(
                 .ConfigureAwait(false);
 
             _toolCalls.Add(
-                new AiToolCall(first.Name, first.Arguments, AiToolOutcome.AwaitingApproval, "Waiting on a staff member's approval.")
+                new AiToolCall(
+                    first.Name,
+                    first.Arguments,
+                    AiToolOutcome.AwaitingApproval,
+                    "Waiting on a staff member's approval."
+                )
             );
-            Waiting = new PendingRun(
-                id,
-                calls,
-                _actor.Player?.Value,
-                _actor.Nodes,
-                _payer?.Value
-            );
+            Waiting = new PendingRun(id, calls, _actor.Player?.Value, _actor.Nodes, _payer?.Value);
 
             return await EndAsync(
-                AiStopReason.AwaitingApproval,
-                $"{first.Name} waits on a staff member's approval.",
-                ct
-            ).ConfigureAwait(false);
+                    AiStopReason.AwaitingApproval,
+                    $"{first.Name} waits on a staff member's approval.",
+                    ct
+                )
+                .ConfigureAwait(false);
         }
 
-        private async Task<AiResponse> EndAsync(AiStopReason reason, string? message, CancellationToken ct)
+        private async Task<AiResponse> EndAsync(
+            AiStopReason reason,
+            string? message,
+            CancellationToken ct
+        )
         {
             if (_record is not null)
             {
@@ -842,7 +937,11 @@ public sealed class AiRuntime(
 
         public override bool ReadOnly => true;
 
-        public override Task<McpToolResult> HandleAsync(TOutput input, McpToolContext ctx, CancellationToken ct)
+        public override Task<McpToolResult> HandleAsync(
+            TOutput input,
+            McpToolContext ctx,
+            CancellationToken ct
+        )
         {
             Answer = input;
 

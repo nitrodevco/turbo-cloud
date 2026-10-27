@@ -66,11 +66,7 @@ public sealed class AnthropicDriver(IHttpClientFactory http) : IAiDriver
 
     public static JsonObject Body(AiProviderRequest request, AiEndpoint? endpoint = null)
     {
-        var body = new JsonObject
-        {
-            ["model"] = request.Model,
-            ["max_tokens"] = request.MaxTokens,
-        };
+        var body = new JsonObject { ["model"] = request.Model, ["max_tokens"] = request.MaxTokens };
 
         if (!string.IsNullOrWhiteSpace(request.Instructions))
             body["system"] = request.Instructions;
@@ -82,16 +78,14 @@ public sealed class AnthropicDriver(IHttpClientFactory http) : IAiDriver
 
         if (request.Tools.Length > 0)
         {
-            body["tools"] = new JsonArray(
-                [
-                    .. request.Tools.Select(t => new JsonObject
-                    {
-                        ["name"] = t.Name,
-                        ["description"] = t.Description,
-                        ["input_schema"] = JsonNode.Parse(t.InputSchema.GetRawText()),
-                    }),
-                ]
-            );
+            body["tools"] = new JsonArray([
+                .. request.Tools.Select(t => new JsonObject
+                {
+                    ["name"] = t.Name,
+                    ["description"] = t.Description,
+                    ["input_schema"] = JsonNode.Parse(t.InputSchema.GetRawText()),
+                }),
+            ]);
 
             if (request.RequireTool)
                 body["tool_choice"] = new JsonObject { ["type"] = "any" };
@@ -129,9 +123,10 @@ public sealed class AnthropicDriver(IHttpClientFactory http) : IAiDriver
                                 ["type"] = "tool_use",
                                 ["id"] = call.Id,
                                 ["name"] = call.Name,
-                                ["input"] = call.Arguments.ValueKind == JsonValueKind.Object
-                                    ? JsonNode.Parse(call.Arguments.GetRawText())
-                                    : new JsonObject(),
+                                ["input"] =
+                                    call.Arguments.ValueKind == JsonValueKind.Object
+                                        ? JsonNode.Parse(call.Arguments.GetRawText())
+                                        : new JsonObject(),
                             }
                         );
 
@@ -234,9 +229,14 @@ public sealed class AnthropicDriver(IHttpClientFactory http) : IAiDriver
                 root.TryGetProperty("model", out var model) ? model.GetString() ?? "" : ""
             );
         }
-        catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
+        catch (Exception ex)
+            when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
         {
-            throw new AiProviderException("unreadable", "answered something that is not a message", ex);
+            throw new AiProviderException(
+                "unreadable",
+                "answered something that is not a message",
+                ex
+            );
         }
     }
 

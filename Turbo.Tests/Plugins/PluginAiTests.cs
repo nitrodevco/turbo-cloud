@@ -126,8 +126,13 @@ public sealed class PluginAiTests : IAsyncLifetime
     {
         await _hotel.LoadAsync(_folder, ct: Ct);
         var alice = _hotel.Player("alice");
-        var staff = _hotel.Player("staff").InRoom(5).WithPermissions("plugin.desk.use", "plugin.desk.alert");
-        _hotel.Ai.CallTool("desk_alert", new { player = alice.Id.Value, text = "Welcome!" }).Respond("Alice was alerted.");
+        var staff = _hotel
+            .Player("staff")
+            .InRoom(5)
+            .WithPermissions("plugin.desk.use", "plugin.desk.alert");
+        _hotel
+            .Ai.CallTool("desk_alert", new { player = alice.Id.Value, text = "Welcome!" })
+            .Respond("Alice was alerted.");
 
         await staff.SaysAsync(":desk welcome-alice", Ct);
 
@@ -137,8 +142,10 @@ public sealed class PluginAiTests : IAsyncLifetime
 
         await _hotel.Ai.Approvals.ApproveAsync();
 
-        _hotel.Notify.Alerts.Select(a => (a.Player, a.Text))
-            .Should().Equal((alice.Id, "Welcome!"), (staff.Id, "Alice was alerted."));
+        _hotel
+            .Notify.Alerts.Select(a => (a.Player, a.Text))
+            .Should()
+            .Equal((alice.Id, "Welcome!"), (staff.Id, "Alice was alerted."));
     }
 
     [Fact]

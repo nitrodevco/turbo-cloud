@@ -36,7 +36,9 @@ public sealed class DbAiStoreTests : IDisposable
         newer.Messages = "[{\"role\":\"User\",\"parts\":[]}]";
         await _store.SaveAsync(newer, CancellationToken.None);
 
-        (await _store.LatestAsync("desk", "Helper", "player:5", CancellationToken.None))!.Id.Should().Be(newer.Id);
+        (await _store.LatestAsync("desk", "Helper", "player:5", CancellationToken.None))!
+            .Id.Should()
+            .Be(newer.Id);
         var waiting = await _store.FindByApprovalAsync("approval-1", CancellationToken.None);
         waiting!.Messages.Should().Be(newer.Messages);
         (await _store.DeleteAsync(older.Id, CancellationToken.None)).Should().BeTrue();
@@ -46,14 +48,21 @@ public sealed class DbAiStoreTests : IDisposable
     [Fact]
     public async Task Usage_counts_a_players_tokens_since_a_day_and_sums_by_plugin_provider_and_model()
     {
-        await _store.RecordUsageAsync(Usage("claude", 100, 20, "ok", NOW.AddDays(-1)), CancellationToken.None);
+        await _store.RecordUsageAsync(
+            Usage("claude", 100, 20, "ok", NOW.AddDays(-1)),
+            CancellationToken.None
+        );
         await _store.RecordUsageAsync(Usage("claude", 50, 10, "ok", NOW), CancellationToken.None);
-        await _store.RecordUsageAsync(Usage("claude", 0, 0, "http_529", NOW), CancellationToken.None);
+        await _store.RecordUsageAsync(
+            Usage("claude", 0, 0, "http_529", NOW),
+            CancellationToken.None
+        );
         await _store.RecordUsageAsync(Usage("local", 7, 3, "ok", NOW), CancellationToken.None);
 
         (await _store.TokensSinceAsync(5, NOW.Date, CancellationToken.None)).Should().Be(70);
         (await _store.TotalsSinceAsync(NOW.Date, CancellationToken.None))
-            .Should().Equal(
+            .Should()
+            .Equal(
                 new AiUsageTotal("desk", "claude", "m", 2, 1, 50, 10, 0.5m),
                 new AiUsageTotal("desk", "local", "m", 1, 0, 7, 3, 0.25m)
             );
@@ -71,6 +80,11 @@ public sealed class DbAiStoreTests : IDisposable
             UpdatedAt = at,
         };
 
-    private static AiUsageRecord Usage(string provider, int input, int output, string outcome, DateTime at) =>
-        new("desk", "Helper", provider, "m", 5, null, input, output, 0.25m, 12, outcome, at);
+    private static AiUsageRecord Usage(
+        string provider,
+        int input,
+        int output,
+        string outcome,
+        DateTime at
+    ) => new("desk", "Helper", provider, "m", 5, null, input, output, 0.25m, 12, outcome, at);
 }

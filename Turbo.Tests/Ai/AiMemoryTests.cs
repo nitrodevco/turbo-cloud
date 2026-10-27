@@ -35,13 +35,26 @@ public sealed class AiMemoryTests
         _ai.Respond("Hello Alice").Respond("You said hi").Respond("Hello Bob");
         var ai = _ai.For();
 
-        var first = await ai.PromptAsync(new Chat(), "hi", new AiCall { Memory = AiMemory.ForPlayer(alice.Id) });
-        await ai.PromptAsync(new Chat(), "what did I say?", new AiCall { Memory = AiMemory.ForPlayer(alice.Id) });
+        var first = await ai.PromptAsync(
+            new Chat(),
+            "hi",
+            new AiCall { Memory = AiMemory.ForPlayer(alice.Id) }
+        );
+        await ai.PromptAsync(
+            new Chat(),
+            "what did I say?",
+            new AiCall { Memory = AiMemory.ForPlayer(alice.Id) }
+        );
         await ai.PromptAsync(new Chat(), "hi", new AiCall { Memory = AiMemory.ForPlayer(bob.Id) });
 
-        _ai.Requests[1].Messages.Select(m => m.Text).Should().Equal("hi", "Hello Alice", "what did I say?");
+        _ai.Requests[1]
+            .Messages.Select(m => m.Text)
+            .Should()
+            .Equal("hi", "Hello Alice", "what did I say?");
         _ai.Requests[2].Messages.Select(m => m.Text).Should().Equal("hi");
-        _ai.Usage.Select(u => u.ConversationId).Should().Equal(first.ConversationId, first.ConversationId, first.ConversationId + 1);
+        _ai.Usage.Select(u => u.ConversationId)
+            .Should()
+            .Equal(first.ConversationId, first.ConversationId, first.ConversationId + 1);
     }
 
     [Fact]
@@ -49,12 +62,31 @@ public sealed class AiMemoryTests
     {
         var alice = _hotel.Players.Add("Alice");
         var bob = _hotel.Players.Add("Bob");
-        var mine = await _ai.For().PromptAsync(new Chat(), "secret", new AiCall { Memory = AiMemory.ForPlayer(alice.Id) });
+        var mine = await _ai.For()
+            .PromptAsync(
+                new Chat(),
+                "secret",
+                new AiCall { Memory = AiMemory.ForPlayer(alice.Id) }
+            );
 
         var stolen = await _ai.For()
-            .PromptAsync(new Chat(), "what was it?", new AiCall { Memory = AiMemory.ForPlayer(bob.Id).Continue(mine.ConversationId!.Value) });
+            .PromptAsync(
+                new Chat(),
+                "what was it?",
+                new AiCall
+                {
+                    Memory = AiMemory.ForPlayer(bob.Id).Continue(mine.ConversationId!.Value),
+                }
+            );
         var otherPlugin = await _ai.For("other-plugin")
-            .PromptAsync(new Chat(), "what was it?", new AiCall { Memory = AiMemory.ForPlayer(alice.Id).Continue(mine.ConversationId!.Value) });
+            .PromptAsync(
+                new Chat(),
+                "what was it?",
+                new AiCall
+                {
+                    Memory = AiMemory.ForPlayer(alice.Id).Continue(mine.ConversationId!.Value),
+                }
+            );
 
         stolen.Stop.Should().Be(AiStopReason.Unavailable);
         otherPlugin.Stop.Should().Be(AiStopReason.Unavailable);
@@ -65,14 +97,22 @@ public sealed class AiMemoryTests
     public async Task A_conversation_keeps_the_most_messages_from_the_start_of_a_turn()
     {
         var alice = _hotel.Players.Add("Alice");
-        _ai.Settings = new() { MemoryMessages = 3, PlayerRunsPerMinute = 0, PluginRunsPerMinute = 0 };
+        _ai.Settings = new()
+        {
+            MemoryMessages = 3,
+            PlayerRunsPerMinute = 0,
+            PluginRunsPerMinute = 0,
+        };
         var call = new AiCall { Memory = AiMemory.ForPlayer(alice.Id) };
 
         foreach (var said in new[] { "one", "two", "three" })
             await _ai.For().PromptAsync(new Chat(), said, call);
 
         // Before "three": one, a1, two, a2 is 4 > 3: the oldest whole turn goes.
-        _ai.Requests[2].Messages.Select(m => m.Text).Should().Equal("two", "Fake answer.", "three");
+        _ai.Requests[2]
+            .Messages.Select(m => m.Text)
+            .Should()
+            .Equal("two", "Fake answer.", "three");
     }
 
     [Fact]
@@ -108,7 +148,11 @@ public sealed class AiMemoryTests
         _ai.CallTool("kick", new { name = "Bob" }).Respond("Bob was kicked.");
 
         var paused = await _ai.ForPlugin(manifest)
-            .PromptAsync(new KickAgent(told), "Kick Bob", new AiCall { As = AiActor.AsPlayer(staff.Id) });
+            .PromptAsync(
+                new KickAgent(told),
+                "Kick Bob",
+                new AiCall { As = AiActor.AsPlayer(staff.Id) }
+            );
         var resumed = await _ai.Approvals.ApproveAsync(by: new PlayerId(1));
 
         paused.Stop.Should().Be(AiStopReason.AwaitingApproval);
@@ -117,7 +161,9 @@ public sealed class AiMemoryTests
         var only = told.Should().ContainSingle().Which;
         only.Response.Text.Should().Be("Bob was kicked.");
         only.Player.Should().Be(staff.Id, "the staff member asked");
-        _ai.AssertToolCalled("kick", a => a.GetProperty("name").GetString() == "Bob").Outcome.Should().Be(AiToolOutcome.Ok);
+        _ai.AssertToolCalled("kick", a => a.GetProperty("name").GetString() == "Bob")
+            .Outcome.Should()
+            .Be(AiToolOutcome.Ok);
     }
 
     [Fact]
@@ -134,12 +180,19 @@ public sealed class AiMemoryTests
         await _ai.For().PromptAsync(new Chat(), "four", call);
 
         _ai.Requests[2].Instructions.Should().Be(AiSummarize.INSTRUCTIONS);
-        _ai.Requests[2].Messages.Select(m => m.Text).Should().Equal("one", "a1", "Summarise the conversation so far.");
-        _ai.Requests[3].Messages.Select(m => m.Text)
-            .Should().Equal(AiSummarize.PREFIX + "They said one.", "two", "a2", "three");
+        _ai.Requests[2]
+            .Messages.Select(m => m.Text)
+            .Should()
+            .Equal("one", "a1", "Summarise the conversation so far.");
+        _ai.Requests[3]
+            .Messages.Select(m => m.Text)
+            .Should()
+            .Equal(AiSummarize.PREFIX + "They said one.", "two", "a2", "three");
         third.Usage.Tokens.Should().Be(30, "the summary's tokens count in the run");
-        _ai.Requests[4].Messages.Select(m => m.Text)
-            .Should().Equal(AiSummarize.PREFIX + "They said one.", "two", "a2", "three", "a3", "four");
+        _ai.Requests[4]
+            .Messages.Select(m => m.Text)
+            .Should()
+            .Equal(AiSummarize.PREFIX + "They said one.", "two", "a2", "three", "a3", "four");
     }
 
     private sealed class Chat : AiAgent
@@ -174,7 +227,10 @@ public sealed class AiMemoryTests
 
         public override string Description => "Kicks a player from their room.";
 
-        public override Task<McpToolResult> HandleAsync(KickInput input, McpToolContext ctx, CancellationToken ct) =>
-            Task.FromResult(McpToolResult.Text($"{input.Name} was kicked."));
+        public override Task<McpToolResult> HandleAsync(
+            KickInput input,
+            McpToolContext ctx,
+            CancellationToken ct
+        ) => Task.FromResult(McpToolResult.Text($"{input.Name} was kicked."));
     }
 }

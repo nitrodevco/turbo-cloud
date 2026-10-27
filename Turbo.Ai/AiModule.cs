@@ -27,7 +27,10 @@ public sealed class AiModule : IHostPluginModule
     public void ConfigureServices(IServiceCollection services, HostApplicationBuilder builder)
     {
         services.Configure<AiConfig>(builder.Configuration.GetSection(AiConfig.SECTION_NAME));
-        services.AddHttpClient(HTTP_CLIENT, http => http.Timeout = System.Threading.Timeout.InfiniteTimeSpan);
+        services.AddHttpClient(
+            HTTP_CLIENT,
+            http => http.Timeout = System.Threading.Timeout.InfiniteTimeSpan
+        );
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IAiDriver, AnthropicDriver>();
