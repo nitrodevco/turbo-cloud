@@ -1,5 +1,26 @@
 # Client capabilities: Turbo's protocol extensions
 
+- [Introduction](#introduction)
+- [The exchange](#the-exchange)
+- [permission.nodes (version 1)](#permissionnodes-version-1)
+- [chat.commands.v2 (version 1)](#chatcommandsv2-version-1)
+    - [Why](#why)
+    - [Packets](#packets)
+    - [Where suggestions come from](#where-suggestions-come-from)
+    - [Selectors are declared](#selectors-are-declared)
+    - [When the tree is sent](#when-the-tree-is-sent)
+    - [The client's own commands](#the-clients-own-commands)
+    - [What it changed on the server](#what-it-changed-on-the-server)
+    - [Tests](#tests)
+    - [Open](#open)
+- [starter.rooms (version 1)](#starterrooms-version-1)
+- [notices.live (version 1)](#noticeslive-version-1)
+- [web.session (version 1)](#websession-version-1)
+- [client.modules (version 1)](#clientmodules-version-1)
+- [client.messages (version 1)](#clientmessages-version-1)
+
+## Introduction
+
 Turbo speaks Habbo's protocol to any client, and nitro-next speaks it to any emulator. Some
 things the Habbo protocol cannot say; for those Turbo offers **extensions**, which a client asks
 for by name. A client that never asks (the Flash client, any other port) never sends or receives

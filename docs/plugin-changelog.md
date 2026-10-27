@@ -1,4 +1,9 @@
-# Plugin changelog
+# Plugin Changelog
+
+- [Introduction](#introduction)
+- [2026-10-27](#2026-10-27)
+
+## Introduction
 
 Every change that alters what a plugin author writes, sees or gets: the contracts (`Turbo.Contracts`,
 `Turbo.Primitives`, `Turbo.Database`), hooks and policies, how plugins load, build and install, the

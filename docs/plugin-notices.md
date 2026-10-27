@@ -1,5 +1,11 @@
 # Plugin notices
 
+- [Introduction](#introduction)
+- [Publishing](#publishing)
+- [Relaying](#relaying)
+
+## Introduction
+
 A plugin can tell other plugins that something happened (a new client error, a bug report, a
 room copy finished) without depending on them, through `PluginNoticeEvent`
 (`Turbo.Primitives/Plugins/Events`) on the hotel's event system. A relay plugin (a Discord

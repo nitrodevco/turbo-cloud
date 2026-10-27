@@ -1,5 +1,9 @@
 # Continuous integration
 
+- [Introduction](#introduction)
+
+## Introduction
+
 `Code Quality` runs for pull requests, merge queue groups (`merge_group`), pushes to
 `main`, a nightly schedule and manual dispatches. New PR commits cancel older runs for
 that PR; every `main` push keeps its own run.
@@ -45,3 +49,5 @@ the MySQL provider is compatible. Dependency PRs still require review.
 Local workflow validation: `actionlint .github/workflows/quality.yml`.
 The existing `TurboCloudFastCheck` and `TurboCloudQualityGate` MSBuild targets
 remain available for local code validation.
+
+

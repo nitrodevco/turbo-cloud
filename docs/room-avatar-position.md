@@ -1,5 +1,9 @@
 # Reading a player's room position
 
+- [Introduction](#introduction)
+
+## Introduction
+
 Code outside a room's own turn (plugin packet handlers, background services) can read where a
 player stands without loading a room snapshot. It is two calls: the player's presence grain says
 which room they are in, and that room says where they are.
@@ -26,3 +30,5 @@ that room (never entered, already left, or the room just unloaded).
 - The answer is a snapshot of that moment; a walking avatar has moved on by the time it arrives.
   `X`/`Y` is the tile the avatar is on, not the walk's goal.
 - It is asked by player id, so bots and pets are never returned.
+
+

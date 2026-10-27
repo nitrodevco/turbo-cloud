@@ -1,5 +1,15 @@
 # Public site
 
+- [Introduction](#introduction)
+- [How it works](#how-it-works)
+- [Setting it up locally](#setting-it-up-locally)
+- [Setting it up in production (Ploi)](#setting-it-up-in-production-ploi)
+- [Accounts in the admin panel](#accounts-in-the-admin-panel)
+- [Configuration](#configuration)
+- [Things to know](#things-to-know)
+
+## Introduction
+
 The public site is the hotel's front door, on its own domain (for example `example.com`), apart
 from the admin panel. People:
 

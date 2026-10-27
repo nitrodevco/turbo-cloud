@@ -1,4 +1,45 @@
-# Client modules
+# Client Modules
+
+- [Introduction](#introduction)
+- [1. A plugin with a module](#1-a-plugin-with-a-module)
+    - [How the server builds a module](#how-the-server-builds-a-module)
+    - [Start from the template](#start-from-the-template)
+    - [A hotel to develop a plugin on](#a-hotel-to-develop-a-plugin-on)
+- [2. The protocol: client.modules (version 1)](#2-the-protocol-clientmodules-version-1)
+- [3. How the files are served](#3-how-the-files-are-served)
+- [4. The client side](#4-the-client-side)
+- [5. Texts and variables a plugin brings](#5-texts-and-variables-a-plugin-brings)
+- [6. What it changed in the server](#6-what-it-changed-in-the-server)
+- [7. Tests](#7-tests)
+- [8. Open](#8-open)
+
+## Introduction
+
+A hotel that wants a window of its own, a toolbar icon or a drawing over an avatar does not fork
+the client. It ships a **client module** in a plugin, and every client that connects runs it:
+
+```tsx
+import { assetUrl, defineModule } from '@nitrodevco/client-module-sdk';
+
+export default defineModule({
+    activate(api) {
+        api.windows.register('skills', SkillsWindow);
+        api.toolbar.add({
+            id: 'skills',
+            icon: assetUrl('skills.png'),
+            tooltip: api.texts.get('skills.toolbar.tooltip', 'Skills'),
+            onClick: () => api.windows.toggle('skills'),
+        });
+        api.messages.on('skills.state', (data) => skillStore.set(toSkill(data)));
+    },
+});
+```
+
+The module talks to the plugin's server half through [named messages](plugin-messages.md); its
+words are the hotel's texts; its pictures are the plugin's `wwwroot/` files. This page is the
+server's side: how a module is built, registered, served and announced. What a module can do in the
+client (`api.windows`, `api.toolbar`, `api.links`, `api.events`, `api.state`...) is in
+[Client Modules (Client Side)](https://github.com/nitrodevco/nitro-next/blob/pixi-render/docs/client-modules.md).
 
 A plugin can bring code that runs in the client: a **client module**, a JavaScript ES module the
 client loads and runs beside its own. The plugin brings its TypeScript source and the server builds

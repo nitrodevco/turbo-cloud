@@ -1,5 +1,34 @@
 # Builders Club and subscriptions
 
+- [Introduction](#introduction)
+- [1. What Builders Club is](#1-what-builders-club-is)
+    - [Membership states](#membership-states)
+    - [Placement gates](#placement-gates)
+    - [The trial bargain](#the-trial-bargain)
+    - [A lapsed membership locks rooms](#a-lapsed-membership-locks-rooms)
+    - [Furni identity is an id band](#furni-identity-is-an-id-band)
+    - [Adjacent, already half-wired](#adjacent-already-half-wired)
+    - [What is hotel data, not code](#what-is-hotel-data-not-code)
+- [2. Packets](#2-packets)
+    - [Builders Club](#builders-club)
+    - [Habbo Club](#habbo-club)
+- [3. Subscriptions, shared by both clubs](#3-subscriptions-shared-by-both-clubs)
+    - [IPlayerSubscriptionGrain](#iplayersubscriptiongrain)
+    - [Purchasing](#purchasing)
+    - [Config](#config)
+    - [Expiry while offline](#expiry-while-offline)
+- [4. The Builders Club catalog](#4-the-builders-club-catalog)
+- [5. Builders Club furni](#5-builders-club-furni)
+    - [5.1 Identity and storage](#51-identity-and-storage)
+    - [5.2 IBuildersClubGrain](#52-ibuildersclubgrain)
+    - [5.3 Placement](#53-placement)
+    - [5.4 Ownership, persistence and pickup](#54-ownership-persistence-and-pickup)
+- [6. Room locking](#6-room-locking)
+- [7. Build order](#7-build-order)
+- [Validation](#validation)
+
+## Introduction
+
 Implementation plan for the Builders Club, and for the subscription system it shares with Habbo
 Club. Every phase of section 7 is built except the one item in 7.8, which is blocked on a
 feature that does not exist; that entry says which and why. What was already in the tree before

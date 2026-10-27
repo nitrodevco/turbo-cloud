@@ -1,4 +1,21 @@
-# Upgrading a plugin
+# Upgrading a Plugin
+
+- [Introduction](#introduction)
+- [To source-only plugins (2026-10-27)](#to-source-only-plugins-2026-10-27)
+    - [1. Build a server that ships the plugin SDK](#1-build-a-server-that-ships-the-plugin-sdk)
+    - [2. Move to the template's layout](#2-move-to-the-templates-layout)
+    - [3. Manifest](#3-manifest)
+    - [4. Server project](#4-server-project)
+    - [5. Whatever the project file added to the assembly](#5-whatever-the-project-file-added-to-the-assembly)
+    - [6. Client module](#6-client-module)
+    - [7. From the server's internals to the contracts](#7-from-the-servers-internals-to-the-contracts)
+    - [8. What else changed shape the same day](#8-what-else-changed-shape-the-same-day)
+    - [9. The plugin rules](#9-the-plugin-rules)
+    - [10. Tests](#10-tests)
+    - [11. Check it as the server will](#11-check-it-as-the-server-will)
+    - [12. Release](#12-release)
+
+## Introduction
 
 What a plugin author does when Turbo changes what plugins are. Each change, with who it affects and
 whether it breaks a plugin, is in `docs/plugin-changelog.md`; this page is the work, in order.

@@ -1,5 +1,15 @@
 # Load-test bots
 
+- [Introduction](#introduction)
+- [Quick start](#quick-start)
+- [Accounts](#accounts)
+- [Personas](#personas)
+    - [Wired](#wired)
+- [Reading the results](#reading-the-results)
+- [Keeping the bots in step with the protocol](#keeping-the-bots-in-step-with-the-protocol)
+
+## Introduction
+
 `Turbo.LoadBots` is a fleet of bot players that connect to a running hotel the way the client
 does (TCP game socket or WebSocket, Revision20260909 protocol, SSO login) and play: they make
 rooms, buy and place furni, draw floor plans, configure every kind of wired box, build wired games

@@ -1,5 +1,36 @@
 # Groups
 
+- [Introduction](#introduction)
+- [1. What a group is](#1-what-a-group-is)
+    - [Identity](#identity)
+    - [The homeroom is chosen once](#the-homeroom-is-chosen-once)
+    - [Types and who may join](#types-and-who-may-join)
+    - [Ranks](#ranks)
+    - [Decoration rights](#decoration-rights)
+    - [Leaving, kicking and blocking](#leaving-kicking-and-blocking)
+    - [Deletion](#deletion)
+    - [Badges around the hotel](#badges-around-the-hotel)
+    - [The windows](#the-windows)
+- [2. What already exists in the tree](#2-what-already-exists-in-the-tree)
+- [3. Packets](#3-packets)
+    - [Client to server](#client-to-server)
+    - [Two traps](#two-traps)
+    - [Server to client](#server-to-client)
+- [4. Enums](#4-enums)
+- [5. Data model](#5-data-model)
+    - [Which side owns the homeroom link](#which-side-owns-the-homeroom-link)
+- [6. Grains](#6-grains)
+- [7. Room integration](#7-room-integration)
+- [8. Guild furni](#8-guild-furni)
+- [9. Navigator](#9-navigator)
+- [10. Forums](#10-forums)
+- [11. Config](#11-config)
+- [12. Build order](#12-build-order)
+- [Hotel data, not code](#hotel-data-not-code)
+- [Validation](#validation)
+
+## Introduction
+
 Implementation plan for the group system: identity and badges, membership, the guild homeroom,
 guild furni, the navigator's guild searches and group forums.
 

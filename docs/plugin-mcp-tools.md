@@ -1,5 +1,17 @@
 # MCP tools
 
+- [Introduction](#introduction)
+- [1. A tool](#1-a-tool)
+    - [Schemas](#schemas)
+    - [Arguments it can't take](#arguments-it-cant-take)
+    - [Player text](#player-text)
+- [2. Who sees and calls a tool](#2-who-sees-and-calls-a-tool)
+- [3. Testing a tool](#3-testing-a-tool)
+- [4. The MCP server plugin](#4-the-mcp-server-plugin)
+- [5. What it changed in the server](#5-what-it-changed-in-the-server)
+
+## Introduction
+
 A plugin can give AI assistants (Claude Code, Claude Desktop, Cursor and any other client of the
 [Model Context Protocol](https://modelcontextprotocol.io)) **tools** to call on the hotel: find a
 player, read a room's wired error log, list open reports. It is the **registry** kind of

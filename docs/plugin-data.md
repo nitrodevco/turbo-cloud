@@ -1,5 +1,21 @@
 # No-code: themes and patches in the panel
 
+- [Introduction](#introduction)
+- [A data plugin](#a-data-plugin)
+    - [Chat bubbles](#chat-bubbles)
+    - [Windows of its own](#windows-of-its-own)
+- [Style properties (theme.json)](#style-properties-themejson)
+- [The base theme (habbo) and extends](#the-base-theme-habbo-and-extends)
+- [In the panel](#in-the-panel)
+- [Themes made in the panel, and where edits land](#themes-made-in-the-panel-and-where-edits-land)
+    - [A theme's texts](#a-themes-texts)
+- [The hotel's own data plugin](#the-hotels-own-data-plugin)
+- [Who gets which theme](#who-gets-which-theme)
+- [Live reload](#live-reload)
+- [Not yet](#not-yet)
+
+## Introduction
+
 A theme, a recolour or a hidden button needs no C#. This page is what a hotel owner does in the
 admin panel, and what a theme author puts in a folder. The patch format itself is nitro-next
 `docs/template-patches.md`; the framework model is `docs/extensions.md` §4.5-4.6.

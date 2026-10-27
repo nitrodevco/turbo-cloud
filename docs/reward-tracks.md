@@ -1,5 +1,15 @@
 # Reward tracks
 
+- [Introduction](#introduction)
+- [Tracks are in the database](#tracks-are-in-the-database)
+- [The Progression menu](#the-progression-menu)
+- [Panel API](#panel-api)
+- [Rules, from the AS3 RewardTrack classes](#rules-from-the-as3-rewardtrack-classes)
+- [What counts](#what-counts)
+- [Wired](#wired)
+
+## Introduction
+
 The Progression menu's reward track (AS3 `quest/rewardtrack`). The server sends the tracks at
 login (`RewardTracks`, 2614), a task's count and the track's points when they change
 (`RewardTrackProgress`, 844), and answers a prize claim (`ClaimRewardTrackPrize` 2885 →

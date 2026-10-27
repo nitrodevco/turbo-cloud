@@ -1,5 +1,17 @@
 # Running behind Cloudflare (nginx on Ploi)
 
+- [Introduction](#introduction)
+- [1. In Cloudflare](#1-in-cloudflare)
+- [2. Cloudflare's address ranges, once for the server](#2-cloudflares-address-ranges-once-for-the-server)
+    - [Which connections came from Cloudflare](#which-connections-came-from-cloudflare)
+    - [Only Cloudflare may connect](#only-cloudflare-may-connect)
+- [3. Each site behind Cloudflare](#3-each-site-behind-cloudflare)
+- [4. Apply and check](#4-apply-and-check)
+- [Keeping it up](#keeping-it-up)
+- [Troubleshooting](#troubleshooting)
+
+## Introduction
+
 How to put the hotel's sites (the admin panel, the client, the game's WebSocket) behind
 Cloudflare's proxy on a Ploi server, so that:
 

@@ -1,5 +1,15 @@
 # Songs, song disks and jukeboxes
 
+- [Introduction](#introduction)
+- [Songs](#songs)
+- [Song disks](#song-disks)
+- [Jukeboxes](#jukeboxes)
+- [Trax machines](#trax-machines)
+- [Setting up](#setting-up)
+- [Not built](#not-built)
+
+## Introduction
+
 A **song** is a trax track the client plays. A **song disk** is a furni carrying one song. A
 **jukebox** holds disks in a playlist and plays them in turn for the whole room. This page is how
 the server keeps each, what a hotel sets up, and what this client cannot do, so the server does

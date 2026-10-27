@@ -1,5 +1,17 @@
 # Game centre and plugin room games
 
+- [Introduction](#introduction)
+- [The protocol, as the server answers it](#the-protocol-as-the-server-answers-it)
+- [Registering a room game](#registering-a-room-game)
+- [In the arena room](#in-the-arena-room)
+- [Reporting a result](#reporting-a-result)
+- [Rewards](#rewards)
+- [Free games and access](#free-games-and-access)
+- [Settings (Turbo:Games, panel Settings, live)](#settings-turbogames-panel-settings-live)
+- [Where it lives](#where-it-lives)
+
+## Introduction
+
 The game centre is Habbo's games window (the toolbar's games icon, the friend bar's game
 notices): a player sees how many games they have left, quick-joins a game, waits in its lobby
 while it fills and counts down, plays, and reads the game's leaderboards. Turbo Cloud runs the

@@ -1,9 +1,31 @@
-# Loading plugins
+# Plugin Lifecycle
 
-How Turbo Cloud compiles, loads, reloads and isolates plugins, what a plugin's classes can take by
-constructor, and what each step of a plugin's life guarantees.
+- [Introduction](#introduction)
+- [A Plugin Is Its Sources](#a-plugin-is-its-sources)
+    - [What a Plugin May Not Do](#what-a-plugin-may-not-do)
+    - [When a Plugin Does Not Load](#when-a-plugin-does-not-load)
+    - [From the Server's Internals to the Contracts](#from-the-servers-internals-to-the-contracts)
+- [The Plugin Class](#the-plugin-class)
+- [What a Plugin's Classes Can Take](#what-a-plugins-classes-can-take)
+- [Load Order](#load-order)
+- [A Plugin That Fails to Load](#a-plugin-that-fails-to-load)
+- [What a Reload Touches](#what-a-reload-touches)
+- [Stopping](#stopping)
 
-## A plugin is its sources
+## Introduction
+
+A plugin is never built into the server. The server finds it in a folder, compiles its C# sources,
+starts it, and from then on treats its commands, handlers, furni logic and the rest as its own.
+When a file changes, the server compiles the plugin again and swaps the new version in while the
+hotel keeps running; when the plugin is turned off, every trace of it goes. This page is that life,
+step by step: what the server compiles and refuses, what a plugin's classes can take by
+constructor, the order things start and stop in, and what a failure or a reload touches.
+
+> [!NOTE]
+> In a hurry? [Directory Structure](structure.md) shows a plugin's folder, and
+> [Installation](installation.md#your-first-plugin) gets one loaded in three commands.
+
+## A Plugin Is Its Sources
 
 The server runs a plugin's code only by compiling it from the plugin's C# sources, as it loads the
 plugin. There is no plugin assembly: a plugin folder holds its `manifest.json`, its sources and its
@@ -44,7 +66,7 @@ C# version, policy analyzer and Orleans generator. `npm run check` (`dotnet buil
 fails as the server's compile would; the project is for the editor, the tests and `dotnet ef`, and
 what it builds is never installed.
 
-### What a plugin may not do
+### What a Plugin May Not Do
 
 Code that does one of these is **refused** (the plugin is `Rejected`, with the rule and its file
 and line):
@@ -64,13 +86,14 @@ bytes are one) is refused the same way, and the panel and GitHub installs refuse
 before installing it. Images, fonts, `.nitro` bundles, texts and JSON are a plugin's data and are
 allowed. A refused plugin is not tried again until a file in its folder changes.
 
-**Plugins are full trust.** A plugin runs in the server's process with the server's own access:
-its database, its files, the network, every player's session. The list above is a norm every
-plugin is held to and makes a plugin's sources the whole of what it runs, so reading them tells
-you what it does; it is not a sandbox (reflection reaches anything). Read a plugin, or know its
-author, before you install it, as you would any server code.
+> [!WARNING]
+> **Plugins are full trust.** A plugin runs in the server's process with the server's own access:
+> its database, its files, the network, every player's session. The list above is a norm every
+> plugin is held to and makes a plugin's sources the whole of what it runs, so reading them tells
+> you what it does; it is not a sandbox (reflection reaches anything). Read a plugin, or know its
+> author, before you install it, as you would any server code.
 
-### When a plugin does not load
+### When a Plugin Does Not Load
 
 | The panel says | What to do |
 |---|---|
@@ -81,7 +104,7 @@ author, before you install it, as you would any server code.
 | **Failed**: `CS0234 The type or namespace name 'Rooms' does not exist in the namespace 'Turbo'` | the plugin uses the server's internals: use the contracts (`Turbo.Contracts`, `Turbo.Primitives`) instead (below) |
 | **Failed** with an exception | it compiled and threw as it started: the log has the stack trace with the plugin's file and line |
 
-### From the server's internals to the contracts
+### From the Server's Internals to the Contracts
 
 | A plugin that used | Uses |
 | --- | --- |
@@ -94,7 +117,7 @@ author, before you install it, as you would any server code.
 | `WiredVariableIdBuilder.CreateFromBoxId` | `WiredVariableId.OfBox` |
 | an embedded resource or the assembly's folder | `IPluginFiles.OpenRead(path)`: a file of the plugin's own folder |
 
-## The plugin class
+## The Plugin Class
 
 A plugin's class derives from `TurboPlugin` (`Turbo.Contracts.Plugins`) and writes only what it
 adds: its key and version are its manifest's, and the host does the rest.
@@ -130,7 +153,7 @@ A plugin written against `ITurboPlugin` itself (`Key`, `Version`, `ConfigureServ
 `StartAsync`, `StopAsync`, `BindExportsAsync`, `DisposeAsync`) loads too; the conventions
 above apply to it as well, except where it does the same itself.
 
-## What a plugin's classes can take
+## What a Plugin's Classes Can Take
 
 When a plugin loads, Turbo Cloud scans its assembly and builds every public, concrete, top-level
 class it declares of these kinds: packet handlers and behaviours, chat commands, suggestion sources
@@ -178,7 +201,7 @@ A class whose constructor still can't be resolved fails the plugin's load (below
 service named in the panel's error: "Unable to resolve service for type '...' while attempting to
 activate '...'".
 
-## Load order
+## Load Order
 
 At start, every plugin found (the folders under `Turbo:Plugin:PluginFolderPath` and the
 `Turbo:Plugin:DevPluginPaths`, a dev path winning over an installed folder of the same key) is
@@ -196,7 +219,7 @@ runs, in this order:
 
 The plugin is **Loaded** once all five are done.
 
-## A plugin that fails to load
+## A Plugin That Fails to Load
 
 One plugin that fails does not stop the server or the other plugins. Whatever the step, the plugin
 is marked **Failed** (or **Rejected**, above) with the reason, which the admin panel's plugin list
@@ -211,7 +234,7 @@ the old one stops. One that fails after that (as it starts) does not keep the ol
 old version was stopped to make way for it. The panel's upload puts the kept earlier version back
 when the new one fails.
 
-## What a reload touches
+## What a Reload Touches
 
 A reload replaces the plugins it is about and leaves every other plugin running:
 

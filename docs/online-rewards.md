@@ -1,5 +1,13 @@
 # Online rewards
 
+- [Introduction](#introduction)
+- [Settings](#settings)
+- [When a player is paid](#when-a-player-is-paid)
+- [What the player sees](#what-the-player-sees)
+- [How it runs](#how-it-runs)
+
+## Introduction
+
 Currency paid to players for time online: every so many minutes of a player's session, each
 player logged in gets an amount of a currency. It is operator tooling, like `:give @online` on a
 timer, not a Habbo feature, so it is off until a hotel turns it on (`Turbo:OnlineRewards:Enabled`)

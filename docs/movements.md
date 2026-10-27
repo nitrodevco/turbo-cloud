@@ -1,5 +1,27 @@
 # Asset movements
 
+- [Introduction](#introduction)
+- [The switch](#the-switch)
+- [The record](#the-record)
+- [Recording a movement](#recording-a-movement)
+- [Causes](#causes)
+- [Who writes the rows](#who-writes-the-rows)
+- [The wallet](#the-wallet)
+- [The inventory](#the-inventory)
+- [The room](#the-room)
+- [Holders, made-in-room and borrowed furni](#holders-made-in-room-and-borrowed-furni)
+- [Pets and bots](#pets-and-bots)
+- [Trades](#trades)
+- [Gifts](#gifts)
+- [The marketplace](#the-marketplace)
+- [Consuming movements](#consuming-movements)
+    - [The server's currency ledger](#the-servers-currency-ledger)
+- [Reversing a movement](#reversing-a-movement)
+- [The plugin API](#the-plugin-api)
+- [Decided for now](#decided-for-now)
+
+## Introduction
+
 Core can record every furni, pet, bot and currency that changes **owner**, **place** or
 **existence** into one table, `asset_movement_outbox`, for a plugin to consume (an audit ledger, a
 rollback tool, dupe detection). Core says what moved, from where, to where, why and who did it;

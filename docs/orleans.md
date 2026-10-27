@@ -1,5 +1,32 @@
 # Orleans in Turbo Cloud
 
+- [Introduction](#introduction)
+- [Quick Mental Model](#quick-mental-model)
+- [Core Concepts for New Contributors](#core-concepts-for-new-contributors)
+- [Where Orleans Is Configured](#where-orleans-is-configured)
+- [Storage and State in This Repo](#storage-and-state-in-this-repo)
+- [Streams in This Repo](#streams-in-this-repo)
+- [Snapshots: When and Why](#snapshots-when-and-why)
+- [Grain contract compatibility](#grain-contract-compatibility)
+- [Messenger integration deployment](#messenger-integration-deployment)
+- [Request Flow Examples](#request-flow-examples)
+    - [Example A: Catalog purchase](#example-a-catalog-purchase)
+    - [Example B: Player enters/leaves room](#example-b-player-entersleaves-room)
+- [Session and Presence Flow (High Level)](#session-and-presence-flow-high-level)
+- [How Plugins Fit with Orleans](#how-plugins-fit-with-orleans)
+- [Extension Guide](#extension-guide)
+    - [Add a new grain-backed feature](#add-a-new-grain-backed-feature)
+    - [Grain vs regular service (rule of thumb)](#grain-vs-regular-service-rule-of-thumb)
+- [Cleanup and Lifecycle Test Checklist](#cleanup-and-lifecycle-test-checklist)
+- [Common Pitfalls](#common-pitfalls)
+- [File Map](#file-map)
+
+## Introduction
+
+How Turbo's core uses Orleans: where the silo is configured, the grain storage and streams it
+registers, and the patterns its grains follow. It is for people changing core; a plugin author wants
+[Grains & Orleans](grains.md) instead.
+
 ## Quick Mental Model
 Turbo Cloud runs Orleans in-process with the emulator host. Domain behavior is modeled as grains (players, rooms, catalog, inventory, directories), and app services/packet handlers call grains through `IGrainFactory`.
 

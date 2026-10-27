@@ -1,5 +1,11 @@
 # Plugin packets
 
+- [Introduction](#introduction)
+- [Rules](#rules)
+- [Usage](#usage)
+
+## Introduction
+
 A plugin can add packets of its own to Turbo's protocol without touching a revision, through
 `IExtensionPacketRegistry` (`Turbo.Primitives`). It is the extension side of
 `docs/client-capabilities.md`: a client that never asks for a plugin's capability never receives

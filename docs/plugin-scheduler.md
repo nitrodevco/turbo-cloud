@@ -1,5 +1,16 @@
 # Scheduled tasks
 
+- [Introduction](#introduction)
+- [A weekly job](#a-weekly-job)
+- [Schedules](#schedules)
+- [A schedule staff can move](#a-schedule-staff-can-move)
+- [Testing a task](#testing-a-task)
+- [One run per server](#one-run-per-server)
+- [The admin API](#the-admin-api)
+- [Not in this](#not-in-this)
+
+## Introduction
+
 A plugin that has to do something on a clock (reprice a shop every Monday, hand out a daily prize,
 expire offers every five minutes) declares a scheduled task. There is no loop to write: the server
 finds the task as the plugin loads, runs it on its schedule, and takes it away when the plugin

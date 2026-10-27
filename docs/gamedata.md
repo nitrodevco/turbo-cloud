@@ -1,5 +1,23 @@
 # Gamedata
 
+- [Introduction](#introduction)
+- [How it works](#how-it-works)
+- [Product data](#product-data)
+- [External texts](#external-texts)
+- [Figure data](#figure-data)
+    - [The figure and effect maps](#the-figure-and-effect-maps)
+    - [What a player may wear](#what-a-player-may-wear)
+- [Reading asset files (Turbo.Assets)](#reading-asset-files-turboassets)
+- [Serving the files](#serving-the-files)
+- [External variables](#external-variables)
+- [Hotel view](#hotel-view)
+- [Setting it up in production (Ploi)](#setting-it-up-in-production-ploi)
+- [Settings (Turbo:Gamedata)](#settings-turbogamedata)
+- [Permissions](#permissions)
+- [Known limits](#known-limits)
+
+## Introduction
+
 The hotel keeps its gamedata in the database and builds the files the client loads from it:
 FurnitureData, the external texts, the product data, the figure data, and the client's
 configuration (its external variables). Habbo's releases are checked for updates and taken in after review,

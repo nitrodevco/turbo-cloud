@@ -1,5 +1,48 @@
 # Permissions, groups and security levels
 
+- [Introduction](#introduction)
+- [1. What is there now](#1-what-is-there-now)
+- [2. What the client gates on, which is the contract we have to fit](#2-what-the-client-gates-on-which-is-the-contract-we-have-to-fit)
+- [3. Vocabulary](#3-vocabulary)
+- [4. Nodes and the registry](#4-nodes-and-the-registry)
+    - [Strings in storage, constants in code](#strings-in-storage-constants-in-code)
+    - [Registration](#registration)
+- [5. Groups, inheritance and resolution](#5-groups-inheritance-and-resolution)
+    - [Groups](#groups)
+    - [Resolution](#resolution)
+- [6. Meta](#6-meta)
+- [7. The node catalogue](#7-the-node-catalogue)
+- [8. The projection to the client](#8-the-projection-to-the-client)
+    - [What a level leaks, and the Nitro opt-in](#what-a-level-leaks-and-the-nitro-opt-in)
+- [9. Where the authority lives](#9-where-the-authority-lives)
+    - [The console](#the-console)
+- [10. Audit and the check trace](#10-audit-and-the-check-trace)
+- [11. How gating is enforced](#11-how-gating-is-enforced)
+- [12. What is deliberately left out](#12-what-is-deliberately-left-out)
+- [13. Schema](#13-schema)
+    - [Floor plans and Builders Club, as built](#floor-plans-and-builders-club-as-built)
+    - [The other gates, as built](#the-other-gates-as-built)
+- [14. Build order](#14-build-order)
+- [15. Decisions](#15-decisions)
+- [16. Navigator categories: MinRank, StaffOnly and required_node](#16-navigator-categories-minrank-staffonly-and-required_node)
+    - [Catalog pages: min_rank and required_node](#catalog-pages-min_rank-and-required_node)
+- [17. Audit against LuckPerms and the clients (2026-09-28)](#17-audit-against-luckperms-and-the-clients-2026-09-28)
+    - [17.1 Wrong in what is built — fixed](#171-wrong-in-what-is-built--fixed)
+    - [17.2 Client gates the catalogue (§7) is missing](#172-client-gates-the-catalogue-7-is-missing)
+    - [17.3 Code already waiting for this system](#173-code-already-waiting-for-this-system)
+    - [17.4 LuckPerms features, and whether to take them](#174-luckperms-features-and-whether-to-take-them)
+- [18. Using permissions from a plugin](#18-using-permissions-from-a-plugin)
+    - [Declare the nodes](#declare-the-nodes)
+    - [Gate a packet](#gate-a-packet)
+    - [Check anywhere else](#check-anywhere-else)
+    - [Create the plugin's groups](#create-the-plugins-groups)
+    - [Ranks are groups](#ranks-are-groups)
+    - [React to changes](#react-to-changes)
+    - [What not to make a node](#what-not-to-make-a-node)
+    - [Hot reload](#hot-reload)
+
+## Introduction
+
 Implementation plan for a permission system. **Every phase of §14 is built**: the node
 constants, registry and resolver (`Turbo.Primitives/Players/Permissions/`, tested in `Turbo.Tests`);
 the tables and seeds (§13); the grains, audit, expiry and the `perm` console command (§9); the
