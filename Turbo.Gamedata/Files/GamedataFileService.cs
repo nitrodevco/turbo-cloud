@@ -213,10 +213,12 @@ internal sealed class GamedataFileService(
             GamedataFiles.EXTERNAL_TEXTS => await RowsStamp
                 .ReadAsync(dbCtx, dbCtx.GamedataTexts, ct)
                 .ConfigureAwait(false),
-            // Who gets which theme changes what the variables give too.
+            // Who gets which theme changes what the variables give too, and a text staff change
+            // takes a theme's text of it away (text.overrides).
             GamedataFiles.EXTERNAL_VARIABLES => (
                 await RowsStamp.ReadAsync(dbCtx, dbCtx.GamedataVariables, ct).ConfigureAwait(false),
-                await ThemeRows.StampAsync(dbCtx, ct).ConfigureAwait(false)
+                await ThemeRows.StampAsync(dbCtx, ct).ConfigureAwait(false),
+                await RowsStamp.ReadAsync(dbCtx, dbCtx.GamedataTexts, ct).ConfigureAwait(false)
             ),
             GamedataFiles.BADGE_PARTS => GamedataBytes.Hash(
                 (await BadgePartsAsync(dbCtx, ct).ConfigureAwait(false)).Content
@@ -612,11 +614,19 @@ internal sealed class GamedataFileService(
 
         // The default theme's look (every Live theme's with none): a session drawing another is
         // given its own merged variables (ThemeVariablesAsync).
-        var include = ThemeChains.Includes(ThemeChains.DefaultOf(themes.Values), themes);
+        var defaultTheme = ThemeChains.DefaultOf(themes.Values);
+        var include = ThemeChains.Includes(defaultTheme, themes);
+        var texts = new ThemeTexts(
+            await StaffTextsAsync(dbCtx, ct).ConfigureAwait(false),
+            DepthIn(defaultTheme, themes)
+        );
 
         foreach (var key in ExternalVariablesFile.MERGED)
         {
-            if (MergedOf(key, variables.GetValueOrDefault(key), include, log: true) is { } value)
+            if (
+                MergedOf(key, variables.GetValueOrDefault(key), include, texts, log: true) is
+                { } value
+            )
                 variables[key] = value;
             else
                 variables.Remove(key);
@@ -649,7 +659,13 @@ internal sealed class GamedataFileService(
     /// with the hotel's own entries over them while the hotel's own theme is one of them (the template
     /// libraries the hotel points at are its own whatever the theme); null for nothing.
     /// </summary>
-    private string? MergedOf(string key, string? hotel, Func<string, bool> include, bool log)
+    private string? MergedOf(
+        string key,
+        string? hotel,
+        Func<string, bool> include,
+        ThemeTexts texts,
+        bool log
+    )
     {
         var own =
             include(ThemeChains.HOTEL)
@@ -657,6 +673,22 @@ internal sealed class GamedataFileService(
                 ? hotel
                 : null;
         var owned = plugins.OwnedPartsOf(key, include);
+
+        // A theme's text of a key staff changed is the hotel's text, not the theme's; of two themes
+        // of the chain giving one key, the nearer one's is drawn.
+        if (string.Equals(key, ExternalVariablesFile.TEXT_OVERRIDES, StringComparison.Ordinal))
+            owned =
+            [
+                .. owned
+                    .OrderBy(x => texts.Depth(x.Plugin))
+                    .Select(x =>
+                        (
+                            x.Plugin,
+                            Part: ExternalVariablesFile.WithoutKeys(x.Part, texts.Staff.Contains)
+                        )
+                    )
+                    .Where(x => ExternalVariablesFile.KeysOf(x.Part).Any()),
+            ];
 
         if (owned.Count == 0)
             return own;
@@ -735,10 +767,14 @@ internal sealed class GamedataFileService(
                 )
                 .ConfigureAwait(false);
             var include = ThemeChains.Includes(theme, themes);
+            var texts = new ThemeTexts(
+                await StaffTextsAsync(dbCtx, ct).ConfigureAwait(false),
+                DepthIn(theme, themes)
+            );
 
             variables = ExternalVariablesFile.MERGED.ToDictionary(
                 x => x,
-                x => MergedOf(x, hotel.GetValueOrDefault(x), include, log: false) ?? "{}",
+                x => MergedOf(x, hotel.GetValueOrDefault(x), include, texts, log: false) ?? "{}",
                 StringComparer.Ordinal
             );
         }
@@ -746,6 +782,62 @@ internal sealed class GamedataFileService(
         _themeBuilds[key] = new ThemeBuild(version, inputs, stamp, variables);
 
         return variables;
+    }
+
+    /// <summary>What the themes' texts are merged by: the keys staff made the hotel's, and each plugin's place in the chain.</summary>
+    private sealed record ThemeTexts(IReadOnlySet<string> Staff, Func<string, int> Depth);
+
+    /// <summary>A plugin's place in <paramref name="theme"/>'s chain: the theme 0, what it extends 1, ...; any other after them.</summary>
+    private static Func<string, int> DepthIn(
+        string? theme,
+        IReadOnlyDictionary<string, ThemeAudience> themes
+    )
+    {
+        var depth = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var key = theme;
+
+        while (key is not null && depth.Count < 8 && depth.TryAdd(key, depth.Count))
+            key = themes.TryGetValue(key, out var at) ? at.Extends : null;
+
+        return plugin => depth.TryGetValue(plugin, out var at) ? at : int.MaxValue;
+    }
+
+    /// <summary>
+    /// The keys of the themes' texts (<see cref="ExternalVariablesFile.TEXT_OVERRIDES"/>) that staff
+    /// made the hotel's own: the hotel has a text for the key that isn't Habbo's as last taken in (one
+    /// Habbo has none of included). A key the hotel has no text of, or still Habbo's, is the theme's.
+    /// </summary>
+    private async Task<IReadOnlySet<string>> StaffTextsAsync(
+        TurboDbContext dbCtx,
+        CancellationToken ct
+    )
+    {
+        var keys = plugins
+            .OwnedPartsOf(ExternalVariablesFile.TEXT_OVERRIDES)
+            .SelectMany(x => ExternalVariablesFile.KeysOf(x.Part))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (keys.Count == 0)
+            return new HashSet<string>(StringComparer.Ordinal);
+
+        var hotel = await dbCtx
+            .GamedataTexts.AsNoTracking()
+            .Where(x => keys.Contains(x.Key))
+            .Select(x => new { x.Key, x.Value })
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        var hotelKeys = hotel.Select(x => x.Key).ToList();
+        var habbo = await dbCtx
+            .HabboTexts.AsNoTracking()
+            .Where(x => hotelKeys.Contains(x.Key))
+            .ToDictionaryAsync(x => x.Key, x => x.Value, StringComparer.Ordinal, ct)
+            .ConfigureAwait(false);
+
+        return hotel
+            .Where(x => !habbo.TryGetValue(x.Key, out var value) || value != x.Value)
+            .Select(x => x.Key)
+            .ToHashSet(StringComparer.Ordinal);
     }
 
     /// <summary>The hotel's own variables, each written with what it follows, but a plugin's own while it isn't loaded.</summary>

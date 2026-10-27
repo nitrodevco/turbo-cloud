@@ -1091,6 +1091,8 @@ public sealed class DataPluginTests : IDisposable
     public async Task A_plugin_s_phrases_list_with_its_default_beside_staff_s_change()
     {
         WriteTheme("mytheme");
+        // A phrase pack, no theme: its texts are given to the hotel (a theme's are its look, text.overrides).
+        File.Delete(Path.Combine(_folder, "mytheme", ThemeStyles.FILE));
         Directory.CreateDirectory(Path.Combine(_folder, "mytheme", PluginGamedataSeeds.FOLDER));
         File.WriteAllText(
             Path.Combine(

@@ -111,6 +111,29 @@ public interface IPluginStyles
         CancellationToken ct
     );
 
+    /// <summary>The texts in a plugin's own files (its <c>gamedata/external_texts.txt</c>), by key; none without the file.</summary>
+    public Task<ImmutableDictionary<string, string>> TextsAsync(
+        string folder,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Sets texts in the theme <paramref name="pluginKey"/>'s own files (its
+    /// <c>gamedata/external_texts.txt</c>): each of <paramref name="texts"/> a text key and what it
+    /// says, or null to take the theme's text away. A theme's text is drawn for the players who get
+    /// the theme, over the hotel's for every key staff never changed (<c>text.overrides</c>,
+    /// turbo-cloud <c>docs/plugin-data.md</c>); the hotel's own texts are Gamedata &gt; Texts'. Every
+    /// entry is checked before anything is written: one that is wrong throws
+    /// <see cref="System.ArgumentException"/> naming each, and nothing changes. Answers the theme's
+    /// texts after.
+    /// </summary>
+    public Task<ImmutableDictionary<string, string>> SetTextsAsync(
+        string pluginKey,
+        string folder,
+        IReadOnlyDictionary<string, string?> texts,
+        CancellationToken ct
+    );
+
     /// <summary>
     /// Replaces many library bitmaps at once (a skin set) for the hotel, or in the theme
     /// <paramref name="pluginKey"/> staff work on: each of <paramref name="overlays"/> is an

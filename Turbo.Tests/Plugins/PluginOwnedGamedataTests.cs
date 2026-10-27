@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Turbo.Database.Entities.Gamedata;
 using Turbo.Gamedata;
 using Turbo.Gamedata.ClientModules;
 using Turbo.Gamedata.Configuration;
@@ -320,6 +321,201 @@ public sealed class PluginOwnedGamedataTests : IDisposable
         sent["theme.b"]!.GetValue<int>().Should().Be(5);
         sent.ContainsKey("theme.a").Should().BeFalse();
         sent.ContainsKey("theme.new").Should().BeFalse();
+    }
+
+    /// <summary>The theme's texts a client drawing the theme is given now (text.overrides), as it reads them.</summary>
+    private async Task<Dictionary<string, string>> SentThemeTextsAsync()
+    {
+        var variables = await _files.ThemeVariablesAsync("theme", Ct);
+        var texts = JsonNode.Parse(variables![ExternalVariablesFile.TEXT_OVERRIDES])!.AsObject();
+
+        return texts.ToDictionary(x => x.Key, x => x.Value!.GetValue<string>());
+    }
+
+    /// <summary>Makes the plugin a theme: one with a <c>theme.json</c>.</summary>
+    private void MakeItATheme() =>
+        File.WriteAllText(Path.Combine(_folder, "theme", "theme.json"), """{ "styles": {} }""");
+
+    [Fact]
+    public async Task A_themes_texts_reach_clients_over_the_hotels_for_keys_staff_never_changed()
+    {
+        // Habbo's texts as last taken in: the hotel still has Habbo's title, and staff changed its body.
+        await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
+        {
+            var version = new HabboTextVersionEntity
+            {
+                Domain = "com",
+                Hash = "h",
+                Content = [],
+            };
+
+            db.HabboTextVersions.Add(version);
+            await db.SaveChangesAsync(Ct);
+            db.HabboTexts.AddRange(
+                new HabboTextEntity
+                {
+                    Key = "shop.title",
+                    Value = "Shop",
+                    HabboTextVersionEntityId = version.Id,
+                },
+                new HabboTextEntity
+                {
+                    Key = "shop.body",
+                    Value = "Buy",
+                    HabboTextVersionEntityId = version.Id,
+                }
+            );
+            db.GamedataTexts.AddRange(
+                new GamedataTextEntity { Key = "shop.title", Value = "Shop" },
+                new GamedataTextEntity { Key = "shop.body", Value = "Staff's" }
+            );
+            await db.SaveChangesAsync(Ct);
+        }
+
+        WriteTheme("{}", "shop.title=Night shop\nshop.body=Night body\nnight.only=Night\n");
+        MakeItATheme();
+        await _manager.LoadAllAsync(ct: Ct);
+
+        (await SentThemeTextsAsync())
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string>
+                {
+                    ["shop.title"] = "Night shop",
+                    ["night.only"] = "Night",
+                }
+            );
+        // The hotel's texts are left as they are: none of the theme's is given to it.
+        (await _texts.GetValuesAsync(["shop.title", "shop.body", "night.only"], Ct))
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string>
+                {
+                    ["shop.title"] = "Shop",
+                    ["shop.body"] = "Staff's",
+                }
+            );
+
+        // Staff change the title after: it is the hotel's from then on.
+        await _texts.SaveAsync("shop.title", "Our shop", STAFF, Ct);
+
+        (await SentThemeTextsAsync())
+            .Should()
+            .BeEquivalentTo(new Dictionary<string, string> { ["night.only"] = "Night" });
+    }
+
+    [Fact]
+    public async Task A_theme_seeded_into_the_hotel_before_has_its_texts_back_and_staffs_edits_stay()
+    {
+        // Under the old rule the plugin's texts were given to the hotel (it had no theme.json then).
+        WriteTheme("{}", "night.title=Night\nnight.body=Night body\n");
+        await _manager.LoadAllAsync(ct: Ct);
+        (await _texts.GetValuesAsync(["night.title", "night.body"], Ct)).Should().HaveCount(2);
+        await _texts.SaveAsync("night.body", "Staff's body", STAFF, Ct);
+
+        // Now a theme: what it gave and staff left goes from the hotel and is the theme's again.
+        MakeItATheme();
+        await _manager.ReloadAsync("theme", Ct);
+
+        (await _texts.GetValuesAsync(["night.title", "night.body"], Ct))
+            .Should()
+            .BeEquivalentTo(new Dictionary<string, string> { ["night.body"] = "Staff's body" });
+        (await SentThemeTextsAsync())
+            .Should()
+            .BeEquivalentTo(new Dictionary<string, string> { ["night.title"] = "Night" });
+    }
+
+    [Fact]
+    public async Task Staff_set_a_themes_texts_in_its_own_file_and_clients_drawing_it_get_them()
+    {
+        WriteTheme("{}", "night.title=Night\nnight.gone=Gone\n");
+        MakeItATheme();
+        await _manager.LoadAllAsync(ct: Ct);
+        var styles = new PluginStyleService(_variables);
+        var folder = Path.Combine(_folder, "theme");
+
+        await styles.SetTextsAsync(
+            "theme",
+            folder,
+            new Dictionary<string, string?>
+            {
+                ["night.title"] = "Night shop",
+                ["night.gone"] = null,
+            },
+            Ct
+        );
+        await _manager.ReloadAsync("theme", Ct);
+
+        (await SentThemeTextsAsync())
+            .Should()
+            .BeEquivalentTo(new Dictionary<string, string> { ["night.title"] = "Night shop" });
+
+        // The hotel's own texts are Gamedata > Texts', and a key is one line before its first '='.
+        await styles
+            .Invoking(x =>
+                x.SetTextsAsync(
+                    "hotel",
+                    folder,
+                    new Dictionary<string, string?> { ["a"] = "b" },
+                    Ct
+                )
+            )
+            .Should()
+            .ThrowAsync<ArgumentException>();
+        await styles
+            .Invoking(x =>
+                x.SetTextsAsync(
+                    "theme",
+                    folder,
+                    new Dictionary<string, string?> { ["a=b"] = "c" },
+                    Ct
+                )
+            )
+            .Should()
+            .ThrowAsync<ArgumentException>();
+        (await styles.TextsAsync(folder, Ct))
+            .Should()
+            .BeEquivalentTo(new Dictionary<string, string> { ["night.title"] = "Night shop" });
+        File.ReadAllText(Path.Combine(folder, "gamedata", "external_texts.txt"))
+            .Should()
+            .Be("night.title=Night shop\n");
+    }
+
+    [Fact]
+    public async Task Of_two_themes_of_a_chain_giving_one_text_the_nearer_ones_is_drawn()
+    {
+        WriteTheme("{}", "shared.title=Parent\nparent.only=Parent\n");
+        MakeItATheme();
+        // "achild" extends "theme" and sorts before it: the order by key alone would draw the parent's.
+        PluginBuilder.Write(
+            _folder,
+            "achild",
+            SOURCE.Replace("\"theme\"", "\"achild\"").Replace("ThemePlugin", "ChildPlugin")
+        );
+        Directory.CreateDirectory(Path.Combine(_folder, "achild", "gamedata"));
+        File.WriteAllText(
+            Path.Combine(_folder, "achild", "gamedata", "external_texts.txt"),
+            "shared.title=Child\n"
+        );
+        File.WriteAllText(
+            Path.Combine(_folder, "achild", "theme.json"),
+            """{ "extends": "theme", "styles": {} }"""
+        );
+        await _manager.LoadAllAsync(ct: Ct);
+
+        var variables = await _files.ThemeVariablesAsync("achild", Ct);
+        var texts = JsonNode.Parse(variables![ExternalVariablesFile.TEXT_OVERRIDES])!.AsObject();
+
+        texts
+            .ToDictionary(x => x.Key, x => x.Value!.GetValue<string>())
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string>
+                {
+                    ["shared.title"] = "Child",
+                    ["parent.only"] = "Parent",
+                }
+            );
     }
 
     [Fact]

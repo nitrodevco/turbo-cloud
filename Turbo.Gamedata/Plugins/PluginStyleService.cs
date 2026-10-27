@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Turbo.Gamedata.Texts;
 using Turbo.Gamedata.Variables;
 using Turbo.Primitives.ClientModules;
 using Turbo.Primitives.Gamedata;
@@ -32,6 +33,13 @@ internal sealed partial class PluginStyleService(
     private const int MAX_OVERLAYS = 1000;
 
     private const int MAX_URL = 2048;
+
+    /// <summary>The texts one change sets at most, and a text key's and a text's length.</summary>
+    private const int MAX_TEXTS = 1000;
+
+    private const int MAX_TEXT_KEY = 255;
+
+    private const int MAX_TEXT = 4000;
 
     private const string WWWROOT = "wwwroot";
 
@@ -127,6 +135,87 @@ internal sealed partial class PluginStyleService(
         }
 
         return Of(pluginKey, property, styles);
+    }
+
+    public async Task<ImmutableDictionary<string, string>> TextsAsync(
+        string folder,
+        CancellationToken ct
+    )
+    {
+        var path = Path.Combine(folder, PluginGamedataSeeds.FOLDER, PluginGamedataSeeds.TEXTS_FILE);
+
+        return File.Exists(path)
+            ? ExternalTextsFile
+                .Parse(await File.ReadAllTextAsync(path, ct).ConfigureAwait(false))
+                .ToImmutableDictionary(StringComparer.Ordinal)
+            : ImmutableDictionary<string, string>.Empty;
+    }
+
+    public async Task<ImmutableDictionary<string, string>> SetTextsAsync(
+        string pluginKey,
+        string folder,
+        IReadOnlyDictionary<string, string?> texts,
+        CancellationToken ct
+    )
+    {
+        var problems = new List<string>();
+
+        // The hotel's own texts are its rows (Gamedata > Texts); only a theme has a texts file of its own.
+        if (pluginKey == IHotelDataPlugin.KEY)
+            problems.Add(
+                "The hotel's texts are changed on Gamedata > Texts, not in a theme's files."
+            );
+
+        if (texts.Count == 0)
+            problems.Add("Name at least one text.");
+
+        if (texts.Count > MAX_TEXTS)
+            problems.Add($"At most {MAX_TEXTS} texts at once.");
+
+        foreach (var (key, value) in texts)
+        {
+            // As Habbo's file reads a line: a key ends at its first '=' and a line at a line break.
+            if (
+                key.Length is 0 or > MAX_TEXT_KEY
+                || key.Trim() != key
+                || key.IndexOfAny(['=', '\r', '\n']) >= 0
+                || key.StartsWith('#')
+            )
+                problems.Add($"{key} is no text key.");
+            else if (
+                value is not null
+                && (value.Length > MAX_TEXT || value.IndexOfAny(['\r', '\n']) >= 0)
+            )
+                problems.Add(
+                    $"{key}: a text is one line of at most {MAX_TEXT} characters (a line break is written \\n)."
+                );
+        }
+
+        if (problems.Count > 0)
+            throw new ArgumentException(string.Join(" ", problems), nameof(texts));
+
+        var path = Path.Combine(folder, PluginGamedataSeeds.FOLDER, PluginGamedataSeeds.TEXTS_FILE);
+        var own = File.Exists(path)
+            ? ExternalTextsFile.Parse(await File.ReadAllTextAsync(path, ct).ConfigureAwait(false))
+            : new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var (key, value) in texts)
+        {
+            if (value is null)
+                own.Remove(key);
+            else
+                own[key] = value;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllBytesAsync(
+                path,
+                ExternalTextsFile.Write(own.Select(x => (x.Key, x.Value))),
+                ct
+            )
+            .ConfigureAwait(false);
+
+        return own.ToImmutableDictionary(StringComparer.Ordinal);
     }
 
     public async Task<ImmutableDictionary<string, string>> SetOverlaysAsync(

@@ -102,6 +102,14 @@ internal static class ExternalVariablesFile
     public const string TEXT_FONTS = "text.fonts";
 
     /// <summary>
+    /// A theme's own texts (its <c>gamedata/external_texts.txt</c>): <c>{ "&lt;key&gt;": "&lt;text&gt;" }</c>,
+    /// drawn by the client over the hotel's texts for the players who get the theme. A key staff
+    /// changed on Gamedata &gt; Texts (the hotel's text is not Habbo's) is the hotel's: it is left out
+    /// as the variables are written (<see cref="WithoutKeys"/>).
+    /// </summary>
+    public const string TEXT_OVERRIDES = "text.overrides";
+
+    /// <summary>
     /// The variables a plugin brings a part of rather than the whole: a JSON object whose entries
     /// several plugins add to (<c>asset.bundles.templates.overrides</c>, a url per template
     /// library; <see cref="TEMPLATE_PATCHES"/>, a url per plugin; <see cref="FRAME_OVERRIDES"/>, a
@@ -120,6 +128,7 @@ internal static class ExternalVariablesFile
         LOADING_SCREEN,
         TEXT_STYLES,
         TEXT_FONTS,
+        TEXT_OVERRIDES,
     ];
 
     /// <summary>
@@ -160,6 +169,24 @@ internal static class ExternalVariablesFile
                 merged[name] = Over(merged[name], value);
 
         return merged.ToJsonString(TEXT);
+    }
+
+    /// <summary>The entry names of a merged variable's part.</summary>
+    public static IEnumerable<string> KeysOf(string part) => Entries(part).Select(x => x.Key);
+
+    /// <summary>A merged variable's part without the entries <paramref name="drop"/> names: the same text when it drops none.</summary>
+    public static string WithoutKeys(string part, Func<string, bool> drop)
+    {
+        var entries = Entries(part).ToList();
+
+        if (!entries.Any(x => drop(x.Key)))
+            return part;
+
+        return new JsonObject(
+            entries
+                .Where(x => !drop(x.Key))
+                .Select(x => KeyValuePair.Create(x.Key, x.Value?.DeepClone()))
+        ).ToJsonString(TEXT);
     }
 
     /// <summary><paramref name="over"/> over <paramref name="under"/>: two objects field by field, anything else <paramref name="over"/>.</summary>

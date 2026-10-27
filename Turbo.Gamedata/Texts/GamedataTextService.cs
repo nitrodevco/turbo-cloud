@@ -140,6 +140,8 @@ internal sealed class GamedataTextService(
     protected override void Changed()
     {
         files.Invalidate(GamedataFiles.EXTERNAL_TEXTS);
+        // A text staff change is the hotel's over a theme's text of it (text.overrides).
+        files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
         hotelTexts.Invalidate();
     }
 
