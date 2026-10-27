@@ -51,13 +51,7 @@ public abstract class FurnitureWiredSubVariableAddonLogic(
         string suffix,
         FurnitureWiredVariableLogic parent,
         Func<IWiredVariable, WiredVariableKey, WiredVariableValue?> compute
-    ) =>
-        new(
-            WiredVariableIdBuilder.CreateFromBoxId(ObjectId, index),
-            $"{parentName}.{suffix}",
-            parent,
-            compute
-        );
+    ) => new(WiredVariableId.OfBox(ObjectId, index), $"{parentName}.{suffix}", parent, compute);
 
     protected override Task OnWiredStackChangedAsync(
         ActionContext ctx,

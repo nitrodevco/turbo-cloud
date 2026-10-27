@@ -153,7 +153,7 @@ public abstract class FurnitureWiredVariableLogic
     )
         : base(grainFactory, stuffDataFactory, ctx)
     {
-        _variableId = WiredVariableIdBuilder.CreateFromBoxId(ctx.ObjectId.Value);
+        _variableId = WiredVariableId.OfBox(ctx.ObjectId.Value);
     }
 
     public virtual bool CanBind(in WiredVariableKey key)

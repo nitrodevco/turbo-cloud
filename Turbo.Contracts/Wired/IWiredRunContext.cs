@@ -48,8 +48,10 @@ public interface IWiredEffectContext : IWiredRunContext
     Task<string> FormatTextAsync(string text, CancellationToken ct);
 
     /// <summary>
-    /// A chat bubble over <paramref name="user"/> (Show Message's): the whole room sees it, or only
-    /// that user when <paramref name="onlyForThem"/> (a whisper). Pets are skipped.
+    /// A chat bubble over <paramref name="user"/>, as Show Message's: shown as
+    /// <paramref name="speech"/> says (the whole room, or a whisper only that player sees; its
+    /// bubble style and width). Pets are skipped, and only a player can be whispered over:
+    /// false for both, and for no text.
     /// </summary>
-    Task ShowMessageAsync(RoomUser user, string text, bool onlyForThem, CancellationToken ct);
+    Task<bool> SayAsync(RoomUser user, string text, RoomSpeech speech, CancellationToken ct);
 }

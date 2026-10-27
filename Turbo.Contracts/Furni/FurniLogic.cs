@@ -45,6 +45,25 @@ public abstract class FurniLogic
         Task.CompletedTask;
 
     /// <summary>
+    /// The logic lets go of the furni: it was picked up or its room unloads. What it scheduled
+    /// (<see cref="IFurniContext.Schedule"/>) never runs after this.
+    /// </summary>
+    public virtual Task OnDetachedAsync(IFurniContext ctx, CancellationToken ct) =>
+        Task.CompletedTask;
+
+    /// <summary>
+    /// Who may use it (double click): null keeps its definition's usage policy; a furni anyone
+    /// may use, a machine every visitor plays, says <see cref="FurnitureUsageType.Everybody"/>.
+    /// </summary>
+    public virtual FurnitureUsageType? UsagePolicy => null;
+
+    /// <summary>
+    /// Whether an avatar may walk onto it: null keeps its definition's; true for a tile the
+    /// logic acts on as it is stepped on whatever furni it is.
+    /// </summary>
+    public virtual bool? Walkable => null;
+
+    /// <summary>
     /// A user used it (double click). Return true when the logic handled it; false lets the furni do
     /// what it does by default (cycle its states).
     /// </summary>
@@ -79,16 +98,11 @@ public abstract class FurniLogic
     ) => Task.FromResult(FurniLogicReply.NotHandled);
 }
 
-/// <summary>The furni a <see cref="FurniLogic"/> runs for, and its room.</summary>
-public interface IFurniContext
+/// <summary>The furni a <see cref="FurniLogic"/> runs for, and its room in the room's turn.</summary>
+public interface IFurniContext : IRoomTurn
 {
-    RoomId Room { get; }
-
     /// <summary>The furni as it is now.</summary>
     RoomFurni Self { get; }
-
-    /// <summary>Everyone in the room: players, pets and bots.</summary>
-    IReadOnlyList<RoomUser> RoomUsers { get; }
 
     /// <summary>Sets the furni's state and shows it to the room.</summary>
     Task SetStateAsync(int state, CancellationToken ct);
@@ -146,11 +160,40 @@ public interface IFurniContext
         CancellationToken ct
     );
 
-    /// <summary>Stops the user where it is, finishing a step under way. False when it is not in the room.</summary>
-    Task<bool> StopWalkingAsync(RoomUser user, CancellationToken ct);
+    /// <summary>
+    /// <see cref="WalkToAsync"/> with <paramref name="tiles"/> tried in the order given, best
+    /// first, not nearest first: at once when the user stands still on the first, else walked to
+    /// the first of them it can reach (a machine used from in front of it, else from beside it).
+    /// </summary>
+    Task<bool> WalkToInOrderAsync(
+        RoomUser user,
+        IReadOnlyList<RoomTilePoint> tiles,
+        Func<RoomUser, CancellationToken, Task> onArrived,
+        CancellationToken ct
+    );
 
-    /// <summary>Turns the user (body and head) to <paramref name="rotation"/>. False when it is not in the room.</summary>
-    Task<bool> SetRotationAsync(RoomUser user, Rotation rotation, CancellationToken ct);
+    /// <summary>The tile in front of the furni, the way it faces; null when that is off the map.</summary>
+    RoomTilePoint? TileInFront { get; }
+
+    /// <summary>
+    /// The tiles touching the furni (diagonals included) <paramref name="user"/> may stand on,
+    /// nearest to the user first: where it is used from when used from beside it.
+    /// </summary>
+    IReadOnlyList<RoomTilePoint> TilesBeside(RoomUser user);
+
+    /// <summary>Whether the user stands still on a tile touching the furni.</summary>
+    bool StandsBeside(RoomUser user);
+
+    /// <summary>
+    /// Runs <paramref name="run"/> once, <paramref name="delay"/> from now by the room's clock, in
+    /// the room's turn (a spin's result, a rest's end, a game's next second). One per furni: a
+    /// later call replaces the one waiting. Never runs once the furni is picked up or its room
+    /// unloads.
+    /// </summary>
+    void Schedule(TimeSpan delay, Func<CancellationToken, Task> run);
+
+    /// <summary>Forgets the run <see cref="Schedule"/> is waiting with, if any.</summary>
+    void CancelSchedule();
 
     /// <summary>
     /// Shows the room the user taking one step to <paramref name="to"/> (its <c>mv</c> status, facing

@@ -34,7 +34,7 @@ namespace Turbo.Rooms.Object.Logic.Plugins;
 /// (<see cref="FurnitureWalkToUseLogic"/>), with the plugin's callback as the arrival. Its watches
 /// are <paramref name="plugin"/>'s, through <paramref name="leases"/>.
 /// </summary>
-internal sealed class PluginFurniLogic(
+internal sealed partial class PluginFurniLogic(
     IStuffDataFactory stuffDataFactory,
     IRoomFloorItemContext ctx,
     FurniLogic logic,
@@ -55,9 +55,6 @@ internal sealed class PluginFurniLogic(
     public RoomId Room => _ctx.RoomId;
 
     public RoomFurni Self => PluginRoomViews.Furni(_ctx.RoomObject);
-
-    public IReadOnlyList<RoomUser> RoomUsers =>
-        [.. AvatarModule.Avatars.Select(PluginRoomViews.User)];
 
     // As long as core's own walk-to furni wait for someone walking over (a switch).
     protected override int WalkTimeoutMs => RoomConfig.FloorSwitchWalkTimeoutMs;
@@ -128,27 +125,6 @@ internal sealed class PluginFurniLogic(
             (arrived, token) => onArrived(PluginRoomViews.User(arrived), token),
             ct
         );
-    }
-
-    public async Task<bool> StopWalkingAsync(RoomUser user, CancellationToken ct)
-    {
-        if (!TryGetAvatar(user, out var avatar))
-            return false;
-
-        await AvatarModule.StopWalkingAsync(avatar, ct);
-
-        return true;
-    }
-
-    public Task<bool> SetRotationAsync(RoomUser user, Rotation rotation, CancellationToken ct)
-    {
-        if (!TryGetAvatar(user, out var avatar))
-            return Task.FromResult(false);
-
-        avatar.SetRotation(rotation);
-        avatar.MarkDirty();
-
-        return Task.FromResult(true);
     }
 
     public Task<bool> ShowStepAsync(RoomUser user, RoomTilePoint to, CancellationToken ct)
@@ -326,6 +302,7 @@ internal sealed class PluginFurniLogic(
     public override Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {
         _shownSteps.Clear();
+        CancelSchedule();
 
         return base.OnPickupAsync(ctx, ct);
     }
@@ -342,7 +319,7 @@ internal sealed class PluginFurniLogic(
     /// stays where it stands, and its next update says so. A user who started walking since keeps
     /// the mv of its own step.
     /// </summary>
-    protected override Task<bool> TickMoreAsync(long nowMs, CancellationToken ct)
+    protected override async Task<bool> TickMoreAsync(long nowMs, CancellationToken ct)
     {
         foreach (var (objectId, dueAtMs) in _shownSteps.ToArray())
         {
@@ -355,7 +332,9 @@ internal sealed class PluginFurniLogic(
                 avatar.RemoveStatus(AvatarStatusType.Move);
         }
 
-        return Task.FromResult(_shownSteps.Count > 0);
+        await RunScheduledAsync(nowMs, ct);
+
+        return _shownSteps.Count > 0;
     }
 
     private bool TryGetAvatar(RoomUser user, [NotNullWhen(true)] out IRoomAvatar? avatar) =>

@@ -13,6 +13,7 @@ using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Snapshots.Wired;
+using Turbo.Primitives.Rooms.Snapshots.Wired.Variables;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
@@ -56,6 +57,14 @@ internal sealed class PluginWiredEffectLogic(
         {
             FurniLimit = PluginFurniLimit(box),
         };
+
+    public override List<WiredVariableContextSnapshot> GetWiredContextSnapshots() =>
+        box.UsesTextPlaceholders ? TextPlaceholdersContext() : [];
+
+    // The placeholders come from the other boxes of the stack, which change without this one
+    // being saved: read them again each time the editor opens, as Show Message does.
+    public override Task<bool> RefreshEditorContextAsync(CancellationToken ct) =>
+        box.UsesTextPlaceholders ? Task.FromResult(true) : base.RefreshEditorContextAsync(ct);
 
     public override Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct) =>
         box.ExecuteAsync(PluginContext(box, ctx, ctx), ct);

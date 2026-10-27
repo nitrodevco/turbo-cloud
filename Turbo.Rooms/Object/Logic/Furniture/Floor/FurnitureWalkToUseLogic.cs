@@ -52,6 +52,13 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
         Task.FromResult(false);
 
     /// <summary>
+    /// When its own timed work is next due by the room's clock, null when it has none: with no
+    /// walk pending and <see cref="TickMoreAsync"/> asking for no avatar tick, its next tick comes
+    /// then rather than never, and no tick comes later than it.
+    /// </summary>
+    protected virtual long? NextWorkAtMs => null;
+
+    /// <summary>
     /// Uses it for the avatar from the first of <paramref name="useTiles"/> (best first) when it
     /// stands there, or walks it to the first of them it can reach and uses it on arrival.
     /// </summary>
@@ -169,16 +176,18 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
     {
         var tickMs = RoomConfig.AvatarTickMs;
 
+        var now = NowMs();
+        var workAtMs = NextWorkAtMs ?? long.MaxValue;
+
         if (UseAfterLastStepMs < 0)
         {
-            TimerSystem.Schedule(_ctx.ObjectId, tickMs, TickAsync);
+            TimerSystem.ScheduleAt(_ctx.ObjectId, Math.Min(now + tickMs, workAtMs), TickAsync);
 
             return;
         }
 
-        var now = NowMs();
         var boundary = State.NextAvatarBoundaryMs;
-        var dueAtMs = boundary > now ? boundary : now + tickMs;
+        var dueAtMs = Math.Min(boundary > now ? boundary : now + tickMs, workAtMs);
 
         foreach (var approach in _approaching.Values)
         {
@@ -244,6 +253,8 @@ public abstract class FurnitureWalkToUseLogic : FurnitureFloorLogic
 
         if (_approaching.Count > 0 || more)
             ScheduleTick();
+        else if (NextWorkAtMs is { } workAtMs)
+            TimerSystem.ScheduleAt(_ctx.ObjectId, workAtMs, TickAsync);
     }
 
     private sealed class Approach

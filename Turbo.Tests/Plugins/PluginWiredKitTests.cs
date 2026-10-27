@@ -14,6 +14,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
+using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Plugins;
 using Turbo.Tests.Support;
@@ -104,12 +105,12 @@ public sealed class PluginWiredKitTests : IDisposable
         _room.Enter(5, 1, 1, "alice", playerId: 1);
         _room.Enter(6, 2, 2, "bob", playerId: 2);
         Place(TRIGGER, "wf_trg_credits_earned");
-        Place(EFFECT, "wf_act_whisper_room");
+        var effect = Place(EFFECT, "wf_act_whisper_room");
         (await _room.SaveAsync<UpdateTriggerMessage>(TRIGGER)).Should().BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 EFFECT,
-                intParams: [0, 0, -1],
+                intParams: [0, 210, 1],
                 stringParam: "Well done",
                 definitionSpecifics: [0]
             )
@@ -119,7 +120,7 @@ public sealed class PluginWiredKitTests : IDisposable
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 EFFECT,
-                intParams: [0, 0],
+                intParams: [0, 210],
                 stringParam: "too few ints",
                 definitionSpecifics: [0]
             )
@@ -139,9 +140,15 @@ public sealed class PluginWiredKitTests : IDisposable
         foreach (var player in new[] { 1, 2 })
             _room
                 .Harness.Fakes.SentToPlayer<ChatMessageComposer>(player)
-                .Select(x => x.Text)
+                .Select(x => (x.Text, x.StyleId, x.ChatBubbleWidthOverride))
                 .Should()
-                .Equal(["Well done"], "each user is whispered once, only their own");
+                .Equal(
+                    [("Well done", 210, (int?)1)],
+                    "each user is whispered once, only their own, in the bubble picked"
+                );
+        (await ((FurnitureWiredLogic)effect.Logic).RefreshEditorContextAsync(Ct))
+            .Should()
+            .BeTrue("its editor lists the stack's placeholders, read again each time it opens");
     }
 
     /// <summary>

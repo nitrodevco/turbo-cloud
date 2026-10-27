@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Turbo.Contracts.Plugins;
+using Turbo.Database.Furniture;
 using Turbo.Furniture.Configuration;
 using Turbo.Furniture.Custody;
 using Turbo.Furniture.Providers;
@@ -23,5 +24,6 @@ public sealed class FurnitureModule : IHostPluginModule
         services.AddSingleton<IFurnitureDefinitionProvider, FurnitureDefinitionProvider>();
         services.AddSingleton<IStuffDataFactory, StuffDataFactory>();
         services.AddSingleton<IFurnitureCustody, FurnitureCustody>();
+        services.AddSingleton<IRoomFurniWriter, RoomFurniWriter>();
     }
 }

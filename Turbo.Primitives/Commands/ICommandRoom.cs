@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 
 namespace Turbo.Primitives.Commands;
 
@@ -24,6 +25,19 @@ public interface ICommandRoom
 
     /// <summary>A whisper only <paramref name="player"/> sees.</summary>
     Task WhisperAsync(IRoomPlayer player, string text, CancellationToken ct);
+
+    /// <summary>
+    /// A line said as <paramref name="speaker"/>, shouted or not, that the whole room hears: the
+    /// host saying a dice total. Filtered like anything players read, but not chat (no flood
+    /// check, no commands, no chat log).
+    /// </summary>
+    Task SayAsync(IRoomPlayer speaker, string text, bool shout, CancellationToken ct);
+
+    /// <summary>
+    /// The floor furni on the tile (<paramref name="x"/>, <paramref name="y"/>), lowest first;
+    /// none off the map. Read in the room's turn, as the command runs.
+    /// </summary>
+    IReadOnlyList<IRoomFloorItem> FloorItemsAt(int x, int y);
 
     /// <summary>
     /// A scrollable notice only <paramref name="player"/> sees, one list item per line: for a reply

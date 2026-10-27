@@ -724,6 +724,7 @@ public sealed class PluginManager(
             inst,
             asm.Assembly,
             m,
+            folder,
             extensions,
             clientModules,
             contributions
@@ -917,6 +918,7 @@ public sealed class PluginManager(
         ITurboPlugin plugin,
         Assembly assembly,
         PluginManifest manifest,
+        string folder,
         PluginExtensions extensions,
         PluginClientModules? clientModules,
         PluginContributionLog contributions
@@ -925,6 +927,7 @@ public sealed class PluginManager(
         var services = new ServiceCollection();
 
         services.AddSingleton(manifest);
+        services.AddSingleton<IPluginFiles>(new PluginFiles(folder));
         services.AddSingleton<IPluginContributionLog>(contributions);
         services.AddSingleton<IPluginCatalog>(new PluginCatalog(_exports));
         services.AddSingleton<IHostServices>(

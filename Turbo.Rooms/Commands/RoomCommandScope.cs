@@ -12,7 +12,9 @@ using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
+using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Grains;
+using Turbo.Rooms.Grains.Systems;
 
 namespace Turbo.Rooms.Commands;
 
@@ -41,6 +43,24 @@ internal sealed class RoomCommandScope(RoomGrain roomGrain, ActionContext action
 
     public Task WhisperAsync(IRoomPlayer player, string text, CancellationToken ct) =>
         roomGrain.ChatSystem.WhisperToPlayerAsync(player, text, ct);
+
+    public Task SayAsync(IRoomPlayer speaker, string text, bool shout, CancellationToken ct) =>
+        roomGrain.ChatSystem.SayAsAvatarAsync(
+            speaker,
+            text,
+            new AvatarSpeech { Shout = shout },
+            ct
+        );
+
+    public IReadOnlyList<IRoomFloorItem> FloorItemsAt(int x, int y) =>
+        roomGrain.MapModule.InBounds(x, y)
+            ?
+            [
+                .. roomGrain
+                    .FurniModule.GetFloorItemsOnTile(roomGrain.MapModule.ToIdx(x, y))
+                    .OrderBy(item => item.Z.Value),
+            ]
+            : [];
 
     public Task NoticeAsync(
         IRoomPlayer player,
