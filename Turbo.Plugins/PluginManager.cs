@@ -87,6 +87,9 @@ public sealed class PluginManager(
         StringComparer.OrdinalIgnoreCase
     );
     private readonly SemaphoreSlim _reloadGate = new(1, 1);
+    private readonly ConcurrentDictionary<string, byte> _publications = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
     // The waits for the contexts of failed loads. The failure's error, thrown in the plugin's own
     // code, holds its context for as long as anyone holds the error (the load reporting it, the
@@ -274,45 +277,152 @@ public sealed class PluginManager(
 
         try
         {
-            var plugins = DiscoverSorted();
-            var disabled = ReadDisabled();
+            await ReloadHeldAsync(key, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _reloadGate.Release();
+        }
+    }
 
-            RebuildDependents(plugins.Select(p => p.Manifest));
+    /// <summary>The caller holds the reload gate; publication uses the same reload path without taking it twice.</summary>
+    private async Task ReloadHeldAsync(string key, CancellationToken ct)
+    {
+        var plugins = DiscoverSorted();
+        var disabled = ReadDisabled();
 
-            var match = plugins.FirstOrDefault(p =>
-                string.Equals(p.Manifest.Key, key, StringComparison.OrdinalIgnoreCase)
+        RebuildDependents(plugins.Select(p => p.Manifest));
+
+        var match = plugins.FirstOrDefault(p =>
+            string.Equals(p.Manifest.Key, key, StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (match.Manifest is null)
+        {
+            await UnloadAsync(key, ct).ConfigureAwait(false);
+            _status.TryRemove(key, out _);
+            _logger.LogInformation("Plugin {Key} was removed from disk and unloaded.", key);
+            return;
+        }
+
+        if (disabled.Contains(key))
+        {
+            await UnloadAsync(key, ct).ConfigureAwait(false);
+            SetStatus(match.Manifest, match.Folder, PluginStateType.Disabled, null);
+            _logger.LogInformation("Plugin {Key} is turned off, so it was not loaded.", key);
+            return;
+        }
+
+        var failure = await TryLoadAsync(match.Manifest, match.Folder, plugins, ct)
+            .ConfigureAwait(false);
+
+        if (failure is null)
+            _logger.LogInformation("Reloaded plugin {Key}", key);
+
+        foreach (var (m, folder) in DependentsOf(key, plugins))
+        {
+            if (!disabled.Contains(m.Key))
+                await TryLoadAsync(m, folder, plugins, ct).ConfigureAwait(false);
+        }
+
+        if (failure is not null)
+            ExceptionDispatchInfo.Throw(failure);
+    }
+
+    /// <summary>
+    /// Reserves a key while theme creation or package installation owns its files. Acquisition
+    /// never waits: a conflicting request is refused before it can overwrite or roll back them.
+    /// </summary>
+    internal IDisposable? TryReservePublication(string key) =>
+        _publications.TryAdd(key, 0)
+            ? new ActionDisposable(() => _publications.TryRemove(key, out _))
+            : null;
+
+    /// <summary>
+    /// Publishes a complete theme without overwriting another folder. Scans, loads and removals
+    /// cannot interleave with publication or rollback. The caller also holds the key reservation
+    /// shared with package installation; the marker detects replacements by outside filesystem writers.
+    /// </summary>
+    internal async Task PublishThemeAsync(
+        string key,
+        string staging,
+        string marker,
+        CancellationToken ct
+    )
+    {
+        await _reloadGate.WaitAsync(ct).ConfigureAwait(false);
+
+        var folder = Path.Combine(Path.GetFullPath(_config.PluginFolderPath), key);
+        var published = false;
+
+        try
+        {
+            // Recheck after copying: a new/dev plugin may have appeared since the request began.
+            if (
+                _live.ContainsKey(key)
+                || DiscoverPlugins()
+                    .Any(x =>
+                        string.Equals(x.manifest.Key, key, StringComparison.OrdinalIgnoreCase)
+                    )
+                || Directory
+                    .EnumerateFileSystemEntries(Path.GetFullPath(_config.PluginFolderPath))
+                    .Any(x =>
+                        string.Equals(Path.GetFileName(x), key, StringComparison.OrdinalIgnoreCase)
+                    )
+            )
+                throw new ArgumentException(
+                    $"There is a plugin with the key {key} already: pick another.",
+                    nameof(key)
+                );
+
+            ct.ThrowIfCancellationRequested();
+            Directory.Move(staging, folder);
+            published = true;
+            await ReloadHeldAsync(key, ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            Directory.Delete(Path.Combine(folder, marker));
+        }
+        catch (Exception ex) when (published)
+        {
+            _logger.LogWarning(
+                ex,
+                "Creating theme {Key} failed; rolling back its publication",
+                key
             );
 
-            if (match.Manifest is null)
+            try
             {
-                await UnloadAsync(key, ct).ConfigureAwait(false);
-                _status.TryRemove(key, out _);
-                _logger.LogInformation("Plugin {Key} was removed from disk and unloaded.", key);
-                return;
+                if (Directory.Exists(Path.Combine(folder, marker)))
+                    Directory.Move(folder, staging);
+                else
+                    _logger.LogWarning(
+                        "Theme {Key} was replaced during creation; leaving its replacement on disk",
+                        key
+                    );
+            }
+            catch (Exception cleanup)
+            {
+                _logger.LogError(
+                    cleanup,
+                    "Could not retract the failed theme {Key}; leaving its files on disk",
+                    key
+                );
             }
 
-            if (disabled.Contains(key))
+            try
             {
-                await UnloadAsync(key, ct).ConfigureAwait(false);
-                SetStatus(match.Manifest, match.Folder, PluginStateType.Disabled, null);
-                _logger.LogInformation("Plugin {Key} is turned off, so it was not loaded.", key);
-                return;
+                await ReloadHeldAsync(key, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception cleanup)
+            {
+                _logger.LogError(
+                    cleanup,
+                    "Could not reconcile theme {Key} after failed creation",
+                    key
+                );
             }
 
-            var failure = await TryLoadAsync(match.Manifest, match.Folder, plugins, ct)
-                .ConfigureAwait(false);
-
-            if (failure is null)
-                _logger.LogInformation("Reloaded plugin {Key}", key);
-
-            foreach (var (m, folder) in DependentsOf(key, plugins))
-            {
-                if (!disabled.Contains(m.Key))
-                    await TryLoadAsync(m, folder, plugins, ct).ConfigureAwait(false);
-            }
-
-            if (failure is not null)
-                ExceptionDispatchInfo.Throw(failure);
+            throw;
         }
         finally
         {

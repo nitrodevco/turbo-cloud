@@ -62,6 +62,11 @@ Default output format:
   `docs/orleans.md` to regenerate and review the owning project's `OrleansContracts.txt`;
   never refresh baselines merely to silence diagnostics, and preserve retired history.
 - Avoid introducing new dependencies unless required by the task.
+- Theme creation reserves its key before copying, stages complete files outside discovery, and
+  publishes under the plugin manager's reload gate. Package installation shares that key
+  reservation. Rollback retracts only the operation's marked output; cleanup failures are logged
+  without masking the original error. This is a host-level guarantee, not a transaction with
+  arbitrary external filesystem writers.
 
 ### Type placement
 - Every snapshot type lives in its own file under `Turbo.Primitives`, named after the type, in the

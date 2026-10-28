@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Turbo.Contracts.Plugins;
 using Turbo.Primitives.Plugins;
 
@@ -21,7 +22,8 @@ namespace Turbo.Plugins;
 internal sealed partial class ThemeAuthoring(
     PluginManager manager,
     IHotelDataPlugin hotel,
-    IServiceProvider host
+    IServiceProvider host,
+    ILogger<ThemeAuthoring> logger
 ) : IThemeAuthoring
 {
     private const string MANIFEST = "manifest.json";
@@ -54,7 +56,7 @@ internal sealed partial class ThemeAuthoring(
                 nameof(request)
             );
 
-        var folder = Path.Combine(manager.Config.PluginFolderPath, key);
+        var folder = Path.Combine(Path.GetFullPath(manager.Config.PluginFolderPath), key);
 
         if (manager.FoundFolderOf(key) is not null || Directory.Exists(folder))
             throw new ArgumentException(
@@ -72,60 +74,80 @@ internal sealed partial class ThemeAuthoring(
                 string.IsNullOrWhiteSpace(request.Extends) ? BASE_THEME : request.Extends.Trim()
             )
             : null;
-        var copy = copyOf is null
-            ? null
-            : await CopyAsync(copyOf, key, name, author, ct).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
+        using var reservation =
+            manager.TryReservePublication(key)
+            ?? throw new ArgumentException(
+                $"The plugin key {key} is already being published: try again later.",
+                nameof(request)
+            );
+        var staging = Path.Combine(
+            Path.GetFullPath(manager.Config.PluginFolderPath),
+            ".theme-staging",
+            Guid.NewGuid().ToString("N")
+        );
+        var marker = ".theme-creation-" + Guid.NewGuid().ToString("N");
+        Copy? copy = null;
 
         try
         {
-            Directory.CreateDirectory(Path.Combine(folder, WWWROOT, "styles"));
+            Directory.CreateDirectory(Path.Combine(staging, marker));
+            copy = copyOf is null
+                ? null
+                : await CopyAsync(copyOf, key, name, author, ct).ConfigureAwait(false);
+            Directory.CreateDirectory(Path.Combine(staging, WWWROOT, "styles"));
 
             if (copy is not null)
             {
                 await using (copy.ConfigureAwait(false))
                 using (var zip = new ZipArchive(copy.Package, ZipArchiveMode.Read))
-                    await zip.ExtractToDirectoryAsync(folder, overwriteFiles: true, ct)
+                    await zip.ExtractToDirectoryAsync(staging, overwriteFiles: true, ct)
                         .ConfigureAwait(false);
 
                 if (copy.Patches is { } patches)
-                    await File.WriteAllBytesAsync(Path.Combine(folder, PATCHES), patches, ct)
+                    await File.WriteAllBytesAsync(Path.Combine(staging, PATCHES), patches, ct)
                         .ConfigureAwait(false);
 
-                // A copy of the hotel with nothing changed has no file of its own: it extends Habbo's.
-                if (!File.Exists(Path.Combine(folder, THEME)))
-                    await WriteAsync(folder, THEME, Theme(copy.Extends), ct).ConfigureAwait(false);
+                // A copy of the hotel with nothing changed extends Habbo's own theme.
+                if (!File.Exists(Path.Combine(staging, THEME)))
+                    await WriteAsync(staging, THEME, Theme(copy.Extends), ct).ConfigureAwait(false);
             }
             else
             {
-                await WriteAsync(folder, MANIFEST, Manifest(key, name, author), ct)
+                await WriteAsync(staging, MANIFEST, Manifest(key, name, author), ct)
                     .ConfigureAwait(false);
-                await WriteAsync(folder, THEME, Theme(parent!), ct).ConfigureAwait(false);
+                await WriteAsync(staging, THEME, Theme(parent!), ct).ConfigureAwait(false);
             }
 
-            if (!File.Exists(Path.Combine(folder, WWWROOT, TEMPLATE_PATCHES)))
+            if (!File.Exists(Path.Combine(staging, WWWROOT, TEMPLATE_PATCHES)))
                 await WriteAsync(
-                        Path.Combine(folder, WWWROOT),
+                        Path.Combine(staging, WWWROOT),
                         TEMPLATE_PATCHES,
                         new JsonObject { ["patches"] = new JsonArray() },
                         ct
                     )
                     .ConfigureAwait(false);
 
-            await manager.ReloadAsync(key, ct).ConfigureAwait(false);
+            // Validate/read the result before publication too: a bad copied theme leaves no final folder.
+            var theme =
+                host.GetService<IPluginStyles>()?.ThemeOf(key, staging)
+                ?? new PluginTheme(key, copy?.Extends ?? parent);
+            await manager.PublishThemeAsync(key, staging, marker, ct).ConfigureAwait(false);
+            return theme;
         }
-        catch
+        finally
         {
-            // One that could not be made or loaded leaves nothing behind: staff try again.
-            if (Directory.Exists(folder))
-                Directory.Delete(folder, recursive: true);
-
-            await manager.ReloadAsync(key, CancellationToken.None).ConfigureAwait(false);
-
-            throw;
+            try
+            {
+                // Only this operation's stage (or retracted publication), never the destination.
+                if (Directory.Exists(Path.Combine(staging, marker)))
+                    Directory.Delete(staging, recursive: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogError(ex, "Could not remove the staging folder for theme {Key}", key);
+            }
         }
-
-        return host.GetService<IPluginStyles>()?.ThemeOf(key, folder)
-            ?? new PluginTheme(key, copy?.Extends ?? parent);
     }
 
     /// <summary>The theme a new one extends: the base theme, or an installed theme; else refused.</summary>
