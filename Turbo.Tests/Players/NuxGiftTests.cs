@@ -190,7 +190,7 @@ public sealed class NuxGiftTests : IDisposable
         (await (await GrainAsync()).GetDueStepsAsync(Ct))
             .Should()
             .BeEmpty();
-        using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
 
         db.PlayerProductClaims.Select(x => x.ClaimId)
             .ToList()

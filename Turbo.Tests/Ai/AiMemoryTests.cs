@@ -27,6 +27,8 @@ public sealed class AiMemoryTests
 
     public AiMemoryTests() => _ai = new AiFake(_hotel);
 
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
     [Fact]
     public async Task A_players_conversation_goes_on_where_it_was_and_another_players_is_their_own()
     {
@@ -38,14 +40,21 @@ public sealed class AiMemoryTests
         var first = await ai.PromptAsync(
             new Chat(),
             "hi",
-            new AiCall { Memory = AiMemory.ForPlayer(alice.Id) }
+            new AiCall { Memory = AiMemory.ForPlayer(alice.Id) },
+            Ct
         );
         await ai.PromptAsync(
             new Chat(),
             "what did I say?",
-            new AiCall { Memory = AiMemory.ForPlayer(alice.Id) }
+            new AiCall { Memory = AiMemory.ForPlayer(alice.Id) },
+            Ct
         );
-        await ai.PromptAsync(new Chat(), "hi", new AiCall { Memory = AiMemory.ForPlayer(bob.Id) });
+        await ai.PromptAsync(
+            new Chat(),
+            "hi",
+            new AiCall { Memory = AiMemory.ForPlayer(bob.Id) },
+            Ct
+        );
 
         _ai.Requests[1]
             .Messages.Select(m => m.Text)
@@ -66,7 +75,8 @@ public sealed class AiMemoryTests
             .PromptAsync(
                 new Chat(),
                 "secret",
-                new AiCall { Memory = AiMemory.ForPlayer(alice.Id) }
+                new AiCall { Memory = AiMemory.ForPlayer(alice.Id) },
+                Ct
             );
 
         var stolen = await _ai.For()
@@ -76,7 +86,8 @@ public sealed class AiMemoryTests
                 new AiCall
                 {
                     Memory = AiMemory.ForPlayer(bob.Id).Continue(mine.ConversationId!.Value),
-                }
+                },
+                Ct
             );
         var otherPlugin = await _ai.For("other-plugin")
             .PromptAsync(
@@ -85,7 +96,8 @@ public sealed class AiMemoryTests
                 new AiCall
                 {
                     Memory = AiMemory.ForPlayer(alice.Id).Continue(mine.ConversationId!.Value),
-                }
+                },
+                Ct
             );
 
         stolen.Stop.Should().Be(AiStopReason.Unavailable);
@@ -106,7 +118,7 @@ public sealed class AiMemoryTests
         var call = new AiCall { Memory = AiMemory.ForPlayer(alice.Id) };
 
         foreach (var said in new[] { "one", "two", "three" })
-            await _ai.For().PromptAsync(new Chat(), said, call);
+            await _ai.For().PromptAsync(new Chat(), said, call, Ct);
 
         // Before "three": one, a1, two, a2 is 4 > 3: the oldest whole turn goes.
         _ai.Requests[2]
@@ -120,10 +132,10 @@ public sealed class AiMemoryTests
     {
         var alice = _hotel.Players.Add("Alice");
         var memory = AiMemory.ForPlayer(alice.Id);
-        await _ai.For().PromptAsync(new Chat(), "remember 42", new AiCall { Memory = memory });
+        await _ai.For().PromptAsync(new Chat(), "remember 42", new AiCall { Memory = memory }, Ct);
 
-        (await _ai.For().ForgetAsync(new Chat(), memory)).Should().BeTrue();
-        await _ai.For().PromptAsync(new Chat(), "what number?", new AiCall { Memory = memory });
+        (await _ai.For().ForgetAsync(new Chat(), memory, Ct)).Should().BeTrue();
+        await _ai.For().PromptAsync(new Chat(), "what number?", new AiCall { Memory = memory }, Ct);
 
         _ai.Requests[1].Messages.Select(m => m.Text).Should().Equal("what number?");
         _ai.Store.Conversations.Should().ContainSingle();
@@ -151,7 +163,8 @@ public sealed class AiMemoryTests
             .PromptAsync(
                 new KickAgent(told),
                 "Kick Bob",
-                new AiCall { As = AiActor.AsPlayer(staff.Id) }
+                new AiCall { As = AiActor.AsPlayer(staff.Id) },
+                Ct
             );
         var resumed = await _ai.Approvals.ApproveAsync(by: new PlayerId(1));
 
@@ -174,10 +187,10 @@ public sealed class AiMemoryTests
         var agent = new Chat { Wares = [new AiSummarize(keep: 3)] };
         _ai.Respond("a1").Respond("a2").Respond("They said one.").Respond("a3").Respond("a4");
 
-        await _ai.For().PromptAsync(agent, "one", call);
-        await _ai.For().PromptAsync(agent, "two", call);
-        var third = await _ai.For().PromptAsync(agent, "three", call);
-        await _ai.For().PromptAsync(new Chat(), "four", call);
+        await _ai.For().PromptAsync(agent, "one", call, Ct);
+        await _ai.For().PromptAsync(agent, "two", call, Ct);
+        var third = await _ai.For().PromptAsync(agent, "three", call, Ct);
+        await _ai.For().PromptAsync(new Chat(), "four", call, Ct);
 
         _ai.Requests[2].Instructions.Should().Be(AiSummarize.INSTRUCTIONS);
         _ai.Requests[2]

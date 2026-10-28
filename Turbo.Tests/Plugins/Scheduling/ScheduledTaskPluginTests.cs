@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.IO;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -73,8 +74,10 @@ public sealed class ScheduledTaskPluginTests : IDisposable
             (await scheduler.ListAsync(Ct)) is var tasks
             && (tasks.IsEmpty || tasks[0].LastRun is not null)
         );
-        using var db = _db.CreateDbContext();
-        db.ScheduledTaskRuns.Single().Outcome.Should().Be(nameof(ScheduledTaskOutcome.Cancelled));
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.ScheduledTaskRuns.SingleAsync(Ct))
+            .Outcome.Should()
+            .Be(nameof(ScheduledTaskOutcome.Cancelled));
     }
 
     [Fact]

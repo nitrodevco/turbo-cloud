@@ -276,7 +276,7 @@ internal sealed class AssetPublishHotel : IDisposable
 
     /// <summary>
     /// Cloudflare's purge endpoint as a test sees it: each request's address, token and files, and
-    /// an answer of <see cref="Status"/> with <see cref="Errors"/> (none: success).
+    /// an answer of <see cref="Status"/> with <see cref="Error"/> (none: success).
     /// </summary>
     internal sealed class FakeCloudflare : HttpMessageHandler
     {

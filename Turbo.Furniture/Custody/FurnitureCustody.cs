@@ -440,7 +440,8 @@ public sealed class FurnitureCustody(
 
     private async Task<bool> GrantedAsync(PlayerId owner, string reference, CancellationToken ct)
     {
-        await using var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
         return await dbCtx
             .FurnitureGrantReceipts.AsNoTracking()

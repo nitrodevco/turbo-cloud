@@ -50,7 +50,8 @@ public class WiredActionMoveRotateFurni(
     protected override bool SucceedsWithoutMoving => true;
 
     /// <summary>
-    /// The picks move in a random order (<see cref="GetFloorPicksInRandomOrder"/>): a block and
+    /// The picks move in a random order
+    /// (<see cref="FurnitureWiredMoveActionLogic.GetFloorPicksInRandomOrder"/>): a block and
     /// the trophy on it, both picked and moved one tile, moved the trophy alone (dropped to the
     /// floor, the block blocked by it) or both (official client capture 2026-10-24, W1 lab
     /// action.4.X9: trophy alone 2/2 at 18-40-50, then both 3/6 and trophy alone 3/6); the block

@@ -513,7 +513,7 @@ public sealed class PluginTemplateTests : IDisposable
         {
             var doc = new List<string>();
 
-            foreach (var line in File.ReadLines(file).Append(string.Empty))
+            foreach (var line in (await File.ReadAllLinesAsync(file, Ct)).Append(string.Empty))
             {
                 if (line.TrimStart().StartsWith("///", StringComparison.Ordinal))
                 {
@@ -641,27 +641,34 @@ public sealed class PluginTemplateTests : IDisposable
 
         CopyTemplate(source);
         Directory.CreateDirectory(Path.Combine(economy, "ai", "skills", "econ-pay"));
-        File.WriteAllText(
+        await File.WriteAllTextAsync(
             Path.Combine(economy, "manifest.json"),
-            """{"Name":"Economy","Key":"econ","Version":"1.0.0"}"""
+            """{"Name":"Economy","Key":"econ","Version":"1.0.0"}""",
+            Ct
         );
-        File.WriteAllText(
+        await File.WriteAllTextAsync(
             Path.Combine(economy, "ai", "guidelines.md"),
-            "Pay through `IEconomy.PayAsync`.\n"
+            "Pay through `IEconomy.PayAsync`.\n",
+            Ct
         );
-        File.WriteAllText(
+        await File.WriteAllTextAsync(
             Path.Combine(economy, "ai", "skills", "econ-pay", "SKILL.md"),
-            "---\nname: econ-pay\ndescription: Pay players through the economy plugin.\n---\n"
+            "---\nname: econ-pay\ndescription: Pay players through the economy plugin.\n---\n",
+            Ct
         );
-        File.WriteAllText(
+        await File.WriteAllTextAsync(
             Path.Combine(source, "manifest.json"),
-            File.ReadAllText(Path.Combine(source, "manifest.json"))
-                .Replace("\"Dependencies\": []", "\"Dependencies\": [\"econ\"]")
+            (await File.ReadAllTextAsync(Path.Combine(source, "manifest.json"), Ct)).Replace(
+                "\"Dependencies\": []",
+                "\"Dependencies\": [\"econ\"]"
+            ),
+            Ct
         );
-        File.WriteAllText(claude, "# Notes\n\nKeep this.\n");
-        File.WriteAllText(
+        await File.WriteAllTextAsync(claude, "# Notes\n\nKeep this.\n", Ct);
+        await File.WriteAllTextAsync(
             Path.Combine(source, ".mcp.json"),
-            """{"mcpServers":{"mine":{"command":"x"}}}"""
+            """{"mcpServers":{"mine":{"command":"x"}}}""",
+            Ct
         );
         Directory.CreateDirectory(Path.Combine(source, ".claude", "skills", "mine"));
 
@@ -675,10 +682,12 @@ public sealed class PluginTemplateTests : IDisposable
             .Exit.Should()
             .Be(0);
 
-        var first = File.ReadAllText(claude);
+        var first = await File.ReadAllTextAsync(claude, Ct);
         first.Should().StartWith("# Notes\n\nKeep this.\n\n<turbo-boost>");
         first.Should().Contain("## Turbo plugin development").And.Contain("#### Economy (`econ`)");
-        File.ReadAllText(Path.Combine(source, "AGENTS.md")).Should().Contain("<turbo-boost>");
+        (await File.ReadAllTextAsync(Path.Combine(source, "AGENTS.md"), Ct))
+            .Should()
+            .Contain("<turbo-boost>");
         Directory
             .EnumerateDirectories(Path.Combine(source, ".claude", "skills"))
             .Select(Path.GetFileName)
@@ -688,7 +697,7 @@ public sealed class PluginTemplateTests : IDisposable
             .Should()
             .BeTrue();
         var mcp = JsonDocument
-            .Parse(File.ReadAllText(Path.Combine(source, ".mcp.json")))
+            .Parse(await File.ReadAllTextAsync(Path.Combine(source, ".mcp.json"), Ct))
             .RootElement.GetProperty("mcpServers");
         mcp.TryGetProperty("mine", out _).Should().BeTrue();
         mcp.GetProperty("turbo")
@@ -698,14 +707,14 @@ public sealed class PluginTemplateTests : IDisposable
             .EndWith("/api/plugins/mcp/mcp");
 
         // The author writes after the block; the dependency drops its skill.
-        File.AppendAllText(claude, "\nAfter the block.\n");
+        await File.AppendAllTextAsync(claude, "\nAfter the block.\n", Ct);
         Directory.Delete(Path.Combine(economy, "ai", "skills"), recursive: true);
 
         (await NodeAsync(source, "tools/ai.mjs update", AppContext.BaseDirectory))
             .Exit.Should()
             .Be(0);
 
-        var second = File.ReadAllText(claude);
+        var second = await File.ReadAllTextAsync(claude, Ct);
         second
             .Should()
             .StartWith("# Notes\n\nKeep this.\n\n<turbo-boost>")
@@ -717,7 +726,7 @@ public sealed class PluginTemplateTests : IDisposable
             .Should()
             .Contain("mine", "it was never the kit's")
             .And.NotContain("econ-pay", "the last run installed it and this one did not");
-        File.ReadAllText(Path.Combine(source, "AGENTS.md"))
+        (await File.ReadAllTextAsync(Path.Combine(source, "AGENTS.md"), Ct))
             .Should()
             .Contain("<turbo-boost>", "update writes for the agents install was given");
     }
@@ -739,11 +748,20 @@ public sealed class PluginTemplateTests : IDisposable
         Directory.CreateDirectory(In(".codex"));
         Directory.CreateDirectory(In(".vscode"));
         Directory.CreateDirectory(In(".github"));
-        File.WriteAllText(In(".codex/config.toml"), "[profiles.mine]\nmodel = \"x\"\n");
-        File.WriteAllText(In(".github/copilot-instructions.md"), "Answer in English.\n");
-        File.WriteAllText(
+        await File.WriteAllTextAsync(
+            In(".codex/config.toml"),
+            "[profiles.mine]\nmodel = \"x\"\n",
+            Ct
+        );
+        await File.WriteAllTextAsync(
+            In(".github/copilot-instructions.md"),
+            "Answer in English.\n",
+            Ct
+        );
+        await File.WriteAllTextAsync(
             In(".vscode/mcp.json"),
-            """{"servers":{"mine":{"command":"x"}},"inputs":[{"type":"promptString","id":"mine"}]}"""
+            """{"servers":{"mine":{"command":"x"}},"inputs":[{"type":"promptString","id":"mine"}]}""",
+            Ct
         );
 
         for (var run = 0; run < 2; run++)
@@ -752,31 +770,37 @@ public sealed class PluginTemplateTests : IDisposable
                 .Be(0);
 
         File.Exists(In("CLAUDE.md")).Should().BeFalse("the plugin has no Claude Code folder");
-        File.ReadAllText(In(".cursor/rules/turbo-boost.mdc"))
+        (await File.ReadAllTextAsync(In(".cursor/rules/turbo-boost.mdc"), Ct))
             .Should()
             .StartWith("---\ndescription: ")
             .And.Contain("alwaysApply: true\n---\n\n<turbo-boost>")
             .And.Contain("`.cursor/skills/<name>/SKILL.md`");
-        File.ReadAllText(In(".github/copilot-instructions.md"))
+        (await File.ReadAllTextAsync(In(".github/copilot-instructions.md"), Ct))
             .Should()
             .StartWith("Answer in English.\n\n<turbo-boost>")
             .And.Contain("`.github/skills/<name>/SKILL.md`");
-        File.ReadAllText(In(".junie/guidelines.md")).Should().StartWith("<turbo-boost>");
-        File.ReadAllText(In("AGENTS.md")).Should().Contain("`.agents/skills/<name>/SKILL.md`");
+        (await File.ReadAllTextAsync(In(".junie/guidelines.md"), Ct))
+            .Should()
+            .StartWith("<turbo-boost>");
+        (await File.ReadAllTextAsync(In("AGENTS.md"), Ct))
+            .Should()
+            .Contain("`.agents/skills/<name>/SKILL.md`");
 
         foreach (var skills in new[] { ".cursor", ".github", ".junie", ".agents" })
             File.Exists(In($"{skills}/skills/turbo-plugin-basics/SKILL.md"))
                 .Should()
                 .BeTrue(skills);
 
-        var toml = File.ReadAllText(In(".codex/config.toml"));
+        var toml = await File.ReadAllTextAsync(In(".codex/config.toml"), Ct);
         toml.Should()
             .StartWith("[profiles.mine]\nmodel = \"x\"\n")
             .And.Contain("[mcp_servers.turbo]\nurl = \"http://")
             .And.Contain("bearer_token_env_var = \"TURBO_MCP_TOKEN\"");
         toml.Split("[mcp_servers.turbo]").Should().HaveCount(2, "run twice, one table");
 
-        var vscode = JsonDocument.Parse(File.ReadAllText(In(".vscode/mcp.json"))).RootElement;
+        var vscode = JsonDocument
+            .Parse(await File.ReadAllTextAsync(In(".vscode/mcp.json"), Ct))
+            .RootElement;
         vscode.GetProperty("servers").TryGetProperty("mine", out _).Should().BeTrue();
         vscode
             .GetProperty("servers")
@@ -793,7 +817,7 @@ public sealed class PluginTemplateTests : IDisposable
             .Should()
             .Equal("mine", "turbo-mcp-token");
         JsonDocument
-            .Parse(File.ReadAllText(In(".cursor/mcp.json")))
+            .Parse(await File.ReadAllTextAsync(In(".cursor/mcp.json"), Ct))
             .RootElement.GetProperty("mcpServers")
             .GetProperty("turbo")
             .GetProperty("headers")
@@ -801,7 +825,7 @@ public sealed class PluginTemplateTests : IDisposable
             .GetString()
             .Should()
             .Be("Bearer ${env:TURBO_MCP_TOKEN}");
-        File.ReadAllText(In(".junie/mcp/mcp.json")).Should().Contain("mcp-remote");
+        (await File.ReadAllTextAsync(In(".junie/mcp/mcp.json"), Ct)).Should().Contain("mcp-remote");
 
         var (exit, output) = await NodeAsync(
             source,

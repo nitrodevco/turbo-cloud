@@ -140,7 +140,7 @@ public sealed class ApprovalEndpointsTests : IAsyncDisposable
             .Be(("executed", "fine", "Done."));
         (await _approvals.GetAsync(mine, Ct))!.State.Should().Be(ApprovalState.Pending);
 
-        using var db = _db.CreateDbContext();
+        await using var db = await _db.CreateDbContextAsync(Ct);
 
         db.CommandLogs.OrderBy(x => x.Id)
             .Select(x => new

@@ -215,8 +215,10 @@ public sealed class ApprovalAssertions(TestApprovals approvals)
     }
 
     // The approvals live in SQLite in memory: reading them never waits on anything.
+#pragma warning disable VSTHRD002
     private IReadOnlyList<Approval> Read(ApprovalState? state, string? kind) =>
         approvals.ListAsync(state, kind, default).GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
 
     private static string Describe(IReadOnlyList<Approval> list) =>
         TestAssertions.List(list.Select(x => $"{x.Id} {x.Kind} ({x.State})"));

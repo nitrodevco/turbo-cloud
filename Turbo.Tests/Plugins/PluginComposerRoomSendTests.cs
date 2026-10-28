@@ -131,8 +131,13 @@ public sealed class PluginComposerRoomSendTests
         services.AddSerializer();
         using var provider = services.BuildServiceProvider();
         var serializer = provider.GetRequiredService<Serializer>();
+        var decoded = serializer.Deserialize<RoomOutboundSnapshot>(
+            serializer.SerializeToArray(snapshot)
+        );
 
-        return serializer.Deserialize<RoomOutboundSnapshot>(serializer.SerializeToArray(snapshot));
+        Assert.NotNull(decoded);
+
+        return decoded;
     }
 
     /// <summary>The bytes a session is written for the composer.</summary>

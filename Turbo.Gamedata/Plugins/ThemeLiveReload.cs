@@ -155,7 +155,7 @@ internal sealed class ThemeLiveReload(
         var (theme, players) = await service.ResolveAsync(online, ct).ConfigureAwait(false);
         var looks = new Dictionary<string, ThemeLook>(StringComparer.OrdinalIgnoreCase);
 
-        async Task<ThemeLook> LookOf(string? key)
+        async Task<ThemeLook> LookOfAsync(string? key)
         {
             if (!looks.TryGetValue(key ?? string.Empty, out var look))
                 looks[key ?? string.Empty] = look = await files
@@ -165,7 +165,7 @@ internal sealed class ThemeLiveReload(
             return look;
         }
 
-        var loaded = (await LookOf(theme).ConfigureAwait(false)).Revision;
+        var loaded = (await LookOfAsync(theme).ConfigureAwait(false)).Revision;
         var addresses = await ExternalVariablesFile
             .AddressesAsync(files, config.Value.PublicUrl, ct)
             .ConfigureAwait(false);
@@ -173,7 +173,7 @@ internal sealed class ThemeLiveReload(
 
         foreach (var (player, drawn) in players)
         {
-            var look = await LookOf(drawn).ConfigureAwait(false);
+            var look = await LookOfAsync(drawn).ConfigureAwait(false);
             var own = service.DrawnBy(player.Value);
 
             // Before the first look nothing says what a client with no look of its own draws.

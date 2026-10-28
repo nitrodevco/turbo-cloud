@@ -14,7 +14,8 @@ internal sealed class DbAiStore(IDbContextFactory<TurboDbContext> db) : IAiStore
 {
     public async Task<AiConversationRecord?> FindAsync(long id, CancellationToken ct)
     {
-        await using var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var ctxScope = ctx.ConfigureAwait(false);
 
         return From(
             await ctx
@@ -31,7 +32,8 @@ internal sealed class DbAiStore(IDbContextFactory<TurboDbContext> db) : IAiStore
         CancellationToken ct
     )
     {
-        await using var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var ctxScope = ctx.ConfigureAwait(false);
 
         return From(
             await ctx
@@ -51,7 +53,8 @@ internal sealed class DbAiStore(IDbContextFactory<TurboDbContext> db) : IAiStore
         CancellationToken ct
     )
     {
-        await using var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var ctxScope = ctx.ConfigureAwait(false);
 
         return From(
             await ctx
@@ -64,7 +67,8 @@ internal sealed class DbAiStore(IDbContextFactory<TurboDbContext> db) : IAiStore
 
     public async Task SaveAsync(AiConversationRecord conversation, CancellationToken ct)
     {
-        await using var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var ctxScope = ctx.ConfigureAwait(false);
 
         if (conversation.Id == 0)
         {
@@ -104,7 +108,8 @@ internal sealed class DbAiStore(IDbContextFactory<TurboDbContext> db) : IAiStore
 
     public async Task<bool> DeleteAsync(long id, CancellationToken ct)
     {
-        await using var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var ctxScope = ctx.ConfigureAwait(false);
 
         return await ctx
                 .AiConversations.Where(x => x.Id == id)
@@ -114,7 +119,8 @@ internal sealed class DbAiStore(IDbContextFactory<TurboDbContext> db) : IAiStore
 
     public async Task RecordUsageAsync(AiUsageRecord usage, CancellationToken ct)
     {
-        await using var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var ctxScope = ctx.ConfigureAwait(false);
 
         ctx.AiUsage.Add(
             new AiUsageEntity
@@ -138,7 +144,8 @@ internal sealed class DbAiStore(IDbContextFactory<TurboDbContext> db) : IAiStore
 
     public async Task<long> TokensSinceAsync(int playerId, DateTime since, CancellationToken ct)
     {
-        await using var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var ctxScope = ctx.ConfigureAwait(false);
 
         return await ctx
             .AiUsage.Where(x => x.PlayerId == playerId && x.CreatedAt >= since)
@@ -151,7 +158,8 @@ internal sealed class DbAiStore(IDbContextFactory<TurboDbContext> db) : IAiStore
         CancellationToken ct
     )
     {
-        await using var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var ctx = await db.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var ctxScope = ctx.ConfigureAwait(false);
 
         var totals = await ctx
             .AiUsage.Where(x => x.CreatedAt >= since)

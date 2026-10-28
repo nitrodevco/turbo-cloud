@@ -1,7 +1,7 @@
 using System.IO;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Pomelo.EntityFrameworkCore.MySql.Infrastructure.Internal;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Turbo.Database.Context;
 using Xunit;
 
@@ -49,7 +49,7 @@ public sealed class PluginDesignTimeTests : IDisposable
         design.TablePrefix.Should().Be("skills_");
         design.Manifest.Should().Be(Path.Combine(_plugin, "manifest.json"));
 
-        var mysql = options.Options.FindExtension<MySqlOptionsExtension>()!;
+        var mysql = RelationalOptionsExtension.Extract(options.Options);
 
         mysql.ConnectionString.Should().Be("server=db;database=hotel", "the argument wins");
         mysql.MigrationsHistoryTableName.Should().Be("__EFMigrationsHistory_skills");

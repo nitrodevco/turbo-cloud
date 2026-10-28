@@ -55,7 +55,9 @@ public sealed class CameraCaptureOffThePacketTests : IDisposable
         );
         var fakes = _harness.Fakes;
 
+#pragma warning disable VSTHRD003 // The render is held open until the test completes it.
         fakes.Handlers["RenderAsync"] = _ => _render.Task;
+#pragma warning restore VSTHRD003
         fakes.Handlers["GetControllerLevelAsync"] = _ => Task.FromResult(RoomControllerType.Owner);
 
         // The server's singletons: one store and one set of running captures for every packet.

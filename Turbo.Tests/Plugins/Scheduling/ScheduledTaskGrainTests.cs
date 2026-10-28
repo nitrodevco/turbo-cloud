@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Database.Entities.Scheduling;
 using Turbo.Operations.Grains;
@@ -186,8 +187,10 @@ public sealed class ScheduledTaskGrainTests : IDisposable
         await grain.TickAsync(Ct);
 
         (await grain.ListAsync(Ct)).Should().BeEmpty();
-        using var db = _db.CreateDbContext();
-        db.ScheduledTaskRuns.Single().Outcome.Should().Be(nameof(ScheduledTaskOutcome.Lost));
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.ScheduledTaskRuns.SingleAsync(Ct))
+            .Outcome.Should()
+            .Be(nameof(ScheduledTaskOutcome.Lost));
     }
 
     private ScheduledTaskGrain Grain() =>

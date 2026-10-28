@@ -136,7 +136,9 @@ public sealed class TestEventBus
     private Task NextRecord()
     {
         lock (_gate)
+#pragma warning disable VSTHRD003 // The bus's own signal, completed by its next record.
             return _recorded.Task;
+#pragma warning restore VSTHRD003
     }
 
     private static TaskCompletionSource NewSignal() =>

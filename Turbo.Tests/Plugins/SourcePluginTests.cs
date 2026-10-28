@@ -91,7 +91,7 @@ public sealed class SourcePluginTests : IDisposable
         if (content is null)
             File.Copy(typeof(SourcePluginTests).Assembly.Location, binary);
         else
-            File.WriteAllText(binary, content);
+            await File.WriteAllTextAsync(binary, content, Ct);
 
         var manager = Manager();
 
@@ -290,10 +290,10 @@ public sealed class SourcePluginTests : IDisposable
             Path.Combine(_folder, PluginCompileCache.FOLDER, "sample"),
             "*.dll"
         )[0];
-        var bytes = File.ReadAllBytes(cached);
+        var bytes = await File.ReadAllBytesAsync(cached, Ct);
 
         bytes[^1] ^= 0xFF;
-        File.WriteAllBytes(cached, bytes);
+        await File.WriteAllBytesAsync(cached, bytes, Ct);
 
         var restarted = Manager();
 

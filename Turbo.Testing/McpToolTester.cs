@@ -139,7 +139,7 @@ public sealed class McpTestCaller
         var names = new List<string>();
 
         foreach (var tool in _tools)
-            if (await tool.IsAvailableToAsync(_caller, Holds, ct).ConfigureAwait(false))
+            if (await tool.IsAvailableToAsync(_caller, HoldsAsync, ct).ConfigureAwait(false))
                 names.Add(tool.Name);
 
         return names;
@@ -160,13 +160,13 @@ public sealed class McpTestCaller
 
         if (
             tool is null
-            || !await tool.IsAvailableToAsync(_caller, Holds, ct).ConfigureAwait(false)
+            || !await tool.IsAvailableToAsync(_caller, HoldsAsync, ct).ConfigureAwait(false)
         )
             return new McpTestCall(name, McpToolCallResult.Unavailable(name));
 
         var result = await tool.CallAsync(
                 McpToolTester.Arguments(arguments),
-                new McpToolContext(_caller, Holds),
+                new McpToolContext(_caller, HoldsAsync),
                 ct
             )
             .ConfigureAwait(false);
@@ -174,7 +174,8 @@ public sealed class McpTestCaller
         return new McpTestCall(name, result);
     }
 
-    private Task<bool> Holds(string node, CancellationToken ct) => Task.FromResult(_holds(node));
+    private Task<bool> HoldsAsync(string node, CancellationToken ct) =>
+        Task.FromResult(_holds(node));
 }
 
 /// <summary>A call's answer, with assertions that say what came back instead.</summary>

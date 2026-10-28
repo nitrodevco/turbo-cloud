@@ -246,7 +246,7 @@ public sealed class TestFurni : IFurniContext
     public void CancelSchedule() => _scheduled.Clear();
 
     public Task<bool> ShowStepAsync(RoomUser user, RoomTilePoint to, CancellationToken ct) =>
-        Acted($"ShowStep({user.Name}, {to.X}, {to.Y})");
+        ActedAsync($"ShowStep({user.Name}, {to.X}, {to.Y})");
 
     public Task<bool> ForwardToRoomAsync(
         RoomUser user,
@@ -287,19 +287,19 @@ public sealed class TestFurni : IFurniContext
     }
 
     public Task<bool> SetEffectAsync(RoomUser user, int effectId, CancellationToken ct) =>
-        Acted($"SetEffect({user.Name}, {effectId})");
+        ActedAsync($"SetEffect({user.Name}, {effectId})");
 
     public Task<bool> StopWalkingAsync(RoomUser user, CancellationToken ct) =>
-        Acted($"StopWalking({user.Name})");
+        ActedAsync($"StopWalking({user.Name})");
 
     public Task<bool> SetRotationAsync(RoomUser user, Rotation rotation, CancellationToken ct) =>
-        Acted($"SetRotation({user.Name}, {rotation})");
+        ActedAsync($"SetRotation({user.Name}, {rotation})");
 
     public Task<bool> SetBotFigureAsync(RoomUser bot, string figure, CancellationToken ct) =>
-        Acted($"SetBotFigure({bot.Name}, {figure})");
+        ActedAsync($"SetBotFigure({bot.Name}, {figure})");
 
     public Task<bool> SetBotFollowingAsync(RoomUser bot, RoomUser? target, CancellationToken ct) =>
-        Acted($"SetBotFollowing({bot.Name}, {target?.Name})");
+        ActedAsync($"SetBotFollowing({bot.Name}, {target?.Name})");
 
     public Task<RoomFurni?> PlaceTemporaryFurniAsync(
         FurnitureDefinitionSnapshot definition,
@@ -316,9 +316,9 @@ public sealed class TestFurni : IFurniContext
     }
 
     public Task<bool> RemoveTemporaryFurniAsync(int furniId, CancellationToken ct) =>
-        Acted($"RemoveTemporaryFurni({furniId})");
+        ActedAsync($"RemoveTemporaryFurni({furniId})");
 
-    private Task<bool> Acted(string action)
+    private Task<bool> ActedAsync(string action)
     {
         TestRoom.Act(action);
 

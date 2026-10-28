@@ -334,24 +334,25 @@ internal static class TestCommands
         }
 
         public Task<bool> KickAsync(IRoomPlayer target, CancellationToken ct) =>
-            Done($"Kick({target.Name})", true);
+            DoneAsync($"Kick({target.Name})", true);
 
         public Task<bool> MuteAsync(IRoomPlayer target, int minutes, CancellationToken ct) =>
-            Done($"Mute({target.Name}, {minutes})", true);
+            DoneAsync($"Mute({target.Name}, {minutes})", true);
 
-        public Task<int> ClearAsync(CancellationToken ct) => Done("Clear()", 0);
+        public Task<int> ClearAsync(CancellationToken ct) => DoneAsync("Clear()", 0);
 
         public Task<bool> SetRoomMutedAsync(bool muted, CancellationToken ct) =>
-            Done($"SetRoomMuted({muted})", true);
+            DoneAsync($"SetRoomMuted({muted})", true);
 
         public Task<int> PickUpAllOwnedAsync(bool buildersClub, CancellationToken ct) =>
-            Done($"PickUpAllOwned({buildersClub})", 0);
+            DoneAsync($"PickUpAllOwned({buildersClub})", 0);
 
-        public Task<int?> EjectAllAsync(CancellationToken ct) => Done("EjectAll()", (int?)0);
+        public Task<int?> EjectAllAsync(CancellationToken ct) => DoneAsync("EjectAll()", (int?)0);
 
-        public Task<int?> EjectPetsAsync(CancellationToken ct) => Done("EjectPets()", (int?)0);
+        public Task<int?> EjectPetsAsync(CancellationToken ct) => DoneAsync("EjectPets()", (int?)0);
 
-        public Task<int?> ResetScoresAsync(CancellationToken ct) => Done("ResetScores()", (int?)0);
+        public Task<int?> ResetScoresAsync(CancellationToken ct) =>
+            DoneAsync("ResetScores()", (int?)0);
 
         public bool TogglePetsMuted()
         {
@@ -370,14 +371,14 @@ internal static class TestCommands
         public Task<bool> IsGroupRoomAsync(CancellationToken ct) => Task.FromResult(false);
 
         public Task PlayEffectAsync(SpecialRoomEffectType effect, CancellationToken ct) =>
-            Done($"PlayEffect({effect})", true);
+            DoneAsync($"PlayEffect({effect})", true);
 
         public Task<bool> StartWordQuizAsync(string question, CancellationToken ct) =>
-            Done($"StartWordQuiz({question})", true);
+            DoneAsync($"StartWordQuiz({question})", true);
 
-        public Task UnloadAsync(CancellationToken ct) => Done("Unload()", true);
+        public Task UnloadAsync(CancellationToken ct) => DoneAsync("Unload()", true);
 
-        private Task<T> Done<T>(string action, T answer)
+        private Task<T> DoneAsync<T>(string action, T answer)
         {
             room.Act(action);
 
