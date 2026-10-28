@@ -21,6 +21,7 @@ public sealed class FakeHotel : IHotel
         Wallet = new FakeWallet(this);
         Players = new FakePlayers(this);
         Rooms = new FakeRooms(this);
+        Bots = new FakeBots(this);
         Inventory = new FakeInventory(this);
         Catalog = new FakeCatalog(this);
         Notify = new FakeNotify(this);
@@ -31,6 +32,8 @@ public sealed class FakeHotel : IHotel
     public FakePlayers Players { get; }
 
     public FakeRooms Rooms { get; }
+
+    public FakeBots Bots { get; }
 
     public FakeWallet Wallet { get; }
 
@@ -52,6 +55,8 @@ public sealed class FakeHotel : IHotel
     IHotelPlayers IHotel.Players => Players;
 
     IHotelRooms IHotel.Rooms => Rooms;
+
+    IHotelBots IHotel.Bots => Bots;
 
     IHotelWallet IHotel.Wallet => Wallet;
 

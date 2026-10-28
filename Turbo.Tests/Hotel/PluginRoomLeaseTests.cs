@@ -220,6 +220,7 @@ public sealed class PluginRoomLeaseTests : IDisposable
                 _fakes.Create<INavigatorService>(),
                 _leases
             ),
+            _fakes.Create<IHotelBots>(),
             _fakes.Create<IHotelWallet>(),
             _fakes.Create<IHotelInventory>(),
             _fakes.Create<IHotelCatalog>(),

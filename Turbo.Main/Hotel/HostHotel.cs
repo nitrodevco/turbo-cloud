@@ -11,6 +11,7 @@ namespace Turbo.Main.Hotel;
 internal sealed class HostHotel(
     IHotelPlayers players,
     IHotelRooms rooms,
+    IHotelBots bots,
     IHotelWallet wallet,
     IHotelInventory inventory,
     IHotelCatalog catalog,
@@ -24,6 +25,8 @@ internal sealed class HostHotel(
     public IHotelPlayers Players { get; } = players;
 
     public IHotelRooms Rooms { get; } = rooms;
+
+    public IHotelBots Bots { get; } = bots;
 
     public IHotelWallet Wallet { get; } = wallet;
 
@@ -45,6 +48,7 @@ internal sealed class HostHotel(
         new HostHotel(
             Players,
             Rooms is HostHotelRooms rooms ? rooms.ForPlugin(pluginKey) : Rooms,
+            Bots,
             Wallet,
             Inventory,
             Catalog,
@@ -68,6 +72,7 @@ public static class HotelServiceCollectionExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IHotelPlayers, HostHotelPlayers>();
         services.TryAddSingleton<IHotelRooms, HostHotelRooms>();
+        services.TryAddSingleton<IHotelBots, HostHotelBots>();
         services.TryAddSingleton<IHotelWallet, HostHotelWallet>();
         services.TryAddSingleton<IHotelInventory, HostHotelInventory>();
         services.TryAddSingleton<IHotelCatalog, HostHotelCatalog>();

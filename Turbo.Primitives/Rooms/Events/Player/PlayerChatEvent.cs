@@ -52,5 +52,16 @@ public sealed record PlayerChatEvent : PlayerEvent
     [Id(9)]
     public string? UnfilteredText { get; init; }
 
+    /// <summary>The name addressed by a whisper, as typed; metadata only, with no change to whisper delivery.</summary>
+    [Id(10)]
+    public string? RecipientName { get; init; }
+
+    /// <summary>The speaker's tile when this line was spoken, for off-turn listeners.</summary>
+    [Id(11)]
+    public int? SpeakerX { get; init; }
+
+    [Id(12)]
+    public int? SpeakerY { get; init; }
+
     public void Cancel() => IsCancelled = true;
 }

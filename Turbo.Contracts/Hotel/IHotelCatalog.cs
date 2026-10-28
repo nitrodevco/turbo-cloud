@@ -33,6 +33,13 @@ public interface IHotelCatalog
     IReadOnlyList<HotelOffer> Offers(int pageId);
 
     /// <summary>
+    /// The live offers of one of the furni, on pages every player sees (shown, with no rank or
+    /// permission needed, under shown pages): what a player could buy it for.
+    /// </summary>
+    [HotelCall(HotelCallContext.Anywhere)]
+    IReadOnlyList<HotelOffer> OffersOf(int definitionId);
+
+    /// <summary>
     /// How many of each furni definition players hold (in inventories and rooms), system accounts
     /// left out; a definition no one holds is not listed.
     /// </summary>

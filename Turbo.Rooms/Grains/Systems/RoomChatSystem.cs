@@ -147,6 +147,9 @@ public sealed class RoomChatSystem(RoomGrain roomGrain)
             TrackingId = trackingId,
             Gesture = GetGestureForText(text),
             TargetPlayerId = recipient?.PlayerId,
+            RecipientName = chatType == RoomChatType.Whisper ? recipientName : null,
+            SpeakerX = speaker.X,
+            SpeakerY = speaker.Y,
             WiredMayRead =
                 chatType != RoomChatType.Whisper || await WiredMayReadWhisperAsync(speaker, ct),
         };

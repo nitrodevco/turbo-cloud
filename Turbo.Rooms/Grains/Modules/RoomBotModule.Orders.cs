@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Badges;
+using Turbo.Primitives.Bots;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -46,28 +47,33 @@ public sealed partial class RoomBotModule
     /// A bot speaks or shouts to the whole room; <paramref name="hideName"/> leaves its name off
     /// the bubble. A bot that said ten lines in the last five seconds says nothing.
     /// </summary>
-    public Task TalkAsync(
+    public async Task<bool> TalkAsync(
         IRoomBot bot,
         string text,
         bool shout,
         int? bubbleWidth,
         bool hideName,
         CancellationToken ct
-    ) =>
-        string.IsNullOrWhiteSpace(text) || !TryTakeLine(bot)
-            ? Task.CompletedTask
-            : ChatSystem.SayAsAvatarAsync(
-                bot,
-                text,
-                new AvatarSpeech
-                {
-                    StyleId = Config.ChatStyleId,
-                    Shout = shout,
-                    BubbleWidth = bubbleWidth,
-                    HideUsername = hideName,
-                },
-                ct
-            );
+    )
+    {
+        if (string.IsNullOrWhiteSpace(text) || !TryTakeLine(bot))
+            return false;
+
+        await ChatSystem.SayAsAvatarAsync(
+            bot,
+            text,
+            new AvatarSpeech
+            {
+                StyleId = Config.ChatStyleId,
+                Shout = shout,
+                BubbleWidth = bubbleWidth,
+                HideUsername = hideName,
+            },
+            ct
+        );
+
+        return true;
+    }
 
     private bool TryTakeLine(IRoomBot bot)
     {
@@ -352,5 +358,60 @@ public sealed partial class RoomBotModule
         );
 
         Persist(bot);
+    }
+
+    /// <summary>
+    /// Carries out what the hotel told a placed bot to do (<see cref="BotOrder"/>), as a wired bot
+    /// action would: a line goes through the flood limit and the room's word filter, a walk
+    /// ends any follow or furni the bot was heading for. False when the bot is not here or can't.
+    /// </summary>
+    public async Task<bool> OrderAsync(int botId, BotOrder order, CancellationToken ct)
+    {
+        if (!TryGetBot(botId, out var bot))
+            return false;
+
+        switch (order)
+        {
+            case BotSayOrder say:
+                return await TalkAsync(bot, say.Text, say.Shout, null, false, ct);
+            case BotWhisperOrder whisper:
+                if (
+                    string.IsNullOrWhiteSpace(whisper.Text)
+                    || !AvatarModule.TryGetPlayer(whisper.Player, out var listener)
+                )
+                    return false;
+
+                await WhisperAsync(bot, listener, whisper.Text, null, false, ct);
+
+                return true;
+            case BotWalkOrder walk:
+                bot.FollowObjectId = -1;
+                bot.TargetItemId = -1;
+
+                return await AvatarModule.WalkAvatarToAsync(bot, walk.X, walk.Y, ct);
+            case BotWalkToItemOrder toItem:
+                return State.ItemsById.TryGetValue(new RoomObjectId(toItem.ItemId), out var item)
+                    && item is IRoomFloorItem { IsInvisible: false } floorItem
+                    && await WalkToItemAsync(bot, floorItem, ct);
+            case BotGestureOrder
+            {
+                Gesture: AvatarExpressionType.Wave
+                    or AvatarExpressionType.Blow
+                    or AvatarExpressionType.Laugh
+                    or AvatarExpressionType.Cry
+                    or AvatarExpressionType.Jump,
+            } gesture:
+                return await AvatarModule.SetAvatarExpressionAsync(
+                    bot.ObjectId,
+                    gesture.Gesture,
+                    ct
+                );
+            case BotDanceOrder dance when Enum.IsDefined(dance.Dance):
+                return await AvatarModule.SetAvatarDanceAsync(bot.ObjectId, dance.Dance, ct);
+            case BotSignOrder { Sign: >= 0 and <= 17 } sign:
+                return await AvatarModule.SetAvatarSignAsync(bot.ObjectId, sign.Sign, ct);
+            default:
+                return false;
+        }
     }
 }

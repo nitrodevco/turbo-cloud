@@ -1,6 +1,8 @@
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Bots;
 using Turbo.Primitives.Bots.Enums;
 using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
@@ -63,4 +65,14 @@ public partial interface IRoomGrain
 
     /// <summary>Staff, from the admin panel: takes a bot out of the room, back to its owner's inventory.</summary>
     public Task<bool> StaffPickupBotAsync(int botId, CancellationToken ct);
+
+    /// <summary>The bots standing in the room, where each stands now.</summary>
+    public Task<ImmutableArray<BotSnapshot>> GetPlacedBotsAsync(CancellationToken ct);
+
+    /// <summary>
+    /// The hotel tells a placed bot to do something (the hotel API's bots). False when no such bot
+    /// stands here or it can't (no way to the tile, a player not in the room, a gesture a bot has
+    /// not, ten lines in the last five seconds).
+    /// </summary>
+    public Task<bool> OrderBotAsync(int botId, BotOrder order, CancellationToken ct);
 }

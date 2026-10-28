@@ -1,6 +1,9 @@
+using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Bots;
 using Turbo.Primitives.Bots.Enums;
 using Turbo.Primitives.Bots.Snapshots;
 using Turbo.Primitives.Rooms.Enums;
@@ -97,5 +100,18 @@ public sealed partial class RoomGrain
 
                 return await BotModule.StaffPickupBotAsync(botId, ct);
             }
+        );
+
+    public Task<ImmutableArray<BotSnapshot>> GetPlacedBotsAsync(CancellationToken ct) =>
+        Task.FromResult<ImmutableArray<BotSnapshot>>([
+            .. BotModule.Bots.Select(x => x.GetBotSnapshot()),
+        ]);
+
+    public Task<bool> OrderBotAsync(int botId, BotOrder order, CancellationToken ct) =>
+        RunLoggedAsync(
+            ActionContext.CreateForSystem(RoomId),
+            $"order bot ({order.GetType().Name})",
+            botId,
+            () => BotModule.OrderAsync(botId, order, ct)
         );
 }

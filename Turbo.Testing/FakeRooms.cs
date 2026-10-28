@@ -45,6 +45,19 @@ public sealed class FakeRoom
     /// <summary>A doorbell or a password keeps visitors out: they cannot watch it either.</summary>
     public bool DoorClosed { get; set; }
 
+    /// <summary>Its floor furni, as <see cref="IHotelRooms.FurniAsync"/> answers them.</summary>
+    public List<HotelRoomFurni> Furni { get; } = [];
+
+    /// <summary>Stands a floor furni of the definition on a tile; item ids count up from 1 in each room.</summary>
+    public HotelRoomFurni AddFurni(int definitionId, int x, int y)
+    {
+        var furni = new HotelRoomFurni(Furni.Count + 1, definitionId, x, y);
+
+        Furni.Add(furni);
+
+        return furni;
+    }
+
     public static implicit operator RoomId(FakeRoom room) => room.Id;
 
     public override string ToString() => $"{Name} ({Id})";
@@ -126,6 +139,11 @@ public sealed class FakeRooms : IHotelRooms
         Task.FromResult<IReadOnlyList<PlayerId>>([
             .. Find(room)?.Players.Order() ?? Enumerable.Empty<PlayerId>(),
         ]);
+
+    public Task<IReadOnlyList<HotelRoomFurni>> FurniAsync(RoomId room, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<HotelRoomFurni>>(
+            Find(room) is { Players.Count: > 0 } r ? [.. r.Furni] : []
+        );
 
     public Task<bool> SendAsync(RoomId room, IPluginMessage message, CancellationToken ct) =>
         Task.FromResult(Record(room, message));

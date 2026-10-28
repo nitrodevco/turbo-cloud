@@ -81,6 +81,28 @@ internal sealed class HostHotelRooms(
     public async Task<IReadOnlyList<PlayerId>> PlayersAsync(RoomId room, CancellationToken ct) =>
         await grains.GetRoomDirectoryGrain().GetRoomPlayersAsync(room, ct).ConfigureAwait(false);
 
+    /// <summary>Like a send, a room no one is in is not loaded for it.</summary>
+    public async Task<IReadOnlyList<HotelRoomFurni>> FurniAsync(RoomId room, CancellationToken ct)
+    {
+        if (
+            await grains
+                .GetRoomDirectoryGrain()
+                .GetRoomPopulationAsync(room, ct)
+                .ConfigureAwait(false) <= 0
+        )
+            return [];
+
+        var items = await grains
+            .GetRoomGrain(room)
+            .GetFloorItemSnapshotsAsync(ct)
+            .ConfigureAwait(false);
+
+        return
+        [
+            .. items.Select(x => new HotelRoomFurni(x.ObjectId.Value, x.DefinitionId, x.X, x.Y)),
+        ];
+    }
+
     public Task<bool> SendAsync(RoomId room, IPluginMessage message, CancellationToken ct) =>
         SendAsync(room, PluginMessageComposer.Compose(message), ct);
 
