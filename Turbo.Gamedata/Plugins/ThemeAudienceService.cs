@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -30,6 +29,7 @@ internal sealed class ThemeAudienceService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IThemeFileService files,
     LoadedPluginGamedata loaded,
+    IThemeClientState clients,
     IGrainFactory grainFactory,
     TimeProvider time,
     ILogger<ThemeAudienceService> logger,
@@ -240,8 +240,8 @@ internal sealed class ThemeAudienceService(
 
         // What this client draws, for live reload to send it only a look it does not have.
         if (player.Value > 0)
-            NoteDrawn(
-                player.Value,
+            clients.NoteDrawn(
+                player,
                 string.Equals(theme, requested, StringComparison.OrdinalIgnoreCase)
                     ? requested
                     : null,
@@ -306,44 +306,18 @@ internal sealed class ThemeAudienceService(
         await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// The look each player's client draws, by player id (<see cref="ThemeLiveReload"/>): the theme
-    /// staff asked to preview for the load, and the look's revision. A player with none draws the
-    /// look every client loads.
-    /// </summary>
-    private readonly ConcurrentDictionary<int, DrawnLook> _drawn = new();
-
-    internal sealed record DrawnLook(string? Requested, string Revision);
-
-    internal DrawnLook? DrawnBy(int player) => _drawn.GetValueOrDefault(player);
-
-    internal void NoteDrawn(int player, string? requested, string revision) =>
-        _drawn[player] = new DrawnLook(requested, revision);
-
-    /// <summary>Forgets the looks of players not online any more: their next load asks again.</summary>
-    internal void ForgetDrawn(IReadOnlySet<int> online)
-    {
-        foreach (var player in _drawn.Keys)
-            if (!online.Contains(player))
-                _drawn.TryRemove(player, out _);
-    }
-
-    /// <summary>
-    /// The theme each of <paramref name="players"/> draws now (null: the hotel's look with no theme
-    /// of its own), as <see cref="SessionAsync"/> works it out with the preview they loaded, read in
-    /// one go; and the default theme, what a client with no look of its own draws.
-    /// </summary>
-    internal async Task<(
-        string? Default,
-        IReadOnlyList<(PlayerId Player, string? Theme)> Players
-    )> ResolveAsync(IReadOnlyCollection<PlayerId> players, CancellationToken ct)
+    /// <summary>Resolves all requested players in one database batch, without tracking their display state.</summary>
+    public async Task<ThemeResolution> ResolveAsync(
+        IReadOnlyDictionary<PlayerId, string?> requests,
+        CancellationToken ct
+    )
     {
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
         var themes = await ThemesAsync(dbCtx, ct).ConfigureAwait(false);
         var list = themes.Values.ToList();
-        var ids = players.Select(x => x.Value).ToList();
+        var ids = requests.Keys.Select(x => x.Value).ToList();
         var chosen =
             ids.Count == 0
                 ? []
@@ -354,8 +328,9 @@ internal sealed class ThemeAudienceService(
                     .ConfigureAwait(false);
 
         var resolved = await Task.WhenAll(
-                players.Select(async player =>
+                requests.Select(async request =>
                 {
+                    var (player, requested) = request;
                     var (groups, mayPreview) = await WhoAsync(player, themes, ct)
                         .ConfigureAwait(false);
 
@@ -367,14 +342,14 @@ internal sealed class ThemeAudienceService(
                             groups,
                             mayPreview,
                             chosen.GetValueOrDefault(player.Value),
-                            DrawnBy(player.Value)?.Requested
+                            requested
                         )
                     );
                 })
             )
             .ConfigureAwait(false);
 
-        return (ThemeChains.DefaultOf(list), resolved);
+        return new ThemeResolution(ThemeChains.DefaultOf(list), resolved);
     }
 
     private async Task<IReadOnlyDictionary<string, ThemeAudience>> ThemesAsync(

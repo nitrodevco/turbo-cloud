@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Entities.Gamedata;
 using Turbo.Database.Entities.Players;
+using Turbo.Gamedata;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Files;
 using Turbo.Gamedata.Furniture;
@@ -54,6 +55,7 @@ public sealed class ThemeAudienceTests : IDisposable
     private readonly HashSet<long> _previewers = [];
     private readonly GamedataFileService _files;
     private readonly ThemeAudienceService _themes;
+    private readonly IThemeClientState _clients = new ThemeClientState();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -94,6 +96,7 @@ public sealed class ThemeAudienceTests : IDisposable
             _db,
             _files,
             _loaded,
+            _clients,
             _fakes.Create<IGrainFactory>(),
             TimeProvider.System,
             NullLogger<ThemeAudienceService>.Instance
@@ -380,6 +383,129 @@ public sealed class ThemeAudienceTests : IDisposable
         Changed(A).Should().BeEmpty("A draws night, whose chain the default did not touch");
     }
 
+    [Fact]
+    public async Task An_alternative_audience_provider_sends_live_updates_through_the_registered_resolver()
+    {
+        await _themes.SetAsync(
+            "night",
+            new ThemeAudienceChange(ThemeStatus.Development),
+            STAFF,
+            Ct
+        );
+        var batches = 0;
+        _fakes.Handlers["ResolveAsync"] = call =>
+        {
+            var requests = (IReadOnlyDictionary<PlayerId, string?>)call.Args[0]!;
+            requests.Keys.Should().BeEquivalentTo([A, B]);
+            batches++;
+            return Task.FromResult(new ThemeResolution(null, [(A, "night"), (B, null)]));
+        };
+        async Task<ThemeSession> SessionOfAsync(PlayerId player)
+        {
+            var look = await _files.ThemeLookAsync("night", Ct);
+            _clients.NoteDrawn(player, null, look.Revision);
+            return new ThemeSession("night", look.Variables, [], string.Empty);
+        }
+        _fakes.Handlers["SessionAsync"] = call => SessionOfAsync((PlayerId)call.Args[0]!);
+        _fakes.Handlers["GetOnlinePlayerIds"] = _ => (IReadOnlyCollection<PlayerId>)[A, B];
+        var replacement = _fakes.Create<IThemeAudiences>();
+        var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings());
+        new GamedataModule().ConfigureServices(builder.Services, builder);
+        builder.Services.AddLogging();
+        builder.Services.AddSingleton<IThemeFileService>(_files);
+        builder.Services.AddSingleton(_fakes.Create<IGrainFactory>());
+        builder.Services.AddSingleton(_fakes.Create<ISessionGateway>());
+        builder.Services.AddSingleton(_fakes.Create<IHostApplicationLifetime>());
+        builder.Services.AddSingleton<IThemeClientState>(_clients);
+        builder.Services.AddSingleton(replacement);
+        using var host = builder.Services.BuildServiceProvider();
+        host.GetRequiredService<IThemeResolver>().Should().BeSameAs(replacement);
+        var live = host.GetRequiredService<IThemeLiveReload>();
+        var hosted = (IHostedService)live;
+        await host.GetRequiredService<IThemeAudiences>().SessionAsync(A, null, Ct);
+        await hosted.StartAsync(Ct);
+        _files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
+        (await live.SettleAsync(Ct)).Players.Should().Be(0);
+
+        Repatch("night", "alternative");
+        (await live.SettleAsync(Ct)).Players.Should().Be(1);
+        Changed(A).Should().ContainSingle().Which.Theme.Should().Be("night");
+        Changed(B).Should().BeEmpty();
+        _clients.DrawnBy(A)!.Revision.Should().Be(Changed(A).Single().Revision);
+
+        _files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
+        (await live.SettleAsync(Ct)).Players.Should().Be(0);
+        Changed(A).Should().ContainSingle("an unchanged revision sends no further message");
+        batches.Should().Be(3, "each invalidation resolves all players in one batch");
+    }
+
+    [Fact]
+    public async Task Live_reload_preserves_accepted_previews_and_rechecks_permission()
+    {
+        await _themes.SetAsync(
+            "night",
+            new ThemeAudienceChange(ThemeStatus.Development),
+            STAFF,
+            Ct
+        );
+        _previewers.Add(A.Value);
+        await _themes.SessionAsync(A, "night", Ct);
+        await _themes.SessionAsync(B, "night", Ct);
+        _clients.DrawnBy(A)!.Requested.Should().Be("night");
+        _clients.DrawnBy(B)!.Requested.Should().BeNull("B's preview was rejected");
+        var live = Live();
+        _files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
+        (await live.SettleAsync(Ct)).Players.Should().Be(0);
+
+        Repatch("night", "preview");
+        (await live.SettleAsync(Ct)).Players.Should().Be(1);
+        Changed(A).Should().ContainSingle().Which.Theme.Should().Be("night");
+        Changed(B).Should().BeEmpty();
+        _clients.DrawnBy(A)!.Requested.Should().Be("night");
+
+        _previewers.Remove(A.Value);
+        _files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
+        (await live.SettleAsync(Ct)).Players.Should().Be(1);
+        Changed(A).Last().Theme.Should().BeEmpty("the preview permission was revoked");
+        Changed(B).Should().BeEmpty();
+
+        // A new load replaces the old preview request and shares the revision live reload recorded.
+        await _themes.SessionAsync(A, null, Ct);
+        _clients.DrawnBy(A)!.Requested.Should().BeNull();
+        _clients.DrawnBy(A)!.Revision.Should().Be(Changed(A).Last().Revision);
+        _files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
+        (await live.SettleAsync(Ct)).Players.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Offline_players_lose_their_revision_and_preview_before_reconnecting()
+    {
+        await _themes.SetAsync(
+            "night",
+            new ThemeAudienceChange(ThemeStatus.Development),
+            STAFF,
+            Ct
+        );
+        _previewers.Add(A.Value);
+        await _themes.SessionAsync(A, "night", Ct);
+        await _themes.SessionAsync(B, null, Ct);
+        var live = Live();
+        _files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
+        await live.SettleAsync(Ct);
+
+        _fakes.Handlers["GetOnlinePlayerIds"] = _ => (IReadOnlyCollection<PlayerId>)[B];
+        _files.Invalidate(GamedataFiles.EXTERNAL_VARIABLES);
+        (await live.SettleAsync(Ct)).Players.Should().Be(0);
+        _clients.DrawnBy(A).Should().BeNull();
+        _clients.DrawnBy(B).Should().NotBeNull();
+
+        _fakes.Handlers["GetOnlinePlayerIds"] = _ => (IReadOnlyCollection<PlayerId>)[A, B];
+        (await _themes.SessionAsync(A, null, Ct)).Theme.Should().BeEmpty();
+        Repatch("night", "offline");
+        (await live.SettleAsync(Ct)).Players.Should().Be(0);
+        Changed(A).Should().BeEmpty("the previous load's preview must not survive reconnecting");
+    }
+
     /// <summary>Live reload over this hotel, with A and B online.</summary>
     private ThemeLiveReload Live()
     {
@@ -388,6 +514,7 @@ public sealed class ThemeAudienceTests : IDisposable
         var live = new ThemeLiveReload(
             _files,
             _themes,
+            _clients,
             _fakes.Create<IGrainFactory>(),
             Options.Create(new GamedataConfig()),
             _fakes.Create<IHostApplicationLifetime>(),

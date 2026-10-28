@@ -41,6 +41,10 @@
   - `Turbo.Players/Grains/PlayerGrain.cs` exposes profile snapshots consumed by handlers.
 
 ## Data and lookup semantics
+- Theme audience rules resolve through `IThemeResolver`, required by `IThemeAudiences`.
+  Resolution takes preview requests explicitly and does not own displayed revisions.
+  Session initialization and live reload share the singleton `IThemeClientState`; replacement
+  audience providers record accepted previews and supplied revisions there too.
 - Username-to-id lookup behavior is case-insensitive.
 - Directory cache updates must keep forward and reverse mappings consistent across set/invalidate paths.
 - Avoid adding handler-level fallbacks that bypass directory-grain lookup responsibilities.
