@@ -1,6 +1,7 @@
 # Upgrading a Plugin
 
 - [Introduction](#introduction)
+- [Theme-file providers (2026-10-28)](#theme-file-providers-2026-10-28)
 - [Theme audience providers (2026-10-28)](#theme-audience-providers-2026-10-28)
 - [To source-only plugins (2026-10-27)](#to-source-only-plugins-2026-10-27)
     - [1. Build a server that ships the plugin SDK](#1-build-a-server-that-ships-the-plugin-sdk)
@@ -23,6 +24,23 @@ whether it breaks a plugin, is in `docs/plugin-changelog.md` (one file per chang
 `docs/changelog/`); this page is the work, in order. A pull request with a breaking change adds its
 changelog entry and its steps here together.
 
+## Theme-file providers (2026-10-28)
+
+Implementations of `IThemeFileService` now implement `ThemeViewAsync`, returning a `ThemeView`
+whose `Look` and `SessionVariables` come from the same materialization. Do not implement this by
+combining independent `ThemeVariablesAsync` and `ThemeLookAsync` calls: invalidation between them
+could pair different builds. Keep the existing methods as projections of your shared build.
+
+Preserve the session projection: null when the default file supplies the requested theme, otherwise
+the merged variables without the external-text URL. The complete `Look` includes that URL when
+present and uses the existing revision algorithm. Continue retaining revisioned views for `FindLook`;
+variables-only requests must not consume retention slots. A build first requested as variables
+must still be retained when subsequently requested as a view or look.
+
+Custom `IThemeAudiences` implementations initializing a session consume `ThemeViewAsync` once and
+record its `Look.Revision` in the shared `IThemeClientState`. Existing callers of the legacy
+theme-file methods need no source changes. See `docs/plugin-data.md`, "Replacing the theme-file provider".
+
 ## Theme audience providers (2026-10-28)
 
 Host integrations implementing `IThemeAudiences` now implement its inherited `IThemeResolver`.
@@ -32,8 +50,8 @@ without reading or changing displayed revisions. There is no default implementat
 live updates.
 
 Inject the host's singleton `IThemeClientState` into the audience provider. In `SessionAsync`,
-record the accepted preview request (null if rejected) and the revision supplied by
-`IThemeFileService.ThemeLookAsync` using `NoteDrawn`. Register the audience replacement after
+record the accepted preview request (null if rejected) and `Look.Revision` from the same
+`IThemeFileService.ThemeViewAsync` result used for the session variables, using `NoteDrawn`. Register the audience replacement after
 the content module; the default `IThemeResolver` alias follows `IThemeAudiences`. Keep one shared
 tracking service for session initialization and live reload. Existing plugins using the audience
 API without implementing it need no changes.

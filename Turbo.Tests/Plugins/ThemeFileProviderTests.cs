@@ -57,6 +57,7 @@ public sealed class ThemeFileProviderTests
         var variables = new Dictionary<string, string> { ["custom"] = "provider" };
         var look = new ThemeLook("", "alternate-revision", variables);
         var subscribers = new List<Action<string>>();
+        fakes.Handlers["ThemeViewAsync"] = _ => Task.FromResult(new ThemeView(look, variables));
         fakes.Handlers["ThemeVariablesAsync"] = _ =>
             Task.FromResult<IReadOnlyDictionary<string, string>?>(variables);
         fakes.Handlers["ThemeLookAsync"] = _ => Task.FromResult(look);

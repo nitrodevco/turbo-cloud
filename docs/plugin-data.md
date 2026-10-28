@@ -403,7 +403,8 @@ display state. Preserve batch reads rather than calling session initialization f
 
 Both session initialization and live reload use the host's singleton `IThemeClientState`.
 Replacement audience providers inject it and call `NoteDrawn` in `SessionAsync` with the accepted
-preview request (null when rejected) and the revision from `IThemeFileService.ThemeLookAsync`.
+preview request (null when rejected) and `Look.Revision` from the same `ThemeViewAsync` result
+used for the session variables.
 Live reload compares that revision, records updates there, and forgets offline players. Keeping
 a second private tracker would break that comparison. Existing callers need no changes;
 implementers follow `docs/upgrading.md`, "Theme audience providers (2026-10-28)".
@@ -421,6 +422,21 @@ too. Replacing only `IGamedataFileService` does not replace the theme capability
 must preserve content revisions, retained look lookup and invalidation notifications. This is a
 host DI capability; it does not add a second plugin lifecycle or make theme-audience policy
 replaceable by itself.
+
+`ThemeViewAsync` returns one `ThemeView`: the complete revisioned `Look` and its `SessionVariables`
+projection. Session initialization consumes this pair once, so invalidation between two separate
+reads cannot make tracking describe variables the client was not given. The built-in provider
+shares one materialization cache across this method, `ThemeVariablesAsync` and `ThemeLookAsync`.
+The session projection stays null for the requested default theme; otherwise it contains the merged
+entries without the external-text URL. The complete look includes that URL when present. Null and
+an empty named theme chain are separate cache identities, preserving their different selection rules.
+
+Replacement providers must produce the pair from one build, without an independent-read fallback.
+Revision hashing and bounded retained-look lookup stay with the provider. Variables-only calls do
+not retain revisions; a subsequent view/look request retains that cached build. See `docs/upgrading.md`,
+"Theme-file providers (2026-10-28)". This pairs the two projections; it does not add transactional
+publication across concurrent database and plugin-file edits or guarantee one build under overlapping
+cold requests.
 
 ## Not yet
 

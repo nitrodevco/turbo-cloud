@@ -17,6 +17,13 @@ public interface IThemeFileService : IGamedataFileService
     public event Action<string>? Invalidated;
 
     /// <summary>
+    /// The session variables and revisioned look from one materialization. Session initialization
+    /// consumes this result once so invalidation between separate reads cannot pair different builds.
+    /// Replacements must produce this pair together; do not compose two independently built views.
+    /// </summary>
+    public Task<ThemeView> ThemeViewAsync(string? theme, CancellationToken ct);
+
+    /// <summary>
     /// The variables for a theme's inheritance chain; null when the default file already has them.
     /// </summary>
     public Task<IReadOnlyDictionary<string, string>?> ThemeVariablesAsync(

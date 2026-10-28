@@ -62,6 +62,9 @@ Default output format:
   `docs/orleans.md` to regenerate and review the owning project's `OrleansContracts.txt`;
   never refresh baselines merely to silence diagnostics, and preserve retired history.
 - Avoid introducing new dependencies unless required by the task.
+- Theme session initialization consumes variables and revision from one `IThemeFileService.ThemeViewAsync`
+  result. Keep one materialization cache for session and live views; preserve default null projections,
+  text URL placement and bounded revision retention. Do not pair independent variables/look reads.
 - Theme creation reserves its key before copying, stages complete files outside discovery, and
   publishes under the plugin manager's reload gate. Package installation shares that key
   reservation. Rollback retracts only the operation's marked output; cleanup failures are logged
