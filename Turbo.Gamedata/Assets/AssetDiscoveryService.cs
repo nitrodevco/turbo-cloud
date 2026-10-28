@@ -39,8 +39,6 @@ internal sealed class AssetDiscoveryService(
     private const int BADGE_LEVEL_MISSES = 2;
     private const int BADGE_LEVEL_LIMIT = 50;
 
-    private HabboClientRelease? _client;
-
     /// <summary>
     /// Reads Habbo's external texts for posters and badges; unreadable texts leave those kinds
     /// out of this discovery run while the rest of the listing continues.
@@ -118,15 +116,17 @@ internal sealed class AssetDiscoveryService(
             numbered[set.Kind] = await NumberedAsync(set, domain, had[set.Kind], probe, log, ct)
                 .ConfigureAwait(false);
 
+        var listedAt = time.GetUtcNow().UtcDateTime;
+        var (room, release) = await RoomAsync(revision, log, ct).ConfigureAwait(false);
         var lists = new AssetDiscoveryResult(
             domain,
             revision,
-            time.GetUtcNow().UtcDateTime,
+            listedAt,
             furniture,
             figures,
             effects,
             pets,
-            await RoomAsync(revision, log, ct).ConfigureAwait(false),
+            room,
             texts is null
                 ? null
                 : await BadgesAsync(texts, domain, had[AssetBundleKind.Badge], probe, log, ct)
@@ -136,7 +136,7 @@ internal sealed class AssetDiscoveryService(
             numbered[AssetBundleKind.Sound]
         )
         {
-            Client = _client,
+            Client = release,
         };
 
         return lists;
@@ -147,17 +147,17 @@ internal sealed class AssetDiscoveryService(
     /// at its file's SHA-256, so a changed one is taken again) when a release is downloaded and has
     /// it, as nitro-studio prefers it; else Habbo's gordon SWF at the client revision.
     /// </summary>
-    private async Task<List<HabboLibrary>> RoomAsync(
+    private async Task<(List<HabboLibrary> Libraries, HabboClientRelease? Client)> RoomAsync(
         string revision,
         Action<string> log,
         CancellationToken ct
     )
     {
-        _client = null;
+        HabboClientRelease? release = null;
 
         try
         {
-            _client = await client.OpenFollowedAsync(ct).ConfigureAwait(false);
+            release = await client.OpenFollowedAsync(ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or AssetFormatException or JsonException)
         {
@@ -172,8 +172,8 @@ internal sealed class AssetDiscoveryService(
 
         var libraries = HabboFileLists.Room(revision);
 
-        if (_client is null)
-            return libraries;
+        if (release is null)
+            return (libraries, null);
 
         var fromClient = 0;
 
@@ -181,7 +181,7 @@ internal sealed class AssetDiscoveryService(
         {
             var path = $"local_include/{libraries[i].Name}.hab";
 
-            if (_client.FileHashes.TryGetValue(path, out var sha256))
+            if (release.FileHashes.TryGetValue(path, out var sha256))
             {
                 libraries[i] = libraries[i] with
                 {
@@ -192,9 +192,9 @@ internal sealed class AssetDiscoveryService(
             }
         }
 
-        log($"{fromClient} room libraries come from Habbo's HTML client {_client.Version}.");
+        log($"{fromClient} room libraries come from Habbo's HTML client {release.Version}.");
 
-        return libraries;
+        return (libraries, release);
     }
 
     /// <summary>The files the hotel has of each kind of Habbo's that is found by asking for it, by name.</summary>

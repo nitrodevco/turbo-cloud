@@ -81,6 +81,18 @@ must share it, and it must outlive a deploy: the Ploi scripts keep it in `.deplo
 
 ## Syncing from Habbo
 
+Preview and sync discovery share one catalog of completed listings. A fresh cached preview is
+returned without reading Habbo; a stale one is returned immediately while one refresh runs behind
+it. Cold previews and `relist=true` wait for active discovery. Each sync still performs its probing
+pass, including after waiting for a preview that did not probe. Transfers continue outside the
+discovery gate with the client release captured by their own listing.
+
+A failed or cancelled listing leaves the last successful snapshot cached. Existing handling of
+unreadable optional maps is unchanged: that kind is unlisted while the rest of the discovery can
+complete. Shutdown cancels and joins background discovery and active or queued callers before
+disposing catalog resources. This coordinates discovery on one host; it does not serialize bundle
+transfers or add a transaction across remote listings and asset persistence.
+
 A sync (`Turbo.Gamedata/Assets`):
 
 1. Reads Habbo's `external_variables` for the client revision (`flash-assets-<revision>` in

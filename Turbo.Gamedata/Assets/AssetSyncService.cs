@@ -38,7 +38,7 @@ internal sealed class AssetSyncService(
     IOptions<AssetBundleConfig> config,
     IOptions<GamedataConfig> gamedataConfig,
     HabboGamedataClient habbo,
-    AssetDiscoveryService discovery,
+    AssetDiscoveryCatalog catalog,
     ClientBundleBuilder builder,
     IAssetBundleStore store,
     IAssetJobs jobs,
@@ -52,12 +52,6 @@ internal sealed class AssetSyncService(
     private const string AVATAR_ACTIONS = "HabboAvatarActions.xml";
 
     private const string NO_FILE = "Habbo has no file at its address.";
-
-    private readonly SemaphoreSlim _listing = new(1, 1);
-    private AssetDiscoveryResult? _lists;
-
-    /// <summary>The background read <see cref="RelistBehind"/> started last; done when none runs.</summary>
-    private Task _relisting = Task.CompletedTask;
 
     public AssetJobSnapshot Start(PlayerId player) =>
         jobs.Start(
@@ -175,7 +169,7 @@ internal sealed class AssetSyncService(
     {
         progress.Step("Listing", 0);
 
-        var lists = await ListHabboAsync(progress.Log, probe: true, ct).ConfigureAwait(false);
+        var lists = await catalog.ForSyncAsync(progress.Log, ct).ConfigureAwait(false);
 
         progress.Log(
             $"Habbo lists {lists.Furniture.Count} furniture, {lists.Figures?.Count ?? 0} clothing, {lists.Effects?.Count ?? 0} effect, {lists.Pets.Count} pet and {lists.Room.Count} room libraries, "
@@ -217,7 +211,7 @@ internal sealed class AssetSyncService(
 
     public async Task<AssetSyncPreview> PreviewAsync(bool relist, CancellationToken ct)
     {
-        var lists = await CachedListsAsync(relist, ct).ConfigureAwait(false);
+        var lists = await catalog.PreviewAsync(relist, ct).ConfigureAwait(false);
         var known = await LoadKnownAsync(ct).ConfigureAwait(false);
         var limit = Math.Max(0, config.Value.SyncPreviewItemLimit);
 
@@ -274,91 +268,6 @@ internal sealed class AssetSyncService(
             ],
         };
     }
-
-    /// <summary>
-    /// Habbo's lists as last read; read again when asked. Once older than the preview keeps them
-    /// they are still answered with, and read again behind it: a visit doesn't wait on Habbo
-    /// unless nothing was read yet.
-    /// </summary>
-    private async Task<AssetDiscoveryResult> ListHabboAsync(
-        Action<string> log,
-        bool probe,
-        CancellationToken ct
-    )
-    {
-        var lists = await discovery.DiscoverAsync(log, probe, ct).ConfigureAwait(false);
-        _lists = lists;
-
-        return lists;
-    }
-
-    private async Task<AssetDiscoveryResult> CachedListsAsync(bool relist, CancellationToken ct)
-    {
-        if (!relist && _lists is { } cached)
-        {
-            if (IsStale(cached))
-                RelistBehind();
-
-            return cached;
-        }
-
-        await _listing.WaitAsync(ct).ConfigureAwait(false);
-
-        try
-        {
-            // Another request may have read them while this one waited.
-            if (!relist && _lists is { } done)
-                return done;
-
-            // The numbered files and badge levels are asked for by a sync alone: the preview lists
-            // what the last one found.
-            return await ListHabboAsync(_ => { }, probe: false, ct).ConfigureAwait(false);
-        }
-        finally
-        {
-            _listing.Release();
-        }
-    }
-
-    /// <summary>Reads Habbo's lists again in the background, unless a listing is under way.</summary>
-    private void RelistBehind()
-    {
-        if (!_listing.Wait(0))
-            return;
-
-        _relisting = Task.Run(async () =>
-        {
-            try
-            {
-                await ListHabboAsync(_ => { }, probe: false, CancellationToken.None)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(
-                    ex,
-                    "Reading Habbo's lists again for the sync preview failed: {Message}",
-                    ex.Message
-                );
-            }
-            finally
-            {
-                _listing.Release();
-            }
-        });
-    }
-
-    /// <summary>
-    /// Waits for a background read of Habbo's lists to end: what touches the database after a
-    /// preview has answered, for whoever closes the database next.
-    /// </summary>
-#pragma warning disable VSTHRD003 // The read is this service's own, started on the thread pool by RelistBehind.
-    internal Task WhenRelistedAsync() => _relisting;
-#pragma warning restore VSTHRD003
-
-    private bool IsStale(AssetDiscoveryResult lists) =>
-        time.GetUtcNow().UtcDateTime - lists.ListedAt
-        >= TimeSpan.FromMinutes(Math.Max(0, config.Value.SyncPreviewMinutes));
 
     /// <summary>
     /// Every library Habbo serves now, by kind, kept for the preview. A map Habbo has not, or that
