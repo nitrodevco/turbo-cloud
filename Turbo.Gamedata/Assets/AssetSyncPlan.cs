@@ -100,7 +100,8 @@ internal static class AssetSyncPlan
 
     /// <summary>
     /// A bundle's kind and name as the database tells them apart: its name's collation ignores
-    /// case, and a name is ASCII (<see cref="AssetBundleStore.IsValidName"/>), so two names that
+    /// case, and a name is ASCII
+    /// (<see cref="AssetBundleStore.IsValidName(AssetBundleKind, string)"/>), so two names that
     /// differ only in case are one row.
     /// </summary>
     public static readonly IEqualityComparer<(AssetBundleKind Kind, string Name)> KEYS =

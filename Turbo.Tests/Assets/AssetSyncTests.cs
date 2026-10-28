@@ -1049,8 +1049,9 @@ public sealed class AssetSyncTests : IDisposable
         var templates = JsonNode.Parse(
             NitroBundle
                 .Read(
-                    File.ReadAllBytes(
-                        _folder.Store.FullPathOf(AssetBundleKind.Template, "habbo-toolbar-com")
+                    await File.ReadAllBytesAsync(
+                        _folder.Store.FullPathOf(AssetBundleKind.Template, "habbo-toolbar-com"),
+                        Ct
                     )
                 )
                 .Files["templates.json"]

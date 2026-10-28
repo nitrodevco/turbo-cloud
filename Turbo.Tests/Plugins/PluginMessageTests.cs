@@ -602,8 +602,13 @@ public sealed class PluginMessageTests : IDisposable
         services.AddSerializer();
         using var provider = services.BuildServiceProvider();
         var serializer = provider.GetRequiredService<Serializer>();
+        var decoded = serializer.Deserialize<RoomOutboundSnapshot>(
+            serializer.SerializeToArray(snapshot)
+        );
 
-        return serializer.Deserialize<RoomOutboundSnapshot>(serializer.SerializeToArray(snapshot));
+        Assert.NotNull(decoded);
+
+        return decoded;
     }
 
     private PackageEncoder Encoder()

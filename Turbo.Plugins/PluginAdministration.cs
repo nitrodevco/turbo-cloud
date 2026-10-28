@@ -757,7 +757,11 @@ internal sealed partial class PluginAdministration(
     {
         try
         {
-            return PluginSourceFiles.Find(staging, manifest)[0];
+            // A client-only plugin, or code its Sources miss (which the server refuses), has none.
+            return PluginSourceFiles.Find(staging, manifest).FirstOrDefault()
+                ?? PluginSourceFiles.CodeFiles(staging, "*.cs").FirstOrDefault()
+                ?? PluginSourceFiles.CodeFiles(staging, "*.csproj").FirstOrDefault()
+                ?? "manifest.json";
         }
         catch (ArgumentException)
         {

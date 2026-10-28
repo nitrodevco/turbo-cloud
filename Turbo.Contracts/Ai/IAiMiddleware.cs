@@ -8,11 +8,13 @@ namespace Turbo.Contracts.Ai;
 
 /// <summary>
 /// Runs around each model answer of an agent's run: change what is sent (trim the conversation,
-/// add context), answer without the model, or look at what came back. Call <paramref name="next"/>
-/// once to go on; return without calling it to answer yourself.
+/// add context), answer without the model, or look at what came back.
 /// </summary>
 public interface IAiMiddleware
 {
+    /// <summary>
+    /// Call <paramref name="next"/> once to go on; return without calling it to answer yourself.
+    /// </summary>
     Task<AiAnswer> HandleAsync(AiStep step, AiNext next, CancellationToken ct);
 }
 

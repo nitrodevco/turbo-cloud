@@ -83,7 +83,7 @@ public sealed class RoomWindowExampleTests : IDisposable
         var status = manager.Snapshot().Single();
         status.State.Should().Be(PluginStateType.Loaded, status.Error);
         registry.Modules.Should().ContainSingle().Which.Key.Should().Be("roomwindow");
-        File.ReadAllText(registry.FindFile("roomwindow", "roomwindow.js")!)
+        (await File.ReadAllTextAsync(registry.FindFile("roomwindow", "roomwindow.js")!, Ct))
             .Should()
             .Contain("roomwindow.cross", "the server built the module from the example's source");
 

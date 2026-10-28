@@ -129,7 +129,9 @@ public sealed class ClientModuleTests : IAsyncDisposable
         status.State.Should().Be(PluginStateType.Loaded, status.Error);
 
         var hash = Convert.ToHexStringLower(
-            SHA256.HashData(File.ReadAllBytes(_registry.FindFile("hello", "hello.js")!))
+            SHA256.HashData(
+                await File.ReadAllBytesAsync(_registry.FindFile("hello", "hello.js")!, Ct)
+            )
         );
         var module = Sent().Should().ContainSingle().Which.Modules.Should().ContainSingle().Which;
 
@@ -162,7 +164,11 @@ public sealed class ClientModuleTests : IAsyncDisposable
         var wwwroot = Path.Combine(_folder, "theme", "wwwroot");
 
         Directory.CreateDirectory(wwwroot);
-        File.WriteAllText(Path.Combine(wwwroot, "habbo-room-ui-com.nitro"), "library");
+        await File.WriteAllTextAsync(
+            Path.Combine(wwwroot, "habbo-room-ui-com.nitro"),
+            "library",
+            Ct
+        );
 
         var manager = Manager();
         var http = await StartServerAsync();

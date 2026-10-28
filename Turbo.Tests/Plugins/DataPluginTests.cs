@@ -76,7 +76,11 @@ public sealed class DataPluginTests : IDisposable
     {
         WriteTheme("mytheme");
         // A data plugin runs no code: a wwwroot/<key>.js is not its module.
-        File.WriteAllText(Path.Combine(_folder, "mytheme", "wwwroot", "mytheme.js"), "export {}");
+        await File.WriteAllTextAsync(
+            Path.Combine(_folder, "mytheme", "wwwroot", "mytheme.js"),
+            "export {}",
+            Ct
+        );
 
         var hotel = Hotel();
 
@@ -298,8 +302,9 @@ public sealed class DataPluginTests : IDisposable
             .Contain("template-patches.json?v=");
 
         var served = JsonDocument.Parse(
-            File.ReadAllText(
-                Path.Combine(_folder, IHotelDataPlugin.KEY, "wwwroot", "template-patches.json")
+            await File.ReadAllTextAsync(
+                Path.Combine(_folder, IHotelDataPlugin.KEY, "wwwroot", "template-patches.json"),
+                Ct
             )
         );
 
@@ -364,18 +369,21 @@ public sealed class DataPluginTests : IDisposable
         var own = Path.Combine(_folder, IHotelDataPlugin.KEY);
 
         Directory.CreateDirectory(Path.Combine(own, "wwwroot"));
-        File.WriteAllText(
+        await File.WriteAllTextAsync(
             Path.Combine(own, "manifest.json"),
-            """{ "Name": "Hotel changes", "Key": "hotel", "Version": "1.0.0", "Author": "Staff", "ApiVersion": 9 }"""
+            """{ "Name": "Hotel changes", "Key": "hotel", "Version": "1.0.0", "Author": "Staff", "ApiVersion": 9 }""",
+            Ct
         );
-        File.WriteAllText(
+        await File.WriteAllTextAsync(
             Path.Combine(own, "wwwroot", PluginGamedataSeeds.TEMPLATE_PATCHES_FILE),
-            PATCHES
+            PATCHES,
+            Ct
         );
         WriteTheme("oldtheme");
-        File.WriteAllText(
+        await File.WriteAllTextAsync(
             Path.Combine(_folder, "oldtheme", "manifest.json"),
-            """{ "Name": "Old theme", "Key": "oldtheme", "Version": "1.0.0", "Author": "a", "ApiVersion": 9 }"""
+            """{ "Name": "Old theme", "Key": "oldtheme", "Version": "1.0.0", "Author": "a", "ApiVersion": 9 }""",
+            Ct
         );
 
         var hotel = Hotel();
@@ -478,8 +486,9 @@ public sealed class DataPluginTests : IDisposable
         );
 
         var served = JsonDocument.Parse(
-            File.ReadAllText(
-                Path.Combine(_folder, IHotelDataPlugin.KEY, "wwwroot", "template-patches.json")
+            await File.ReadAllTextAsync(
+                Path.Combine(_folder, IHotelDataPlugin.KEY, "wwwroot", "template-patches.json"),
+                Ct
             )
         );
 
@@ -681,9 +690,12 @@ public sealed class DataPluginTests : IDisposable
                 "wwwroot/styles/frame-art.png",
             ]);
 
-        var theme = JsonDocument
-            .Parse(archive.GetEntry("theme.json")!.Open())
-            .RootElement.GetProperty("styles");
+        var theme = (
+            await JsonDocument.ParseAsync(
+                await archive.GetEntry("theme.json")!.OpenAsync(Ct),
+                cancellationToken: Ct
+            )
+        ).RootElement.GetProperty("styles");
 
         theme.GetProperty("frame.header").GetProperty("default").GetString().Should().Be("#123456");
         theme
@@ -692,8 +704,12 @@ public sealed class DataPluginTests : IDisposable
             .GetString()
             .Should()
             .Be("styles/frame-art.png");
-        JsonDocument
-            .Parse(archive.GetEntry("manifest.json")!.Open())
+        (
+            await JsonDocument.ParseAsync(
+                await archive.GetEntry("manifest.json")!.OpenAsync(Ct),
+                cancellationToken: Ct
+            )
+        )
             .RootElement.TryGetProperty("Sources", out _)
             .Should()
             .BeFalse();
@@ -833,9 +849,10 @@ public sealed class DataPluginTests : IDisposable
             } }
             """
         );
-        File.WriteAllBytes(
+        await File.WriteAllBytesAsync(
             Path.Combine(_folder, "child", "wwwroot", "purse-border.png"),
-            [137, 80, 78, 71]
+            [137, 80, 78, 71],
+            Ct
         );
         // Named to load before the theme it extends: folders are listed in no set order (on Linux not by name).
         WriteFile("achild", ThemeStyles.FILE, """{ "extends": "child" }""");
@@ -1110,7 +1127,12 @@ public sealed class DataPluginTests : IDisposable
         );
 
         using var archive = new ZipArchive(new MemoryStream(zip!));
-        var theme = JsonDocument.Parse(archive.GetEntry(ThemeStyles.FILE)!.Open()).RootElement;
+        var theme = (
+            await JsonDocument.ParseAsync(
+                await archive.GetEntry(ThemeStyles.FILE)!.OpenAsync(Ct),
+                cancellationToken: Ct
+            )
+        ).RootElement;
 
         theme.GetProperty("extends").GetString().Should().Be("habbo");
         theme
@@ -1169,14 +1191,15 @@ public sealed class DataPluginTests : IDisposable
         // A phrase pack, no theme: its texts are given to the hotel (a theme's are its look, text.overrides).
         File.Delete(Path.Combine(_folder, "mytheme", ThemeStyles.FILE));
         Directory.CreateDirectory(Path.Combine(_folder, "mytheme", PluginGamedataSeeds.FOLDER));
-        File.WriteAllText(
+        await File.WriteAllTextAsync(
             Path.Combine(
                 _folder,
                 "mytheme",
                 PluginGamedataSeeds.FOLDER,
                 PluginGamedataSeeds.TEXTS_FILE
             ),
-            "mytheme.title=My theme\nmytheme.hint=Pick a colour\n"
+            "mytheme.title=My theme\nmytheme.hint=Pick a colour\n",
+            Ct
         );
 
         var hotel = Hotel();
@@ -1212,11 +1235,12 @@ public sealed class DataPluginTests : IDisposable
         var styles = Path.Combine(_folder, "mytheme", "chatstyles");
 
         Directory.CreateDirectory(Path.Combine(styles, "mytheme_plane"));
-        File.WriteAllBytes(
+        await File.WriteAllBytesAsync(
             Path.Combine(styles, "mytheme_plane", "chat_bubble_base.png"),
-            [1, 2, 3]
+            [1, 2, 3],
+            Ct
         );
-        File.WriteAllText(
+        await File.WriteAllTextAsync(
             Path.Combine(styles, "chatstyles.json"),
             """
             // Two bubbles: the second's client id is one the hotel has.
@@ -1224,7 +1248,8 @@ public sealed class DataPluginTests : IDisposable
               { "clientStyleId": 39, "assetId": "mytheme_plane", "staffOnly": true, "regPoints": { "faceXY": { "x": 5, "y": 5 } } },
               { "clientStyleId": 7, "assetId": "mytheme_other", "regPoints": {} },
             ]
-            """
+            """,
+            Ct
         );
 
         var saved = new List<ChatStyleEdit>();
@@ -1330,11 +1355,16 @@ public sealed class DataPluginTests : IDisposable
             .Equal(
                 new Dictionary<string, string> { ["habbo-catalog-com/tab0"] = "styles/tab0.png" }
             );
-        File.ReadAllText(Path.Combine(folder, "wwwroot", PluginGamedataSeeds.TEMPLATE_PATCHES_FILE))
+        (
+            await File.ReadAllTextAsync(
+                Path.Combine(folder, "wwwroot", PluginGamedataSeeds.TEMPLATE_PATCHES_FILE),
+                Ct
+            )
+        )
             .Should()
             .Contain("help_button");
         JsonDocument
-            .Parse(File.ReadAllText(Path.Combine(folder, ThemeStyles.FILE)))
+            .Parse(await File.ReadAllTextAsync(Path.Combine(folder, ThemeStyles.FILE), Ct))
             .RootElement.GetProperty("styles")
             .GetProperty("catalog.color")
             .GetProperty("default")
@@ -1469,9 +1499,10 @@ public sealed class DataPluginTests : IDisposable
         );
 
         await watch.StartAsync(Ct);
-        File.WriteAllText(
+        await File.WriteAllTextAsync(
             Path.Combine(_folder, "night", "wwwroot", PluginGamedataSeeds.TEMPLATE_PATCHES_FILE),
-            PATCHES + " "
+            PATCHES + " ",
+            Ct
         );
 
         var after = before;

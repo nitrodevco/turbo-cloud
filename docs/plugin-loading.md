@@ -38,8 +38,10 @@ folder are all the same sources.
 
 - **Sources**: globs of the C# files, relative to the plugin's folder (`*` and `?` within a name,
   `**` any folders). `server/**/*.cs` when the manifest names none, which is the template's layout.
-  `bin/` and `obj/` are never sources. A plugin with no source file is a data plugin
-  (`docs/plugin-data.md`): it runs no code.
+  `bin/` and `obj/` are never sources. If no file matches but the folder has `.cs` files elsewhere
+  or a `.csproj` outside those build folders, the plugin is **Rejected** with `no sources found`:
+  the reason names the globs and the code they missed. Move it under `server/` or set `Sources`.
+  A folder with no code is a data plugin (`docs/plugin-data.md`): it runs no code.
 - **Compiled against** the framework (.NET and ASP.NET Core, with `Microsoft.Extensions.*`) and the
   server's plugin surface: `Turbo.Contracts`, `Turbo.Primitives`, `Turbo.Database` (a plugin's own
   tables, `docs/database.md`), EF Core with the MySQL provider, Orleans' serialization and

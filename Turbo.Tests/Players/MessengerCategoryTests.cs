@@ -85,7 +85,8 @@ public sealed class MessengerCategoryTests : System.IDisposable
         (await grain.SetFriendCategoryAsync(2, 0, Ct))
             .Should()
             .Be(MessengerCategoryResultType.Disabled);
-        _db.CreateDbContext().MessengerCategories.Should().BeEmpty();
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+            db.MessengerCategories.Should().BeEmpty();
     }
 
     [Fact]
@@ -113,7 +114,8 @@ public sealed class MessengerCategoryTests : System.IDisposable
         (await grain.RenameCategoryAsync(category.CategoryId, "Mates", Ct))
             .Should()
             .Be(MessengerCategoryResultType.Done);
-        _db.CreateDbContext().MessengerCategories.Single().Name.Should().Be("Mates");
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+            db.MessengerCategories.Single().Name.Should().Be("Mates");
 
         (await grain.DeleteCategoryAsync(category.CategoryId, Ct))
             .Should()
@@ -121,7 +123,8 @@ public sealed class MessengerCategoryTests : System.IDisposable
         (await grain.GetCategoriesAsync(Ct)).Should().BeEmpty();
         Friend(grain, 2).CategoryId.Should().Be(0);
         FriendRow(2).MessengerCategoryEntityId.Should().BeNull();
-        _db.CreateDbContext().MessengerCategories.Should().BeEmpty();
+        await using (var db = await _db.CreateDbContextAsync(Ct))
+            db.MessengerCategories.Should().BeEmpty();
     }
 
     [Fact]

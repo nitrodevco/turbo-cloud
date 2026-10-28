@@ -75,14 +75,15 @@ public sealed class WaveHandler : IPluginMessageHandler<Wave>
         CancellationToken ct
     ) =>
         await ctx.ReplyAsync(
-            new Waved(
-                $"{message.Greeting} back, player {ctx.PlayerId.Value}: {message.Stats.Clicks} clicks",
-                message.Stats with
-                {
-                    Recent = [.. message.Stats.Recent.Reverse()],
-                },
-                message.Stats.Clicks % 2 == 0
-            ),
-            ct
-        );
+                new Waved(
+                    $"{message.Greeting} back, player {ctx.PlayerId.Value}: {message.Stats.Clicks} clicks",
+                    message.Stats with
+                    {
+                        Recent = [.. message.Stats.Recent.Reverse()],
+                    },
+                    message.Stats.Clicks % 2 == 0
+                ),
+                ct
+            )
+            .ConfigureAwait(false);
 }

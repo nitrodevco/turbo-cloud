@@ -174,7 +174,10 @@ public sealed class CatalogBackupTests : IDisposable
 
         await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
         {
-            var product = db.CatalogProducts.Single(x => x.CatalogOfferEntityId == created.Id);
+            var product = await db.CatalogProducts.SingleAsync(
+                x => x.CatalogOfferEntityId == created.Id,
+                Ct
+            );
 
             db.LtdSeries.Add(
                 new LtdSeriesEntity
@@ -219,7 +222,9 @@ public sealed class CatalogBackupTests : IDisposable
 
         await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
         {
-            db.FurnitureDefinitions.Remove(db.FurnitureDefinitions.Single(x => x.Id == gone.Id));
+            db.FurnitureDefinitions.Remove(
+                await db.FurnitureDefinitions.SingleAsync(x => x.Id == gone.Id, Ct)
+            );
             await db.SaveChangesAsync(Ct);
         }
 
@@ -297,7 +302,10 @@ public sealed class CatalogBackupTests : IDisposable
     {
         await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
         {
-            var product = db.CatalogProducts.First(x => x.CatalogOfferEntityId == SOLD);
+            var product = await db.CatalogProducts.FirstAsync(
+                x => x.CatalogOfferEntityId == SOLD,
+                Ct
+            );
 
             db.LtdSeries.Add(
                 new LtdSeriesEntity
@@ -338,7 +346,10 @@ public sealed class CatalogBackupTests : IDisposable
 
         await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))
         {
-            var product = db.CatalogProducts.First(x => x.CatalogOfferEntityId == SOLD);
+            var product = await db.CatalogProducts.FirstAsync(
+                x => x.CatalogOfferEntityId == SOLD,
+                Ct
+            );
             var series = new LtdSeriesEntity
             {
                 CatalogProductEntityId = product.Id,

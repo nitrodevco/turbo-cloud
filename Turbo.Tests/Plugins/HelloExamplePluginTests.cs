@@ -127,7 +127,7 @@ public sealed class HelloExamplePluginTests : IDisposable
         var module = registry.Modules.Should().ContainSingle().Which;
         module.Key.Should().Be("hello");
         module.Url.Should().StartWith("/gamedata/plugins/hello/hello.js?v=");
-        File.ReadAllText(registry.FindFile("hello", "hello.js")!)
+        (await File.ReadAllTextAsync(registry.FindFile("hello", "hello.js")!, Ct))
             .Should()
             .Contain("hello.wave", "the server built the module from the example's source");
 

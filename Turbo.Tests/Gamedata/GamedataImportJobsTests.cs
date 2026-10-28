@@ -39,7 +39,9 @@ public sealed class GamedataImportJobsTests : IDisposable
     {
         var config = Options.Create(new GamedataConfig());
 
+#pragma warning disable VSTHRD003 // The import is held open until the test completes it.
         _fakes.Handlers["ImportAsync"] = _ => _import.Task;
+#pragma warning restore VSTHRD003
         _jobs = new FurnitureImportJobs(
             _db,
             _fakes.Create<IGamedataFurnitureService>(),

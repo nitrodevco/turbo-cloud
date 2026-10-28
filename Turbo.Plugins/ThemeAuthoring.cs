@@ -84,7 +84,8 @@ internal sealed partial class ThemeAuthoring(
             {
                 await using (copy.ConfigureAwait(false))
                 using (var zip = new ZipArchive(copy.Package, ZipArchiveMode.Read))
-                    zip.ExtractToDirectory(folder, overwriteFiles: true);
+                    await zip.ExtractToDirectoryAsync(folder, overwriteFiles: true, ct)
+                        .ConfigureAwait(false);
 
                 if (copy.Patches is { } patches)
                     await File.WriteAllBytesAsync(Path.Combine(folder, PATCHES), patches, ct)

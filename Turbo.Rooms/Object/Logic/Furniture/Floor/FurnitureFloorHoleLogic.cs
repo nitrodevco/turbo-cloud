@@ -1,9 +1,7 @@
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
-using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 
@@ -33,10 +31,4 @@ public class FurnitureFloorHoleLogic(IStuffDataFactory stuffDataFactory, IRoomFl
 
         await base.OnUseAsync(ctx, param, ct);
     }
-
-    private bool IsStoodOn() =>
-        FloorFootprint
-            .Of(_ctx.RoomObject)
-            .Tiles()
-            .Any(tile => AvatarModule.GetAvatarsOnTile(MapModule.ToIdx(tile.X, tile.Y)).Any());
 }

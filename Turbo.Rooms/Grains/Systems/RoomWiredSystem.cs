@@ -427,7 +427,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 break;
             // A furni state or variable value an effect changed is delivered inside the
             // execution that changed it, where the stacks it fires count their visits.
-            case not null
+            case var _
                 when _execution is { IsStopped: false } running
                     && _stackIdsByEventType.ContainsKey(evt.GetType()):
                 running.Raise(evt);

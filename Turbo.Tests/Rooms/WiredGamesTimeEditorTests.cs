@@ -17,7 +17,7 @@ namespace Turbo.Tests.Rooms;
 /// The games, teams and time boxes as Habbo's editors save them: every value each editor can send
 /// (the sliders, radios and checkboxes of the WIN63-202610201032 editors) is kept, and the timers
 /// count in Habbo's units. What a never-saved box opens with is in
-/// <see cref="WiredOfficialFreshDefaultsTests"/>. Case ids are category.code.case, e.g.
+/// <see cref="WiredOfficialEditorContractTests"/>. Case ids are category.code.case, e.g.
 /// action.6.E9: the box by its wired code, then the case (E editor).
 /// </summary>
 public sealed class WiredGamesTimeEditorTests

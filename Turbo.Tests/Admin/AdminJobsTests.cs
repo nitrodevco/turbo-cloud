@@ -85,7 +85,9 @@ public sealed class AdminJobsTests : IAsyncDisposable
             TaskCreationOptions.RunContinuationsAsynchronously
         );
 
+#pragma warning disable VSTHRD003 // The reset is held open until the test completes it.
         _fakes.Handlers["ResetAsync"] = _ => reset.Task;
+#pragma warning restore VSTHRD003
         await StartAsync(waitSeconds: 0);
 
         var started = await SendAsync(HttpMethod.Post, "/catalog/reset");

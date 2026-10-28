@@ -158,7 +158,7 @@ public sealed class GroupStaffTests : IDisposable
             .BeTrue();
 
         await using (var dbCtx = await _db.CreateDbContextAsync(Ct))
-            dbCtx.Guilds.Single().Name.Should().Be("Clean name");
+            (await dbCtx.Guilds.SingleAsync(Ct)).Name.Should().Be("Clean name");
 
         (await group.GetSnapshotAsync(Ct))!.Name.Should().Be("Clean name");
         _fakes

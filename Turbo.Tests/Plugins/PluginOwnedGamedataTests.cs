@@ -476,7 +476,7 @@ public sealed class PluginOwnedGamedataTests : IDisposable
         (await styles.TextsAsync(folder, Ct))
             .Should()
             .BeEquivalentTo(new Dictionary<string, string> { ["night.title"] = "Night shop" });
-        File.ReadAllText(Path.Combine(folder, "gamedata", "external_texts.txt"))
+        (await File.ReadAllTextAsync(Path.Combine(folder, "gamedata", "external_texts.txt"), Ct))
             .Should()
             .Be("night.title=Night shop\n");
     }
@@ -493,13 +493,15 @@ public sealed class PluginOwnedGamedataTests : IDisposable
             SOURCE.Replace("\"theme\"", "\"achild\"").Replace("ThemePlugin", "ChildPlugin")
         );
         Directory.CreateDirectory(Path.Combine(_folder, "achild", "gamedata"));
-        File.WriteAllText(
+        await File.WriteAllTextAsync(
             Path.Combine(_folder, "achild", "gamedata", "external_texts.txt"),
-            "shared.title=Child\n"
+            "shared.title=Child\n",
+            Ct
         );
-        File.WriteAllText(
+        await File.WriteAllTextAsync(
             Path.Combine(_folder, "achild", "theme.json"),
-            """{ "extends": "theme", "styles": {} }"""
+            """{ "extends": "theme", "styles": {} }""",
+            Ct
         );
         await _manager.LoadAllAsync(ct: Ct);
 
@@ -823,7 +825,7 @@ public sealed class PluginOwnedGamedataTests : IDisposable
         var art = Path.Combine(_folder, "theme", "wwwroot", "art");
 
         Directory.CreateDirectory(art);
-        File.WriteAllBytes(Path.Combine(art, "frame.png"), [1, 2, 3]);
+        await File.WriteAllBytesAsync(Path.Combine(art, "frame.png"), [1, 2, 3], Ct);
 
         await _manager.LoadAllAsync(ct: Ct);
 
@@ -861,7 +863,7 @@ public sealed class PluginOwnedGamedataTests : IDisposable
         var styles = Path.Combine(_folder, "theme", "wwwroot", "styles");
 
         Directory.CreateDirectory(styles);
-        File.WriteAllBytes(Path.Combine(styles, "pixel.woff2"), "wOF2"u8.ToArray());
+        await File.WriteAllBytesAsync(Path.Combine(styles, "pixel.woff2"), "wOF2"u8.ToArray(), Ct);
 
         await _manager.LoadAllAsync(ct: Ct);
 
@@ -891,8 +893,8 @@ public sealed class PluginOwnedGamedataTests : IDisposable
         var loading = Path.Combine(_folder, "theme", "wwwroot", "loading");
 
         Directory.CreateDirectory(loading);
-        File.WriteAllBytes(Path.Combine(loading, "logo.png"), [1, 2, 3]);
-        File.WriteAllBytes(Path.Combine(loading, "left.png"), [4, 5, 6]);
+        await File.WriteAllBytesAsync(Path.Combine(loading, "logo.png"), [1, 2, 3], Ct);
+        await File.WriteAllBytesAsync(Path.Combine(loading, "left.png"), [4, 5, 6], Ct);
 
         await _manager.LoadAllAsync(ct: Ct);
 

@@ -42,15 +42,15 @@ public sealed partial class AiKitTests : IDisposable
         [
             .. Directory
                 .EnumerateDirectories(Path.Combine(Kit, "skills"))
-                .Select(Path.GetFileName)
-                .Order()!,
+                .Select(directory => Path.GetFileName(directory))
+                .Order(),
         ];
 
     [Theory]
     [MemberData(nameof(Skills))]
     public async Task A_skills_code_compiles_and_loads_as_the_plugin_it_names(string skill)
     {
-        var text = File.ReadAllText(Path.Combine(Kit, "skills", skill, "SKILL.md"));
+        var text = await File.ReadAllTextAsync(Path.Combine(Kit, "skills", skill, "SKILL.md"), Ct);
         var code = Blocks(text, "csharp");
         var tests = Blocks(text, "csharp test");
 

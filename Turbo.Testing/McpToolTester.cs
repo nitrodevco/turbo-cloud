@@ -177,7 +177,7 @@ public sealed class McpTestRegistry : IMcpTools, IMcpResources, IMcpPrompts
         var available = ImmutableArray.CreateBuilder<McpToolDefinition>();
 
         foreach (var tool in _all.Tools)
-            if (await tool.IsAvailableToAsync(caller, Holds(caller), ct).ConfigureAwait(false))
+            if (await tool.IsAvailableToAsync(caller, HoldsAsync(caller), ct).ConfigureAwait(false))
                 available.Add(tool);
 
         return available.ToImmutable();
@@ -191,7 +191,11 @@ public sealed class McpTestRegistry : IMcpTools, IMcpResources, IMcpPrompts
         var available = ImmutableArray.CreateBuilder<McpResourceDefinition>();
 
         foreach (var resource in _all.Resources)
-            if (await resource.IsAvailableToAsync(caller, Holds(caller), ct).ConfigureAwait(false))
+            if (
+                await resource
+                    .IsAvailableToAsync(caller, HoldsAsync(caller), ct)
+                    .ConfigureAwait(false)
+            )
                 available.Add(resource);
 
         return available.ToImmutable();
@@ -205,7 +209,11 @@ public sealed class McpTestRegistry : IMcpTools, IMcpResources, IMcpPrompts
         var available = ImmutableArray.CreateBuilder<McpPromptDefinition>();
 
         foreach (var prompt in _all.Prompts)
-            if (await prompt.IsAvailableToAsync(caller, Holds(caller), ct).ConfigureAwait(false))
+            if (
+                await prompt
+                    .IsAvailableToAsync(caller, HoldsAsync(caller), ct)
+                    .ConfigureAwait(false)
+            )
                 available.Add(prompt);
 
         return available.ToImmutable();
@@ -222,7 +230,7 @@ public sealed class McpTestRegistry : IMcpTools, IMcpResources, IMcpPrompts
 
         if (
             tool is null
-            || !await tool.IsAvailableToAsync(caller, Holds(caller), ct).ConfigureAwait(false)
+            || !await tool.IsAvailableToAsync(caller, HoldsAsync(caller), ct).ConfigureAwait(false)
         )
             return McpToolCallResult.Unavailable(name);
 
@@ -237,7 +245,7 @@ public sealed class McpTestRegistry : IMcpTools, IMcpResources, IMcpPrompts
                     JsonSerializer.SerializeToElement(new { approvalId = 1, state = "pending" })
                 );
 
-        return await tool.CallAsync(arguments, new McpToolContext(caller, Holds(caller)), ct)
+        return await tool.CallAsync(arguments, new McpToolContext(caller, HoldsAsync(caller)), ct)
             .ConfigureAwait(false);
     }
 
@@ -249,12 +257,14 @@ public sealed class McpTestRegistry : IMcpTools, IMcpResources, IMcpPrompts
     {
         if (
             _all.ResourceAt(uri) is not { } resource
-            || !await resource.IsAvailableToAsync(caller, Holds(caller), ct).ConfigureAwait(false)
+            || !await resource
+                .IsAvailableToAsync(caller, HoldsAsync(caller), ct)
+                .ConfigureAwait(false)
         )
             return McpResourceReadResult.NotFound(uri);
 
         return await resource
-            .ReadAsync(uri, new McpToolContext(caller, Holds(caller)), ct)
+            .ReadAsync(uri, new McpToolContext(caller, HoldsAsync(caller)), ct)
             .ConfigureAwait(false);
     }
 
@@ -269,16 +279,18 @@ public sealed class McpTestRegistry : IMcpTools, IMcpResources, IMcpPrompts
 
         if (
             prompt is null
-            || !await prompt.IsAvailableToAsync(caller, Holds(caller), ct).ConfigureAwait(false)
+            || !await prompt
+                .IsAvailableToAsync(caller, HoldsAsync(caller), ct)
+                .ConfigureAwait(false)
         )
             return McpPromptGetResult.Unavailable(name);
 
         return await prompt
-            .GetAsync(arguments, new McpToolContext(caller, Holds(caller)), ct)
+            .GetAsync(arguments, new McpToolContext(caller, HoldsAsync(caller)), ct)
             .ConfigureAwait(false);
     }
 
-    private Func<string, CancellationToken, Task<bool>> Holds(McpCaller caller) =>
+    private Func<string, CancellationToken, Task<bool>> HoldsAsync(McpCaller caller) =>
         (node, ct) => _hotel.Players.HasPermissionAsync(caller.Player, node, ct);
 }
 
@@ -305,7 +317,7 @@ public sealed class McpTestCaller
         var names = new List<string>();
 
         foreach (var tool in _all.Tools)
-            if (await tool.IsAvailableToAsync(_caller, Holds, ct).ConfigureAwait(false))
+            if (await tool.IsAvailableToAsync(_caller, HoldsAsync, ct).ConfigureAwait(false))
                 names.Add(tool.Name);
 
         return names;
@@ -320,7 +332,7 @@ public sealed class McpTestCaller
         var uris = new List<string>();
 
         foreach (var resource in _all.Resources)
-            if (await resource.IsAvailableToAsync(_caller, Holds, ct).ConfigureAwait(false))
+            if (await resource.IsAvailableToAsync(_caller, HoldsAsync, ct).ConfigureAwait(false))
                 uris.Add(resource.Uri);
 
         return uris;
@@ -332,7 +344,7 @@ public sealed class McpTestCaller
         var names = new List<string>();
 
         foreach (var prompt in _all.Prompts)
-            if (await prompt.IsAvailableToAsync(_caller, Holds, ct).ConfigureAwait(false))
+            if (await prompt.IsAvailableToAsync(_caller, HoldsAsync, ct).ConfigureAwait(false))
                 names.Add(prompt.Name);
 
         return names;
@@ -354,13 +366,13 @@ public sealed class McpTestCaller
 
         if (
             tool is null
-            || !await tool.IsAvailableToAsync(_caller, Holds, ct).ConfigureAwait(false)
+            || !await tool.IsAvailableToAsync(_caller, HoldsAsync, ct).ConfigureAwait(false)
         )
             return new McpTestCall(name, McpToolCallResult.Unavailable(name));
 
         var result = await tool.CallAsync(
                 McpToolTester.Arguments(arguments),
-                new McpToolContext(_caller, Holds),
+                new McpToolContext(_caller, HoldsAsync),
                 ct
             )
             .ConfigureAwait(false);
@@ -373,14 +385,14 @@ public sealed class McpTestCaller
     {
         if (
             _all.ResourceAt(uri) is not { } resource
-            || !await resource.IsAvailableToAsync(_caller, Holds, ct).ConfigureAwait(false)
+            || !await resource.IsAvailableToAsync(_caller, HoldsAsync, ct).ConfigureAwait(false)
         )
             return new McpTestRead(uri, McpResourceReadResult.NotFound(uri));
 
         return new McpTestRead(
             uri,
             await resource
-                .ReadAsync(uri, new McpToolContext(_caller, Holds), ct)
+                .ReadAsync(uri, new McpToolContext(_caller, HoldsAsync), ct)
                 .ConfigureAwait(false)
         );
     }
@@ -399,19 +411,24 @@ public sealed class McpTestCaller
 
         if (
             prompt is null
-            || !await prompt.IsAvailableToAsync(_caller, Holds, ct).ConfigureAwait(false)
+            || !await prompt.IsAvailableToAsync(_caller, HoldsAsync, ct).ConfigureAwait(false)
         )
             return new McpTestPrompt(name, McpPromptGetResult.Unavailable(name));
 
         return new McpTestPrompt(
             name,
             await prompt
-                .GetAsync(McpToolTester.Texts(arguments), new McpToolContext(_caller, Holds), ct)
+                .GetAsync(
+                    McpToolTester.Texts(arguments),
+                    new McpToolContext(_caller, HoldsAsync),
+                    ct
+                )
                 .ConfigureAwait(false)
         );
     }
 
-    private Task<bool> Holds(string node, CancellationToken ct) => Task.FromResult(_holds(node));
+    private Task<bool> HoldsAsync(string node, CancellationToken ct) =>
+        Task.FromResult(_holds(node));
 }
 
 /// <summary>A call's answer, with assertions that say what came back instead.</summary>

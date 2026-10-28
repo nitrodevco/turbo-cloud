@@ -32,7 +32,7 @@ public static class PlayerTradePolicyExtensions
         bool givingAway,
         CancellationToken ct
     ) =>
-        await policy.GetTradeStandingAsync(playerId, ct) switch
+        await policy.GetTradeStandingAsync(playerId, ct).ConfigureAwait(false) switch
         {
             TradeStandingType.Full => true,
             TradeStandingType.ReceiveOnly => !givingAway,

@@ -104,13 +104,11 @@ public sealed class PluginAiTests : IAsyncLifetime
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    public ValueTask InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         Directory.CreateDirectory(Path.Combine(_folder, "server"));
-        File.WriteAllText(Path.Combine(_folder, "manifest.json"), MANIFEST);
-        File.WriteAllText(Path.Combine(_folder, "server", "Desk.cs"), SOURCE);
-
-        return ValueTask.CompletedTask;
+        await File.WriteAllTextAsync(Path.Combine(_folder, "manifest.json"), MANIFEST, Ct);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "server", "Desk.cs"), SOURCE, Ct);
     }
 
     public async ValueTask DisposeAsync()

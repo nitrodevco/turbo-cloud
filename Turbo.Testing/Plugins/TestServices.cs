@@ -157,7 +157,8 @@ internal sealed class SqlitePluginDatabase(SqliteConnection connection) : Plugin
                 .Where(s => s.Length > 0)
         )
         {
-            await using var command = connection.CreateCommand();
+            var command = connection.CreateCommand();
+            await using var commandScope = command.ConfigureAwait(false);
 
             command.CommandText = statement;
             await command.ExecuteNonQueryAsync(ct).ConfigureAwait(false);

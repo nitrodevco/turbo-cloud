@@ -91,7 +91,7 @@ public sealed class SourcePluginTests : IDisposable
         if (content is null)
             File.Copy(typeof(SourcePluginTests).Assembly.Location, binary);
         else
-            File.WriteAllText(binary, content);
+            await File.WriteAllTextAsync(binary, content, Ct);
 
         var manager = Manager();
 
@@ -109,6 +109,68 @@ public sealed class SourcePluginTests : IDisposable
 
         File.Delete(binary);
         await manager.LoadChangedAsync(Ct);
+
+        manager.Snapshot().Single().State.Should().Be(PluginStateType.Loaded);
+        await manager.UnloadAllAsync(Ct);
+    }
+
+    /// <summary>
+    /// Code the manifest's Sources do not reach would load as a data plugin, Loaded with none of
+    /// its commands or handlers: the server refuses it, saying where the code is.
+    /// </summary>
+    [Theory]
+    [InlineData(
+        "src/Commands/Plugin.cs",
+        "no sources found: the manifest's Sources (server/**/*.cs) match no .cs files, but 1 .cs file is under src/Commands/; move them under server/ or set Sources"
+    )]
+    [InlineData(
+        "server/Sample.csproj",
+        "no sources found: the manifest's Sources (server/**/*.cs) match no .cs files, but the folder holds server/Sample.csproj; put the plugin's .cs files under server/ or set Sources"
+    )]
+    public async Task A_plugin_whose_code_the_manifests_sources_miss_is_refused_not_loaded_as_data(
+        string file,
+        string reason
+    )
+    {
+        PluginBuilder.Write(_folder, "sample", Array.Empty<string>());
+        var path = Path.Combine(_folder, "sample", file);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllTextAsync(
+            path,
+            file.EndsWith(".cs", StringComparison.Ordinal) ? Plugin() : "<Project />",
+            Ct
+        );
+
+        var manager = Manager();
+
+        await manager.LoadAllAsync(ct: Ct);
+
+        var status = manager.Snapshot().Single();
+        status.State.Should().Be(PluginStateType.Rejected);
+        status.Error.Should().Be($"Refused: {reason}");
+    }
+
+    /// <summary>A data plugin has no code: a local build's output (bin/, obj/) is not code, and it loads.</summary>
+    [Fact]
+    public async Task A_data_plugin_loads_with_a_local_builds_output_in_its_folder()
+    {
+        PluginBuilder.Write(_folder, "sample", Array.Empty<string>());
+        var plugin = Path.Combine(_folder, "sample");
+        Directory.CreateDirectory(Path.Combine(plugin, "obj"));
+        await File.WriteAllTextAsync(
+            Path.Combine(plugin, "obj", "Sample.AssemblyInfo.cs"),
+            "// generated",
+            Ct
+        );
+        await File.WriteAllTextAsync(
+            Path.Combine(plugin, "obj", "Sample.csproj.nuget.g.props"),
+            "<Project />",
+            Ct
+        );
+
+        var manager = Manager();
+
+        await manager.LoadAllAsync(ct: Ct);
 
         manager.Snapshot().Single().State.Should().Be(PluginStateType.Loaded);
         await manager.UnloadAllAsync(Ct);
@@ -228,10 +290,10 @@ public sealed class SourcePluginTests : IDisposable
             Path.Combine(_folder, PluginCompileCache.FOLDER, "sample"),
             "*.dll"
         )[0];
-        var bytes = File.ReadAllBytes(cached);
+        var bytes = await File.ReadAllBytesAsync(cached, Ct);
 
         bytes[^1] ^= 0xFF;
-        File.WriteAllBytes(cached, bytes);
+        await File.WriteAllBytesAsync(cached, bytes, Ct);
 
         var restarted = Manager();
 

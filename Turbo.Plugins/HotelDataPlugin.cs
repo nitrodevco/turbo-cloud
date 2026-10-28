@@ -730,7 +730,7 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
             foreach (var (name, bytes) in files.OrderBy(x => x.Key, StringComparer.Ordinal))
             {
                 var entry = archive.CreateEntry(name, CompressionLevel.Optimal);
-                var stream = entry.Open();
+                var stream = await entry.OpenAsync(ct).ConfigureAwait(false);
                 await using (stream.ConfigureAwait(false))
                     await stream.WriteAsync(bytes, ct).ConfigureAwait(false);
             }
