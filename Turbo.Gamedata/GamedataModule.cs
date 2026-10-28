@@ -6,7 +6,6 @@ using Microsoft.Extensions.Options;
 using Turbo.Contracts.Plugins;
 using Turbo.Gamedata.Api;
 using Turbo.Gamedata.Assets;
-using Turbo.Gamedata.Assets.Publishing;
 using Turbo.Gamedata.ChatStyles;
 using Turbo.Gamedata.ClientModules;
 using Turbo.Gamedata.Configuration;
@@ -46,9 +45,7 @@ public sealed class GamedataModule : IHostPluginModule
         services.Configure<GamedataConfig>(
             builder.Configuration.GetSection(GamedataConfig.SECTION_NAME)
         );
-        services.Configure<AssetBundleConfig>(
-            builder.Configuration.GetSection(AssetBundleConfig.SECTION_NAME)
-        );
+        services.AddAssetBundleConfiguration(builder);
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddHttpClient(
@@ -76,18 +73,7 @@ public sealed class GamedataModule : IHostPluginModule
                 http.DefaultRequestHeaders.UserAgent.ParseAdd(HabboGamedataClient.USER_AGENT);
             }
         );
-        services.AddHttpClient(
-            CloudflarePurge.HTTP_CLIENT,
-            (sp, http) =>
-                http.Timeout = TimeSpan.FromSeconds(
-                    Math.Max(
-                        1,
-                        sp.GetRequiredService<
-                            IOptions<AssetBundleConfig>
-                        >().Value.PublishTimeoutSeconds
-                    )
-                )
-        );
+        services.AddCloudflarePurgeClient();
         services.AddSingleton<HabboGamedataClient>();
         services.AddSingleton<HabboClientService>();
         services.AddSingleton<IHabboClientService>(sp =>
@@ -115,18 +101,9 @@ public sealed class GamedataModule : IHostPluginModule
         services.AddSingleton<IGamedataFigureService, GamedataFigureService>();
         services.AddSingleton<IFigureDataProvider, FigureDataProvider>();
         services.AddSingleton<IGamedataImportJobs, FurnitureImportJobs>();
-        services.AddSingleton<IAssetBundleStore, AssetBundleStore>();
-        services.AddSingleton<IAssetJobs, AssetJobs>();
-        services.AddSingleton<AssetBundleChecks>();
-        services.AddSingleton<IAssetBundleService, AssetBundleService>();
-        services.AddSingleton<IAssetSyncService, AssetSyncService>();
+        services.AddAssetBundleServices();
         services.AddSingleton<IChatStyleService, ChatStyleService>();
-        services.AddSingleton<AssetPasswordSealer>();
-        services.AddSingleton<PublishConnections>();
-        services.AddSingleton<CloudflarePurge>();
-        services.AddSingleton<PublishedPets>();
-        services.AddSingleton<PublishedFurnitureIcons>();
-        services.AddSingleton<IAssetPublishService, AssetPublishService>();
+        services.AddAssetPublishingServices();
         services.AddHostedService<HabboReleaseWatcher>();
         services.AddHostedService<ClientBuildAfterDownload>();
         services.AddSingleton<ClientModuleRegistry>();

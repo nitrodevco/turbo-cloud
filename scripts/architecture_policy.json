@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "forbidden_dependencies": [
+    {"source": "Turbo.PacketHandlers", "target": "Turbo.Database", "rule": "handler-persistence", "reference": "CONTEXT.md#hard-boundaries"}
+  ],
+  "contract_projects": ["Turbo.Contracts", "Turbo.Primitives"],
+  "allowed_contract_dependencies": [["Turbo.Contracts", "Turbo.Primitives"]],
+  "baseline": [
+    {"source": "Turbo.PacketHandlers", "target": "Turbo.Database", "rule": "handler-persistence", "reason": "Existing direct reference at 7c42f8555; source search found no database API use. Remove separately after build verification."}
+  ],
+  "semantic_rules": [
+    {"id": "handler-persistence", "paths": ["Turbo.PacketHandlers/*.cs"], "reference": "CONTEXT.md#hard-boundaries", "question": "Does the changed code introduce persistence queries or writes in a packet handler, directly or through a helper that bypasses the owning domain service or grain?"},
+    {"id": "grain-ownership", "paths": ["Turbo.*/*.cs"], "reference": "CONTEXT.md#grain-runtime-patterns", "question": "Does the changed code mutate grain-owned state outside the owning grain, or write its database rows directly without the grain's cache coherence path?"},
+    {"id": "lifecycle", "paths": ["Turbo.Plugins/*.cs", "Turbo.Gamedata/*.cs", "Turbo.Main/*.cs"], "reference": "CONTEXT.md#hard-boundaries", "question": "Does the changed code introduce a resource, registration, timer, or subscription whose required shutdown or unload cleanup is absent, or duplicate plugin loading outside Turbo.Plugins?"},
+    {"id": "responsibility", "paths": ["Turbo.Gamedata/*.cs", "Turbo.Admin/*.cs", "Turbo.Main/*.cs"], "reference": "CONTEXT.md#core-structure-and-responsibilities", "question": "Does the changed code move host startup concerns into domain behavior, or introduce a parallel implementation of an existing domain responsibility instead of using its established contract? A registration helper called by the existing composition module alone is not a violation."},
+    {"id": "failure-coherence", "paths": ["Turbo.*/*.cs"], "reference": "CONTEXT.md#grain-runtime-patterns", "question": "Does the changed code introduce a failure path that leaves a multi-step mutation partially published, clears a working cache before a replacement succeeds, or swallows an exception without logging?"}
+  ]
+}

@@ -93,3 +93,9 @@ Use and adapt these examples before inventing new structure:
 - `docs/patterns/ServicePattern.cs`
 - `docs/patterns/HandlerPattern.cs`
 - `docs/patterns/UnitTestPattern.cs`
+
+## Consolidation roadmap
+
+See [Architecture consolidation](docs/architecture-consolidation.md) for the dated dependency
+audit, proposed component boundaries, staged refactors and advisory Jev review workflow.
+Its target architecture is a roadmap; the hard boundaries above remain the current contract.
