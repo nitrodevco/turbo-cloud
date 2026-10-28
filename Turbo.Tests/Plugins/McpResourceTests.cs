@@ -310,7 +310,7 @@ public sealed class McpResourceTests : IDisposable
     {
         var call = await new McpToolTester(new LinkTool())
             .As(new PlayerId(1), "*")
-            .CallAsync("open_room");
+            .CallAsync("open_room", ct: Ct);
 
         call.AssertOk()
             .Links.Should()
