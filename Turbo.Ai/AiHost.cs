@@ -135,18 +135,11 @@ public sealed class AiHost(
                 "This host has no server settings to keep keys in."
             );
 
-        // The keys are one setting, replaced whole: the others are kept as they are now.
-        var keys = current
-            .Keys.Where(x => !string.Equals(x.Key, name, StringComparison.OrdinalIgnoreCase))
-            .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
-
-        if (!string.IsNullOrWhiteSpace(key))
-            keys[name] = key.Trim();
-
         await settings
-            .SaveAsync(
+            .SaveMapEntryAsync(
                 $"{AiConfig.SECTION_NAME}:{nameof(AiConfig.Keys)}",
-                JsonSerializer.Serialize(keys),
+                name,
+                string.IsNullOrWhiteSpace(key) ? null : key.Trim(),
                 by,
                 ct
             )

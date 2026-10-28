@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Data;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -149,6 +151,102 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
 
             _logger.LogInformation(
                 "Player {PlayerId} set the server setting {Path}",
+                player.Value,
+                setting.Path
+            );
+        }
+        finally
+        {
+            _writes.Release();
+        }
+
+        Refresh();
+
+        return Get(setting.Path)!;
+    }
+
+    public async Task<ServerSettingSnapshot> SaveMapEntryAsync(
+        string path,
+        string key,
+        string? value,
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        var (setting, _) = Writable(path);
+
+        if (setting.Kind != "map" || !IsStringMap(setting.Type))
+            throw new ArgumentException("This setting is not a map of strings.", nameof(path));
+
+        key = key.Trim();
+
+        if (key.Length == 0 || key.Contains(SettingJson.KEY_DELIMITER))
+            throw new ArgumentException(
+                "A map key must be non-empty and cannot contain ':'.",
+                nameof(key)
+            );
+
+        await _writes.WaitAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+            var transaction = await dbCtx
+                .Database.BeginTransactionAsync(IsolationLevel.Serializable, ct)
+                .ConfigureAwait(false);
+            await using var transactionScope = transaction.ConfigureAwait(false);
+
+            var rows = await dbCtx
+                .ServerSettings.AsNoTracking()
+                .OrderBy(x => x.Id)
+                .Select(x => new { x.Path, x.Value })
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+            var existing = rows.FirstOrDefault(x =>
+                string.Equals(x.Path, setting.Path, StringComparison.OrdinalIgnoreCase)
+            );
+            var before =
+                existing?.Value
+                ?? ReadUnderlyingMap(setting, [.. rows.Select(x => (x.Path, x.Value))]);
+            var historyBefore = existing?.Value;
+            var map = ParseStringMap(before, setting.Path);
+            var oldKey = map.FirstOrDefault(x =>
+                string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)
+            ).Key;
+
+            if (oldKey is not null)
+                map.Remove(oldKey);
+
+            if (value is not null)
+                map[key] = value;
+
+            var after = JsonSerializer.Serialize(map);
+
+            if (string.Equals(existing?.Value ?? before, after, StringComparison.Ordinal))
+                return Get(setting.Path)!;
+
+            await CheckStartsAsync(dbCtx, setting, after, ct).ConfigureAwait(false);
+
+            var row = existing is null
+                ? null
+                : await dbCtx
+                    .ServerSettings.FirstOrDefaultAsync(x => x.Path == existing.Path, ct)
+                    .ConfigureAwait(false);
+
+            if (row is null)
+                dbCtx.ServerSettings.Add(
+                    new ServerSettingEntity { Path = setting.Path, Value = after }
+                );
+            else
+                row.Value = after;
+
+            dbCtx.ServerSettingChanges.Add(Change(setting, historyBefore, after, player));
+            await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+            await transaction.CommitAsync(ct).ConfigureAwait(false);
+
+            _logger.LogInformation(
+                "Player {PlayerId} changed an entry in the server setting {Path}",
                 player.Value,
                 setting.Path
             );
@@ -463,6 +561,79 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
             );
 
         return (setting, snapshot);
+    }
+
+    private string ReadUnderlyingMap(
+        ServerSettingRegistry.Setting setting,
+        IReadOnlyList<(string Path, string Value)> rows
+    )
+    {
+        var section = _registry
+            .Sections.Concat(_pluginSections.Select(x => x.Section))
+            .FirstOrDefault(x =>
+                x.Settings.Any(y =>
+                    string.Equals(y.Path, setting.Path, StringComparison.OrdinalIgnoreCase)
+                )
+            );
+
+        if (section is null)
+            throw new ArgumentException(
+                $"There is no settings section for {setting.Path}.",
+                nameof(setting)
+            );
+
+        // Replace this setting's possibly stale panel row with the transaction's authoritative
+        // rows, so an absent override falls back to the underlying configuration layers.
+        using var configuration = ServerSettingsCheck.Configuration(
+            _configuration,
+            [
+                .. rows.Where(x =>
+                    !string.Equals(x.Path, setting.Path, StringComparison.OrdinalIgnoreCase)
+                ),
+            ]
+        );
+        var value = setting.ReadFrom(
+            WholeCollectionBinding.Get(configuration, section.Name, section.Type)
+        );
+
+        return SettingJson.Write(value, setting.Type);
+    }
+
+    private static bool IsStringMap(Type type) =>
+        type.GetInterfaces()
+            .Append(type)
+            .Where(x => x.IsGenericType)
+            .Any(x =>
+                x.GetGenericTypeDefinition() is var definition
+                && (
+                    definition == typeof(IDictionary<,>)
+                    || definition == typeof(IReadOnlyDictionary<,>)
+                )
+                && x.GetGenericArguments() is [var key, var value]
+                && key == typeof(string)
+                && value == typeof(string)
+            );
+
+    private static Dictionary<string, string> ParseStringMap(string json, string path)
+    {
+        try
+        {
+            var values = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+
+            return values
+                ?? throw new ArgumentException(
+                    $"The map setting {path} has no object value.",
+                    nameof(path)
+                );
+        }
+        catch (JsonException ex)
+        {
+            throw new ArgumentException(
+                $"The map setting {path} has an invalid value.",
+                nameof(path),
+                ex
+            );
+        }
     }
 
     /// <summary>

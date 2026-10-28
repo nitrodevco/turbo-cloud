@@ -50,6 +50,21 @@ public interface IServerSettings
         CancellationToken ct
     );
 
+    /// <summary>
+    /// Sets or removes one entry in a string map setting. The current map is read from the
+    /// authoritative override row, or from the underlying configuration when no override exists,
+    /// so callers on another silo cannot replace entries from a stale snapshot. Throws
+    /// <see cref="System.ArgumentException"/> for an unknown, non-map, non-string-valued,
+    /// startup, environment-controlled, or invalid setting.
+    /// </summary>
+    public Task<ServerSettingSnapshot> SaveMapEntryAsync(
+        string path,
+        string key,
+        string? value,
+        PlayerId player,
+        CancellationToken ct
+    );
+
     /// <summary>Removes the panel's override, so the files' value applies; false when there was none.</summary>
     public Task<bool> ResetAsync(string path, PlayerId player, CancellationToken ct);
 
