@@ -1,7 +1,7 @@
 ---
 title: "Stream AI answers and manage providers in the panel"
 date: 2026-10-27
-pr: turbo-cloud#479
+pr: turbo-cloud#482
 breaks: no
 who: "plugin authors using AI and hotel operators configuring providers."
 ---
