@@ -1626,7 +1626,7 @@ public sealed class DataPluginTests : IDisposable
             texts,
             host.GetRequiredService<IPluginStyles>(),
             hotelPlugin,
-            new ThemeAuthoring(manager, hotelPlugin, host)
+            new ThemeAuthoring(manager, hotelPlugin, host, NullLogger<ThemeAuthoring>.Instance)
         );
     }
 }

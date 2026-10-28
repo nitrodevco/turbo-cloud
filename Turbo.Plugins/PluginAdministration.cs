@@ -643,6 +643,14 @@ internal sealed partial class PluginAdministration(
             if (PluginApi.Refusal(manifest) is { } apiRefusal)
                 return new PluginActionResult(false, apiRefusal, null);
 
+            using var publication = manager.TryReservePublication(manifest.Key);
+            if (publication is null)
+                return new PluginActionResult(
+                    false,
+                    $"The plugin key {manifest.Key} is already being published: try again later.",
+                    null
+                );
+
             manager.Refresh();
 
             var existing = manager.FolderOf(manifest.Key);

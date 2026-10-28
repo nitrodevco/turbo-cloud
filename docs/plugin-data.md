@@ -264,6 +264,17 @@ styles as its defaults, the images uploaded for them) under a new key, with its 
 need `admin.plugins.manage` and go to the command log. Admin API: `POST /plugins/themes`
 `{ "key", "name", "extends": "habbo" | <theme> | null, "copyOf": <theme> | null }`.
 
+Creation and duplication reserve the key while they build a complete theme in
+`plugins/.theme-staging/`, outside plugin discovery. Publication moves the complete directory into
+place and loads it under the plugin manager's reload gate. Another creation or package install
+for that key (including a different spelling of its case) is refused while publication is in
+progress. Newly appeared plugins are checked again before publication. Copy, cancellation or
+load failure removes only the operation's own staged or published files so the key can be retried;
+if cleanup fails, it is logged and the original error is returned. An operation marker detects a
+folder replaced by an outside writer so rollback leaves that replacement alone. These guarantees
+coordinate operations on one host; external filesystem writers, multiple server processes sharing
+the folder, and crash recovery are not covered by a filesystem transaction.
+
 The panel's **Working on** picker (a bar at the top of Style properties, Template patches, Images and
 Windows & skins, with the folder it writes) is where staff edits land, XenForo's development mode: one
 choice for every editor, kept in the browser, `hotel` by default. Working on a theme, its edits are

@@ -32,6 +32,10 @@
 - Keep database querying and persistence access out of packet handlers.
 - Keep grain lifecycle/state logic within grain modules; do not bypass grain boundaries with direct cross-layer shortcuts.
 - Keep plugin lifecycle operations inside `Turbo.Plugins`; do not duplicate plugin loading logic in unrelated modules.
+- Theme authoring builds in ignored staging directories on the plugin filesystem. The plugin
+  manager publishes complete directories and handles load/rollback under its existing reload gate;
+  theme creation and package installation share a case-insensitive key reservation. Failure cleanup
+  verifies the operation marker and preserves the original error if cleanup also fails.
 - Protocol revision parser/serializer trees live in this repository:
   - `Turbo.Revisions/Revision<id>/**` (headers, `Parsers/<Domain>/`, `Serializers/<Domain>/`)
   - Follow the packet addition checklist in `AGENTS.md`; do not add them anywhere else.
