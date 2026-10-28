@@ -1,0 +1,237 @@
+{
+  "Turbo.Achievements": [
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Logging",
+    "Turbo.Primitives"
+  ],
+  "Turbo.Admin": [
+    "Turbo.Commands",
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Primitives"
+  ],
+  "Turbo.Ai": [
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Events",
+    "Turbo.Plugins",
+    "Turbo.Primitives"
+  ],
+  "Turbo.Assets": [],
+  "Turbo.Authentication": [
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Players",
+    "Turbo.Primitives"
+  ],
+  "Turbo.Catalog": [
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Furniture",
+    "Turbo.Logging",
+    "Turbo.Players",
+    "Turbo.Primitives"
+  ],
+  "Turbo.Commands": [
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Events",
+    "Turbo.Primitives",
+    "Turbo.Runtime"
+  ],
+  "Turbo.Contracts": [
+    "Turbo.Primitives"
+  ],
+  "Turbo.Crypto": [
+    "Turbo.Primitives"
+  ],
+  "Turbo.Database": [
+    "Turbo.Contracts",
+    "Turbo.Primitives"
+  ],
+  "Turbo.Events": [
+    "Turbo.Pipeline",
+    "Turbo.Runtime"
+  ],
+  "Turbo.Furniture": [
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Players",
+    "Turbo.Primitives"
+  ],
+  "Turbo.Gamedata": [
+    "Turbo.Assets",
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Primitives"
+  ],
+  "Turbo.Guilds": [
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Players",
+    "Turbo.Primitives"
+  ],
+  "Turbo.Inventory": [
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Furniture",
+    "Turbo.Players",
+    "Turbo.Primitives"
+  ],
+  "Turbo.LoadBots": [
+    "Turbo.Database",
+    "Turbo.Revisions"
+  ],
+  "Turbo.Logging": [
+    "Turbo.Primitives"
+  ],
+  "Turbo.Main": [
+    "Turbo.Achievements",
+    "Turbo.Admin",
+    "Turbo.Ai",
+    "Turbo.Authentication",
+    "Turbo.Catalog",
+    "Turbo.Commands",
+    "Turbo.Contracts",
+    "Turbo.Crypto",
+    "Turbo.Database",
+    "Turbo.Events",
+    "Turbo.Furniture",
+    "Turbo.Gamedata",
+    "Turbo.Guilds",
+    "Turbo.Inventory",
+    "Turbo.Logging",
+    "Turbo.Messages",
+    "Turbo.Navigator",
+    "Turbo.Networking",
+    "Turbo.Operations",
+    "Turbo.PacketHandlers",
+    "Turbo.Pipeline",
+    "Turbo.Players",
+    "Turbo.Plugins",
+    "Turbo.Primitives",
+    "Turbo.Revisions",
+    "Turbo.Rooms",
+    "Turbo.Runtime",
+    "Turbo.Testing",
+    "Turbo.Web"
+  ],
+  "Turbo.Messages": [
+    "Turbo.Contracts",
+    "Turbo.Logging",
+    "Turbo.Pipeline",
+    "Turbo.Primitives",
+    "Turbo.Runtime"
+  ],
+  "Turbo.Navigator": [
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Furniture",
+    "Turbo.Players",
+    "Turbo.Primitives"
+  ],
+  "Turbo.Networking": [
+    "Turbo.Crypto",
+    "Turbo.Events",
+    "Turbo.Messages",
+    "Turbo.Primitives"
+  ],
+  "Turbo.Operations": [
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Events",
+    "Turbo.Plugins",
+    "Turbo.Primitives",
+    "Turbo.Runtime"
+  ],
+  "Turbo.PacketHandlers": [
+    "Turbo.Authentication",
+    "Turbo.Catalog",
+    "Turbo.Contracts",
+    "Turbo.Crypto",
+    "Turbo.Database",
+    "Turbo.Furniture",
+    "Turbo.Messages",
+    "Turbo.Players",
+    "Turbo.Primitives",
+    "Turbo.Rooms"
+  ],
+  "Turbo.Pipeline": [
+    "Turbo.Primitives",
+    "Turbo.Runtime"
+  ],
+  "Turbo.Players": [
+    "Turbo.Contracts",
+    "Turbo.Crypto",
+    "Turbo.Database",
+    "Turbo.Events",
+    "Turbo.Messages",
+    "Turbo.Primitives"
+  ],
+  "Turbo.Plugins": [
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Logging",
+    "Turbo.Plugins.Policy",
+    "Turbo.Runtime"
+  ],
+  "Turbo.Plugins.Policy": [],
+  "Turbo.Primitives": [],
+  "Turbo.Revisions": [
+    "Turbo.Contracts",
+    "Turbo.Furniture",
+    "Turbo.Logging",
+    "Turbo.Messages",
+    "Turbo.Players",
+    "Turbo.Primitives"
+  ],
+  "Turbo.Rooms": [
+    "Turbo.Catalog",
+    "Turbo.Commands",
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Events",
+    "Turbo.Furniture",
+    "Turbo.Logging",
+    "Turbo.Players",
+    "Turbo.Primitives"
+  ],
+  "Turbo.Runtime": [],
+  "Turbo.Testing": [
+    "Turbo.Ai",
+    "Turbo.Commands",
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Events",
+    "Turbo.Messages",
+    "Turbo.Networking",
+    "Turbo.Operations",
+    "Turbo.Players",
+    "Turbo.Plugins",
+    "Turbo.Primitives",
+    "Turbo.Rooms",
+    "Turbo.Runtime"
+  ],
+  "Turbo.Tests": [
+    "Turbo.Achievements",
+    "Turbo.Ai",
+    "Turbo.Assets",
+    "Turbo.Commands",
+    "Turbo.Gamedata",
+    "Turbo.Guilds",
+    "Turbo.Inventory",
+    "Turbo.LoadBots",
+    "Turbo.Main",
+    "Turbo.Navigator",
+    "Turbo.Operations",
+    "Turbo.PacketHandlers",
+    "Turbo.Primitives",
+    "Turbo.Testing"
+  ],
+  "Turbo.Web": [
+    "Turbo.Contracts",
+    "Turbo.Database",
+    "Turbo.Primitives"
+  ]
+}
