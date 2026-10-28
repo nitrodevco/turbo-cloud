@@ -103,7 +103,10 @@ public sealed class GamedataModule : IHostPluginModule
         services.AddSingleton<FurnitureStatusIndex>();
         services.AddSingleton<HabboFurnitureFiles>();
         services.AddSingleton<IHabboReleaseService, HabboReleaseService>();
-        services.AddSingleton<IGamedataFileService, GamedataFileService>();
+        services.AddSingleton<IThemeFileService, GamedataFileService>();
+        services.AddSingleton<IGamedataFileService>(sp =>
+            sp.GetRequiredService<IThemeFileService>()
+        );
         services.AddSingleton<IGamedataFurnitureService, GamedataFurnitureService>();
         services.AddSingleton<IGamedataHistoryService, GamedataHistoryService>();
         services.AddSingleton<IGamedataTextService, GamedataTextService>();
@@ -145,18 +148,8 @@ public sealed class GamedataModule : IHostPluginModule
         );
         services.AddSingleton<IPluginDataOwner>(sp => sp.GetRequiredService<PluginGamedataSeeds>());
         services.AddSingleton<IPluginStyles, PluginStyleService>();
-        services.AddSingleton<IThemeAudiences>(sp =>
-            ActivatorUtilities.CreateInstance<ThemeAudienceService>(
-                sp,
-                (GamedataFileService)sp.GetRequiredService<IGamedataFileService>()
-            )
-        );
-        services.AddSingleton(sp =>
-            ActivatorUtilities.CreateInstance<ThemeLiveReload>(
-                sp,
-                (GamedataFileService)sp.GetRequiredService<IGamedataFileService>()
-            )
-        );
+        services.AddSingleton<IThemeAudiences, ThemeAudienceService>();
+        services.AddSingleton<ThemeLiveReload>();
         services.AddSingleton<IThemeLiveReload>(sp => sp.GetRequiredService<ThemeLiveReload>());
         services.AddHostedService(sp => sp.GetRequiredService<ThemeLiveReload>());
         services.AddHostedService<GamedataServer>();

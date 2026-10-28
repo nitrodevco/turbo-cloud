@@ -381,6 +381,20 @@ message.
   drawing it.
 - Each silo sends its own players the changes made on it.
 
+## Replacing the theme-file provider
+
+The built-in content module registers `IThemeFileService` for theme variables, revisioned looks
+and file-invalidation notifications. It extends `IGamedataFileService`; the default registration
+aliases that base interface to the same singleton so file reads and theme invalidation share one
+cache. Audience selection and live reload depend on the capability, not `GamedataFileService`.
+
+A host replacing this provider registers its `IThemeFileService` implementation after the
+content module's registrations. The base file-service alias then resolves that implementation
+too. Replacing only `IGamedataFileService` does not replace the theme capability. The replacement
+must preserve content revisions, retained look lookup and invalidation notifications. This is a
+host DI capability; it does not add a second plugin lifecycle or make theme-audience policy
+replaceable by itself.
+
 ## Not yet
 
 - Switching theme in the client's settings reloads the client.

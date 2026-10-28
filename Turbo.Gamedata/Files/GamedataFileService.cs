@@ -57,7 +57,7 @@ internal sealed class GamedataFileService(
     TimeProvider time,
     LoadedPluginGamedata plugins,
     ILogger<GamedataFileService> logger
-) : IGamedataFileService
+) : IThemeFileService
 {
     /// <summary>The parts read from a clothing bundle's file, by its name and hash, for one no map lists yet.</summary>
     private readonly ConcurrentDictionary<(string Name, string Hash), string> _fileParts = new();

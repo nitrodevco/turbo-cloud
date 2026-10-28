@@ -9,7 +9,6 @@ using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Gamedata.Api;
 using Turbo.Gamedata.Configuration;
-using Turbo.Gamedata.Files;
 using Turbo.Gamedata.Variables;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Networking;
@@ -21,16 +20,16 @@ namespace Turbo.Gamedata.Plugins;
 
 /// <summary>
 /// Live reload (<see cref="IThemeLiveReload"/>): every change to what the client's variables or
-/// texts are made from ends in <see cref="GamedataFileService.Invalidate"/> - a theme's or a data
+/// texts are made from ends in <see cref="IGamedataFileService.Invalidate"/> - a theme's or a data
 /// plugin's files loaded again, staff's variables, texts, who gets a theme - so a moment after one
 /// (<see cref="DEBOUNCE_MS"/>; a burst is one) each online player's theme is worked out again and
-/// their look (<see cref="GamedataFileService.ThemeLookAsync"/>) compared by revision with the one
+/// their look (<see cref="IThemeFileService.ThemeLookAsync"/>) compared by revision with the one
 /// their client draws: the look it was given before it connected or sent since, else the look every
 /// client loads, as of the last time. Only a player whose look differs is sent
 /// <see cref="ThemeChanged"/>. This silo's players, for changes this silo made. Not Habbo's.
 /// </summary>
 internal sealed class ThemeLiveReload(
-    GamedataFileService files,
+    IThemeFileService files,
     IThemeAudiences audiences,
     IGrainFactory grainFactory,
     IOptions<GamedataConfig> config,

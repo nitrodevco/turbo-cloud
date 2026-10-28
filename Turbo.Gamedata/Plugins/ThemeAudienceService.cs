@@ -12,7 +12,6 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Gamedata;
 using Turbo.Database.Entities.Players;
-using Turbo.Gamedata.Files;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -25,11 +24,11 @@ namespace Turbo.Gamedata.Plugins;
 /// <see cref="IThemeAudiences"/> over <c>gamedata_themes</c> (who gets each theme) and
 /// <c>player_themes</c> (what each player chose), resolved by <see cref="ThemeChains"/>. A change
 /// builds the client's variables again (the default theme's look is in the file every client
-/// loads); a session's own theme's variables are built once per theme (<see cref="GamedataFileService.ThemeVariablesAsync"/>).
+/// loads); a session's own theme's variables are built once per theme (<see cref="IThemeFileService.ThemeVariablesAsync"/>).
 /// </summary>
 internal sealed class ThemeAudienceService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
-    GamedataFileService files,
+    IThemeFileService files,
     LoadedPluginGamedata loaded,
     IGrainFactory grainFactory,
     TimeProvider time,
