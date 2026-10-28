@@ -5,9 +5,7 @@
   ],
   "contract_projects": ["Turbo.Contracts", "Turbo.Primitives"],
   "allowed_contract_dependencies": [["Turbo.Contracts", "Turbo.Primitives"]],
-  "baseline": [
-    {"source": "Turbo.PacketHandlers", "target": "Turbo.Database", "rule": "handler-persistence", "reason": "Existing direct reference at 7c42f8555; source search found no database API use. Remove separately after build verification."}
-  ],
+  "baseline": [],
   "semantic_rules": [
     {"id": "handler-persistence", "paths": ["Turbo.PacketHandlers/*.cs"], "reference": "CONTEXT.md#hard-boundaries", "question": "Does the changed code introduce persistence queries or writes in a packet handler, directly or through a helper that bypasses the owning domain service or grain?"},
     {"id": "grain-ownership", "paths": ["Turbo.*/*.cs"], "reference": "CONTEXT.md#grain-runtime-patterns", "question": "Does the changed code mutate grain-owned state outside the owning grain, or write its database rows directly without the grain's cache coherence path?"},

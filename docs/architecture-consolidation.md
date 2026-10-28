@@ -6,6 +6,10 @@ plugin contracts and theme creation, not a claim that every subsystem has been r
 The separate admin frontend and the earlier Theme Studio attachment were not available in
 this audit; UI and attachment-specific conclusions remain unverified.
 
+Subsequent consolidation removed the direct handler/database project reference and its baseline
+exception. The dated inventory and findings below retain the original audit evidence; the live
+architecture check reads the current project files.
+
 ## Current dependency map
 
 [architecture-projects.json](architecture-projects.json) inventories all 34 root-level
@@ -111,10 +115,10 @@ callers and behavior checks required. Moving the same coupling into more files i
 ## Deterministic review and baseline
 
 Run `python scripts/architecture.py check`. CI runs it alongside script tests.
-`scripts/architecture_policy.json` contains the current rules and a reasoned exception for the
-existing handler/database edge. New direct references from the contract projects to implementation
-projects fail. The existing handler/database edge is reported separately; removing it without
-removing its exception also fails so the baseline cannot silently preserve resolved debt.
+`scripts/architecture_policy.json` contains the current rules with an empty baseline. Reintroducing
+the handler/database reference fails, as do new direct references from the contract projects to
+implementation projects. Any future exception must be explicitly reviewed; removing an excepted
+edge without removing its exception also fails so the baseline cannot silently preserve resolved debt.
 
 This initial check examines declared direct `ProjectReference` items only. It is not a C# symbol
 analyzer and does not prevent EF access through a transitive dependency, reflection or an imported

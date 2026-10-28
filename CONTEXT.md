@@ -30,6 +30,7 @@
 - Keep host composition and module registration in `Turbo.Main`; avoid leaking host concerns into domain modules.
 - Keep packet handlers focused on request/response orchestration, not persistence infrastructure wiring.
 - Keep database querying and persistence access out of packet handlers.
+- `Turbo.PacketHandlers` has no direct `Turbo.Database` project reference; the architecture check rejects reintroducing it.
 - Keep grain lifecycle/state logic within grain modules; do not bypass grain boundaries with direct cross-layer shortcuts.
 - Keep plugin lifecycle operations inside `Turbo.Plugins`; do not duplicate plugin loading logic in unrelated modules.
 - Theme authoring builds in ignored staging directories on the plugin filesystem. The plugin
