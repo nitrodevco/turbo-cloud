@@ -166,6 +166,21 @@ public sealed class AiApprovalsTests : IDisposable
         using var live = host.Live(DESK, typeof(KickAgent).Assembly, _services);
         var model = new TaskCompletionSource();
         Reply(new AiToolCallPart("c1", "kick", Json($$"""{"player":{{bob.Id.Value}}}""")));
+        var paused = await host.ForPlugin(DESK)
+            .PromptAsync(
+                new KickAgent(_hotel, _told),
+                "Kick Bob",
+                new AiCall { As = AiActor.AsPlayer(staff.Id) },
+                Ct
+            );
+        Reply(new AiToolCallPart("c2", "kick", Json($$"""{"player":{{bob.Id.Value}}}""")));
+        var second = await host.ForPlugin(DESK)
+            .PromptAsync(
+                new KickAgent(_hotel, _told),
+                "Kick again",
+                new AiCall { As = AiActor.AsPlayer(staff.Id) },
+                Ct
+            );
         // The model's answer after the tool: a slow model, answering only when the test says.
         _model.Enqueue(async () =>
         {
@@ -174,13 +189,6 @@ public sealed class AiApprovalsTests : IDisposable
             return AiFake.Answer([new AiTextPart("Bob was kicked.")], AiFinish.EndTurn, 10, 5);
         });
 
-        var paused = await host.ForPlugin(DESK)
-            .PromptAsync(
-                new KickAgent(_hotel, _told),
-                "Kick Bob",
-                new AiCall { As = AiActor.AsPlayer(staff.Id) },
-                Ct
-            );
         var decided = await _services
             .GetRequiredService<HotelApprovals>()
             .ApproveAsync(int.Parse(paused.Pending!.ApprovalId), approver.Id, null, Ct)
@@ -190,7 +198,17 @@ public sealed class AiApprovalsTests : IDisposable
         _told.Should().BeEmpty("the model has not answered yet");
 
         // The active continuation occupies the bounded backlog; another cannot accumulate.
-        host.Resume(paused.Pending.ApprovalId, new AiApprovalDecision(true));
+        var overflow = await new AiToolApprovalHandler(host).ExecuteAsync(
+            new AiToolApproval(second.ConversationId!.Value, "kick", Json("{}")),
+            (
+                await _services
+                    .GetRequiredService<HotelApprovals>()
+                    .GetAsync(int.Parse(second.Pending!.ApprovalId), Ct)
+            )!,
+            Ct
+        );
+        overflow.Succeeded.Should().BeFalse();
+        overflow.Message.Should().Contain("queue is full").And.Contain("IAi.ResumeAsync");
         _hostLog
             .AtLeast(LogLevel.Error)
             .Should()
@@ -201,6 +219,51 @@ public sealed class AiApprovalsTests : IDisposable
 
         _told.Single().Response.Text.Should().Be("Bob was kicked.");
         _hotel.Notify.Alerts.Select(a => a.Player).Should().Equal(bob.Id);
+    }
+
+    [Fact]
+    public async Task Cancellation_during_an_approved_tool_closes_its_history_without_running_it_again()
+    {
+        var (staff, _, bob) = Players();
+        var host = _services.GetRequiredService<AiHost>();
+        var store = (MemoryAiStore)_services.GetRequiredService<IAiStore>();
+        using var stopping = new CancellationTokenSource();
+        var agent = new CancellingKickAgent(_hotel, stopping);
+        var call = new AiCall
+        {
+            As = AiActor.AsPlayer(staff.Id),
+            Memory = AiMemory.ForPlayer(staff.Id),
+        };
+        Reply(new AiToolCallPart("c1", "kick", Json($$"""{"player":{{bob.Id.Value}}}""")));
+        var paused = await host.ForPlugin(DESK).PromptAsync(agent, "Kick Bob", call, Ct);
+
+        var cancelled = await host.Runtime.ResumeAsync(
+            DESK,
+            agent,
+            call,
+            new AiApprovalDecision(true),
+            stopping.Token
+        );
+
+        cancelled.Stop.Should().Be(AiStopReason.Cancelled);
+        var saved = (await store.FindAsync(paused.ConversationId!.Value, Ct))!;
+        saved.Pending.Should().BeNull();
+        saved.PendingApprovalId.Should().BeNull();
+        var messages = System.Text.Json.JsonSerializer.Deserialize<List<AiMessage>>(
+            saved.Messages,
+            AiRuntime.Json
+        )!;
+        messages
+            .SelectMany(message => message.Parts)
+            .OfType<AiToolResultPart>()
+            .Should()
+            .ContainSingle(result => result.CallId == "c1" && result.IsError);
+        _hotel.Notify.Alerts.Should().ContainSingle();
+
+        Reply(new AiTextPart("Ready for another question."));
+        var continued = await host.ForPlugin(DESK).PromptAsync(agent, "Hello", call, Ct);
+        continued.Text.Should().Be("Ready for another question.");
+        _hotel.Notify.Alerts.Should().ContainSingle("the interrupted tool is never retried");
     }
 
     [Fact]
@@ -336,8 +399,15 @@ public sealed class AiApprovalsTests : IDisposable
 
     public sealed record KickInput(int Player);
 
+    public sealed class CancellingKickAgent(IHotel hotel, CancellationTokenSource stopping)
+        : AiAgent
+    {
+        public override string Instructions => "You kick players when staff ask.";
+        public override IEnumerable<IMcpTool> Tools => [new KickTool(hotel, stopping.Cancel)];
+    }
+
     [RequiresPermission("test.kick")]
-    public sealed class KickTool(IHotel hotel) : McpTool<KickInput>
+    public sealed class KickTool(IHotel hotel, Action? after = null) : McpTool<KickInput>
     {
         public override string Name => "kick";
 
@@ -350,6 +420,8 @@ public sealed class AiApprovalsTests : IDisposable
         )
         {
             await hotel.Notify.AlertAsync(input.Player, "kicked", "You were kicked.", [], ct);
+            after?.Invoke();
+            ct.ThrowIfCancellationRequested();
 
             return McpToolResult.Text("Kicked.");
         }

@@ -388,16 +388,34 @@ public sealed class AiRuntime(
             // second one, never runs it again.
             Waiting = null;
             await SaveAsync().ConfigureAwait(false);
-            await BuildToolsAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await BuildToolsAsync(ct).ConfigureAwait(false);
 
-            var paused = await RunCallsAsync(waiting.Calls, decision, ct).ConfigureAwait(false);
+                var paused = await RunCallsAsync(waiting.Calls, decision, ct).ConfigureAwait(false);
 
-            if (paused is not null)
-                return await PauseAsync(paused.Value, ct).ConfigureAwait(false);
+                if (paused is not null)
+                    return await PauseAsync(paused.Value, ct).ConfigureAwait(false);
 
-            var response = await LoopAsync(ct, skipTools: true).ConfigureAwait(false);
-
-            return response;
+                return await LoopAsync(ct, skipTools: true).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                CompleteInterruptedCalls();
+                return await EndAsync(
+                        AiStopReason.Cancelled,
+                        "The call was cancelled.",
+                        CancellationToken.None
+                    )
+                    .ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // A tool may already have changed state. Close its history without retrying it.
+                CompleteInterruptedCalls();
+                await SaveAsync().ConfigureAwait(false);
+                throw;
+            }
         }
 
         public async Task<AiResponse> LoopAsync(CancellationToken ct, bool skipTools = false)
@@ -598,6 +616,7 @@ public sealed class AiRuntime(
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
+                CompleteInterruptedCalls();
                 return await EndAsync(
                         AiStopReason.Cancelled,
                         "The call was cancelled.",
@@ -605,6 +624,30 @@ public sealed class AiRuntime(
                     )
                     .ConfigureAwait(false);
             }
+        }
+
+        private void CompleteInterruptedCalls()
+        {
+            var answered = _messages
+                .SelectMany(message => message.Parts)
+                .OfType<AiToolResultPart>()
+                .Select(result => result.CallId)
+                .ToHashSet(StringComparer.Ordinal);
+            var missing = _messages
+                .SelectMany(message => message.Parts)
+                .OfType<AiToolCallPart>()
+                .Where(call => !answered.Contains(call.Id))
+                .Select(call =>
+                    (AiPart)
+                        new AiToolResultPart(
+                            call.Id,
+                            call.Name,
+                            "The run was interrupted. The tool's outcome is unknown; it must not be retried automatically.",
+                            true
+                        )
+                )
+                .ToList();
+            AddResults(missing);
         }
 
         private async Task<bool> DailyLimitReachedAsync(CancellationToken ct)

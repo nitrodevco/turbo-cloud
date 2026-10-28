@@ -180,8 +180,9 @@ public sealed class AiHost(
     /// its agent's steps, budget and timeouts, and its agent is told the answer
     /// (<see cref="AiAgent.ResumedAsync"/>). What fails is logged, kept in the usage log and told
     /// to the agent as <see cref="AiStopReason.Failed"/>.
+    /// Returns false when the bounded queue is full; the caller must report the failure.
     /// </summary>
-    public void Resume(string approvalId, AiApprovalDecision decision)
+    public bool Resume(string approvalId, AiApprovalDecision decision)
     {
         if (!_resumeBacklog.Wait(0))
         {
@@ -189,7 +190,7 @@ public sealed class AiHost(
                 "The AI resume queue is full; approval {Approval} must be resumed manually",
                 approvalId
             );
-            return;
+            return false;
         }
         var ct = _stopping.Token;
         var task = Task.Run(
@@ -227,6 +228,7 @@ public sealed class AiHost(
             TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default
         );
+        return true;
     }
 
     /// <summary>Waits until no queued run is left going on.</summary>

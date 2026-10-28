@@ -162,9 +162,11 @@ internal sealed class AiToolApprovalHandler(AiHost host) : ApprovalHandler<AiToo
         if (await host.CannotResumeAsync(id, ct).ConfigureAwait(false) is { } why)
             return ApprovalResult.Failed(why);
 
-        host.Resume(id, new AiApprovalDecision(true, approval.DecidedBy, approval.Note));
-
-        return ApprovalResult.Done(QUEUED);
+        return host.Resume(id, new AiApprovalDecision(true, approval.DecidedBy, approval.Note))
+            ? ApprovalResult.Done(QUEUED)
+            : ApprovalResult.Failed(
+                "The AI resume queue is full. The run is still saved; the plugin must resume its conversation with IAi.ResumeAsync."
+            );
     }
 }
 

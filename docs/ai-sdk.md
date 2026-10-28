@@ -391,7 +391,8 @@ resumable agent's constructor takes only services (one that can't be built is lo
 waits). Deciding queues continuation in the background, so the approver's request returns before
 the model answers. `ResumesAtOnce` (default 4) limits concurrent continuations per server and
 `ResumeQueueCapacity` (default 128) bounds active and queued continuations. Both apply after a
-restart. An overflowing continuation is logged and remains available for manual resume; failures
+restart. An overflowing approved continuation is reported as failed in the approvals inbox,
+logged, and remains available for manual resume through `IAi.ResumeAsync`; failures
 are logged and reported to the agent. The queue is in memory, while the conversation is stored. A plugin
 that was not running then goes on later with `ai.ResumeAsync(agent, call)`. A new prompt on the
 conversation before it is decided answers the waiting call as not run.
