@@ -386,6 +386,47 @@ public sealed class AssetSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task Asset_discovery_propagates_cancellation_from_a_remote_listing_request()
+    {
+        var hold = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _habbo.Hold = hold.Task;
+        using var stop = new CancellationTokenSource();
+
+        var discovery = new AssetDiscoveryService(
+            _db,
+            Options.Create(new AssetBundleConfig()),
+            Options.Create(new GamedataConfig()),
+            new HabboGamedataClient(
+                _fakes.Create<IHttpClientFactory>(),
+                NullLogger<HabboGamedataClient>.Instance
+            ),
+            Client(),
+            _folder.Store,
+            TimeProvider.System,
+            NullLogger<AssetDiscoveryService>.Instance
+        );
+        var listing = discovery.DiscoverAsync(_ => { }, probe: false, stop.Token);
+
+        while (_habbo.Requests.Count == 0)
+            await Task.Delay(1, Ct);
+
+        await stop.CancelAsync();
+
+        var canceled = false;
+
+        try
+        {
+            await listing;
+        }
+        catch (OperationCanceledException)
+        {
+            canceled = true;
+        }
+
+        canceled.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task The_room_libraries_badges_catalog_pictures_and_trax_samples_come_laid_out_as_nitro_studio_has_them()
     {
         const string IMAGES = "https://images.habbo.com/c_images";
@@ -1456,7 +1497,19 @@ public sealed class AssetSyncTests : IDisposable
                 _fakes.Create<IHttpClientFactory>(),
                 NullLogger<HabboGamedataClient>.Instance
             ),
-            Client(),
+            new AssetDiscoveryService(
+                _db,
+                Options.Create(config),
+                Options.Create(new GamedataConfig()),
+                new HabboGamedataClient(
+                    _fakes.Create<IHttpClientFactory>(),
+                    NullLogger<HabboGamedataClient>.Instance
+                ),
+                Client(),
+                _folder.Store,
+                TimeProvider.System,
+                NullLogger<AssetDiscoveryService>.Instance
+            ),
             Builder(),
             _folder.Store,
             _jobs,

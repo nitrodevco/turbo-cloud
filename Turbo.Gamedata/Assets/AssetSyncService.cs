@@ -1,12 +1,10 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -40,7 +38,7 @@ internal sealed class AssetSyncService(
     IOptions<AssetBundleConfig> config,
     IOptions<GamedataConfig> gamedataConfig,
     HabboGamedataClient habbo,
-    HabboClientService client,
+    AssetDiscoveryService discovery,
     ClientBundleBuilder builder,
     IAssetBundleStore store,
     IAssetJobs jobs,
@@ -55,22 +53,8 @@ internal sealed class AssetSyncService(
 
     private const string NO_FILE = "Habbo has no file at its address.";
 
-    /// <summary>A library's download name for one read from Habbo's HTML client: the path in the release follows.</summary>
-    private const string CLIENT_PREFIX = "client:";
-
-    // Numbered files are asked for this many at once, and given up on after this many missing in a row.
-    private const int PROBE_BATCH = 6;
-    private const int PROBE_MISSES = 25;
-    private const int FIRST_PROBE_MISSES = 100;
-
-    // An achievement's next levels are asked for until this many are missing, at most this far.
-    private const int BADGE_LEVEL_MISSES = 2;
-    private const int BADGE_LEVEL_LIMIT = 50;
-    private const string NOT_A_FILE =
-        "Habbo answered with a page, not the file; its filter may have refused the request.";
-
     private readonly SemaphoreSlim _listing = new(1, 1);
-    private HabboLists? _lists;
+    private AssetDiscoveryResult? _lists;
 
     /// <summary>The background read <see cref="RelistBehind"/> started last; done when none runs.</summary>
     private Task _relisting = Task.CompletedTask;
@@ -178,28 +162,6 @@ internal sealed class AssetSyncService(
         {
             // Another job started between the look and the start; the check stands.
             logger.LogInformation(ex, "No asset sync after the Habbo check: {Message}", ex.Message);
-
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Habbo's external texts, which name its posters and badges; null when they could not be read,
-    /// and the rest of the sync goes on without them: they come with the next sync that reads them.
-    /// </summary>
-    private async Task<byte[]?> TextsAsync(string domain, Action<string> log, CancellationToken ct)
-    {
-        try
-        {
-            return await habbo.GetExternalTextsAsync(domain, ct).ConfigureAwait(false);
-        }
-        catch (HttpRequestException ex)
-        {
-            logger.LogWarning(
-                ex,
-                "Habbo's external texts could not be read for its posters and badges"
-            );
-            log($"Posters and badges left out: Habbo's texts could not be read ({ex.Message}).");
 
             return null;
         }
@@ -318,7 +280,19 @@ internal sealed class AssetSyncService(
     /// they are still answered with, and read again behind it: a visit doesn't wait on Habbo
     /// unless nothing was read yet.
     /// </summary>
-    private async Task<HabboLists> CachedListsAsync(bool relist, CancellationToken ct)
+    private async Task<AssetDiscoveryResult> ListHabboAsync(
+        Action<string> log,
+        bool probe,
+        CancellationToken ct
+    )
+    {
+        var lists = await discovery.DiscoverAsync(log, probe, ct).ConfigureAwait(false);
+        _lists = lists;
+
+        return lists;
+    }
+
+    private async Task<AssetDiscoveryResult> CachedListsAsync(bool relist, CancellationToken ct)
     {
         if (!relist && _lists is { } cached)
         {
@@ -382,437 +356,13 @@ internal sealed class AssetSyncService(
     internal Task WhenRelistedAsync() => _relisting;
 #pragma warning restore VSTHRD003
 
-    private bool IsStale(HabboLists lists) =>
+    private bool IsStale(AssetDiscoveryResult lists) =>
         time.GetUtcNow().UtcDateTime - lists.ListedAt
         >= TimeSpan.FromMinutes(Math.Max(0, config.Value.SyncPreviewMinutes));
 
     /// <summary>
     /// Every library Habbo serves now, by kind, kept for the preview. A map Habbo has not, or that
     /// does not read, is null: that kind is left out rather than failing the rest.
-    /// </summary>
-    private async Task<HabboLists> ListHabboAsync(
-        Action<string> log,
-        bool probe,
-        CancellationToken ct
-    )
-    {
-        var domain = gamedataConfig.Value.HabboDomain;
-        var variables = await habbo.GetExternalVariablesAsync(domain, ct).ConfigureAwait(false);
-        var revision =
-            HabboReleaseService.RevisionOf(variables)
-            ?? throw new HttpRequestException(
-                $"habbo.{domain}'s external variables name no client revision."
-            );
-
-        log($"habbo.{domain} serves client revision {revision}.");
-
-        var texts = await TextsAsync(domain, log, ct).ConfigureAwait(false);
-        var posters = texts is null ? [] : FurnitureAssetNames.PosterIds(texts);
-
-        if (texts is not null)
-            log($"Habbo's texts name {posters.Length} posters.");
-
-        var furniture = HabboAssetLists.Furniture(
-            await habbo.GetFurnitureDataAsync(domain, ct).ConfigureAwait(false),
-            posters
-        );
-        var figures = await ListFromMapAsync(
-                domain,
-                revision,
-                HabboAssetLists.FIGURE_MAP,
-                HabboAssetLists.Figures,
-                log,
-                ct
-            )
-            .ConfigureAwait(false);
-        var effects = await ListFromMapAsync(
-                domain,
-                revision,
-                HabboAssetLists.EFFECT_MAP,
-                HabboAssetLists.Effects,
-                log,
-                ct
-            )
-            .ConfigureAwait(false);
-        var pets = HabboAssetLists.Pets(
-            variables.GetValueOrDefault(HabboAssetLists.PET_CONFIGURATION_VARIABLE),
-            revision
-        );
-        var had = await HadFilesAsync(ct).ConfigureAwait(false);
-        var numbered = new Dictionary<AssetBundleKind, List<HabboLibrary>>();
-
-        foreach (var set in HabboFileLists.NUMBERED)
-            numbered[set.Kind] = await NumberedAsync(set, domain, had[set.Kind], probe, log, ct)
-                .ConfigureAwait(false);
-
-        var lists = new HabboLists(
-            domain,
-            revision,
-            time.GetUtcNow().UtcDateTime,
-            furniture,
-            figures,
-            effects,
-            pets,
-            await RoomAsync(revision, log, ct).ConfigureAwait(false),
-            texts is null
-                ? null
-                : await BadgesAsync(texts, domain, had[AssetBundleKind.Badge], probe, log, ct)
-                    .ConfigureAwait(false),
-            numbered[AssetBundleKind.CatalogIcon],
-            await CatalogImagesAsync(ct).ConfigureAwait(false),
-            numbered[AssetBundleKind.Sound]
-        )
-        {
-            Client = _client,
-        };
-
-        _lists = lists;
-
-        return lists;
-    }
-
-    /// <summary>The release of Habbo's HTML client the last listing opened.</summary>
-    private HabboClientRelease? _client;
-
-    /// <summary>
-    /// The room's own libraries: each from Habbo's HTML client (<c>local_include/&lt;Name&gt;.hab</c>,
-    /// at its file's SHA-256, so a changed one is taken again) when a release is downloaded and has
-    /// it, as nitro-studio prefers it; else Habbo's gordon SWF at the client revision.
-    /// </summary>
-    private async Task<List<HabboLibrary>> RoomAsync(
-        string revision,
-        Action<string> log,
-        CancellationToken ct
-    )
-    {
-        _client = null;
-
-        try
-        {
-            _client = await client.OpenFollowedAsync(ct).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is IOException or AssetFormatException or JsonException)
-        {
-            logger.LogWarning(
-                ex,
-                "Habbo's HTML client could not be opened; the room libraries come from gordon"
-            );
-            log(
-                $"Habbo's HTML client could not be opened ({ex.Message}); the room libraries come from gordon."
-            );
-        }
-
-        var libraries = HabboFileLists.Room(revision);
-
-        if (_client is null)
-            return libraries;
-
-        var fromClient = 0;
-
-        for (var i = 0; i < libraries.Count; i++)
-        {
-            var path = $"local_include/{libraries[i].Name}.hab";
-
-            if (_client.FileHashes.TryGetValue(path, out var sha256))
-            {
-                libraries[i] = libraries[i] with
-                {
-                    Revision = sha256,
-                    Download = CLIENT_PREFIX + path,
-                };
-                fromClient++;
-            }
-        }
-
-        log($"{fromClient} room libraries come from Habbo's HTML client {_client.Version}.");
-
-        return libraries;
-    }
-
-    /// <summary>The files the hotel has of each kind of Habbo's that is found by asking for it, by name.</summary>
-    private async Task<Dictionary<AssetBundleKind, HashSet<string>>> HadFilesAsync(
-        CancellationToken ct
-    )
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        AssetBundleKind[] kinds =
-        [
-            AssetBundleKind.Badge,
-            .. HabboFileLists.NUMBERED.Select(x => x.Kind),
-        ];
-        var rows = await dbCtx
-            .AssetBundles.AsNoTracking()
-            .Where(x => kinds.Contains(x.Kind) && x.Hash != null)
-            .Select(x => new { x.Kind, x.Name })
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
-
-        return kinds.ToDictionary(
-            x => x,
-            x => rows.Where(r => r.Kind == x).Select(r => r.Name).ToHashSet(StringComparer.Ordinal)
-        );
-    }
-
-    /// <summary>
-    /// A numbered set's files: those the hotel has, and - when <paramref name="probe"/> - each Habbo
-    /// has above them, asked for in turn until <see cref="PROBE_MISSES"/> in a row are not there
-    /// (<see cref="FIRST_PROBE_MISSES"/> when the hotel has none yet), as nitro-studio finds them.
-    /// A question Habbo does not answer stops the asking; the next sync goes on from there.
-    /// </summary>
-    private async Task<List<HabboLibrary>> NumberedAsync(
-        HabboFileLists.NumberedSet set,
-        string domain,
-        HashSet<string> had,
-        bool probe,
-        Action<string> log,
-        CancellationToken ct
-    )
-    {
-        var numbers = had.Select(set.NumberOf).OfType<int>().ToHashSet();
-
-        if (probe)
-        {
-            var next = numbers.Count == 0 ? set.First : Math.Max(set.First, numbers.Max() + 1);
-            var limit = numbers.Count == 0 ? FIRST_PROBE_MISSES : PROBE_MISSES;
-            var misses = 0;
-            var found = 0;
-            var unanswered = false;
-
-            while (misses < limit && !unanswered)
-            {
-                var batch = Enumerable.Range(next, PROBE_BATCH).ToList();
-                var answers = await Task.WhenAll(
-                        batch.Select(n =>
-                            habbo.ExistsAsync(FileUrl(set.Kind, domain, set.FileOf(n)), ct)
-                        )
-                    )
-                    .ConfigureAwait(false);
-
-                for (var i = 0; i < batch.Count && misses < limit; i++)
-                {
-                    if (answers[i] is not { } there)
-                    {
-                        unanswered = true;
-
-                        break;
-                    }
-
-                    if (there)
-                    {
-                        numbers.Add(batch[i]);
-                        found++;
-                        misses = 0;
-                    }
-                    else
-                    {
-                        misses++;
-                    }
-                }
-
-                next += PROBE_BATCH;
-            }
-
-            log(
-                $"{set.Pattern.Replace("{0}", "<n>", StringComparison.Ordinal)}: {found} new found by asking Habbo{(unanswered ? "; it stopped answering, so the next sync goes on from there" : "")}."
-            );
-        }
-
-        return
-        [
-            .. numbers
-                .Order()
-                .Select(n => new HabboLibrary(
-                    set.Kind,
-                    set.FileOf(n),
-                    HabboFileLists.STABLE,
-                    null
-                )),
-        ];
-    }
-
-    /// <summary>
-    /// The badges: each Habbo's texts name, each the hotel has, and - when <paramref name="probe"/> -
-    /// the achievements' levels above the highest of each, asked for until
-    /// <see cref="BADGE_LEVEL_MISSES"/> in a row are not there (at most
-    /// <see cref="BADGE_LEVEL_LIMIT"/>), as nitro-studio finds the levels no text names.
-    /// </summary>
-    private async Task<List<HabboLibrary>> BadgesAsync(
-        byte[] texts,
-        string domain,
-        HashSet<string> had,
-        bool probe,
-        Action<string> log,
-        CancellationToken ct
-    )
-    {
-        var codes = HabboFileLists.TextedBadges(texts);
-
-        foreach (var name in had)
-            codes.Add(Path.GetFileNameWithoutExtension(name));
-
-        if (probe)
-        {
-            var highest = codes
-                .Select(HabboFileLists.AchievementLevel)
-                .OfType<(string Base, int Level)>()
-                .GroupBy(x => x.Base, StringComparer.Ordinal)
-                .Select(x => (Base: x.Key, Level: x.Max(y => y.Level)))
-                .ToList();
-            var found = new ConcurrentBag<string>();
-
-            await Parallel
-                .ForEachAsync(
-                    highest,
-                    new ParallelOptions
-                    {
-                        MaxDegreeOfParallelism = PROBE_BATCH,
-                        CancellationToken = ct,
-                    },
-                    async (achievement, token) =>
-                    {
-                        var misses = 0;
-
-                        for (
-                            var level = achievement.Level + 1;
-                            level <= achievement.Level + BADGE_LEVEL_LIMIT
-                                && misses < BADGE_LEVEL_MISSES;
-                            level++
-                        )
-                        {
-                            var code = $"{achievement.Base}{level}";
-                            var there = await habbo
-                                .ExistsAsync(
-                                    FileUrl(
-                                        AssetBundleKind.Badge,
-                                        domain,
-                                        HabboFileLists.BadgeFile(code)
-                                    ),
-                                    token
-                                )
-                                .ConfigureAwait(false);
-
-                            if (there is not { } answered)
-                                return;
-
-                            if (answered)
-                            {
-                                found.Add(code);
-                                misses = 0;
-                            }
-                            else
-                            {
-                                misses++;
-                            }
-                        }
-                    }
-                )
-                .ConfigureAwait(false);
-
-            foreach (var code in found)
-                codes.Add(code);
-
-            log($"Badges: {found.Count} achievement levels no text names found by asking Habbo.");
-        }
-
-        var kept = new List<string>(codes.Count);
-
-        foreach (var casings in codes.GroupBy(x => x, StringComparer.OrdinalIgnoreCase))
-            kept.Add(
-                await OneCasingAsync([.. casings], domain, had, probe, ct).ConfigureAwait(false)
-            );
-
-        return [.. kept.Select(HabboFileLists.Badge).Where(x => store.IsValidName(x.Name))];
-    }
-
-    /// <summary>
-    /// Habbo's texts name some badges twice, in casings that differ
-    /// (<c>ACH_TetraBlokDailyWinner</c> and <c>ACH_TetrablokDailyWinner</c>), and its host serves
-    /// only one of them; the hotel keeps a name once whatever its case. The one kept is the one the
-    /// hotel has, else the first Habbo has, else - or when not asking - the first.
-    /// </summary>
-    private async Task<string> OneCasingAsync(
-        List<string> casings,
-        string domain,
-        HashSet<string> had,
-        bool probe,
-        CancellationToken ct
-    )
-    {
-        if (casings.Count == 1)
-            return casings[0];
-
-        var hotels = casings.FirstOrDefault(x => had.Contains(HabboFileLists.BadgeFile(x)));
-
-        if (hotels is not null || !probe)
-            return hotels ?? casings[0];
-
-        foreach (var casing in casings)
-        {
-            var url = FileUrl(AssetBundleKind.Badge, domain, HabboFileLists.BadgeFile(casing));
-
-            if (await habbo.ExistsAsync(url, ct).ConfigureAwait(false) == true)
-                return casing;
-        }
-
-        return casings[0];
-    }
-
-    /// <summary>The headers and teasers the hotel's catalog pages name.</summary>
-    private async Task<List<HabboLibrary>> CatalogImagesAsync(CancellationToken ct)
-    {
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var pages = await dbCtx
-            .CatalogPages.AsNoTracking()
-            .Select(x => x.ImageData)
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
-
-        return [.. HabboFileLists.CatalogImages(pages).Where(x => store.IsValidName(x.Name))];
-    }
-
-    /// <summary>
-    /// The libraries a map of Habbo's (the figure map, the effect map) lists. A map Habbo has not,
-    /// or that does not read, leaves that kind out of this sync rather than failing the rest.
-    /// </summary>
-    private async Task<List<HabboLibrary>?> ListFromMapAsync(
-        string domain,
-        string revision,
-        string map,
-        Func<byte[], List<HabboLibrary>> parse,
-        Action<string> log,
-        CancellationToken ct
-    )
-    {
-        var url = GordonUrl(domain, revision, map);
-
-        try
-        {
-            if (await habbo.GetFileAsync(url, ct).ConfigureAwait(false) is { } file)
-                return parse(file);
-
-            logger.LogWarning(
-                "Habbo has no {Map} at {Url}; its libraries are not synced",
-                map,
-                url
-            );
-            log($"Habbo has no {map} at {url}; its libraries are skipped.");
-        }
-        catch (HttpRequestException ex)
-        {
-            logger.LogWarning(ex, "Habbo's {Map} at {Url} could not be read", map, url);
-            log($"{map} could not be read ({ex.Message}); its libraries are skipped.");
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Habbo's <c>HabboAvatarActions.xml</c>, which the client downloads from the gordon folder at its
-    /// revision; null when it could not be read.
     /// </summary>
     private async Task<byte[]?> AvatarActionsAsync(
         string domain,
@@ -821,7 +371,7 @@ internal sealed class AssetSyncService(
         CancellationToken ct
     )
     {
-        var url = GordonUrl(domain, revision, AVATAR_ACTIONS);
+        var url = HabboAssetUrls.Gordon(config.Value, domain, revision, AVATAR_ACTIONS);
 
         try
         {
@@ -938,9 +488,23 @@ internal sealed class AssetSyncService(
     {
         var url = library.Kind switch
         {
-            AssetBundleKind.Furniture => FurnitureUrl(context.Domain, library),
-            _ when !library.Kind.IsBundle() => FileUrl(library.Kind, context.Domain, library.Name),
-            _ => GordonUrl(context.Domain, context.Revision, $"{library.Name}.swf"),
+            AssetBundleKind.Furniture => HabboAssetUrls.Furniture(
+                gamedataConfig.Value,
+                context.Domain,
+                library
+            ),
+            _ when !library.Kind.IsBundle() => HabboAssetUrls.File(
+                config.Value,
+                library.Kind,
+                context.Domain,
+                library.Name
+            ),
+            _ => HabboAssetUrls.Gordon(
+                config.Value,
+                context.Domain,
+                context.Revision,
+                $"{library.Name}.swf"
+            ),
         };
         byte[]? data;
 
@@ -948,8 +512,9 @@ internal sealed class AssetSyncService(
         {
             // A library of Habbo's HTML client is read from the release, not downloaded.
             data =
-                library.Download?.StartsWith(CLIENT_PREFIX, StringComparison.Ordinal) == true
-                    ? context.Client?.Read(library.Download[CLIENT_PREFIX.Length..])
+                library.Download?.StartsWith(HabboAssetUrls.CLIENT_PREFIX, StringComparison.Ordinal)
+                == true
+                    ? context.Client?.Read(library.Download[HabboAssetUrls.CLIENT_PREFIX.Length..])
                     : await habbo.GetFileAsync(url, ct).ConfigureAwait(false);
         }
         catch (AssetFormatException ex)
@@ -978,7 +543,7 @@ internal sealed class AssetSyncService(
             return Outcome.Failed(library, NO_FILE, retry: false);
 
         if (IsPage(data))
-            return Outcome.Failed(library, NOT_A_FILE, retry: true);
+            return Outcome.Failed(library, HabboAssetUrls.NOT_A_FILE, retry: true);
 
         // A picture or a sound is kept as Habbo serves it.
         if (!library.Kind.IsBundle())
@@ -1240,38 +805,6 @@ internal sealed class AssetSyncService(
         );
     }
 
-    private string FurnitureUrl(string domain, HabboLibrary library) =>
-        gamedataConfig
-            .Value.FurnitureFileUrl.Replace("{domain}", domain, StringComparison.Ordinal)
-            .Replace("{revision}", library.Revision, StringComparison.Ordinal)
-            .Replace(
-                "{name}",
-                Uri.EscapeDataString(library.Download ?? library.Name),
-                StringComparison.Ordinal
-            );
-
-    /// <summary>Where one of Habbo's pictures or sounds is.</summary>
-    private string FileUrl(AssetBundleKind kind, string domain, string name) =>
-        (
-            kind switch
-            {
-                AssetBundleKind.Badge => config.Value.BadgeFileUrl,
-                AssetBundleKind.CatalogIcon or AssetBundleKind.CatalogImage => config
-                    .Value
-                    .CatalogFileUrl,
-                AssetBundleKind.Sound => config.Value.SoundFileUrl,
-                _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
-            }
-        )
-            .Replace("{domain}", domain, StringComparison.Ordinal)
-            .Replace("{name}", Uri.EscapeDataString(name), StringComparison.Ordinal);
-
-    private string GordonUrl(string domain, string revision, string name) =>
-        config
-            .Value.GordonFileUrl.Replace("{domain}", domain, StringComparison.Ordinal)
-            .Replace("{revision}", revision, StringComparison.Ordinal)
-            .Replace("{name}", Uri.EscapeDataString(name), StringComparison.Ordinal);
-
     /// <summary>Whether Habbo answered with a page (its filter's refusal) rather than a library.</summary>
     private static bool IsPage(byte[] data)
     {
@@ -1284,26 +817,6 @@ internal sealed class AssetSyncService(
         }
 
         return false;
-    }
-
-    /// <summary>Habbo's libraries by kind, as read at <see cref="ListedAt"/>; null where a map could not be read.</summary>
-    private sealed record HabboLists(
-        string Domain,
-        string Revision,
-        DateTime ListedAt,
-        List<HabboLibrary> Furniture,
-        List<HabboLibrary>? Figures,
-        List<HabboLibrary>? Effects,
-        List<HabboLibrary> Pets,
-        List<HabboLibrary> Room,
-        List<HabboLibrary>? Badges,
-        List<HabboLibrary> CatalogIcons,
-        List<HabboLibrary> CatalogImages,
-        List<HabboLibrary> Sounds
-    )
-    {
-        /// <summary>The release of Habbo's HTML client the room libraries were listed from, when one is downloaded.</summary>
-        public HabboClientRelease? Client { get; init; }
     }
 
     /// <summary>What became of a library: its file's hash and size, or why it has none.</summary>
