@@ -80,6 +80,7 @@ public sealed class GamedataModule : IHostPluginModule
             sp.GetRequiredService<HabboClientService>()
         );
         services.AddSingleton<ClientBundleBuilder>();
+        services.AddSingleton<AssetDiscoveryService>();
         services.AddSingleton<IHabboClientBuilds>(sp =>
             sp.GetRequiredService<ClientBundleBuilder>()
         );
