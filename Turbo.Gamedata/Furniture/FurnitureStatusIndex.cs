@@ -252,7 +252,8 @@ internal sealed class FurnitureStatusIndex(
 
     /// <summary>
     /// The logic the server has for a definition as a new one would get it: registered under its
-    /// classname, else the one its asset file's client logic names; null when that is the default.
+    /// classname, else the one its asset file's client logic names, else the one its client
+    /// category stands for; null when that is the default.
     /// </summary>
     public static string? MatchingLogic(
         FurnitureDefinitionEntity definition,
@@ -264,6 +265,7 @@ internal sealed class FurnitureStatusIndex(
             definition.ProductType,
             definition.Name,
             clientLogic,
+            definition.ClientCategory,
             registered
         );
 

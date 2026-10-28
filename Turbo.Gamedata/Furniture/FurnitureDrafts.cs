@@ -18,6 +18,32 @@ internal static class FurnitureDrafts
     // (furniture_dice is dice, furniture_one_way_door is one_way_door).
     private const string CLIENT_LOGIC_PREFIX = "furniture_";
 
+    // Client logics whose server key is spelt otherwise: the credit furni exchange themselves,
+    // the dimmer is a room dimmer, the wheel and the random state keep their own names.
+    private static readonly Dictionary<string, string> CLIENT_LOGIC_ALIASES = new(
+        StringComparer.Ordinal
+    )
+    {
+        ["furniture_credit"] = "exchange",
+        ["furniture_roomdimmer"] = "dimmer",
+        ["furniture_habbowheel"] = "habbo_wheel",
+        ["furniture_randomstate"] = "random_state",
+    };
+
+    // Behaviours the client knows nothing of: a vending machine, a gate, a teleport and a roller
+    // are furniture_multistate (or furniture_basic) to it, and only the furnidata's category
+    // (its client category) says what they are. A live hotel (2026-10-29) has 206 vending
+    // machines, 226 gates, 59 teleports and 14 rollers so marked.
+    private static readonly Dictionary<string, string> CATEGORY_LOGICS = new(
+        StringComparer.Ordinal
+    )
+    {
+        ["vending_machine"] = "vending_machine",
+        ["gate"] = "gate",
+        ["teleport"] = "teleport",
+        ["roller"] = "roller",
+    };
+
     // Logics and visualizations the client gives only wall items: stickies, windows, posters and
     // the external image wall item.
     private static readonly HashSet<string> WALL_ONLY =
@@ -43,13 +69,19 @@ internal static class FurnitureDrafts
         string className,
         FurnitureAssetInfo info,
         IReadOnlySet<string> logics
-    ) => LogicOf(type, className, info.Logic, logics);
+    ) => LogicOf(type, className, info.Logic, clientCategory: null, logics);
 
-    /// <summary>As the other, from the client logic its asset file names (<c>furniture_*</c>).</summary>
+    /// <summary>
+    /// As the other, from the client logic its asset file names (<c>furniture_*</c>, or an alias
+    /// of it the server spells otherwise) and, failing that, from the furnidata's client
+    /// category: a <c>gate</c> or a <c>vending_machine</c> the client only knows as multistate
+    /// furniture.
+    /// </summary>
     public static string LogicOf(
         ProductType type,
         string className,
         string? clientLogic,
+        string? clientCategory,
         IReadOnlySet<string> logics
     )
     {
@@ -58,12 +90,25 @@ internal static class FurnitureDrafts
         if (!FurnitureRecords.IsDefaultLogic(logic))
             return logic;
 
+        if (clientLogic is { } client)
+        {
+            if (
+                client.StartsWith(CLIENT_LOGIC_PREFIX, StringComparison.Ordinal)
+                && logics.Contains(client[CLIENT_LOGIC_PREFIX.Length..])
+            )
+                return client[CLIENT_LOGIC_PREFIX.Length..];
+
+            if (CLIENT_LOGIC_ALIASES.TryGetValue(client, out var alias) && logics.Contains(alias))
+                return alias;
+        }
+
         if (
-            clientLogic is { } client
-            && client.StartsWith(CLIENT_LOGIC_PREFIX, StringComparison.Ordinal)
-            && logics.Contains(client[CLIENT_LOGIC_PREFIX.Length..])
+            type == ProductType.Floor
+            && clientCategory is { } category
+            && CATEGORY_LOGICS.TryGetValue(category, out var byCategory)
+            && logics.Contains(byCategory)
         )
-            return client[CLIENT_LOGIC_PREFIX.Length..];
+            return byCategory;
 
         return logic;
     }

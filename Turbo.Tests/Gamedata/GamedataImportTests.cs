@@ -415,6 +415,84 @@ public sealed class GamedataImportTests : IDisposable
             .Contain("\"logic\":\"wf_act_send_message\"");
     }
 
+    // Installed from nothing 2026-10-29: 206 vending machines, 226 gates, 59 teleports and 14
+    // rollers arrived as plain furniture, as did the credit furni, dimmers and wheels. The client
+    // knows the first four as furniture_multistate; only the furnidata's category says what they
+    // are. The others' client logic is spelt otherwise than the server's key.
+    [Fact]
+    public async Task a_new_item_takes_the_logic_its_client_category_or_client_logic_names()
+    {
+        _fakes.Handlers["get_" + nameof(IRoomObjectLogicProvider.LogicTypes)] = _ =>
+            (IReadOnlyList<string>)
+                [
+                    "default_floor",
+                    "default_wall",
+                    "gate",
+                    "vending_machine",
+                    "teleport",
+                    "roller",
+                    "exchange",
+                    "dice",
+                    "one_way_door",
+                ];
+        _db.Insert(AssetFile(1, "country_gate", 61856, states: 2, logic: "furniture_multistate"));
+        _db.Insert(AssetFile(2, "fridge", 61856, states: 2, logic: "furniture_multistate"));
+        _db.Insert(AssetFile(3, "doorC", 61856, states: 3, logic: "furniture_multistate"));
+        _db.Insert(AssetFile(4, "CF_50_goldbar", 61856, states: 1, logic: "furniture_credit"));
+        _db.Insert(AssetFile(5, "edice", 61856, states: 7, logic: "furniture_dice"));
+        _db.Insert(AssetFile(6, "one_way_door", 61856, states: 2, logic: "furniture_one_way_door"));
+
+        var release = Release(
+            1,
+            Categorised(Item(Chair(xdim: 1), 40, "country_gate"), "gate"),
+            Categorised(Item(Chair(xdim: 1), 41, "fridge"), "vending_machine"),
+            Categorised(Item(Chair(xdim: 1), 42, "doorC"), "teleport"),
+            Categorised(Item(Chair(xdim: 1), 43, "roller"), "roller"),
+            Categorised(Item(Chair(xdim: 1), 44, "CF_50_goldbar"), "credit"),
+            Categorised(Item(Chair(xdim: 1), 45, "edice"), "fortuna"),
+            // The client logic wins over the category: a one-way door is a gate to the furnidata.
+            Categorised(Item(Chair(xdim: 1), 46, "one_way_door"), "gate"),
+            // A category with no logic behind it, and one of a wall item, give plain furniture.
+            Categorised(Item(Chair(xdim: 1), 47, "chair_norja"), "chair"),
+            Categorised(Item(Poster(), 4002, "wall_gate"), "gate")
+        );
+
+        var preview = await _furniture.PreviewImportAsync(release, Ct);
+
+        preview!
+            .Items.ToDictionary(x => x.ClassName, x => x.Logic)
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string?>
+                {
+                    ["country_gate"] = "gate",
+                    ["fridge"] = "vending_machine",
+                    ["doorC"] = "teleport",
+                    ["roller"] = "roller",
+                    ["CF_50_goldbar"] = "exchange",
+                    ["edice"] = "dice",
+                    ["one_way_door"] = "one_way_door",
+                    ["chair_norja"] = "default_floor",
+                    ["wall_gate"] = "default_wall",
+                }
+            );
+
+        await _furniture.ImportAsync(release, STAFF, Ct);
+
+        (await DefinitionsAsync())
+            .ToDictionary(x => x.Name, x => x.Logic)
+            .Should()
+            .Contain(
+                new Dictionary<string, string>
+                {
+                    ["country_gate"] = "gate",
+                    ["fridge"] = "vending_machine",
+                    ["CF_50_goldbar"] = "exchange",
+                    ["wall_gate"] = "default_wall",
+                }
+            );
+    }
+
     /// <summary>
     /// A definition the hotel has keeps its logic, whether staff chose it or it is still the
     /// default an earlier import gave it: the logic column is the hotel's.
@@ -761,11 +839,19 @@ public sealed class GamedataImportTests : IDisposable
             ["bcofferid"] = -1,
         };
 
+    private static JsonObject Categorised(JsonObject item, string category)
+    {
+        item["category"] = category;
+
+        return item;
+    }
+
     private static HabboFurnitureAssetEntity AssetFile(
         int id,
         string asset,
         int revision,
-        int states
+        int states,
+        string? logic = null
     ) =>
         new()
         {
@@ -773,6 +859,7 @@ public sealed class GamedataImportTests : IDisposable
             AssetName = asset,
             Revision = revision,
             States = states,
+            LogicType = logic,
         };
 
     private static FurnitureDefinitionEntity Definition(int spriteId, string name) =>

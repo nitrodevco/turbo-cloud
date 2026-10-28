@@ -170,6 +170,12 @@ internal sealed class HabboFurnitureFiles(
         IReadOnlyDictionary<(string Asset, int Revision), HabboFurnitureAssetEntity> files
     ) => FileOf(item, files) is { } file ? WithStates(item, file) : item;
 
+    /// <summary>The client logic the item's file names (<c>furniture_*</c>); null when the file was not read.</summary>
+    public static string? ClientLogicOf(
+        JsonObject item,
+        IReadOnlyDictionary<(string Asset, int Revision), HabboFurnitureAssetEntity> files
+    ) => FileOf(item, files)?.LogicType;
+
     private static HabboFurnitureAssetEntity? FileOf(
         JsonObject item,
         IReadOnlyDictionary<(string Asset, int Revision), HabboFurnitureAssetEntity> files
