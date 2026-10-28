@@ -38,6 +38,7 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
     private readonly ILogger<IInventoryGrain> _logger;
     internal readonly IAchievementFactRecorder _achievementFacts;
     internal readonly IAssetMovementRecorder _movements;
+    internal readonly IDbContextFactory<TurboDbContext> _dbContextFactory;
 
     private readonly InventoryLiveState _state;
     internal readonly InventoryFurniModule FurniModule;
@@ -67,6 +68,7 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
         _logger = logger;
         _achievementFacts = achievementFacts;
         _movements = movements;
+        _dbContextFactory = dbContextFactory;
 
         _state = new() { PlayerId = this.GetPlayerId() };
         FurniModule = new InventoryFurniModule(

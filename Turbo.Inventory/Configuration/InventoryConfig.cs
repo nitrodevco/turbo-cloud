@@ -16,6 +16,12 @@ public class InventoryConfig
     /// <summary>Items per fragment of the furni tab.</summary>
     public int FurnitureInventoryFragmentSize { get; init; } = 100;
 
+    /// <summary>Seconds between retries of committed trades' inventory reconciliation.</summary>
+    public int TradeRecoveryIntervalSeconds { get; init; } = 5;
+
+    /// <summary>Pending trade receipts considered in one recovery pass.</summary>
+    public int TradeRecoveryBatchSize { get; init; } = 100;
+
     /// <summary>Pets per fragment of the pets tab.</summary>
     public int PetInventoryFragmentSize { get; init; } = 100;
 

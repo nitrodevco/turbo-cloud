@@ -220,6 +220,25 @@ public sealed class FurnitureCustodyMovementTests : IDisposable
     }
 
     [Fact]
+    public async Task The_current_owner_can_open_a_present_already_placed_in_a_room()
+    {
+        _world.AddRoom(ROOM, OWNER);
+        var inventory = await NewInventoryAsync(OWNER);
+        var present = await inventory.ReceiveStaffPresentAsync(StaffGift(), Cause(), Ct);
+        await using (var db = await _world.Db.CreateDbContextAsync(Ct))
+            await db
+                .Furnitures.Where(x => x.Id == present.ItemId.Value)
+                .ExecuteUpdateAsync(x => x.SetProperty(row => row.RoomEntityId, ROOM), Ct);
+
+        var opened = await inventory.UnwrapPresentAsync(present.ItemId, Cause(), Ct);
+
+        opened.Should().NotBeNull();
+        Rows().Single(x => x.Id == opened!.ItemId.Value).PlayerEntityId.Should().Be(OWNER);
+        Rows().Single(x => x.Id == opened!.ItemId.Value).ChestItemEntityId.Should().BeNull();
+        Rows().Single(x => x.Id == present.ItemId.Value).RoomEntityId.Should().Be(ROOM);
+    }
+
+    [Fact]
     public async Task ATransfer_MovesEachItemFromOneInventoryToTheOther()
     {
         var inventory = await NewInventoryAsync(OWNER);
@@ -242,7 +261,7 @@ public sealed class FurnitureCustodyMovementTests : IDisposable
     }
 
     [Fact]
-    public async Task ATradeWhoseSecondHalfFails_GivesTheFirstHalfBack_AllUnderOneOperation()
+    public async Task ATradeWhosePartnerItemHasGone_MovesNeitherOfferAndRecordsNoMovements()
     {
         var initiator = await NewInventoryAsync(OWNER);
         var partner = await NewInventoryAsync(OTHER);
@@ -265,20 +284,10 @@ public sealed class FurnitureCustodyMovementTests : IDisposable
         await trades.ConfirmAsync(partnerCtx, true, Ct);
 
         var trade = Movements().Where(x => x.Cause == MovementCauses.TRADE).ToList();
-        trade
-            .Select(x => x.OperationId)
-            .Distinct()
-            .Should()
-            .ContainSingle("one trade, one operation");
-        trade
-            .Select(x => (x.Seq, (int)x.AssetId, x.FromOwner, x.ToOwner, x.CauseRef))
-            .Should()
-            .Equal(
-                (0, offered.ItemId.Value, OWNER, OTHER, ROOM.ToString()),
-                (2, offered.ItemId.Value, OTHER, OWNER, MovementCauses.TRADE_REF_COMPENSATION)
-            );
-        trade.Should().OnlyContain(x => x.Actor == OTHER, "the partner's confirm closed it");
+        trade.Should().BeEmpty("a refused atomic exchange needs no compensating movement");
         Rows().Single(x => x.Id == offered.ItemId.Value).PlayerEntityId.Should().Be(OWNER);
+        await using var db = await _world.Db.CreateDbContextAsync(Ct);
+        (await db.FurnitureTradeReceipts.AnyAsync(Ct)).Should().BeFalse();
     }
 
     [Fact]

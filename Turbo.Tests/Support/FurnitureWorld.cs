@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Database.Configuration;
 using Turbo.Database.Entities.Furniture;
@@ -30,14 +31,15 @@ public sealed class FurnitureWorld : IDisposable
 {
     private readonly List<FurnitureDefinitionEntity> _definitions = [];
 
-    public FurnitureWorld()
+    public FurnitureWorld(params IInterceptor[] interceptors)
     {
+        Db = new SqliteDb(interceptors);
         Fakes.Handlers["TryGetDefinition"] = call =>
             _definitions.FirstOrDefault(x => x.Id == (int)call.Args[0]!)?.ToSnapshot(0.01);
         Fakes.Handlers["GetPlayerNameAsync"] = _ => Task.FromResult<string?>("owner");
     }
 
-    public SqliteDb Db { get; } = new();
+    public SqliteDb Db { get; }
 
     public Fakes Fakes { get; } = new();
 

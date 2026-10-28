@@ -318,6 +318,7 @@ public class TurboDbContext(DbContextOptions<TurboDbContext> options)
     public DbSet<ApprovalEntity> Approvals { get; init; }
 
     public DbSet<FurnitureGrantReceiptEntity> FurnitureGrantReceipts { get; init; }
+    public DbSet<FurnitureTradeReceiptEntity> FurnitureTradeReceipts { get; init; }
 
     public DbSet<AiConversationEntity> AiConversations { get; init; }
     public DbSet<AiUsageEntity> AiUsage { get; init; }

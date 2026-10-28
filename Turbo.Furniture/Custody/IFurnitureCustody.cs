@@ -9,6 +9,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Furniture;
+using Turbo.Primitives.Trading;
 
 namespace Turbo.Furniture.Custody;
 
@@ -41,6 +42,13 @@ public sealed record CustodyFurni(
 /// </summary>
 public interface IFurnitureCustody
 {
+    /// <summary>Atomically exchanges both accepted inventory offers, replayable by operation id.</summary>
+    Task<bool> ExchangeTradeAsync(
+        FurnitureTradeRequest request,
+        MovementCause cause,
+        CancellationToken ct
+    );
+
     /// <summary>
     /// Inventory -> none: the row of <paramref name="item"/>, held by <paramref name="owner"/> in
     /// no room and no holder, is deleted. False when there is no such row.
@@ -227,7 +235,9 @@ public interface IFurnitureCustody
 
     /// <summary>
     /// Holder -> inventory: what the present holds goes to <paramref name="opener"/>, whoever it
-    /// was wrapped for (a present can change hands in a trade). Null when it holds nothing.
+    /// was wrapped for (a present can change hands in a trade). Locks the wrapper and checks its
+    /// current owner; inventory and placed wrappers may open, but a wrapper in another holder
+    /// cannot. Null when it holds nothing or the opener no longer holds it.
     /// </summary>
     Task<CustodyFurni?> TakeOutOfPresentAsync(
         PlayerId opener,

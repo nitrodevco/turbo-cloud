@@ -196,14 +196,31 @@ public sealed class PresentInventoryTests : IDisposable
     [Fact]
     public async Task APresentThatChangedHands_OpensIntoItsNewOwnersInventory()
     {
-        await NewInventory(RECEIVER).ReceivePresentAsync(Gift(), TestCustody.Cause(), Ct);
+        var inventory = NewInventory(RECEIVER);
+        await inventory.ReceivePresentAsync(Gift(), TestCustody.Cause(), Ct);
 
-        var presentId = (await NewInventory(RECEIVER).GetAllItemSnapshotsAsync(Ct)).Single().ItemId;
+        var presentId = (await inventory.GetAllItemSnapshotsAsync(Ct)).Single().ItemId;
+        (await inventory.TransferFurnitureAsync([presentId], TRADED_TO, TestCustody.Cause(), Ct))
+            .Should()
+            .BeTrue();
         var inside = await NewInventory(TRADED_TO)
             .UnwrapPresentAsync(presentId, TestCustody.Cause(), Ct);
 
         inside.Should().NotBeNull();
         (await Rows()).Single(x => x.Id == inside!.ItemId).PlayerEntityId.Should().Be(TRADED_TO);
+    }
+
+    [Fact]
+    public async Task AnotherInventory_CannotOpenThePresentWithoutReceivingItsWrapper()
+    {
+        var owner = NewInventory(RECEIVER);
+        await owner.ReceivePresentAsync(Gift(), TestCustody.Cause(), Ct);
+        var presentId = (await owner.GetAllItemSnapshotsAsync(Ct)).Single().ItemId;
+
+        (await NewInventory(TRADED_TO).UnwrapPresentAsync(presentId, TestCustody.Cause(), Ct))
+            .Should()
+            .BeNull();
+        (await owner.UnwrapPresentAsync(presentId, TestCustody.Cause(), Ct)).Should().NotBeNull();
     }
 
     [Fact]

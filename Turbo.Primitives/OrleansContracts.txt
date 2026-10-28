@@ -179,6 +179,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Hotel.Grains.IWelcomeMessageGrai
 interface [GrainInterfaceType("Turbo.Primitives.Inventory.Grains.IInventoryGrain")] Turbo.Primitives.Inventory.Grains.IInventoryGrain [Version(0)]
   B736FCB2: AddFurnitureFromRoomItemSnapshotAsync(Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot, System.Threading.CancellationToken) -> Task<bool>
   3F80B430: AddFurnitureFromRoomItemSnapshotsAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Snapshots.Furniture.RoomItemSnapshot>, System.Threading.CancellationToken) -> Task<int>
+  77EA6E76: CommitFurnitureTradeAsync(Turbo.Primitives.Trading.FurnitureTradeRequest, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<bool>
   2FF31457: ConsumeAllFurnitureAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Object.RoomObjectId>, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot>>
   C545E6A9: ConsumeFurnitureAsync(Turbo.Primitives.Rooms.Object.RoomObjectId, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot?>
   C1A9F557: CreateBotAsync(string, string, string, Turbo.Primitives.Rooms.Enums.AvatarGenderType, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Bots.Snapshots.BotSnapshot?>
@@ -200,6 +201,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Inventory.Grains.IInventoryGrain
   3B9E90DC: ReceiveFurnitureAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot>, System.Threading.CancellationToken) -> Task
   BB173BAD: ReceivePresentAsync(Turbo.Primitives.Inventory.PresentGrantRequest, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task
   2BB63B2B: ReceiveStaffPresentAsync(Turbo.Primitives.Inventory.StaffPresentGrantRequest, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot>
+  3D836647: ReconcileFurnitureTradesAsync(System.Threading.CancellationToken) -> Task
   A1AD01B1: ReleaseFurnitureAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Object.RoomObjectId>, System.Threading.CancellationToken) -> Task
   5E4C6106: RemoveFurnitureAsync(Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<bool>
   215E5981: ReturnBotAsync(Turbo.Primitives.Bots.Snapshots.BotSnapshot, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<bool>
