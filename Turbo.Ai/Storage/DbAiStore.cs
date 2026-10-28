@@ -165,15 +165,18 @@ internal sealed class DbAiStore(IDbContextFactory<TurboDbContext> db) : IAiStore
             .AiUsage.Where(x => x.CreatedAt >= since)
             .GroupBy(x => new
             {
+                Day = x.CreatedAt.Date,
                 x.PluginKey,
                 x.Provider,
                 x.Model,
             })
-            .OrderBy(g => g.Key.PluginKey)
+            .OrderBy(g => g.Key.Day)
+            .ThenBy(g => g.Key.PluginKey)
             .ThenBy(g => g.Key.Provider)
             .ThenBy(g => g.Key.Model)
             .Select(g => new
             {
+                g.Key.Day,
                 g.Key.PluginKey,
                 g.Key.Provider,
                 g.Key.Model,
@@ -190,6 +193,7 @@ internal sealed class DbAiStore(IDbContextFactory<TurboDbContext> db) : IAiStore
         return
         [
             .. totals.Select(x => new AiUsageTotal(
+                DateTime.SpecifyKind(x.Day, DateTimeKind.Utc),
                 x.PluginKey,
                 x.Provider,
                 x.Model,

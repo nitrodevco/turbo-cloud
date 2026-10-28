@@ -117,6 +117,318 @@ public sealed class AiProviderTests
     }
 
     [Fact]
+    public async Task Anthropic_streamed_answer_gives_each_text_piece_and_joins_a_tool_calls_arguments()
+    {
+        string? sent = null;
+        var http = new ScriptedHttp(
+            async (request, ct) =>
+            {
+                sent = await request.Content!.ReadAsStringAsync(ct);
+
+                return Sse(
+                    """
+                    event: message_start
+                    data: {"type":"message_start","message":{"id":"msg_1","type":"message","role":"assistant","content":[],"model":"claude-haiku-5-5","stop_reason":null,"usage":{"input_tokens":120,"cache_read_input_tokens":30,"output_tokens":1}}}
+
+                    event: content_block_start
+                    data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+                    event: ping
+                    data: {"type": "ping"}
+
+                    event: content_block_delta
+                    data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Let me"}}
+
+                    event: content_block_delta
+                    data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" look."}}
+
+                    event: content_block_stop
+                    data: {"type":"content_block_stop","index":0}
+
+                    event: content_block_start
+                    data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"toolu_2","name":"find_player","input":{}}}
+
+                    event: content_block_delta
+                    data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":""}}
+
+                    event: content_block_delta
+                    data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"name\": \"Bo"}}
+
+                    event: content_block_delta
+                    data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"b\"}"}}
+
+                    event: content_block_stop
+                    data: {"type":"content_block_stop","index":1}
+
+                    event: message_delta
+                    data: {"type":"message_delta","delta":{"stop_reason":"tool_use","stop_sequence":null},"usage":{"output_tokens":40}}
+
+                    event: message_stop
+                    data: {"type":"message_stop"}
+
+
+                    """
+                );
+            }
+        );
+        var pieces = new List<string>();
+
+        var answer = await new AnthropicDriver(new Factory(http)).StreamAsync(
+            ANTHROPIC,
+            REQUEST,
+            pieces.Add,
+            CancellationToken.None
+        );
+
+        JsonNode.Parse(sent!)!["stream"]!.GetValue<bool>().Should().BeTrue();
+        pieces.Should().Equal("Let me", " look.");
+        answer.Message.Text.Should().Be("Let me look.");
+        var call = answer.Message.Parts.OfType<AiToolCallPart>().Single();
+        (call.Id, call.Name, call.Arguments.GetProperty("name").GetString())
+            .Should()
+            .Be(("toolu_2", "find_player", "Bob"));
+        (answer.Finish, answer.InputTokens, answer.OutputTokens, answer.Model)
+            .Should()
+            .Be((AiFinish.ToolUse, 150, 40, "claude-haiku-5-5"));
+    }
+
+    [Fact]
+    public async Task Anthropic_error_event_part_way_fails_the_answer_by_its_type()
+    {
+        var http = new ScriptedHttp(
+            (_, _) =>
+                Task.FromResult(
+                    Sse(
+                        """
+                        event: message_start
+                        data: {"type":"message_start","message":{"model":"claude-haiku-5-5","usage":{"input_tokens":5,"output_tokens":1}}}
+
+                        event: content_block_start
+                        data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+                        event: content_block_delta
+                        data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hel"}}
+
+                        event: error
+                        data: {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}
+
+
+                        """
+                    )
+                )
+        );
+
+        var failing = () =>
+            new AnthropicDriver(new Factory(http)).StreamAsync(
+                ANTHROPIC,
+                REQUEST,
+                _ => { },
+                CancellationToken.None
+            );
+
+        (await failing.Should().ThrowAsync<AiProviderException>())
+            .Which.Kind.Should()
+            .Be("overloaded_error");
+    }
+
+    [Fact]
+    public async Task Openai_compatible_streamed_answer_gives_each_text_piece_and_joins_a_tool_calls_arguments()
+    {
+        string? sent = null;
+        var http = new ScriptedHttp(
+            async (request, ct) =>
+            {
+                sent = await request.Content!.ReadAsStringAsync(ct);
+
+                return Sse(
+                    """
+                    data: {"id":"c1","object":"chat.completion.chunk","model":"gpt-x","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+                    data: {"id":"c1","object":"chat.completion.chunk","model":"gpt-x","choices":[{"index":0,"delta":{"content":"Looking"},"finish_reason":null}]}
+
+                    data: {"id":"c1","object":"chat.completion.chunk","model":"gpt-x","choices":[{"index":0,"delta":{"content":" now."},"finish_reason":null}]}
+
+                    data: {"id":"c1","object":"chat.completion.chunk","model":"gpt-x","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_9","type":"function","function":{"name":"find_player","arguments":""}}]},"finish_reason":null}]}
+
+                    data: {"id":"c1","object":"chat.completion.chunk","model":"gpt-x","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"name\":"}}]},"finish_reason":null}]}
+
+                    data: {"id":"c1","object":"chat.completion.chunk","model":"gpt-x","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"Bob\"}"}}]},"finish_reason":null}]}
+
+                    data: {"id":"c1","object":"chat.completion.chunk","model":"gpt-x","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+                    data: {"id":"c1","object":"chat.completion.chunk","model":"gpt-x","choices":[],"usage":{"prompt_tokens":8,"completion_tokens":12,"total_tokens":20}}
+
+                    data: [DONE]
+
+
+                    """
+                );
+            }
+        );
+        var pieces = new List<string>();
+
+        var answer = await new OpenAiCompatibleDriver(new Factory(http)).StreamAsync(
+            new AiEndpoint(
+                "openai",
+                "",
+                "sk-proj-other0123456789",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string>()
+            ),
+            REQUEST,
+            pieces.Add,
+            CancellationToken.None
+        );
+
+        var body = JsonNode.Parse(sent!)!;
+        body["stream"]!.GetValue<bool>().Should().BeTrue();
+        body["stream_options"]!["include_usage"]!.GetValue<bool>().Should().BeTrue();
+        pieces.Should().Equal("Looking", " now.");
+        answer.Message.Text.Should().Be("Looking now.");
+        var call = answer.Message.Parts.OfType<AiToolCallPart>().Single();
+        (call.Id, call.Name, call.Arguments.GetProperty("name").GetString())
+            .Should()
+            .Be(("call_9", "find_player", "Bob"));
+        (answer.Finish, answer.InputTokens, answer.OutputTokens, answer.Model)
+            .Should()
+            .Be((AiFinish.ToolUse, 8, 12, "gpt-x"));
+    }
+
+    [Fact]
+    public async Task A_streamed_step_fails_over_only_until_its_first_piece_of_text()
+    {
+        const string CUT = """
+            data: {"model":"gpt-x","choices":[{"index":0,"delta":{"content":"Hal"},"finish_reason":null}]}
+
+
+            """;
+        const string WHOLE = """
+            data: {"model":"gpt-x","choices":[{"index":0,"delta":{"content":"Hi!"},"finish_reason":"stop"}]}
+
+            data: [DONE]
+
+
+            """;
+        var config = new AiConfig
+        {
+            Providers = new()
+            {
+                ["first"] = new()
+                {
+                    Driver = "openai-compatible",
+                    Model = "a",
+                    NoKey = true,
+                },
+                ["second"] = new()
+                {
+                    Driver = "openai-compatible",
+                    Model = "b",
+                    NoKey = true,
+                },
+            },
+            Failover = ["first", "second"],
+        };
+        var before = new ScriptedHttp(
+            (_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)),
+            (_, _) => Task.FromResult(Sse(WHOLE))
+        );
+        var after = new ScriptedHttp((_, _) => Task.FromResult(Sse(CUT)));
+        var pieces = new List<string>();
+
+        var answer = await Providers(before, config)
+            .Item1.StreamAsync(
+                Step(),
+                new AiUsageContext("p", "agent", null, null),
+                pieces.Add,
+                CancellationToken.None
+            );
+        var failing = () =>
+            Providers(after, config)
+                .Item1.StreamAsync(
+                    Step(),
+                    new AiUsageContext("p", "agent", null, null),
+                    _ => { },
+                    CancellationToken.None
+                );
+
+        (answer.Provider, answer.Message.Text).Should().Be(("second", "Hi!"));
+        pieces.Should().Equal("Hi!");
+        (await failing.Should().ThrowAsync<AiProviderException>())
+            .Which.Message.Should()
+            .Contain("first: stopped answering part way");
+        after.Urls.Should().ContainSingle("the second is not asked once the first has begun");
+    }
+
+    [Fact]
+    public async Task The_connection_test_asks_for_one_token_and_reports_a_refusal_without_the_key()
+    {
+        string? sent = null;
+        var http = new ScriptedHttp(
+            async (request, ct) =>
+            {
+                sent = await request.Content!.ReadAsStringAsync(ct);
+
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        """{"model":"claude-haiku-5-5","content":[{"type":"text","text":"OK"}],"stop_reason":"max_tokens","usage":{"input_tokens":9,"output_tokens":1}}"""
+                    ),
+                };
+            },
+            (_, _) =>
+                Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.Unauthorized)
+                    {
+                        Content = new StringContent(
+                            $$$"""{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key {{{KEY}}}"}}"""
+                        ),
+                    }
+                )
+        );
+        var (providers, store, _) = Providers(
+            http,
+            new AiConfig
+            {
+                Providers = new()
+                {
+                    ["claude"] = new() { Driver = "anthropic", Model = "claude-haiku-5-5" },
+                    ["unkeyed"] = new() { Driver = "openai-compatible", Model = "m" },
+                },
+                Keys = new() { ["claude"] = KEY },
+            }
+        );
+
+        var ok = await providers.TestAsync("Claude", CancellationToken.None);
+        var refused = await providers.TestAsync("claude", CancellationToken.None);
+        var unkeyed = await providers.TestAsync("unkeyed", CancellationToken.None);
+
+        JsonNode.Parse(sent!)!["max_tokens"]!.GetValue<int>().Should().Be(1);
+        (ok.Ok, ok.Model, ok.InputTokens, ok.OutputTokens)
+            .Should()
+            .Be((true, "claude-haiku-5-5", 9, 1));
+        refused.Ok.Should().BeFalse();
+        refused
+            .Message.Should()
+            .Contain("401")
+            .And.Contain("authentication_error")
+            .And.NotContain(KEY);
+        (unkeyed.Ok, unkeyed.Message)
+            .Should()
+            .Be((false, "It has no key: enter one, or mark it as taking none."));
+        http.Urls.Should().HaveCount(2, "a provider without a key is not asked");
+        store
+            .Usage.Select(u => (u.Plugin, u.Provider, u.Outcome))
+            .Should()
+            .Equal(("(panel)", "claude", "ok"), ("(panel)", "claude", "http_401"));
+    }
+
+    private static HttpResponseMessage Sse(string body) =>
+        new(HttpStatusCode.OK)
+        {
+            Content = new StringContent(body, System.Text.Encoding.UTF8, "text/event-stream"),
+        };
+
+    [Fact]
     public void Openai_compatible_request_is_the_chat_completions_shape()
     {
         var local = new AiEndpoint(

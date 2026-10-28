@@ -2011,6 +2011,12 @@ finishing a change, check it against this list; each line is a mistake that was 
   ensures contents are ready before marking the pending entry approved.
 
 ## Required validation before completion
+- **AI continuations report queue rejection and close interrupted tool history.** An approval
+  must not report success when its continuation was not queued. Cancellation after a tool may
+  have changed state must persist an error result for every unanswered call, without replaying
+  the tool. Updates to one provider's key merge the authoritative settings map in a database
+  transaction; never replace the map from a silo's cached options.
+
 ```bash
 dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudFastCheck
 dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudQualityGate

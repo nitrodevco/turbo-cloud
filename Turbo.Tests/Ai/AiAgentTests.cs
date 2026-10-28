@@ -249,6 +249,77 @@ public sealed class AiAgentTests
     }
 
     [Fact]
+    public async Task A_streamed_run_tells_its_tool_calls_and_each_piece_of_text_then_its_answer()
+    {
+        _ai.CallTool("wave").Stream("Wav", "ed ", "back!");
+
+        var events = await Read(
+            _ai.For()
+                .StreamAsync(
+                    new Helper(new WaveTool()),
+                    "Wave",
+                    new AiCall { As = AiActor.System("*") }
+                )
+        );
+
+        events
+            .Select(e =>
+                e switch
+                {
+                    AiToolCallStarted s => $"{s.Step} call {s.Name}",
+                    AiToolCallEnded x => $"{x.Step} ended {x.Call.Name} {x.Call.Outcome}",
+                    AiTextDelta t => $"{t.Step} text {t.Text}",
+                    AiStreamEnd end => $"end {end.Response.Stop} {end.Response.Text}",
+                    _ => e.ToString(),
+                }
+            )
+            .Should()
+            .Equal(
+                "1 call wave",
+                "1 ended wave Ok",
+                "2 text Wav",
+                "2 text ed ",
+                "2 text back!",
+                "end Finished Waved back!"
+            );
+        _ai.AssertStoppedBy(AiStopReason.Finished);
+    }
+
+    [Fact]
+    public async Task A_streamed_run_stops_at_its_token_budget_as_a_prompted_one_does()
+    {
+        _ai.CallTool("wave", inputTokens: 80, outputTokens: 30).Stream("never asked");
+
+        var events = await Read(
+            _ai.For()
+                .StreamAsync(
+                    new Helper(new WaveTool()),
+                    "Wave",
+                    new AiCall { As = AiActor.System("*"), Budget = new AiBudget(Tokens: 100) }
+                )
+        );
+
+        events.OfType<AiTextDelta>().Should().BeEmpty();
+        events
+            .Last()
+            .Should()
+            .BeOfType<AiStreamEnd>()
+            .Which.Response.Stop.Should()
+            .Be(AiStopReason.Budget);
+        _ai.Requests.Should().HaveCount(1);
+    }
+
+    private static async Task<List<AiStreamEvent>> Read(IAsyncEnumerable<AiStreamEvent> stream)
+    {
+        var events = new List<AiStreamEvent>();
+
+        await foreach (var e in stream)
+            events.Add(e);
+
+        return events;
+    }
+
+    [Fact]
     public async Task A_player_stops_at_their_daily_tokens_and_starts_again_the_next_day()
     {
         var player = _hotel.Players.Add("Alice");

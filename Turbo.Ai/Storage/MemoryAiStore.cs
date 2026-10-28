@@ -116,8 +116,13 @@ public sealed class MemoryAiStore : IAiStore
             return Task.FromResult<IReadOnlyList<AiUsageTotal>>([
                 .. _usage
                     .Where(x => x.At >= since)
-                    .GroupBy(x => (x.Plugin, x.Provider, x.Model))
+                    .GroupBy(x => (Day: x.At.Date, x.Plugin, x.Provider, x.Model))
+                    .OrderBy(g => g.Key.Day)
+                    .ThenBy(g => g.Key.Plugin, StringComparer.Ordinal)
+                    .ThenBy(g => g.Key.Provider, StringComparer.Ordinal)
+                    .ThenBy(g => g.Key.Model, StringComparer.Ordinal)
                     .Select(g => new AiUsageTotal(
+                        g.Key.Day,
                         g.Key.Plugin,
                         g.Key.Provider,
                         g.Key.Model,

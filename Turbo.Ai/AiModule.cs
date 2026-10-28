@@ -41,7 +41,8 @@ public sealed class AiModule : IHostPluginModule
         services.TryAddSingleton<IAiApprovals, HotelAiApprovals>();
         services.AddSingleton<IApprovalHandler, AiToolApprovalHandler>();
         services.TryAddSingleton<IAiPermissions, HotelAiPermissions>();
-        services.AddSingleton<AiRateLimits>();
+        // Runs a minute counted for the whole cluster: one grain per player and per plugin.
+        services.AddSingleton<IAiRateLimits, ClusterAiRateLimits>();
         services.AddSingleton<AiProviders>();
         services.AddSingleton<AiRuntime>();
         services.AddSingleton<AiHost>();

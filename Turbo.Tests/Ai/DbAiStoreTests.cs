@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -46,7 +47,7 @@ public sealed class DbAiStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task Usage_counts_a_players_tokens_since_a_day_and_sums_by_plugin_provider_and_model()
+    public async Task Usage_counts_a_players_tokens_since_a_day_and_sums_by_day_plugin_provider_and_model()
     {
         await _store.RecordUsageAsync(
             Usage("claude", 100, 20, "ok", NOW.AddDays(-1)),
@@ -63,8 +64,16 @@ public sealed class DbAiStoreTests : IDisposable
         (await _store.TotalsSinceAsync(NOW.Date, CancellationToken.None))
             .Should()
             .Equal(
-                new AiUsageTotal("desk", "claude", "m", 2, 1, 50, 10, 0.5m),
-                new AiUsageTotal("desk", "local", "m", 1, 0, 7, 3, 0.25m)
+                new AiUsageTotal(NOW.Date, "desk", "claude", "m", 2, 1, 50, 10, 0.5m),
+                new AiUsageTotal(NOW.Date, "desk", "local", "m", 1, 0, 7, 3, 0.25m)
+            );
+        (await _store.TotalsSinceAsync(NOW.Date.AddDays(-1), CancellationToken.None))
+            .Select(x => (x.Day, x.Provider, x.Calls))
+            .Should()
+            .Equal(
+                (NOW.Date.AddDays(-1), "claude", 1),
+                (NOW.Date, "claude", 2),
+                (NOW.Date, "local", 1)
             );
     }
 

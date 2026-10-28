@@ -139,9 +139,16 @@ internal sealed class HotelAiApprovals(IServiceProvider services) : IAiApprovals
     private static string Cut(string text, int max) => text.Length <= max ? text : text[..max];
 }
 
-/// <summary>Carries out an approved agent's tool call: the run that waited goes on, and its answer is the approval's result.</summary>
+/// <summary>
+/// Carries out an approved agent's tool call: queues the run that waited to go on
+/// (<see cref="AiHost.Resume"/>) and returns at once, so the approver never waits on a model. The
+/// tool runs and the model answers in the background; the plugin's agent is told the answer.
+/// </summary>
 internal sealed class AiToolApprovalHandler(AiHost host) : ApprovalHandler<AiToolApproval>
 {
+    public const string QUEUED =
+        "The agent's run goes on in the background: the tool runs, and the plugin is told the model's answer.";
+
     public override string Kind => AiToolApproval.KIND;
 
     public override async Task<ApprovalResult> ExecuteAsync(
@@ -150,45 +157,30 @@ internal sealed class AiToolApprovalHandler(AiHost host) : ApprovalHandler<AiToo
         CancellationToken ct
     )
     {
-        var resumed = await host.DecidedAsync(
-                approval.Id.ToString(CultureInfo.InvariantCulture),
-                new AiApprovalDecision(true, approval.DecidedBy, approval.Note),
-                ct
-            )
-            .ConfigureAwait(false);
+        var id = approval.Id.ToString(CultureInfo.InvariantCulture);
 
-        return resumed is null
-            ? ApprovalResult.Failed(
-                "No agent's run went on: it waits on no approval any more, or its plugin is not running (it goes on when the plugin resumes it)."
-            )
-            : ApprovalResult.Done(
-                $"{resumed.Stop}: {Cut(resumed.Text.Length > 0 ? resumed.Text : resumed.Message ?? "", ApprovalResult.MESSAGE_MAX_LENGTH - 40)}"
+        if (await host.CannotResumeAsync(id, ct).ConfigureAwait(false) is { } why)
+            return ApprovalResult.Failed(why);
+
+        return host.Resume(id, new AiApprovalDecision(true, approval.DecidedBy, approval.Note))
+            ? ApprovalResult.Done(QUEUED)
+            : ApprovalResult.Failed(
+                "The AI resume queue is full. The run is still saved; the plugin must resume its conversation with IAi.ResumeAsync."
             );
     }
-
-    private static string Cut(string text, int max) => text.Length <= max ? text : text[..max];
 }
 
-/// <summary>An agent's tool call was denied, or nobody decided in time: the run that waited goes on without it.</summary>
+/// <summary>An agent's tool call was denied, or nobody decided in time: the run that waited goes on without it, in the background.</summary>
 public sealed class AiApprovalDecidedHandler(AiHost host) : IEventHandler<ApprovalDecidedEvent>
 {
-    public async ValueTask HandleAsync(
-        ApprovalDecidedEvent env,
-        EventContext ctx,
-        CancellationToken ct
-    )
+    public ValueTask HandleAsync(ApprovalDecidedEvent env, EventContext ctx, CancellationToken ct)
     {
         if (
-            env.Approval.Kind != AiToolApproval.KIND
-            || HotelAiApprovals.Decision(env.Approval) is not { Approved: false } decision
+            env.Approval.Kind == AiToolApproval.KIND
+            && HotelAiApprovals.Decision(env.Approval) is { Approved: false } decision
         )
-            return;
+            host.Resume(env.Approval.Id.ToString(CultureInfo.InvariantCulture), decision);
 
-        await host.DecidedAsync(
-                env.Approval.Id.ToString(CultureInfo.InvariantCulture),
-                decision,
-                ct
-            )
-            .ConfigureAwait(false);
+        return ValueTask.CompletedTask;
     }
 }

@@ -40,7 +40,34 @@ public sealed class OpenAiCompatibleDriver(IHttpClientFactory http) : IAiDriver
         return Read(body);
     }
 
-    public static HttpRequestMessage Build(AiEndpoint endpoint, AiProviderRequest request)
+    public async Task<AiDriverAnswer> StreamAsync(
+        AiEndpoint endpoint,
+        AiProviderRequest request,
+        Action<string> text,
+        CancellationToken ct
+    )
+    {
+        using var message = Build(endpoint, request, stream: true);
+
+        return await ReadStreamAsync(
+                DriverHttp.StreamAsync(
+                    http.CreateClient(AiModule.HTTP_CLIENT),
+                    message,
+                    endpoint,
+                    ReadError,
+                    ct
+                ),
+                text,
+                endpoint
+            )
+            .ConfigureAwait(false);
+    }
+
+    public static HttpRequestMessage Build(
+        AiEndpoint endpoint,
+        AiProviderRequest request,
+        bool stream = false
+    )
     {
         var url = string.IsNullOrWhiteSpace(endpoint.Url) ? DEFAULT_URL : endpoint.Url;
         var message = new HttpRequestMessage(
@@ -49,7 +76,7 @@ public sealed class OpenAiCompatibleDriver(IHttpClientFactory http) : IAiDriver
         )
         {
             Content = new StringContent(
-                Body(request, endpoint).ToJsonString(),
+                Body(request, endpoint, stream).ToJsonString(),
                 Encoding.UTF8,
                 "application/json"
             ),
@@ -64,7 +91,11 @@ public sealed class OpenAiCompatibleDriver(IHttpClientFactory http) : IAiDriver
         return message;
     }
 
-    public static JsonObject Body(AiProviderRequest request, AiEndpoint? endpoint = null)
+    public static JsonObject Body(
+        AiProviderRequest request,
+        AiEndpoint? endpoint = null,
+        bool stream = false
+    )
     {
         var messages = new JsonArray();
 
@@ -103,6 +134,13 @@ public sealed class OpenAiCompatibleDriver(IHttpClientFactory http) : IAiDriver
 
             if (request.RequireTool)
                 body["tool_choice"] = "required";
+        }
+
+        if (stream)
+        {
+            body["stream"] = true;
+            // Without it a streamed answer gives no token counts, and budgets could not count it.
+            body["stream_options"] = new JsonObject { ["include_usage"] = true };
         }
 
         if (endpoint is not null)
@@ -204,19 +242,10 @@ public sealed class OpenAiCompatibleDriver(IHttpClientFactory http) : IAiDriver
                     );
                 }
 
-            // Some servers say "stop" with tool calls: the calls decide.
-            var finish = parts.OfType<AiToolCallPart>().Any()
-                ? AiFinish.ToolUse
-                : (
-                    choice.TryGetProperty("finish_reason", out var reason)
-                        ? reason.GetString()
-                        : null
-                ) switch
-                {
-                    "length" => AiFinish.MaxTokens,
-                    "content_filter" => AiFinish.Refused,
-                    _ => AiFinish.EndTurn,
-                };
+            var finish = Finish(
+                parts,
+                choice.TryGetProperty("finish_reason", out var reason) ? reason.GetString() : null
+            );
             var input = 0;
             var output = 0;
 
@@ -252,6 +281,182 @@ public sealed class OpenAiCompatibleDriver(IHttpClientFactory http) : IAiDriver
             );
         }
     }
+
+    /// <summary>
+    /// A streamed answer (<c>"stream": true</c>): chunks whose <c>choices[0].delta</c> holds a
+    /// piece of <c>content</c> or of <c>tool_calls</c> (by <c>index</c>: the id and name first,
+    /// the arguments in pieces), a <c>finish_reason</c>, a last chunk with the <c>usage</c>
+    /// (<c>stream_options.include_usage</c>), then <c>[DONE]</c>; a chunk with an <c>error</c>
+    /// fails it. Each piece of text goes to <paramref name="text"/> as it comes.
+    /// </summary>
+    public static async Task<AiDriverAnswer> ReadStreamAsync(
+        IAsyncEnumerable<ServerSentEvent> events,
+        Action<string> text,
+        AiEndpoint? endpoint = null
+    )
+    {
+        var content = new StringBuilder();
+        var calls = new SortedDictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+        string? reason = null;
+        var input = 0;
+        var output = 0;
+        var model = string.Empty;
+        var done = false;
+
+        try
+        {
+            await foreach (var e in events.ConfigureAwait(false))
+            {
+                if (e.Data == "[DONE]")
+                {
+                    done = true;
+
+                    break;
+                }
+
+                if (e.Data.Length == 0)
+                    continue;
+
+                using var doc = JsonDocument.Parse(e.Data);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("error", out var error))
+                    throw DriverHttp.StreamError(
+                        "stream_error",
+                        error.ValueKind == JsonValueKind.Object
+                            ? error.TryGetProperty("message", out var m)
+                                ? m.GetString()
+                                : null
+                            : error.GetString(),
+                        endpoint
+                    );
+
+                if (root.TryGetProperty("model", out var named) && named.GetString() is { } name)
+                    model = name;
+
+                if (
+                    root.TryGetProperty("usage", out var usage)
+                    && usage.ValueKind == JsonValueKind.Object
+                )
+                {
+                    input = Int(usage, "prompt_tokens");
+                    output = Int(usage, "completion_tokens");
+                }
+
+                if (
+                    !root.TryGetProperty("choices", out var choices)
+                    || choices.ValueKind != JsonValueKind.Array
+                    || choices.GetArrayLength() == 0
+                )
+                    continue;
+
+                var choice = choices[0];
+
+                if (choice.TryGetProperty("delta", out var delta))
+                {
+                    if (
+                        delta.TryGetProperty("content", out var piece)
+                        && piece.ValueKind == JsonValueKind.String
+                        && piece.GetString() is { Length: > 0 } said
+                    )
+                    {
+                        content.Append(said);
+                        text(said);
+                    }
+
+                    if (
+                        delta.TryGetProperty("tool_calls", out var deltas)
+                        && deltas.ValueKind == JsonValueKind.Array
+                    )
+                        foreach (var call in deltas.EnumerateArray())
+                        {
+                            var index = call.TryGetProperty("index", out var i)
+                                ? i.GetInt32()
+                                : calls.Count;
+
+                            if (!calls.TryGetValue(index, out var into))
+                                calls[index] = into = (
+                                    $"call_{index}",
+                                    string.Empty,
+                                    new StringBuilder()
+                                );
+
+                            if (call.TryGetProperty("id", out var id) && id.GetString() is { } x)
+                                into.Id = x;
+
+                            if (call.TryGetProperty("function", out var function))
+                            {
+                                if (
+                                    function.TryGetProperty("name", out var n)
+                                    && n.GetString() is { Length: > 0 } called
+                                )
+                                    into.Name = called;
+
+                                if (
+                                    function.TryGetProperty("arguments", out var args)
+                                    && args.ValueKind == JsonValueKind.String
+                                )
+                                    into.Arguments.Append(args.GetString());
+                            }
+
+                            calls[index] = into;
+                        }
+                }
+
+                if (
+                    choice.TryGetProperty("finish_reason", out var finished)
+                    && finished.ValueKind == JsonValueKind.String
+                )
+                    reason = finished.GetString();
+            }
+        }
+        catch (Exception ex)
+            when (ex
+                    is JsonException
+                        or KeyNotFoundException
+                        or InvalidOperationException
+                        or IndexOutOfRangeException
+                        or FormatException
+            )
+        {
+            throw new AiProviderException(
+                "unreadable",
+                "streamed something that is not a chat completion",
+                ex
+            );
+        }
+
+        // Some servers end without [DONE]; an answer that never said why it ended was cut off.
+        if (!done && reason is null)
+            throw new AiProviderException("unreadable", "stopped answering part way");
+
+        var parts = ImmutableArray.CreateBuilder<AiPart>();
+
+        if (content.Length > 0)
+            parts.Add(new AiTextPart(content.ToString()));
+
+        foreach (var (id, name, arguments) in calls.Values)
+            parts.Add(new AiToolCallPart(id, name, DriverHttp.ParsePieces(arguments)));
+
+        return new AiDriverAnswer(
+            new AiMessage(AiRole.Assistant, parts.ToImmutable()),
+            Finish(parts, reason),
+            input,
+            output,
+            model
+        );
+    }
+
+    // Some servers say "stop" with tool calls: the calls decide.
+    private static AiFinish Finish(ImmutableArray<AiPart>.Builder parts, string? reason) =>
+        parts.OfType<AiToolCallPart>().Any()
+            ? AiFinish.ToolUse
+            : reason switch
+            {
+                "length" => AiFinish.MaxTokens,
+                "content_filter" => AiFinish.Refused,
+                _ => AiFinish.EndTurn,
+            };
 
     private static string? ReadError(string body) =>
         DriverHttp.ErrorMessage(

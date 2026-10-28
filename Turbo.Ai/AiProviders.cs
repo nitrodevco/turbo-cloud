@@ -11,6 +11,7 @@ using Turbo.Ai.Configuration;
 using Turbo.Ai.Drivers;
 using Turbo.Ai.Storage;
 using Turbo.Contracts.Ai;
+using Turbo.Primitives.Plugins;
 
 namespace Turbo.Ai;
 
@@ -69,8 +70,36 @@ public sealed class AiProviders(
     /// failure when none answers, and <see cref="OperationCanceledException"/> when
     /// <paramref name="ct"/> is cancelled.
     /// </summary>
-    public async Task<AiAnswer> SendAsync(AiStep step, AiUsageContext usage, CancellationToken ct)
+    public Task<AiAnswer> SendAsync(AiStep step, AiUsageContext usage, CancellationToken ct) =>
+        AskAsync(step, usage, null, ct);
+
+    /// <summary>
+    /// <see cref="SendAsync"/>, the answer streamed: <paramref name="text"/> is given each piece
+    /// of text as it comes. The next provider is asked only while nothing has been given: one
+    /// that fails part way through its answer ends the step.
+    /// </summary>
+    public Task<AiAnswer> StreamAsync(
+        AiStep step,
+        AiUsageContext usage,
+        Action<string> text,
+        CancellationToken ct
+    ) => AskAsync(step, usage, text, ct);
+
+    private async Task<AiAnswer> AskAsync(
+        AiStep step,
+        AiUsageContext usage,
+        Action<string>? text,
+        CancellationToken ct
+    )
     {
+        var streamed = false;
+        Action<string>? piece = text is null
+            ? null
+            : t =>
+            {
+                streamed = true;
+                text(t);
+            };
         var current = config.CurrentValue;
         var names = Usable(step.Providers);
 
@@ -119,21 +148,20 @@ public sealed class AiProviders(
 
             try
             {
-                var answer = await driver
-                    .SendAsync(
-                        endpoint,
-                        new AiProviderRequest(
-                            model,
-                            step.Instructions,
-                            step.Messages,
-                            step.Tools,
-                            step.RequireTool,
-                            step.MaxTokens,
-                            step.Temperature
-                        ),
-                        timer.Token
-                    )
-                    .ConfigureAwait(false);
+                var request = new AiProviderRequest(
+                    model,
+                    step.Instructions,
+                    step.Messages,
+                    step.Tools,
+                    step.RequireTool,
+                    step.MaxTokens,
+                    step.Temperature
+                );
+                var answer = await (
+                    piece is null
+                        ? driver.SendAsync(endpoint, request, timer.Token)
+                        : driver.StreamAsync(endpoint, request, piece, timer.Token)
+                ).ConfigureAwait(false);
                 var cost =
                     answer.InputTokens * provider.InputPricePerMillion / 1_000_000m
                     + answer.OutputTokens * provider.OutputPricePerMillion / 1_000_000m;
@@ -178,10 +206,124 @@ public sealed class AiProviders(
                 usage.Plugin,
                 failures[^1]
             );
+
+            // Its text has been shown: another provider's answer would follow it, not replace it.
+            if (streamed)
+                break;
         }
 
         throw new AiProviderException("failed", string.Join("; ", failures));
     }
+
+    /// <summary>
+    /// Asks the provider <paramref name="name"/> for one token with its key and model (the
+    /// panel's connection test); the attempt is kept in the usage log as the panel's.
+    /// </summary>
+    public async Task<AiConnectionTest> TestAsync(string name, CancellationToken ct)
+    {
+        var current = config.CurrentValue;
+        var found = current.Providers.FirstOrDefault(x =>
+            string.Equals(x.Key, name, StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (found.Value is not { } provider)
+            return Untried($"There is no provider named {name}.");
+
+        name = found.Key;
+
+        if (!_drivers.TryGetValue(provider.Driver, out var driver))
+            return Untried(
+                $"The server has no driver \"{provider.Driver}\": use anthropic or openai-compatible."
+            );
+
+        var key = provider.NoKey ? null : Key(current, name);
+
+        if (!provider.NoKey && string.IsNullOrWhiteSpace(key))
+            return Untried("It has no key: enter one, or mark it as taking none.");
+
+        if (string.IsNullOrWhiteSpace(provider.Model))
+            return Untried("It has no model.");
+
+        var usage = new AiUsageContext(IAiOverview.TEST_PLUGIN, "connection-test", null, null);
+        var timeout = TimeSpan.FromSeconds(
+            provider.TimeoutSeconds > 0 ? provider.TimeoutSeconds : current.TimeoutSeconds
+        );
+        var started = Stopwatch.GetTimestamp();
+        using var timer = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+        timer.CancelAfter(timeout);
+
+        try
+        {
+            var answer = await driver
+                .SendAsync(
+                    new AiEndpoint(name, provider.Url, key, provider.Headers, provider.Options),
+                    new AiProviderRequest(
+                        provider.Model,
+                        string.Empty,
+                        [AiMessage.User("Say OK.")],
+                        [],
+                        false,
+                        1,
+                        null
+                    ),
+                    timer.Token
+                )
+                .ConfigureAwait(false);
+            var model = string.IsNullOrEmpty(answer.Model) ? provider.Model : answer.Model;
+            var cost =
+                answer.InputTokens * provider.InputPricePerMillion / 1_000_000m
+                + answer.OutputTokens * provider.OutputPricePerMillion / 1_000_000m;
+            var ms = (int)Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+
+            await RecordAsync(
+                    usage,
+                    name,
+                    model,
+                    answer.InputTokens,
+                    answer.OutputTokens,
+                    cost,
+                    started,
+                    "ok"
+                )
+                .ConfigureAwait(false);
+
+            return new AiConnectionTest(
+                true,
+                $"{model} answered in {ms} ms.",
+                model,
+                answer.InputTokens,
+                answer.OutputTokens,
+                ms
+            );
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            await RecordAsync(usage, name, provider.Model, 0, 0, 0, started, "timeout")
+                .ConfigureAwait(false);
+
+            return Failed($"It took longer than {timeout.TotalSeconds:0} s.", started);
+        }
+        catch (AiProviderException ex)
+        {
+            await RecordAsync(usage, name, provider.Model, 0, 0, 0, started, ex.Kind)
+                .ConfigureAwait(false);
+
+            return Failed($"It failed: {DriverHttp.Redact(ex.Message, key)}.", started);
+        }
+
+        static AiConnectionTest Untried(string why) => new(false, why, null, 0, 0, 0);
+
+        static AiConnectionTest Failed(string why, long started) =>
+            new(false, why, null, 0, 0, (int)Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+    }
+
+    /// <summary>The usage log's outcome for a run that failed going on after its approval.</summary>
+    public const string RESUME_FAILED = "resume_failed";
+
+    /// <summary>Logs a failure no provider answered for (no provider or model; no tokens).</summary>
+    public Task RecordFailureAsync(AiUsageContext usage, string outcome) =>
+        RecordAsync(usage, string.Empty, string.Empty, 0, 0, 0, Stopwatch.GetTimestamp(), outcome);
 
     private async Task RecordAsync(
         AiUsageContext usage,

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text;
 using System.Text.Json.Nodes;
 using FluentAssertions;
@@ -15,6 +16,7 @@ using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Settings;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -27,7 +29,8 @@ namespace Turbo.Tests.Settings;
 /// </summary>
 public sealed class ServerSettingsAcrossSilosTests : IDisposable
 {
-    private const string APP_SETTINGS = """{ "Test": { "Hotel": { "Name": "Turbo Hotel" } } }""";
+    private const string APP_SETTINGS =
+        """{ "Test": { "Hotel": { "Name": "Turbo Hotel" } }, "TestMap": { "Values": { "file": "fallback" } } }""";
 
     private static readonly PlayerId STAFF = new(7);
 
@@ -121,14 +124,56 @@ public sealed class ServerSettingsAcrossSilosTests : IDisposable
         _settingsA.Settings.Version.Should().Be(version);
     }
 
+    [Fact]
+    public async Task a_stale_silo_merges_a_secret_map_entry_with_the_authoritative_override()
+    {
+        await _settingsA.Settings.SaveMapEntryAsync(
+            "TestMap:Values",
+            "first",
+            "secret-one",
+            STAFF,
+            Ct
+        );
+
+        // Settings B has not checked since its startup load: it still has no panel override.
+        await _settingsB.Settings.SaveMapEntryAsync(
+            "TestMap:Values",
+            "second",
+            "secret-two",
+            STAFF,
+            Ct
+        );
+
+        using var restarted = _settingsA.Restart();
+        restarted
+            .Running<TestMapConfig>()
+            .Values.Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string>
+                {
+                    ["file"] = "fallback",
+                    ["first"] = "secret-one",
+                    ["second"] = "secret-two",
+                }
+            );
+
+        var history = await _settingsA.Settings.HistoryAsync(0, Ct);
+        history.Items.Should().HaveCount(2);
+        history.Items.Should().OnlyContain(x => x.Secret && x.Before == null && x.After == null);
+        _settingsB.Settings.Get("TestMap:Values")!.IsSet.Should().BeTrue();
+        _settingsB.Settings.Get("TestMap:Values")!.Value.Should().BeNull();
+    }
+
     private SettingsHarness Settings() =>
         new(
             _db,
             APP_SETTINGS,
             (services, configuration) =>
-                services.Configure<TestHotelConfig>(
-                    configuration.GetSection(TestHotelConfig.SECTION_NAME)
-                )
+                services
+                    .Configure<TestHotelConfig>(
+                        configuration.GetSection(TestHotelConfig.SECTION_NAME)
+                    )
+                    .Configure<TestMapConfig>(configuration.GetSection(TestMapConfig.SECTION_NAME))
         );
 
     /// <summary>A silo's gamedata files, built from its own settings, with its own clock.</summary>
@@ -156,4 +201,12 @@ public sealed class ServerSettingsAcrossSilosTests : IDisposable
             .Parse(Encoding.UTF8.GetString(GamedataBytes.Decompress(current.Gzipped)))!
             .AsObject()["hotel.name"]!.GetValue<string>();
     }
+}
+
+public sealed class TestMapConfig
+{
+    public const string SECTION_NAME = "TestMap";
+
+    [SecretSetting]
+    public Dictionary<string, string> Values { get; init; } = [];
 }

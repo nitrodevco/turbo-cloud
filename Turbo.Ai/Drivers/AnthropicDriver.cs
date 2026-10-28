@@ -41,13 +41,40 @@ public sealed class AnthropicDriver(IHttpClientFactory http) : IAiDriver
         return Read(body);
     }
 
-    public static HttpRequestMessage Build(AiEndpoint endpoint, AiProviderRequest request)
+    public async Task<AiDriverAnswer> StreamAsync(
+        AiEndpoint endpoint,
+        AiProviderRequest request,
+        Action<string> text,
+        CancellationToken ct
+    )
+    {
+        using var message = Build(endpoint, request, stream: true);
+
+        return await ReadStreamAsync(
+                DriverHttp.StreamAsync(
+                    http.CreateClient(AiModule.HTTP_CLIENT),
+                    message,
+                    endpoint,
+                    ReadError,
+                    ct
+                ),
+                text,
+                endpoint
+            )
+            .ConfigureAwait(false);
+    }
+
+    public static HttpRequestMessage Build(
+        AiEndpoint endpoint,
+        AiProviderRequest request,
+        bool stream = false
+    )
     {
         var url = string.IsNullOrWhiteSpace(endpoint.Url) ? DEFAULT_URL : endpoint.Url;
         var message = new HttpRequestMessage(HttpMethod.Post, $"{url.TrimEnd('/')}/v1/messages")
         {
             Content = new StringContent(
-                Body(request, endpoint).ToJsonString(),
+                Body(request, endpoint, stream).ToJsonString(),
                 Encoding.UTF8,
                 "application/json"
             ),
@@ -64,7 +91,11 @@ public sealed class AnthropicDriver(IHttpClientFactory http) : IAiDriver
         return message;
     }
 
-    public static JsonObject Body(AiProviderRequest request, AiEndpoint? endpoint = null)
+    public static JsonObject Body(
+        AiProviderRequest request,
+        AiEndpoint? endpoint = null,
+        bool stream = false
+    )
     {
         var body = new JsonObject { ["model"] = request.Model, ["max_tokens"] = request.MaxTokens };
 
@@ -90,6 +121,9 @@ public sealed class AnthropicDriver(IHttpClientFactory http) : IAiDriver
             if (request.RequireTool)
                 body["tool_choice"] = new JsonObject { ["type"] = "any" };
         }
+
+        if (stream)
+            body["stream"] = true;
 
         if (endpoint is not null)
             DriverHttp.AddOptions(body, endpoint.Options);
@@ -200,24 +234,15 @@ public sealed class AnthropicDriver(IHttpClientFactory http) : IAiDriver
                 }
             }
 
-            var finish = root.TryGetProperty("stop_reason", out var stop)
-                ? stop.GetString() switch
-                {
-                    "tool_use" => AiFinish.ToolUse,
-                    "max_tokens" => AiFinish.MaxTokens,
-                    "refusal" => AiFinish.Refused,
-                    _ => AiFinish.EndTurn,
-                }
-                : AiFinish.EndTurn;
+            var finish = Finish(
+                root.TryGetProperty("stop_reason", out var stop) ? stop.GetString() : null
+            );
             var input = 0;
             var output = 0;
 
             if (root.TryGetProperty("usage", out var usage))
             {
-                input =
-                    Int(usage, "input_tokens")
-                    + Int(usage, "cache_creation_input_tokens")
-                    + Int(usage, "cache_read_input_tokens");
+                input = InputTokens(usage);
                 output = Int(usage, "output_tokens");
             }
 
@@ -238,6 +263,175 @@ public sealed class AnthropicDriver(IHttpClientFactory http) : IAiDriver
                 ex
             );
         }
+    }
+
+    /// <summary>
+    /// A streamed answer (<c>"stream": true</c>): <c>message_start</c> with the input tokens,
+    /// <c>content_block_start</c>/<c>_delta</c>/<c>_stop</c> per block (<c>text_delta</c> text,
+    /// <c>input_json_delta</c> a tool call's arguments), <c>message_delta</c> with the stop reason
+    /// and output tokens, <c>message_stop</c>; an <c>error</c> event fails it. Each piece of text
+    /// goes to <paramref name="text"/> as it comes.
+    /// </summary>
+    public static async Task<AiDriverAnswer> ReadStreamAsync(
+        IAsyncEnumerable<ServerSentEvent> events,
+        Action<string> text,
+        AiEndpoint? endpoint = null
+    )
+    {
+        var blocks = new SortedDictionary<int, StreamedBlock?>();
+        var input = 0;
+        var output = 0;
+        var model = string.Empty;
+        string? stop = null;
+        var ended = false;
+
+        try
+        {
+            await foreach (var e in events.ConfigureAwait(false))
+            {
+                if (e.Data.Length == 0)
+                    continue;
+
+                using var doc = JsonDocument.Parse(e.Data);
+                var root = doc.RootElement;
+
+                switch (Str(root, "type") ?? e.Name)
+                {
+                    case "message_start":
+                        var started = root.GetProperty("message");
+
+                        model = Str(started, "model") ?? string.Empty;
+
+                        if (started.TryGetProperty("usage", out var first))
+                        {
+                            input = InputTokens(first);
+                            output = Int(first, "output_tokens");
+                        }
+
+                        break;
+                    case "content_block_start":
+                        var block = root.GetProperty("content_block");
+                        var opened = Str(block, "type") switch
+                        {
+                            "text" => new StreamedBlock(null, null),
+                            "tool_use" => new StreamedBlock(
+                                Str(block, "id") ?? string.Empty,
+                                Str(block, "name") ?? string.Empty
+                            ),
+                            _ => null,
+                        };
+
+                        blocks[root.GetProperty("index").GetInt32()] = opened;
+
+                        if (opened is { Name: null } && Str(block, "text") is { Length: > 0 } said)
+                        {
+                            opened.Pieces.Append(said);
+                            text(said);
+                        }
+
+                        break;
+                    case "content_block_delta":
+                        if (
+                            !blocks.TryGetValue(root.GetProperty("index").GetInt32(), out var into)
+                            || into is null
+                        )
+                            break;
+
+                        var delta = root.GetProperty("delta");
+
+                        switch (Str(delta, "type"))
+                        {
+                            case "text_delta" when Str(delta, "text") is { Length: > 0 } piece:
+                                into.Pieces.Append(piece);
+                                text(piece);
+
+                                break;
+                            case "input_json_delta":
+                                into.Pieces.Append(Str(delta, "partial_json"));
+
+                                break;
+                        }
+
+                        break;
+                    case "message_delta":
+                        if (
+                            root.TryGetProperty("delta", out var end)
+                            && Str(end, "stop_reason") is { } reason
+                        )
+                            stop = reason;
+
+                        if (root.TryGetProperty("usage", out var last))
+                        {
+                            output = Math.Max(output, Int(last, "output_tokens"));
+                            input = Math.Max(input, InputTokens(last));
+                        }
+
+                        break;
+                    case "message_stop":
+                        ended = true;
+
+                        break;
+                    case "error":
+                        var error = root.GetProperty("error");
+
+                        throw DriverHttp.StreamError(
+                            Str(error, "type") ?? "stream_error",
+                            $"{Str(error, "type")}: {Str(error, "message")}",
+                            endpoint
+                        );
+                }
+            }
+        }
+        catch (Exception ex)
+            when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            throw new AiProviderException(
+                "unreadable",
+                "streamed something that is not a message",
+                ex
+            );
+        }
+
+        if (!ended)
+            throw new AiProviderException("unreadable", "stopped answering part way");
+
+        var parts = ImmutableArray.CreateBuilder<AiPart>();
+
+        foreach (var block in blocks.Values)
+            if (block is { Name: null, Pieces.Length: > 0 })
+                parts.Add(new AiTextPart(block.Pieces.ToString()));
+            else if (block is { Name: { } name })
+                parts.Add(
+                    new AiToolCallPart(block.Id!, name, DriverHttp.ParsePieces(block.Pieces))
+                );
+
+        return new AiDriverAnswer(
+            new AiMessage(AiRole.Assistant, parts.ToImmutable()),
+            Finish(stop),
+            input,
+            output,
+            model
+        );
+    }
+
+    private static AiFinish Finish(string? stop) =>
+        stop switch
+        {
+            "tool_use" => AiFinish.ToolUse,
+            "max_tokens" => AiFinish.MaxTokens,
+            "refusal" => AiFinish.Refused,
+            _ => AiFinish.EndTurn,
+        };
+
+    private static int InputTokens(JsonElement usage) =>
+        Int(usage, "input_tokens")
+        + Int(usage, "cache_creation_input_tokens")
+        + Int(usage, "cache_read_input_tokens");
+
+    /// <summary>A block of a streamed answer: text (no name), or a tool call and its arguments' pieces.</summary>
+    private sealed record StreamedBlock(string? Id, string? Name)
+    {
+        public StringBuilder Pieces { get; } = new();
     }
 
     private static string? ReadError(string body) =>
