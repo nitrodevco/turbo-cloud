@@ -46,6 +46,8 @@ internal static class AssetServiceRegistration
         services.AddSingleton<IAssetJobs, AssetJobs>();
         services.AddSingleton<AssetBundleChecks>();
         services.AddSingleton<IAssetBundleService, AssetBundleService>();
+        services.AddSingleton<AssetDiscoveryCatalog>();
+        services.AddHostedService(sp => sp.GetRequiredService<AssetDiscoveryCatalog>());
         services.AddSingleton<IAssetSyncService, AssetSyncService>();
 
         return services;

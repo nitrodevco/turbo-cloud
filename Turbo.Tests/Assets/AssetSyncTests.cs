@@ -38,7 +38,7 @@ namespace Turbo.Tests.Assets;
 /// tries again what may; an upload is never replaced. A Habbo check starts one only when that is
 /// on and no job runs.
 /// </summary>
-public sealed class AssetSyncTests : IDisposable
+public sealed class AssetSyncTests : IAsyncDisposable
 {
     private const string VARIABLES = "https://www.habbo.com/gamedata/external_variables/0";
     private const string FURNIDATA = "https://www.habbo.com/gamedata/furnidata_json/0";
@@ -52,6 +52,7 @@ public sealed class AssetSyncTests : IDisposable
     private readonly AssetFolder _folder;
     private readonly AssetJobs _jobs;
     private readonly AssetSyncService _sync;
+    private readonly List<AssetDiscoveryCatalog> _catalogs = [];
 
     public AssetSyncTests()
         : this(new AssetBundleConfig { DownloadConcurrency = 3, ConvertConcurrency = 2 }) { }
@@ -145,8 +146,10 @@ public sealed class AssetSyncTests : IDisposable
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
+        foreach (var catalog in _catalogs)
+            await catalog.DisposeAsync();
         _folder.Dispose();
         _db.Dispose();
         _habbo.Dispose();
@@ -382,7 +385,7 @@ public sealed class AssetSyncTests : IDisposable
 
         // The preview that saw it read Habbo again behind it too (the lists are always stale
         // here); the database closes after this test, and that read must be done by then.
-        await sync.WhenRelistedAsync();
+        await _catalogs[^1].WhenRefreshedAsync(Ct);
     }
 
     [Fact]
@@ -1488,15 +1491,9 @@ public sealed class AssetSyncTests : IDisposable
             .Be(AssetBundleSource.Habbo, "a publish sends it, and a sync keeps it up to date");
     }
 
-    private AssetSyncService Sync(AssetBundleConfig config) =>
-        new(
-            _db,
-            Options.Create(config),
-            Options.Create(new GamedataConfig()),
-            new HabboGamedataClient(
-                _fakes.Create<IHttpClientFactory>(),
-                NullLogger<HabboGamedataClient>.Instance
-            ),
+    private AssetSyncService Sync(AssetBundleConfig config)
+    {
+        var catalog = new AssetDiscoveryCatalog(
             new AssetDiscoveryService(
                 _db,
                 Options.Create(config),
@@ -1510,12 +1507,28 @@ public sealed class AssetSyncTests : IDisposable
                 TimeProvider.System,
                 NullLogger<AssetDiscoveryService>.Instance
             ),
+            Options.Create(config),
+            TimeProvider.System,
+            _fakes.Create<IHostApplicationLifetime>(),
+            NullLogger<AssetDiscoveryCatalog>.Instance
+        );
+        _catalogs.Add(catalog);
+        return new AssetSyncService(
+            _db,
+            Options.Create(config),
+            Options.Create(new GamedataConfig()),
+            new HabboGamedataClient(
+                _fakes.Create<IHttpClientFactory>(),
+                NullLogger<HabboGamedataClient>.Instance
+            ),
+            catalog,
             Builder(),
             _folder.Store,
             _jobs,
             TimeProvider.System,
             NullLogger<IAssetSyncService>.Instance
         );
+    }
 
     private ClientBundleBuilder Builder() =>
         new(

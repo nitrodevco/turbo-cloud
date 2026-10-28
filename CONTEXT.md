@@ -46,6 +46,10 @@
   - `Turbo.Players/Grains/PlayerGrain.cs` exposes profile snapshots consumed by handlers.
 
 ## Data and lookup semantics
+- `AssetDiscoveryCatalog` owns discovery snapshots, cache freshness, refresh coordination and
+  background-read lifetime. `AssetDiscoveryService` captures client releases locally per run;
+  `AssetSyncService` orchestrates transfers and metadata persistence. Sync, explicit refresh and
+  cold preview reads share one discovery gate; cached previews remain immediate.
 - Theme audience rules resolve through `IThemeResolver`, required by `IThemeAudiences`.
   Resolution takes preview requests explicitly and does not own displayed revisions.
   Session initialization and live reload share the singleton `IThemeClientState`; replacement
