@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Contracts.Hotel;
 using Turbo.Database.Context;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
@@ -28,14 +29,15 @@ internal sealed class HostHotelRooms(
     IDbContextFactory<TurboDbContext> database,
     IGrainFactory grains,
     INavigatorService navigator,
-    IPluginRoomLeases leases
+    IPluginRoomLeases leases,
+    IRoomService roomService
 ) : IHotelRooms
 {
     /// <summary>The plugin whose holds and watches these are; empty for the host's own.</summary>
     internal string Plugin { get; private init; } = string.Empty;
 
     internal HostHotelRooms ForPlugin(string pluginKey) =>
-        new(database, grains, navigator, leases) { Plugin = pluginKey };
+        new(database, grains, navigator, leases, roomService) { Plugin = pluginKey };
 
     public async Task<HotelRoom?> GetAsync(RoomId room, CancellationToken ct)
     {
@@ -138,6 +140,10 @@ internal sealed class HostHotelRooms(
             .GetRoomGrain(room)
             .WhisperToPlayerAsync(player, text, ct)
             .ConfigureAwait(false);
+
+    /// <summary>As the admin panel's kick: the room grain's rules for <paramref name="by"/>, then the player is sent out.</summary>
+    public Task<bool> KickAsync(RoomId room, PlayerId player, PlayerId by, CancellationToken ct) =>
+        roomService.KickPlayerAsync(ActionContext.CreateForPlayer(by, room), player, ct);
 
     public Task<FurniLogicReply> InvokeFurniLogicAsync(
         RoomId room,

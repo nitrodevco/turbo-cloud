@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace Turbo.Contracts.Plugins.Mcp;
 
 /// <summary>
@@ -7,11 +9,17 @@ namespace Turbo.Contracts.Plugins.Mcp;
 /// </summary>
 public sealed class McpToolResult
 {
-    private McpToolResult(bool isError, string? text, object? value)
+    private McpToolResult(
+        bool isError,
+        string? text,
+        object? value,
+        ImmutableArray<McpResourceLink> links = default
+    )
     {
         IsError = isError;
         Message = text;
         Value = value;
+        Links = links.IsDefault ? [] : links;
     }
 
     /// <summary>The tool could not do what was asked; <see cref="Message"/> says why.</summary>
@@ -23,6 +31,9 @@ public sealed class McpToolResult
     /// <summary>The data answered, sent as the call's structured content; null for text.</summary>
     public object? Value { get; }
 
+    /// <summary>Resources the answer points to, sent after its text as <c>resource_link</c> content.</summary>
+    public ImmutableArray<McpResourceLink> Links { get; }
+
     /// <summary>An answer in words.</summary>
     public static McpToolResult Text(string text) => new(false, text, null);
 
@@ -32,4 +43,8 @@ public sealed class McpToolResult
 
     /// <summary>The tool could not do it: a sentence the assistant can act on.</summary>
     public static McpToolResult Error(string message) => new(true, message, null);
+
+    /// <summary>The same answer pointing to <paramref name="links"/> as well (a room's resource, a player's).</summary>
+    public McpToolResult WithLinks(params McpResourceLink[] links) =>
+        new(IsError, Message, Value, [.. Links, .. links]);
 }

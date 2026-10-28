@@ -76,11 +76,22 @@ internal sealed class PluginWebRoutes : IPluginWebRoutes
         ];
     }
 
+    public bool AnyOriginAt(string key, string path)
+    {
+        if (!_live.TryGetValue(key, out var table))
+            return false;
+
+        var segments = Segments(path);
+
+        return table.Any(x => x.Route.AnyOrigin && Bind(Segments(x.Pattern), segments) is not null);
+    }
+
     /// <summary>
     /// The routes <paramref name="asm"/> declares (public <see cref="IPluginWebRoute"/>s), each
     /// built with <paramref name="services"/>. Throws <see cref="InvalidOperationException"/> for a
     /// method the host does not serve, a pattern that leaves the plugin's prefix, a route mapped
-    /// twice, or an anonymous route that requires a permission.
+    /// twice, an anonymous route that requires a permission, or one any site may call that is not
+    /// anonymous.
     /// </summary>
     public static ImmutableArray<PluginWebEndpoint> Build(
         string key,
@@ -110,6 +121,11 @@ internal sealed class PluginWebRoutes : IPluginWebRoutes
             if (route.Anonymous && nodes.Length > 0)
                 throw new InvalidOperationException(
                     $"The plugin {key}'s web route {name} is anonymous but requires {string.Join(" or ", nodes)}: a permission needs a player."
+                );
+
+            if (route.AnyOrigin && !route.Anonymous)
+                throw new InvalidOperationException(
+                    $"The plugin {key}'s web route {name} lets any site call it but is not anonymous: another site's page must never act as the player whose browser it is."
                 );
 
             if (

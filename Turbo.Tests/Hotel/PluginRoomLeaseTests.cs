@@ -218,7 +218,8 @@ public sealed class PluginRoomLeaseTests : IDisposable
                 _fakes.Create<IDbContextFactory<TurboDbContext>>(),
                 _fakes.Create<IGrainFactory>(),
                 _fakes.Create<INavigatorService>(),
-                _leases
+                _leases,
+                _fakes.Create<IRoomService>()
             ),
             _fakes.Create<IHotelBots>(),
             _fakes.Create<IHotelWallet>(),

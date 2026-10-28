@@ -22,6 +22,9 @@ public interface IPluginWebRoutes
 
     /// <summary>The methods the plugin's live routes answer at the path, for a preflight; empty when none.</summary>
     IReadOnlyList<string> MethodsAt(string key, string path);
+
+    /// <summary>Whether a live route of the plugin at the path lets any site's page call it (<see cref="IPluginWebRoute.AnyOrigin"/>).</summary>
+    bool AnyOriginAt(string key, string path);
 }
 
 /// <summary>

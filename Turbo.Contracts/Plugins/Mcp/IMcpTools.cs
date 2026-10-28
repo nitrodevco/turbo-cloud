@@ -64,7 +64,8 @@ public enum McpToolCallStatus
 
 /// <summary>
 /// A call's answer as an MCP server sends it: its text blocks (a summary, the note on player text,
-/// the data's JSON, or the error), its structured content, and whether it is an error.
+/// the data's JSON, or the error), the resources it links to, its structured content, and whether
+/// it is an error.
 /// </summary>
 public sealed record McpToolCallResult(
     McpToolCallStatus Status,
@@ -75,6 +76,9 @@ public sealed record McpToolCallResult(
     /// <summary>MCP's <c>isError</c>: anything but <see cref="McpToolCallStatus.Ok"/> and <see cref="McpToolCallStatus.PendingApproval"/>.</summary>
     public bool IsError =>
         Status is not (McpToolCallStatus.Ok or McpToolCallStatus.PendingApproval);
+
+    /// <summary>Resources the answer points to (<see cref="McpToolResult.Links"/>), sent after its text.</summary>
+    public ImmutableArray<McpResourceLink> Links { get; init; } = [];
 
     public static McpToolCallResult Unavailable(string name) =>
         new(

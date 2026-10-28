@@ -94,6 +94,7 @@ internal sealed class WebApiServer(
         {
             _plugins = ActivatorUtilities.CreateInstance<PluginWebEndpoints>(services);
             _plugins.Map(api);
+            _plugins.MapWellKnown(app);
         }
 
         try
