@@ -64,8 +64,10 @@ public sealed record ThemeSession(
 /// theme's look reaches only its audience, everyone else draws the default theme's chain, or the
 /// theme they chose. The external variables every client loads are the default's; a session's own
 /// are its theme's chain, built once per theme and kept until a theme or the hotel changes.
+/// Replacements implement batch resolution and use the host's shared IThemeClientState during
+/// SessionAsync so live reload compares against the revision actually supplied to the client.
 /// </summary>
-public interface IThemeAudiences
+public interface IThemeAudiences : IThemeResolver
 {
     /// <summary>Every theme the hotel has, with who gets it.</summary>
     public Task<ImmutableArray<ThemeAudience>> ListAsync(CancellationToken ct);

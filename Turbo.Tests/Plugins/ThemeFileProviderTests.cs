@@ -91,6 +91,10 @@ public sealed class ThemeFileProviderTests
         var audiences = host.GetRequiredService<IThemeAudiences>();
         var session = await audiences.SessionAsync(PlayerId.Parse(101), null, Ct);
         session.Variables.Should().BeSameAs(variables);
+        host.GetRequiredService<IThemeClientState>()
+            .DrawnBy(PlayerId.Parse(101))!
+            .Revision.Should()
+            .Be(look.Revision, "the default session provider uses the host's shared tracking");
 
         var live = host.GetRequiredService<IThemeLiveReload>();
         live.Find(look.Revision).Should().BeSameAs(look);

@@ -1,6 +1,7 @@
 # Upgrading a Plugin
 
 - [Introduction](#introduction)
+- [Theme audience providers (2026-10-28)](#theme-audience-providers-2026-10-28)
 - [To source-only plugins (2026-10-27)](#to-source-only-plugins-2026-10-27)
     - [1. Build a server that ships the plugin SDK](#1-build-a-server-that-ships-the-plugin-sdk)
     - [2. Move to the template's layout](#2-move-to-the-templates-layout)
@@ -21,6 +22,21 @@ What a plugin author does when Turbo changes what plugins are. Each change, with
 whether it breaks a plugin, is in `docs/plugin-changelog.md` (one file per change in
 `docs/changelog/`); this page is the work, in order. A pull request with a breaking change adds its
 changelog entry and its steps here together.
+
+## Theme audience providers (2026-10-28)
+
+Host integrations implementing `IThemeAudiences` now implement its inherited `IThemeResolver`.
+Implement `ResolveAsync` for the supplied batch of players and accepted preview requests,
+returning the default theme and an entry for every player. Recheck permissions and saved choices
+without reading or changing displayed revisions. There is no default implementation that skips
+live updates.
+
+Inject the host's singleton `IThemeClientState` into the audience provider. In `SessionAsync`,
+record the accepted preview request (null if rejected) and the revision supplied by
+`IThemeFileService.ThemeLookAsync` using `NoteDrawn`. Register the audience replacement after
+the content module; the default `IThemeResolver` alias follows `IThemeAudiences`. Keep one shared
+tracking service for session initialization and live reload. Existing plugins using the audience
+API without implementing it need no changes.
 
 ## To source-only plugins (2026-10-27)
 

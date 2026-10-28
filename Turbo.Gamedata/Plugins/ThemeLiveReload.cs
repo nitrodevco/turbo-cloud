@@ -30,7 +30,8 @@ namespace Turbo.Gamedata.Plugins;
 /// </summary>
 internal sealed class ThemeLiveReload(
     IThemeFileService files,
-    IThemeAudiences audiences,
+    IThemeResolver resolver,
+    IThemeClientState clients,
     IGrainFactory grainFactory,
     IOptions<GamedataConfig> config,
     IHostApplicationLifetime lifetime,
@@ -148,10 +149,8 @@ internal sealed class ThemeLiveReload(
         var online = Online();
         var at = time.GetUtcNow().UtcDateTime;
 
-        if (audiences is not ThemeAudienceService service)
-            return new ThemeLiveResult(0, online.Count, at);
-
-        var (theme, players) = await service.ResolveAsync(online, ct).ConfigureAwait(false);
+        var requests = online.ToDictionary(x => x, x => clients.DrawnBy(x)?.Requested);
+        var (theme, players) = await resolver.ResolveAsync(requests, ct).ConfigureAwait(false);
         var looks = new Dictionary<string, ThemeLook>(StringComparer.OrdinalIgnoreCase);
 
         async Task<ThemeLook> LookOfAsync(string? key)
@@ -173,13 +172,13 @@ internal sealed class ThemeLiveReload(
         foreach (var (player, drawn) in players)
         {
             var look = await LookOfAsync(drawn).ConfigureAwait(false);
-            var own = service.DrawnBy(player.Value);
+            var own = clients.DrawnBy(player);
 
             // Before the first look nothing says what a client with no look of its own draws.
             if ((own?.Revision ?? _loaded) is not { } had || had == look.Revision)
                 continue;
 
-            service.NoteDrawn(player.Value, own?.Requested, look.Revision);
+            clients.NoteDrawn(player, own?.Requested, look.Revision);
             sent++;
             grainFactory
                 .SendPluginMessageToPlayerAsync(
@@ -195,7 +194,7 @@ internal sealed class ThemeLiveReload(
         }
 
         _loaded = loaded;
-        service.ForgetDrawn(online.Select(x => x.Value).ToHashSet());
+        clients.ForgetDrawn(online.ToHashSet());
 
         if (sent > 0)
             logger.LogInformation(

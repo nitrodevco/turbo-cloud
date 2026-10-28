@@ -126,7 +126,9 @@ public sealed class GamedataModule : IHostPluginModule
         );
         services.AddSingleton<IPluginDataOwner>(sp => sp.GetRequiredService<PluginGamedataSeeds>());
         services.AddSingleton<IPluginStyles, PluginStyleService>();
+        services.AddSingleton<IThemeClientState, ThemeClientState>();
         services.AddSingleton<IThemeAudiences, ThemeAudienceService>();
+        services.AddSingleton<IThemeResolver>(sp => sp.GetRequiredService<IThemeAudiences>());
         services.AddSingleton<ThemeLiveReload>();
         services.AddSingleton<IThemeLiveReload>(sp => sp.GetRequiredService<ThemeLiveReload>());
         services.AddHostedService(sp => sp.GetRequiredService<ThemeLiveReload>());

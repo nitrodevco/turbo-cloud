@@ -381,6 +381,22 @@ message.
   drawing it.
 - Each silo sends its own players the changes made on it.
 
+### Replacing audience resolution
+
+A host replaces `IThemeAudiences` after the content module's registrations. That interface
+requires `IThemeResolver`; its default DI alias resolves the same audience singleton. Live reload
+uses only batch resolution, never the concrete audience provider. `ResolveAsync` receives every
+online player and their accepted preview request (null without one) and returns the default and
+one permitted theme per player. It rechecks permissions and saved choices without owning client
+display state. Preserve batch reads rather than calling session initialization for every player.
+
+Both session initialization and live reload use the host's singleton `IThemeClientState`.
+Replacement audience providers inject it and call `NoteDrawn` in `SessionAsync` with the accepted
+preview request (null when rejected) and the revision from `IThemeFileService.ThemeLookAsync`.
+Live reload compares that revision, records updates there, and forgets offline players. Keeping
+a second private tracker would break that comparison. Existing callers need no changes;
+implementers follow `docs/upgrading.md`, "Theme audience providers (2026-10-28)".
+
 ## Replacing the theme-file provider
 
 The built-in content module registers `IThemeFileService` for theme variables, revisioned looks
