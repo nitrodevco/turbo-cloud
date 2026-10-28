@@ -20,18 +20,28 @@ import jev_review
 class BoundaryTests(unittest.TestCase):
     def setUp(self):
         self.policy = json.loads(architecture.POLICY.read_text())
+        self.legacy_policy = {**self.policy, "baseline": [
+            {"source": "Turbo.PacketHandlers", "target": "Turbo.Database",
+             "rule": "handler-persistence", "reason": "Legacy exception fixture."}
+        ]}
 
     def test_baseline_does_not_hide_new_contract_dependency(self):
         graph = {"Turbo.PacketHandlers": ["Turbo.Database"],
                  "Turbo.Contracts": ["Turbo.Primitives", "Turbo.Database"]}
-        result = architecture.check(graph, self.policy)
+        result = architecture.check(graph, self.legacy_policy)
         self.assertEqual(result["new_violations"],
                          [("Turbo.Contracts", "Turbo.Database", "contract-implementation")])
         self.assertEqual(len(result["existing_violations"]), 1)
 
     def test_removed_violation_requires_removing_exception(self):
-        result = architecture.check({"Turbo.PacketHandlers": []}, self.policy)
+        result = architecture.check({"Turbo.PacketHandlers": []}, self.legacy_policy)
         self.assertEqual(len(result["stale_baseline"]), 1)
+
+    def test_handler_database_reference_is_rejected_without_an_exception(self):
+        result = architecture.check({"Turbo.PacketHandlers": ["Turbo.Database"]}, self.policy)
+        self.assertEqual(result["new_violations"],
+                         [("Turbo.PacketHandlers", "Turbo.Database", "handler-persistence")])
+        self.assertEqual(result["existing_violations"], [])
 
     def test_windows_reference_paths_and_conditions_are_in_inventory(self):
         with tempfile.TemporaryDirectory() as directory:
