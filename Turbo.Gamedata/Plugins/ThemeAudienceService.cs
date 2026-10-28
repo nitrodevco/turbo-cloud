@@ -23,7 +23,7 @@ namespace Turbo.Gamedata.Plugins;
 /// <see cref="IThemeAudiences"/> over <c>gamedata_themes</c> (who gets each theme) and
 /// <c>player_themes</c> (what each player chose), resolved by <see cref="ThemeChains"/>. A change
 /// builds the client's variables again (the default theme's look is in the file every client
-/// loads); a session's own theme's variables are built once per theme (<see cref="IThemeFileService.ThemeVariablesAsync"/>).
+/// loads); a session's own theme's variables are built once per theme (<see cref="IThemeFileService.ThemeViewAsync"/>).
 /// </summary>
 internal sealed class ThemeAudienceService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
@@ -235,7 +235,7 @@ internal sealed class ThemeAudienceService(
         var (groups, mayPreview) = await WhoAsync(player, themes, ct).ConfigureAwait(false);
         var list = themes.Values.ToList();
         var theme = ThemeChains.Resolve(list, player.Value, groups, mayPreview, chosen, requested);
-        var variables = await files.ThemeVariablesAsync(theme, ct).ConfigureAwait(false);
+        var view = await files.ThemeViewAsync(theme, ct).ConfigureAwait(false);
         var names = Names();
 
         // What this client draws, for live reload to send it only a look it does not have.
@@ -245,12 +245,12 @@ internal sealed class ThemeAudienceService(
                 string.Equals(theme, requested, StringComparison.OrdinalIgnoreCase)
                     ? requested
                     : null,
-                (await files.ThemeLookAsync(theme, ct).ConfigureAwait(false)).Revision
+                view.Look.Revision
             );
 
         return new ThemeSession(
             theme ?? string.Empty,
-            variables,
+            view.SessionVariables,
             [
                 // The default is the chooser's own "Hotel default".
                 .. list.Where(x =>

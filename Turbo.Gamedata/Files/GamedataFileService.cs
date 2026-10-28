@@ -715,82 +715,6 @@ internal sealed class GamedataFileService(
         return ExternalVariablesFile.Merge(owned.Select(x => x.Part), own);
     }
 
-    /// <summary>A theme's merged variables, by theme key, for the file's build they were made with.</summary>
-    private readonly ConcurrentDictionary<string, ThemeBuild> _themeBuilds = new(
-        StringComparer.OrdinalIgnoreCase
-    );
-
-    private sealed record ThemeBuild(
-        int Version,
-        object? Inputs,
-        object? Stamp,
-        IReadOnlyDictionary<string, string>? Variables
-    );
-
-    /// <summary>
-    /// The merged variables (<see cref="ExternalVariablesFile.MERGED"/>) of a client drawing
-    /// <paramref name="theme"/>'s chain (<see cref="ThemeChains"/>), each of them, <c>{}</c> for one
-    /// it gives nothing of; null when they are the file's own (the default theme's). Built once per
-    /// theme and kept until the file would be built again.
-    /// </summary>
-    public async Task<IReadOnlyDictionary<string, string>?> ThemeVariablesAsync(
-        string? theme,
-        CancellationToken ct
-    )
-    {
-        const string file = GamedataFiles.EXTERNAL_VARIABLES;
-
-        var inputs = await InputsAsync(file, ct).ConfigureAwait(false);
-        var stamp = await StampAsync(file, ct).ConfigureAwait(false);
-        var version = VersionOf(file);
-        var key = theme ?? string.Empty;
-
-        if (
-            _themeBuilds.TryGetValue(key, out var built)
-            && built.Version == version
-            && Equals(built.Inputs, inputs)
-            && Equals(built.Stamp, stamp)
-        )
-            return built.Variables;
-
-        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
-        var themes = await ThemesAsync(dbCtx, ct).ConfigureAwait(false);
-        IReadOnlyDictionary<string, string>? variables = null;
-
-        if (
-            !string.Equals(
-                theme,
-                ThemeChains.DefaultOf(themes.Values),
-                StringComparison.OrdinalIgnoreCase
-            )
-        )
-        {
-            var hotel = await HotelVariablesAsync(
-                    dbCtx,
-                    ((ExternalVariablesFile.Inputs)inputs!).Addresses,
-                    ct
-                )
-                .ConfigureAwait(false);
-            var include = ThemeChains.Includes(theme, themes);
-            var texts = new ThemeTexts(
-                await StaffTextsAsync(dbCtx, ct).ConfigureAwait(false),
-                DepthIn(theme, themes)
-            );
-
-            variables = ExternalVariablesFile.MERGED.ToDictionary(
-                x => x,
-                x => MergedOf(x, hotel.GetValueOrDefault(x), include, texts, log: false) ?? "{}",
-                StringComparer.Ordinal
-            );
-        }
-
-        _themeBuilds[key] = new ThemeBuild(version, inputs, stamp, variables);
-
-        return variables;
-    }
-
     /// <summary>What the themes' texts are merged by: the keys staff made the hotel's, and each plugin's place in the chain.</summary>
     private sealed record ThemeTexts(IReadOnlySet<string> Staff, Func<string, int> Depth);
 
@@ -850,43 +774,77 @@ internal sealed class GamedataFileService(
     /// <summary>The newest looks found by revision (<see cref="FindLook"/>): what a client was sent and is yet to read.</summary>
     private const int LOOKS_KEPT = 64;
 
-    private readonly ConcurrentDictionary<string, LookBuild> _looks = new(
-        StringComparer.OrdinalIgnoreCase
-    );
+    private readonly ConcurrentDictionary<ThemeKey, ThemeBuild> _themeBuilds = new();
     private readonly ConcurrentDictionary<string, ThemeLook> _lookRevisions = new(
         StringComparer.Ordinal
     );
     private readonly ConcurrentQueue<string> _lookOrder = new();
 
-    private sealed record LookBuild(int Version, object? Inputs, object? Stamp, ThemeLook Look);
+    // Null includes every Live theme; an empty named chain does not. They must not alias.
+    private readonly record struct ThemeKey(string? Value)
+    {
+        public bool Equals(ThemeKey other) =>
+            string.Equals(Value, other.Value, StringComparison.OrdinalIgnoreCase);
+
+        public override int GetHashCode() =>
+            Value is null ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(Value);
+    }
+
+    private sealed record ThemeBuild(int Version, object? Inputs, object? Stamp, ThemeView View)
+    {
+        private int _remembered;
+
+        public bool TryRemember() => Interlocked.CompareExchange(ref _remembered, 1, 0) == 0;
+    }
+
+    /// <summary>The session projection of the canonical theme build; null for the default file's theme.</summary>
+    public async Task<IReadOnlyDictionary<string, string>?> ThemeVariablesAsync(
+        string? theme,
+        CancellationToken ct
+    ) => (await MaterializeThemeAsync(theme, ct).ConfigureAwait(false)).View.SessionVariables;
+
+    /// <summary>The complete look from the canonical theme build, including the hotel's texts address.</summary>
+    public async Task<ThemeLook> ThemeLookAsync(string? theme, CancellationToken ct) =>
+        (await ThemeViewAsync(theme, ct).ConfigureAwait(false)).Look;
 
     /// <summary>
-    /// What a client drawing <paramref name="theme"/> (null: the hotel's look with no theme of its
-    /// own) reads of the hotel's look (<see cref="ThemeLook"/>): every merged variable of its chain,
-    /// <c>{}</c> for one it gives nothing of, and the hotel's
-    /// <see cref="ExternalVariablesFile.EXTERNAL_TEXTS_URL"/>. Built once per theme and kept until the
-    /// variables file would be built again; the newest <see cref="LOOKS_KEPT"/> are found by revision.
+    /// Materializes both projections together for these inputs. Session initialization takes the
+    /// variables and revision together; live reload and legacy readers share the same build.
     /// </summary>
-    public async Task<ThemeLook> ThemeLookAsync(string? theme, CancellationToken ct)
+    public async Task<ThemeView> ThemeViewAsync(string? theme, CancellationToken ct)
+    {
+        var built = await MaterializeThemeAsync(theme, ct).ConfigureAwait(false);
+        var look = built.View.Look;
+        // Variables-only readers never retained revisions before this shared build cache.
+        // Retain a build on its first view/look request, including after a variables-only cache hit.
+        if (built.TryRemember() && _lookRevisions.TryAdd(look.Revision, look))
+        {
+            _lookOrder.Enqueue(look.Revision);
+            while (_lookOrder.Count > LOOKS_KEPT && _lookOrder.TryDequeue(out var old))
+                _lookRevisions.TryRemove(old, out _);
+        }
+        return built.View;
+    }
+
+    private async Task<ThemeBuild> MaterializeThemeAsync(string? theme, CancellationToken ct)
     {
         const string file = GamedataFiles.EXTERNAL_VARIABLES;
-
         var inputs = await InputsAsync(file, ct).ConfigureAwait(false);
         var stamp = await StampAsync(file, ct).ConfigureAwait(false);
         var version = VersionOf(file);
+        var identity = new ThemeKey(theme);
         var key = theme ?? string.Empty;
 
         if (
-            _looks.TryGetValue(key, out var built)
+            _themeBuilds.TryGetValue(identity, out var built)
             && built.Version == version
             && Equals(built.Inputs, inputs)
             && Equals(built.Stamp, stamp)
         )
-            return built.Look;
+            return built;
 
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
-
         var themes = await ThemesAsync(dbCtx, ct).ConfigureAwait(false);
         var hotel = await HotelVariablesAsync(
                 dbCtx,
@@ -899,29 +857,29 @@ internal sealed class GamedataFileService(
             await StaffTextsAsync(dbCtx, ct).ConfigureAwait(false),
             DepthIn(theme, themes)
         );
-        var variables = new SortedDictionary<string, string>(StringComparer.Ordinal);
-
-        foreach (var merged in ExternalVariablesFile.MERGED)
-            variables[merged] =
-                MergedOf(merged, hotel.GetValueOrDefault(merged), include, texts, log: false)
-                ?? "{}";
-
+        var merged = ExternalVariablesFile.MERGED.ToDictionary(
+            x => x,
+            x => MergedOf(x, hotel.GetValueOrDefault(x), include, texts, log: false) ?? "{}",
+            StringComparer.Ordinal
+        );
+        var variables = new SortedDictionary<string, string>(merged, StringComparer.Ordinal);
         if (hotel.TryGetValue(ExternalVariablesFile.EXTERNAL_TEXTS_URL, out var textsUrl))
             variables[ExternalVariablesFile.EXTERNAL_TEXTS_URL] = textsUrl;
 
         var look = new ThemeLook(key, RevisionOf(key, variables), variables);
-
-        _looks[key] = new LookBuild(version, inputs, stamp, look);
-
-        if (_lookRevisions.TryAdd(look.Revision, look))
-        {
-            _lookOrder.Enqueue(look.Revision);
-
-            while (_lookOrder.Count > LOOKS_KEPT && _lookOrder.TryDequeue(out var old))
-                _lookRevisions.TryRemove(old, out _);
-        }
-
-        return look;
+        var view = new ThemeView(
+            look,
+            string.Equals(
+                theme,
+                ThemeChains.DefaultOf(themes.Values),
+                StringComparison.OrdinalIgnoreCase
+            )
+                ? null
+                : merged
+        );
+        var materialized = new ThemeBuild(version, inputs, stamp, view);
+        _themeBuilds[identity] = materialized;
+        return materialized;
     }
 
     /// <summary>A look built lately (<see cref="ThemeLookAsync"/>), by its revision; null for one not kept.</summary>

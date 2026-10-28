@@ -35,15 +35,21 @@ public sealed class SqliteDb : IDbContextFactory<TurboDbContext>, IDisposable
     }
 
     public SqliteDb()
+        : this([]) { }
+
+    public SqliteDb(params IInterceptor[] interceptors)
     {
         _conn = new SqliteConnection("DataSource=:memory:");
         _conn.Open();
         _options = OptionsFor(
             _conn,
-            new StampTimestamps(),
-            new NoRowLocks(),
-            _beforeTransaction,
-            _failedSaves
+            [
+                new StampTimestamps(),
+                new NoRowLocks(),
+                _beforeTransaction,
+                _failedSaves,
+                .. interceptors,
+            ]
         );
         lock (SCHEMA)
             SCHEMA.Value.BackupDatabase(_conn);

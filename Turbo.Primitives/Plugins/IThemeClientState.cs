@@ -6,7 +6,7 @@ namespace Turbo.Primitives.Plugins;
 /// <summary>
 /// Shared singleton tracking for session initialization and live reload on this host. Audience
 /// providers must record the accepted preview (null when rejected) and the revision returned by
-/// IThemeFileService.ThemeLookAsync for every initialized player session. Do not keep a private copy.
+/// the same IThemeFileService.ThemeViewAsync result for every initialized player session. Do not keep a private copy.
 /// </summary>
 public interface IThemeClientState
 {

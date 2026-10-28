@@ -50,6 +50,9 @@
   Resolution takes preview requests explicitly and does not own displayed revisions.
   Session initialization and live reload share the singleton `IThemeClientState`; replacement
   audience providers record accepted previews and supplied revisions there too.
+- `IThemeFileService.ThemeViewAsync` returns the session variables and revisioned look from one
+  materialization. The built-in provider owns one cache for both projections; session initialization
+  records the revision of that same result. Variables-only reads do not consume revision-history slots.
 - Username-to-id lookup behavior is case-insensitive.
 - Directory cache updates must keep forward and reverse mappings consistent across set/invalidate paths.
 - Avoid adding handler-level fallbacks that bypass directory-grain lookup responsibilities.
