@@ -114,6 +114,7 @@ Out of the box, only the game listens. The web hosts are off until you turn them
 | Admin API, for the [admin panel](admin-panel.md) | `127.0.0.1:8090` | `Turbo:Admin` (`Enabled: false`) |
 | Public site API and plugin web routes | `127.0.0.1:8092` | `Turbo:Web` (`Enabled: false`) |
 | Gamedata: the client's files, plugin modules | `127.0.0.1:8094` | `Turbo:Gamedata` (`Enabled: false`) |
+| Orleans silo and gateway (the server's own) | `127.0.0.1:11111`, `127.0.0.1:30001` | `Turbo:Orleans` |
 
 [Configuration](configuration.md) explains how to change any of them.
 
