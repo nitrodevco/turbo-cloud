@@ -67,6 +67,10 @@ Default output format:
   extra-data sections and custom IDs, and use the definition history rather than direct writes.
 - Furniture import applies known vending defaults only while creating floor definitions assigned
   the vending logic. Preserve existing server fields and keep historical migration seed data frozen.
+- Vending repairs require an explicit versioned preview selection. Revalidate after beginning the
+  selected-row transaction, preserve custom JSON and saved access unless explicitly accepted,
+  and commit the entire selected batch with its history. Import defaults never rewrite existing
+  definitions implicitly.
 - Asset discovery captures client releases per run. Preview, sync and background discovery share
   the catalog's coordination and publish only completed, uncancelled results. Shutdown drains
   queued callers as well as active reads before disposing the catalog's resources.

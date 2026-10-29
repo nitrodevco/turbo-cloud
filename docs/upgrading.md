@@ -1,6 +1,7 @@
 # Upgrading a Plugin
 
 - [Introduction](#introduction)
+- [Furniture-service replacements (2026-10-29)](#furniture-service-replacements-2026-10-29)
 - [Theme-file providers (2026-10-28)](#theme-file-providers-2026-10-28)
 - [Theme audience providers (2026-10-28)](#theme-audience-providers-2026-10-28)
 - [To source-only plugins (2026-10-27)](#to-source-only-plugins-2026-10-27)
@@ -23,6 +24,15 @@ What a plugin author does when Turbo changes what plugins are. Each change, with
 whether it breaks a plugin, is in `docs/plugin-changelog.md` (one file per change in
 `docs/changelog/`); this page is the work, in order. A pull request with a breaking change adds its
 changelog entry and its steps here together.
+
+## Furniture-service replacements (2026-10-29)
+
+Custom replacements of `IGamedataFurnitureService` must implement `PreviewVendingRepairAsync`
+and `RepairVendingAsync`. The preview returns versioned, paged suggestions; apply accepts explicit
+selections, preserves saved access unless requested otherwise, and rejects stale selections with
+`VendingRepairConflictException`. Apply the selected batch and its history in one transaction.
+The built-in implementation supports these methods; ordinary furniture logic plugins need no
+change. See [Gamedata](gamedata.md) for the API and repair behavior.
 
 ## Theme-file providers (2026-10-28)
 

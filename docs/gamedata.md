@@ -70,6 +70,23 @@ custom IDs that the current catalogue does not list. Invalid JSON or section dat
 in the raw field before the picker can edit it. The catalogue describes available hand items;
 staff still confirm which items a particular machine gives.
 
+**Repair vending** previews missing known item lists on existing floor definitions. Nothing is
+selected automatically. Review the proposed items, animation and logic, then apply the selected
+rows. Saved access policies stay as they are unless **Use default access** is explicitly checked
+for a row; saved animation, extension fields and unrelated JSON sections are retained. Configured
+custom item lists, wall furniture, unknown machines and custom logics are not overwritten.
+Malformed sections and conflicting duplicate fields require manual correction in Behaviour.
+
+The preview is versioned against the saved definition and known defaults. If any selected row
+changed, was removed or is no longer eligible, the entire batch is rejected; refresh and review
+it again. Repairs and their history commit together, and roll back through the existing history.
+Loaded rooms pick up definition changes when they reload. There is no automatic startup repair.
+
+`GET /api/gamedata/furniture/vending-repair?page=0` lists the preview in pages of at most 100.
+`POST` to the same path accepts at most 100 distinct `{id, version, useDefaultUsagePolicy}`
+selections under `items`. The preview requires `admin.gamedata.view`; apply also requires
+`gamedata.manage`. Stale selections return 409 and invalid selections return 400.
+
 `GET /api/gamedata/hand-items` returns the local catalogue and its revision;
 `GET /api/gamedata/hand-items/{id}/preview` returns its PNG, or 404 when unavailable. Both require
 `admin.gamedata.view`. Saving configuration uses `PUT /api/gamedata/furniture/{id}` and additionally

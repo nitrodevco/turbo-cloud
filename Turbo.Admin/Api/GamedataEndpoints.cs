@@ -152,6 +152,14 @@ internal sealed class GamedataEndpoints(
         group.MapGet("/furniture/habbo-values", HabboValuesPreviewAsync);
         group.MapPost("/furniture/habbo-values", TakeHabboValuesAsync);
         group.MapPost("/furniture/logic", SetLogicAsync);
+        group.MapGet(
+            "/furniture/vending-repair",
+            async (int? page, CancellationToken ct) =>
+                Results.Ok(
+                    await furniture.PreviewVendingRepairAsync(page ?? 0, ct).ConfigureAwait(false)
+                )
+        );
+        group.MapPost("/furniture/vending-repair", RepairVendingAsync);
         group.MapPost("/files/{file}/build", RebuildAsync);
         group.MapPut("/files/{file}/key", SetFileKeyAsync);
         group.MapGet("/texts/import", TextPreviewAsync);
@@ -521,6 +529,29 @@ internal sealed class GamedataEndpoints(
                 .ConfigureAwait(false);
 
             return Results.Ok(new { changeSet });
+        }
+        catch (ArgumentException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
+
+    private async Task<IResult> RepairVendingAsync(
+        VendingRepairRequest request,
+        HttpContext http,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            var changeSet = await furniture
+                .RepairVendingAsync(request.Items ?? [], AdminIdentity.Of(http).PlayerId, ct)
+                .ConfigureAwait(false);
+            return Results.Ok(new { changeSet });
+        }
+        catch (VendingRepairConflictException ex)
+        {
+            return AdminResults.Error(StatusCodes.Status409Conflict, ex.Message);
         }
         catch (ArgumentException ex)
         {
