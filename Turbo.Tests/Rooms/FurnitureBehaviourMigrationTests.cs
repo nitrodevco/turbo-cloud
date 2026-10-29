@@ -1,6 +1,7 @@
 using System.Reflection;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Turbo.Database.Furniture.Defaults;
 using Turbo.Database.Migrations;
 using Turbo.Furniture;
 using Turbo.Primitives.Furniture.ExtraData;
@@ -33,7 +34,7 @@ public sealed class FurnitureBehaviourMigrationTests
     )[] Crackables() => Field<(string, int, int, bool, string)[]>("CRACKABLES");
 
     private static (string Name, int Usage, string Vending)[] Vending() =>
-        Field<(string, int, string)[]>("VENDING");
+        FurnitureVendingDefaults20261008.Entries.ToArray();
 
     private static (string Name, string Logic)[] Logics() => Field<(string, string)[]>("LOGICS");
 
