@@ -22,6 +22,24 @@ namespace Turbo.Primitives.Gamedata;
 /// </summary>
 public interface IGamedataFurnitureService
 {
+    /// <summary>Previews missing known vending defaults, preserving saved usage and custom data.</summary>
+    public Task<VendingRepairPreviewSnapshot> PreviewVendingRepairAsync(
+        int page,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Applies at most 100 explicitly selected current previews as one edit/history transaction.
+    /// Throws <see cref="VendingRepairConflictException"/> if any selected definition changed;
+    /// throws <see cref="System.ArgumentException"/> for an invalid selection. Nothing is written
+    /// when any selected preview is stale. Usage changes require explicit per-item acceptance.
+    /// </summary>
+    public Task<GamedataChangeSetSnapshot?> RepairVendingAsync(
+        IReadOnlyCollection<VendingRepairSelectionSnapshot> items,
+        PlayerId player,
+        CancellationToken ct
+    );
+
     /// <summary>What importing the release would do; the newest release when none is named. Null when there is no such release.</summary>
     public Task<FurnitureImportPreview?> PreviewImportAsync(int? releaseId, CancellationToken ct);
 

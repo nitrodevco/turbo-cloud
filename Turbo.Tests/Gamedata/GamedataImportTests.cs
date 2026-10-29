@@ -40,7 +40,7 @@ namespace Turbo.Tests.Gamedata;
 /// changes reach the fields the hotel left alone and not the ones it changed, and an import rolls
 /// back as a whole - except what has changed again since.
 /// </summary>
-public sealed class GamedataImportTests : IDisposable
+public sealed partial class GamedataImportTests : IDisposable
 {
     private static readonly PlayerId STAFF = new(7);
 

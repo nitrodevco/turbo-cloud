@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Data;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -17,6 +18,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Gamedata;
 using Turbo.Database.Extensions;
+using Turbo.Database.Furniture;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Habbo;
 using Turbo.Primitives.Furniture.Enums;
@@ -796,6 +798,141 @@ internal sealed class GamedataFurnitureService(
 
         await AfterWriteAsync(ct).ConfigureAwait(false);
 
+        return changeSet.ToSnapshot(changes.Count);
+    }
+
+    public async Task<VendingRepairPreviewSnapshot> PreviewVendingRepairAsync(
+        int page,
+        CancellationToken ct
+    )
+    {
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+        var names = FurnitureBehaviours.VendingByName.Keys.ToArray();
+        var candidates = await dbCtx
+            .FurnitureDefinitions.AsNoTracking()
+            .Where(x =>
+                x.ProductType == ProductType.Floor
+                && (
+                    x.Logic == "vending_machine"
+                    || x.Logic == "default_floor"
+                    || x.Logic == "none"
+                    || x.Logic == ""
+                )
+                && (names.Contains(x.Name) || x.Name.Contains("*"))
+            )
+            .OrderBy(x => x.Name)
+            .ThenBy(x => x.Id)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        var registered = logics.LogicTypes.ToHashSet(StringComparer.Ordinal);
+        var items = candidates
+            .Select(x => FurnitureVendingRepairPlanner.Plan(x, registered))
+            .OfType<VendingRepairItemSnapshot>()
+            .ToList();
+        var pageSize = Math.Clamp(_config.FurniturePageSize, 1, 100);
+        page = Math.Clamp(page, 0, Math.Max(0, (items.Count - 1) / pageSize));
+        return new VendingRepairPreviewSnapshot
+        {
+            Items = [.. items.Skip(page * pageSize).Take(pageSize)],
+            Total = items.Count,
+            Page = page,
+            PageSize = pageSize,
+        };
+    }
+
+    public Task<GamedataChangeSetSnapshot?> RepairVendingAsync(
+        IReadOnlyCollection<VendingRepairSelectionSnapshot> items,
+        PlayerId player,
+        CancellationToken ct
+    ) => writes.RunAsync(() => RepairVendingLockedAsync(items, player, ct), ct);
+
+    private async Task<GamedataChangeSetSnapshot?> RepairVendingLockedAsync(
+        IReadOnlyCollection<VendingRepairSelectionSnapshot> items,
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        if (
+            items.Count is < 1 or > 100
+            || items.Any(x => x is null || x.Id <= 0 || string.IsNullOrWhiteSpace(x.Version))
+            || items.Select(x => x.Id).Distinct().Count() != items.Count
+        )
+            throw new ArgumentException(
+                "Select between 1 and 100 distinct definitions from a current preview.",
+                nameof(items)
+            );
+
+        var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        await using var dbCtxScope = dbCtx.ConfigureAwait(false);
+        // InnoDB serializable reads retain locks until commit, so another process cannot edit
+        // a selected row between its version check and this transaction's update/history write.
+        var tx = await dbCtx
+            .Database.BeginTransactionAsync(IsolationLevel.Serializable, ct)
+            .ConfigureAwait(false);
+        await using var txScope = tx.ConfigureAwait(false);
+        var ids = items.Select(x => x.Id).Order().ToArray();
+        var selected = await dbCtx
+            .FurnitureDefinitions.Where(x => ids.Contains(x.Id))
+            .OrderBy(x => x.Id)
+            .ToDictionaryAsync(x => x.Id, ct)
+            .ConfigureAwait(false);
+        var registered = logics.LogicTypes.ToHashSet(StringComparer.Ordinal);
+        var plans = new List<(FurnitureDefinitionEntity Definition, JsonObject After)>();
+        foreach (var item in items.OrderBy(x => x.Id))
+        {
+            var plan = selected.TryGetValue(item.Id, out var definition)
+                ? FurnitureVendingRepairPlanner.Plan(definition, registered)
+                : null;
+            if (
+                plan?.After is null
+                || !string.Equals(plan.Version, item.Version, StringComparison.Ordinal)
+            )
+                throw new VendingRepairConflictException(
+                    "A selected definition changed or is no longer repairable. Refresh the preview; nothing was changed."
+                );
+            var after = JsonNode.Parse(plan.After)!.AsObject();
+            if (item.UseDefaultUsagePolicy)
+                after["usagepolicy"] = plan.DefaultUsagePolicy;
+            plans.Add((definition!, after));
+        }
+
+        var changes = new List<GamedataChangeEntity>();
+        foreach (var (definition, after) in plans)
+        {
+            var keys = FurnitureVendingRepairPlanner
+                .FIELDS.Where(key =>
+                    !FurnitureField.Same(FurnitureFields.ByKey[key].Read(definition), after[key])
+                )
+                .ToArray();
+            var before = FurnitureRecords.Fields(definition, keys);
+            foreach (var key in keys)
+                FurnitureFields.ByKey[key].Write(definition, after[key]);
+            changes.Add(
+                GamedataChangeSets.Change(
+                    GamedataRecordType.FurnitureDefinition,
+                    definition.Name,
+                    before.ToJsonString(),
+                    FurnitureRecords.Fields(definition, keys).ToJsonString(),
+                    definition.Id
+                )
+            );
+        }
+        var changeSet = GamedataChangeSets.Create(
+            GamedataChangeKind.Edit,
+            $"Repaired vending configuration for {plans.Count} furniture",
+            player,
+            changes
+        );
+        dbCtx.GamedataChangeSets.Add(changeSet);
+        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+        await tx.CommitAsync(ct).ConfigureAwait(false);
+        logger.LogInformation(
+            "Player {PlayerId} repaired {Count} vending definitions",
+            player.Value,
+            plans.Count
+        );
+        await AfterWriteAsync(ct).ConfigureAwait(false);
         return changeSet.ToSnapshot(changes.Count);
     }
 
