@@ -27,12 +27,11 @@ namespace Turbo.Rooms.Grains;
 
 /// <summary>
 /// Trades between two players in one room. Offers are edited while open; once both accept,
-/// both confirm again and the items change hands through the inventories, all of one side or
-/// none. A party leaving the room ends the trade.
+/// both confirm again and both offers change hands in one custody transaction through the
+/// initiating inventory. A party leaving the room ends the conversation.
 ///
-/// Nothing here is persisted: a trade is a conversation, and the items only move in the
-/// inventories' own write-through commit. Deactivation therefore closes whatever is still open
-/// instead of flushing anything.
+/// Open conversations are not persisted. A submitted exchange has a durable receipt and
+/// inventory-repair obligations; deactivation closes the conversation without reversing it.
 ///
 /// This grain calls the room grain (who is the partner, show the trading status) and awaits
 /// it. The room grain must never await this grain back; it fires
@@ -408,6 +407,10 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
 
         if (!accept)
         {
+            // Once submitted, an outcome may be unknown. A decline must not replace the
+            // frozen intent; another confirmation retries its original operation identity.
+            if (session.CommitCause is not null)
+                return false;
             session.State = TradeStateType.Open;
 
             await ResetAcceptsAsync(session, ct);
@@ -427,66 +430,81 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
 
     /// <summary>
     /// Both halves of the trade, as one operation confirmed by <paramref name="confirmedBy"/> and
-    /// caused by this room: the initiator's items, then the partner's, then (when the second half
-    /// fails) the first half given back, so a half trade shows in the movements as such.
+    /// caused by this room. Both offers, their receipt and movements commit together. A lost
+    /// response retains the frozen request for retry; delivery never reverses a committed exchange.
     /// </summary>
     private async Task CommitAsync(TradeSession session, PlayerId confirmedBy, CancellationToken ct)
     {
-        session.State = TradeStateType.Completed;
-
-        var initiatorItems = session.InitiatorSide.Items.Keys.ToImmutableArray();
-        var partnerItems = session.PartnerSide.Items.Keys.ToImmutableArray();
-        var cause = MovementCause.New(MovementCauses.TRADE, confirmedBy.Value, RoomId.Value);
-
-        var toPartner = await _grainFactory
+        session.CommitRequest ??= new FurnitureTradeRequest
+        {
+            InitiatorId = session.InitiatorId,
+            PartnerId = session.PartnerId,
+            InitiatorItems = [.. session.InitiatorSide.Items.Values],
+            PartnerItems = [.. session.PartnerSide.Items.Values],
+        };
+        session.CommitCause ??= MovementCause.New(
+            MovementCauses.TRADE,
+            confirmedBy.Value,
+            RoomId.Value
+        );
+        var committed = await _grainFactory
             .GetInventoryGrain(session.InitiatorId)
-            .TransferFurnitureAsync(initiatorItems, session.PartnerId, cause, ct);
+            .CommitFurnitureTradeAsync(session.CommitRequest, session.CommitCause, ct);
 
-        if (!toPartner)
+        if (!committed)
         {
             await EndAsync(session, session.InitiatorId, TradeCloseReasonType.CommitError, ct);
 
             return;
         }
 
-        var toInitiator = await _grainFactory
-            .GetInventoryGrain(session.PartnerId)
-            .TransferFurnitureAsync(
-                partnerItems,
-                session.InitiatorId,
-                cause.StartingAt(initiatorItems.Length),
-                ct
-            );
-
-        if (!toInitiator)
+        session.State = TradeStateType.Completed;
+        await Task.WhenAll(
+            ReconcileCommittedAsync(session.InitiatorId, ct),
+            ReconcileCommittedAsync(session.PartnerId, ct)
+        );
+        // Remove the conversation even if clearing the room's trading badge or telling a
+        // disconnected player fails. The durable receipt remains the completion authority.
+        try
         {
-            // The first half already moved; hand it back rather than leave a one-sided trade.
-            var returned = await _grainFactory
-                .GetInventoryGrain(session.PartnerId)
-                .TransferFurnitureAsync(
-                    initiatorItems,
-                    session.InitiatorId,
-                    (cause with { CauseRef = MovementCauses.TRADE_REF_COMPENSATION }).StartingAt(
-                        initiatorItems.Length + partnerItems.Length
-                    ),
-                    ct
-                );
-
-            if (!returned)
-                _logger.LogError(
-                    "Trade in room {RoomId} between {InitiatorId} and {PartnerId} failed half way and the first half could not be returned",
-                    RoomId,
-                    session.InitiatorId,
-                    session.PartnerId
-                );
-
-            await EndAsync(session, session.PartnerId, TradeCloseReasonType.CommitError, ct);
-
-            return;
+            await ForgetAsync(session, ct);
         }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Failed to clear completed trade status in room {RoomId}",
+                RoomId
+            );
+        }
+        try
+        {
+            await SendToBothAsync(session, new TradingCompletedEventMessageComposer(), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Failed to notify players of committed trade {OperationId}",
+                session.CommitCause.OperationId
+            );
+        }
+    }
 
-        await SendToBothAsync(session, new TradingCompletedEventMessageComposer(), ct);
-        await ForgetAsync(session, ct);
+    private async Task ReconcileCommittedAsync(PlayerId player, CancellationToken ct)
+    {
+        try
+        {
+            await _grainFactory.GetInventoryGrain(player).ReconcileFurnitureTradesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Failed to reconcile committed trade inventory for player {PlayerId}; durable recovery will retry",
+                player
+            );
+        }
     }
 
     private async Task EndAsync(

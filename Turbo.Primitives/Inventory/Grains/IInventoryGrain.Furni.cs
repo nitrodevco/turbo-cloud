@@ -158,10 +158,9 @@ public partial interface IInventoryGrain
     );
 
     /// <summary>
-    /// Items whose rows were just re-owned to this player by another inventory. An interleaved,
-    /// memory-only tell: one inventory awaits another here, and two trades moving items in
-    /// opposite directions at once would otherwise leave both waiting on each other. A section
-    /// that is not loaded only tells the client; the rows are read when it loads.
+    /// A memory-only interleaved invalidation after rows were re-owned to this player. Historic
+    /// snapshots supply unseen-item hints, never cached ownership: the next normal read
+    /// reloads current custody. Interleaving avoids reciprocal inventory-call deadlocks.
     /// </summary>
     [AlwaysInterleave]
     public Task ReceiveFurnitureAsync(

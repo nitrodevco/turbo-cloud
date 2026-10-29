@@ -381,6 +381,7 @@ namespace Turbo.Database.Migrations
 
                     b.Property<string>("Messages")
                         .IsRequired()
+                        .HasMaxLength(512)
                         .HasColumnType("longtext")
                         .HasColumnName("messages");
 
@@ -391,6 +392,7 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("participant");
 
                     b.Property<string>("Pending")
+                        .HasMaxLength(512)
                         .HasColumnType("longtext")
                         .HasColumnName("pending");
 
@@ -438,6 +440,7 @@ namespace Turbo.Database.Migrations
                         .HasColumnName("conversation_id");
 
                     b.Property<decimal>("Cost")
+                        .HasPrecision(18, 6)
                         .HasColumnType("decimal(18,6)")
                         .HasColumnName("cost");
 
@@ -2493,6 +2496,66 @@ namespace Turbo.Database.Migrations
                     b.HasKey("PlayerId", "Reference");
 
                     b.ToTable("furniture_grant_receipts");
+                });
+
+            modelBuilder.Entity("Turbo.Database.Entities.Furniture.FurnitureTradeReceiptEntity", b =>
+                {
+                    b.Property<string>("OperationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("operation_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("InitiatorId")
+                        .HasColumnType("int")
+                        .HasColumnName("initiator_id");
+
+                    b.Property<string>("InitiatorItemIds")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("longtext")
+                        .HasColumnName("initiator_item_ids");
+
+                    b.Property<bool>("InitiatorReconciled")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("initiator_reconciled");
+
+                    b.Property<int>("PartnerId")
+                        .HasColumnType("int")
+                        .HasColumnName("partner_id");
+
+                    b.Property<string>("PartnerItemIds")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("longtext")
+                        .HasColumnName("partner_item_ids");
+
+                    b.Property<bool>("PartnerReconciled")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("partner_reconciled");
+
+                    b.Property<DateTime>("ReconcileAttemptedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("reconcile_attempted_at");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("request_hash");
+
+                    b.HasKey("OperationId");
+
+                    b.HasIndex("InitiatorId", "InitiatorReconciled");
+
+                    b.HasIndex("PartnerId", "PartnerReconciled");
+
+                    b.HasIndex("InitiatorReconciled", "PartnerReconciled", "ReconcileAttemptedAt");
+
+                    b.ToTable("furniture_trade_receipts");
                 });
 
             modelBuilder.Entity("Turbo.Database.Entities.Gamedata.GamedataBuildEntity", b =>

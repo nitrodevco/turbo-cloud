@@ -28,6 +28,7 @@ public sealed class InventoryModule : IHostPluginModule
 
         services.AddSingleton<IInventoryFurnitureLoader, InventoryFurnitureLoader>();
         services.AddSingleton<IInventoryService, InventoryService>();
+        services.AddHostedService<FurnitureTradeRecovery>();
         services.AddSingleton<IGivableEffects, GivableEffects>();
     }
 }

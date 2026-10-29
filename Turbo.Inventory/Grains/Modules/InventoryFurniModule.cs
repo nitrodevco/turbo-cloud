@@ -34,7 +34,7 @@ namespace Turbo.Inventory.Grains.Modules;
 /// and the presence is told once per change, not once per item. The furniture custody writes
 /// every row, under the cause the caller gives, a post-it pad's sheet count included.
 /// </summary>
-internal sealed class InventoryFurniModule(
+internal sealed partial class InventoryFurniModule(
     InventoryGrain inventoryGrain,
     InventoryLiveState liveState,
     IFurnitureCustody custody,
@@ -53,9 +53,15 @@ internal sealed class InventoryFurniModule(
 
     public async Task EnsureReadyAsync(CancellationToken ct)
     {
+        await ReconcileTradesAsync(ct);
         if (_state.IsFurnitureReady)
             return;
 
+        await LoadFurnitureAsync(ct);
+    }
+
+    private async Task LoadFurnitureAsync(CancellationToken ct)
+    {
         var receivesBefore = _state.FurnitureReceiveCount;
         var items = await _furnitureLoader.LoadByPlayerIdAsync(
             PlayerId,
@@ -605,23 +611,29 @@ internal sealed class InventoryFurniModule(
     /// the rentals tab. Told, never awaited: this runs where nothing may be awaited (a trade
     /// receipt is interleaved).
     /// </summary>
-    private void MarkUnseen(IEnumerable<FurnitureItemSnapshot> snapshots)
-    {
-        foreach (
-            var byCategory in snapshots.GroupBy(snapshot =>
-                snapshot.SecondsToExpiration > 0 || snapshot.HasRentPeriodStarted
-                    ? UnseenItemCategory.RentedFurni
-                    : UnseenItemCategory.OwnedFurni
-            )
-        )
-            UnseenItems
-                .AddAsync(
-                    byCategory.Key,
-                    [.. byCategory.Select(snapshot => snapshot.ItemId.Value)],
-                    CancellationToken.None
+    private void MarkUnseen(IEnumerable<FurnitureItemSnapshot> snapshots) =>
+        MarkUnseenAsync(snapshots, CancellationToken.None)
+            .LogAndForget(_logger, "mark new furni for player {PlayerId}", PlayerId);
+
+    private Task MarkUnseenAsync(
+        IEnumerable<FurnitureItemSnapshot> snapshots,
+        CancellationToken ct
+    ) =>
+        Task.WhenAll(
+            snapshots
+                .GroupBy(snapshot =>
+                    snapshot.SecondsToExpiration > 0 || snapshot.HasRentPeriodStarted
+                        ? UnseenItemCategory.RentedFurni
+                        : UnseenItemCategory.OwnedFurni
                 )
-                .LogAndForget(_logger, "mark new furni for player {PlayerId}", PlayerId);
-    }
+                .Select(byCategory =>
+                    UnseenItems.AddAsync(
+                        byCategory.Key,
+                        [.. byCategory.Select(snapshot => snapshot.ItemId.Value)],
+                        ct
+                    )
+                )
+        );
 
     /// <summary>One item of a definition (a saddle taken off a horse, a harvested seed).</summary>
     public async Task<FurnitureItemSnapshot?> GrantAsync(
@@ -796,10 +808,8 @@ internal sealed class InventoryFurniModule(
     }
 
     /// <summary>
-    /// Items whose rows were just re-owned to this player by another inventory. Runs
-    /// interleaved and awaits nothing (see <c>IInventoryGrain.ReceiveFurnitureAsync</c>): a
-    /// loaded section lists the items, an unloaded one leaves them to its load, and a client
-    /// holding the list is sent them either way.
+    /// A delayed receive may describe old ownership. Interleaved and memory-only: invalidate
+    /// the generation and client list, and leave current snapshots to a normal inventory turn.
     /// </summary>
     public void Receive(ImmutableArray<FurnitureItemSnapshot> snapshots)
     {
@@ -807,43 +817,17 @@ internal sealed class InventoryFurniModule(
             return;
 
         _state.FurnitureReceiveCount++;
-
+        _state.IsFurnitureReady = false;
+        // Persist the new-item hint even for an offline owner whose activation is collected
+        // before its next list read. Unseen-item reads prune ids no longer owned by this player.
         MarkUnseen(snapshots);
-
-        var added = snapshots;
-
-        if (_state.IsFurnitureReady && _state.OwnerName is { } ownerName)
-        {
-            added =
-            [
-                .. snapshots.Where(snapshot =>
-                    _state.FurnitureById.TryAdd(
-                        snapshot.ItemId,
-                        _furnitureLoader.CreateFromFurnitureItemSnapshot(
-                            snapshot,
-                            PlayerId,
-                            ownerName
-                        )
-                    )
-                ),
-            ];
-        }
-        else
-        {
-            // Not loaded (or loaded without a name, which a load never leaves): the next read
-            // loads the rows, these among them.
-            _state.IsFurnitureReady = false;
-        }
-
-        if (added.IsDefaultOrEmpty)
-            return;
-
-        SendAddedOrUpdatedAsync(added, CancellationToken.None)
+        // A receipt can arrive after this item changed hands again. Historical snapshots must
+        // never repopulate a cache or the client's list; its next read uses current custody.
+        InvalidateClientAsync(CancellationToken.None)
             .LogAndForget(
                 _logger,
-                "tell player {PlayerId} about {ItemCount} received items",
-                PlayerId,
-                added.Length
+                "invalidate the furniture list of player {PlayerId} after a receive",
+                PlayerId
             );
     }
 
