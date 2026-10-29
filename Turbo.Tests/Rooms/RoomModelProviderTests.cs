@@ -37,10 +37,7 @@ public sealed class RoomModelProviderTests : IDisposable
 
         provider.GetModelById(1).Width.Should().Be(4);
         provider.GetModelById(3).Height.Should().Be(2);
-        provider
-            .Invoking(x => x.GetModelById(2))
-            .Should()
-            .Throw<RoomModelNotFoundException>();
+        provider.Invoking(x => x.GetModelById(2)).Should().Throw<RoomModelNotFoundException>();
 
         _logger
             .AtLeast(LogLevel.Error)
