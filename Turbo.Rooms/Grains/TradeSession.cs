@@ -1,4 +1,6 @@
+using Turbo.Primitives.Movements;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Trading;
 using Turbo.Primitives.Trading.Enums;
 
 namespace Turbo.Rooms.Grains;
@@ -11,6 +13,10 @@ public sealed class TradeSession
     public TradeStateType State { get; set; } = TradeStateType.Open;
     public TradeSide InitiatorSide { get; } = new();
     public TradeSide PartnerSide { get; } = new();
+
+    /// <summary>Frozen on the first commit attempt, retained across ambiguous responses.</summary>
+    public FurnitureTradeRequest? CommitRequest { get; set; }
+    public MovementCause? CommitCause { get; set; }
 
     public bool Involves(PlayerId playerId) => playerId == InitiatorId || playerId == PartnerId;
 

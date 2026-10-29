@@ -700,11 +700,17 @@ Grains may hold cached or in-memory state that will not reflect direct DB change
   When a trading player leaves, the room fires `CloseForPlayerAsync` with `LogAndForget` and
   carries on. Awaiting it would deadlock, because ending a trade calls the room back to clear
   the status.
-- Trades are not persisted. Offers hold inventory snapshots and reserve nothing, so the commit
-  re-checks and moves each side through `IInventoryGrain.TransferFurnitureAsync` (one
-  owner-change statement per side, then the receiving inventory is told). A half-failed commit
-  is handed back and closed with `TradeCloseReasonType.CommitError`. Deactivation closes
-  whatever is still open.
+- Open trade conversations are not persisted and reserve nothing. On submission, freeze both
+  offers and one operation identity. The initiating inventory commits both offers through
+  `IFurnitureCustody.ExchangeTradeAsync`: exact accepted state is checked under row locks, and
+  both owner changes, movements and a request-bound receipt commit together. Resolve the receipt
+  before validating old ownership on retry; never compensate an ambiguous response.
+  Present opening locks the same wrapper and checks its current owner before releasing contents.
+- Each participant's durable reconciliation obligation is checked before cached furniture reads.
+  Reload current custody and acknowledge only captured receipts after a stable load and successful
+  unseen/client invalidation calls. A bounded hosted worker retries across restarts. Delayed
+  `ReceiveFurnitureAsync` invalidates readiness; it must not reinstall historical snapshots.
+  Deactivation closes the conversation, while committed receipts and pending repair survive it.
 - The flow mirrors the client's state machine: accept/unaccept while open, both accepted →
   `TradingConfirmation` (client countdown), both confirm → items move → `TradingCompleted`;
   a decline drops both acceptances. Any offer change also drops them.

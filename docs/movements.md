@@ -305,9 +305,31 @@ with none; custody only, no snapshot and no position).
 A trade is one operation (`trade`, actor: the player whose confirm completed it; cause ref: the
 room it was made in): the initiator's items to the partner from seq 0, then the partner's items to
 the initiator. Each side's list is its half's rows (`From` owner: who offered it), so a side that
-offered nothing has no rows and a one-sided trade reads as one. When the second half fails, the
-first is handed back under the same operation after both, with the cause ref `compensation`, so a
-half trade shows as such.
+offered nothing has no rows and a gift through trading reads as one direction. Both offers now
+commit together through the initiating inventory's `CommitFurnitureTradeAsync`, using
+`IFurnitureCustody.ExchangeTradeAsync`: accepted owner, location, definition and exact extra data
+are validated under row locks, and current definitions must still allow trading. A failed side
+rolls back the entire exchange, its receipt and movements; no compensation is needed.
+Opening a wrapped present takes the same wrapper-row lock and rechecks its current owner, so
+the former owner cannot take its contents while an exchange transfers the wrapper.
+
+The operation id is frozen with the submitted offers. `furniture_trade_receipts` binds it to the
+request and records the committed outcome independently of optional movement recording. A lost
+response can be retried with the same request and cause, even after the items changed hands;
+reusing an id for different offers is refused. An unknown response must not trigger a refund or
+a new operation id. Open offer conversations remain transient across room-grain deactivation.
+
+The receipt also holds a pending reconciliation flag for each inventory. Each inventory checks
+pending receipts before trusting cached furniture, reloads current custody, marks currently held
+incoming items unseen, invalidates the client list, and acknowledges only the captured receipts
+after a stable load. A late receive invalidates readiness instead of installing historical items.
+This can make the client fetch a fresh list after an exchange instead of applying item deltas.
+
+`FurnitureTradeRecovery` retries pending inventories in bounded batches, rotating failed receipts
+so one unavailable player does not starve later trades. `Inventory.TradeRecoveryIntervalSeconds`
+defaults to 5 and `Inventory.TradeRecoveryBatchSize` to 100. Receipts survive restart and are not
+pruned by movement-history retention. This adds an indexed pending-receipt read to furniture
+accesses; it does not make mixed catalog purchases or other economic workflows atomic.
 
 ## Gifts
 

@@ -40,7 +40,7 @@ public sealed class TradeMovementCauseTests
         _fakes.Handlers["HasAsync"] = _ => Task.FromResult(true);
         // Both own the trading pass badge.
         _fakes.Handlers["HasBadgeAsync"] = _ => Task.FromResult(true);
-        _fakes.Handlers[nameof(IInventoryGrain.TransferFurnitureAsync)] = _ =>
+        _fakes.Handlers[nameof(IInventoryGrain.CommitFurnitureTradeAsync)] = _ =>
             Task.FromResult(true);
     }
 
@@ -57,18 +57,19 @@ public sealed class TradeMovementCauseTests
         await trades.ConfirmAsync(initiator, true, Ct);
         await trades.ConfirmAsync(partner, true, Ct);
 
-        var halves = _fakes
-            .Log.Of(nameof(IInventoryGrain.TransferFurnitureAsync))
-            .Select(call => (MovementCause)call.Args[2]!)
+        var commits = _fakes
+            .Log.Of(nameof(IInventoryGrain.CommitFurnitureTradeAsync))
+            .Select(call => (MovementCause)call.Args[1]!)
             .ToList();
 
-        halves.Should().HaveCount(2, "the initiator's half, then the partner's");
-        halves
+        commits.Should().ContainSingle("both offers commit in one operation");
+        commits
             .Select(x => (x.Cause, x.CauseRef, x.ActorPlayerId))
             .Distinct()
             .Should()
             .Equal((MovementCauses.TRADE, ROOM.ToString(), PARTNER));
-        halves.Select(x => x.OperationId).Distinct().Should().ContainSingle();
+        commits.Select(x => x.OperationId).Distinct().Should().ContainSingle();
+        _fakes.Log.Of(nameof(IInventoryGrain.TransferFurnitureAsync)).Should().BeEmpty();
     }
 
     private IRoomTradeGrain NewTradeGrain()

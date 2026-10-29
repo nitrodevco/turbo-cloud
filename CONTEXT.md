@@ -52,6 +52,11 @@
   cold preview reads share one discovery gate; cached previews remain immediate.
 - `AssetJobs` owns the whole job lifetime as a hosted singleton. Shutdown closes admission,
   cancels work and awaits transfers and final metadata saves before stopping the catalog.
+- Furniture trades commit both accepted offers, movements and a request-bound receipt in one
+  custody transaction through the initiating inventory. Inventory grains reconcile current rows
+  from durable participant obligations before using cached furniture; the recovery worker retries
+  delivery independently. Open trade conversations remain transient, and unknown commit responses
+  retain their operation identity. Historical receives invalidate caches rather than replay ownership.
 - Theme audience rules resolve through `IThemeResolver`, required by `IThemeAudiences`.
   Resolution takes preview requests explicitly and does not own displayed revisions.
   Session initialization and live reload share the singleton `IThemeClientState`; replacement

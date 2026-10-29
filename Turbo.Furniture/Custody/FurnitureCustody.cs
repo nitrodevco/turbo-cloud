@@ -21,7 +21,7 @@ using Turbo.Primitives.Rooms.Snapshots.Furniture;
 namespace Turbo.Furniture.Custody;
 
 /// <inheritdoc cref="IFurnitureCustody"/>
-public sealed class FurnitureCustody(
+public sealed partial class FurnitureCustody(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IAssetMovementRecorder movements,
     ILogger<FurnitureCustody> logger
@@ -543,6 +543,24 @@ public sealed class FurnitureCustody(
         dbCtxFactory.InTransactionAsync(
             async dbCtx =>
             {
+                // Trades lock the offered wrapper, not its hidden content. Opening must take
+                // that same lock and recheck the current owner before releasing anything.
+                var parents = await dbCtx
+                    .Furnitures.FromSqlRaw(
+                        "SELECT * FROM furniture WHERE id = {0} FOR UPDATE",
+                        presentId.Value
+                    )
+                    .AsNoTracking()
+                    .ToListAsync(ct)
+                    .ConfigureAwait(false);
+                var parent = parents.SingleOrDefault();
+                if (
+                    parent is null
+                    || parent.PlayerEntityId != opener.Value
+                    || parent.ChestItemEntityId is not null
+                )
+                    return UnitOfWork.Rollback<CustodyFurni?>(null);
+
                 var row = await dbCtx
                     .Furnitures.Where(x => x.ChestItemEntityId == presentId.Value)
                     .OrderBy(x => x.Id)

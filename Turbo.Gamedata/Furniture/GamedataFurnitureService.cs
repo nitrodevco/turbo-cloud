@@ -1120,7 +1120,13 @@ internal sealed class GamedataFurnitureService(
                         // Only a definition being made gets a logic: an existing one keeps the
                         // logic staff gave it.
                         definition is null
-                            ? FurnitureRecords.LogicFor(type, className, registered)
+                            ? FurnitureDrafts.LogicOf(
+                                type,
+                                className,
+                                HabboFurnitureFiles.ClientLogicOf(habbo, files),
+                                habbo["category"]?.GetValue<string>(),
+                                registered
+                            )
                             : null
                     )
                 );
