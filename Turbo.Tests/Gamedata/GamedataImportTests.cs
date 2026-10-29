@@ -500,6 +500,53 @@ public sealed class GamedataImportTests : IDisposable
             );
     }
 
+    // Installed from nothing 2026-10-29: MapFurnitureBehaviours had run on an empty table, so
+    // the fridges the import then made handed nothing out, and the crackables held nothing.
+    // The import gives a new definition its class's behaviour itself.
+    [Fact]
+    public async Task a_new_item_gets_the_behaviour_sulakes_data_gives_its_class()
+    {
+        var release = Release(
+            1,
+            Categorised(Item(Chair(xdim: 1), 40, "fridge"), "vending_machine"),
+            Item(Chair(xdim: 1), 41, "rare_icecream*3"),
+            Item(Chair(xdim: 1), 42, "bc_gift_14days"),
+            Item(Chair(xdim: 1), 43, "hole"),
+            Chair(xdim: 1)
+        );
+
+        var preview = await _furniture.PreviewImportAsync(release, Ct);
+
+        preview!
+            .Items.ToDictionary(x => x.ClassName, x => x.Logic)
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string?>
+                {
+                    ["fridge"] = "vending_machine",
+                    ["rare_icecream*3"] = "vending_machine",
+                    ["bc_gift_14days"] = "crackable",
+                    ["hole"] = "floor_hole",
+                    ["chair_norja"] = "default_floor",
+                }
+            );
+
+        await _furniture.ImportAsync(release, STAFF, Ct);
+
+        var made = (await DefinitionsAsync()).ToDictionary(x => x.Name);
+
+        made["fridge"].Logic.Should().Be("vending_machine");
+        made["fridge"].UsagePolicy.Should().Be(FurnitureUsageType.Everybody);
+        made["fridge"].ExtraData.Should().Contain("\"vending\"").And.Contain("[3,4,5,6]");
+        made["rare_icecream*3"].ExtraData.Should().Contain("[4]");
+        made["bc_gift_14days"].Logic.Should().Be("crackable");
+        made["bc_gift_14days"].TotalStates.Should().Be(3);
+        made["bc_gift_14days"].ExtraData.Should().Contain("\"rewardSet\":\"bcgift_1\"");
+        made["hole"].Logic.Should().Be("floor_hole");
+        made["chair_norja"].Logic.Should().Be("default_floor");
+        made["chair_norja"].ExtraData.Should().BeNull();
+    }
+
     [Theory]
     [InlineData("fridge", new[] { 3, 4, 5, 6 }, true, FurnitureUsageType.Everybody)]
     [InlineData("rare_icecream*2", new[] { 4 }, true, FurnitureUsageType.Everybody)]
@@ -577,16 +624,16 @@ public sealed class GamedataImportTests : IDisposable
         _fakes.Handlers["get_" + nameof(IRoomObjectLogicProvider.LogicTypes)] = _ =>
             (IReadOnlyList<string>)
                 ["default_floor", "default_wall", "vending_machine", "bling_fridge"];
-        await _furniture.ImportAsync(
-            Release(
-                1,
-                Categorised(Item(Chair(1), 40, "unknown_dispenser"), "vending_machine"),
-                Categorised(Item(Chair(1), 41, "bling_fridge"), "vending_machine"),
-                Categorised(Item(Poster(), 4002, "fridge"), "vending_machine")
-            ),
-            STAFF,
-            Ct
+        var release = Release(
+            1,
+            Categorised(Item(Chair(1), 40, "unknown_dispenser"), "vending_machine"),
+            Categorised(Item(Chair(1), 41, "bling_fridge"), "vending_machine"),
+            Categorised(Item(Poster(), 4002, "fridge"), "vending_machine")
         );
+        var preview = await _furniture.PreviewImportAsync(release, Ct);
+        preview!.Items.Single(x => x.ClassName == "bling_fridge").Logic.Should().Be("bling_fridge");
+        preview.Items.Single(x => x.ClassName == "fridge").Logic.Should().Be("default_wall");
+        await _furniture.ImportAsync(release, STAFF, Ct);
         var definitions = await DefinitionsAsync();
         definitions.Should().HaveCount(3);
         definitions

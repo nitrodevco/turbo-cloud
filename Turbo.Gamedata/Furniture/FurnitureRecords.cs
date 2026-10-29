@@ -1,13 +1,8 @@
 using System;
-using System.Collections.Frozen;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json.Nodes;
 using Turbo.Database.Entities.Furniture;
-using Turbo.Database.Furniture.Defaults;
-using Turbo.Gamedata.Habbo;
 using Turbo.Primitives.Furniture.Enums;
-using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Gamedata.Furniture;
@@ -18,13 +13,6 @@ namespace Turbo.Gamedata.Furniture;
 /// </summary>
 internal static class FurnitureRecords
 {
-    private static readonly FrozenDictionary<string, (int Usage, string Vending)> VENDING =
-        FurnitureVendingDefaults20261008.Entries.ToFrozenDictionary(
-            x => x.Name,
-            x => (x.Usage, x.Vending),
-            StringComparer.Ordinal
-        );
-
     // The logic the room object provider falls back to (RoomObjectLogicProvider): a new item of
     // Habbo's behaves as plain furniture until staff give it its own.
     public const string DEFAULT_FLOOR_LOGIC = "default_floor";
@@ -70,21 +58,6 @@ internal static class FurnitureRecords
     )
     {
         var definition = Blank(type, spriteId, className, logic);
-
-        // A fresh database runs the data migration before Habbo's first import has any rows.
-        // Only newly created vending definitions receive the same frozen defaults here.
-        if (
-            type == ProductType.Floor
-            && logic == "vending_machine"
-            && VENDING.TryGetValue(HabboFurnitureFiles.AssetName(className), out var vending)
-        )
-        {
-            definition.UsagePolicy = (FurnitureUsageType)vending.Usage;
-            definition.ExtraData = new JsonObject
-            {
-                [VendingMachineData.SECTION] = JsonNode.Parse(vending.Vending),
-            }.ToJsonString();
-        }
 
         foreach (var field in FurnitureFields.All)
             if (field.AppliesTo(type == ProductType.Wall) && field.IsIn(habbo))
