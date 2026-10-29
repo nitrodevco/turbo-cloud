@@ -36,12 +36,32 @@ public static class FurnitureExtraDataSections
                 return stored;
         }
 
+        return ReadDefinition<TSection>(definitionExtraData, section, logger);
+    }
+
+    /// <summary>Reads a definition's default section without an item-level override.</summary>
+    public static TSection? ReadDefinition<TSection>(
+        string? definitionExtraData,
+        string section,
+        ILogger logger
+    )
+        where TSection : class
+    {
         if (string.IsNullOrWhiteSpace(definitionExtraData))
             return null;
 
         try
         {
             using var document = JsonDocument.Parse(definitionExtraData);
+
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                logger.LogWarning(
+                    "Definition extra data is not a JSON object; section {Section} ignored",
+                    section
+                );
+                return null;
+            }
 
             return document.RootElement.TryGetProperty(section, out var property)
                 ? Deserialize<TSection>(property, section, logger)

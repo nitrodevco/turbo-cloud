@@ -7,12 +7,15 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Gamedata;
 using Turbo.Gamedata.Assets;
 using Turbo.Gamedata.Habbo;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
 using Turbo.Primitives.Rooms.Providers;
@@ -35,7 +38,8 @@ internal sealed class FurnitureStatusIndex(
     HabboReleaseItems habboItems,
     HabboFurnitureFiles furnitureFiles,
     FurnitureOfferCatalog offers,
-    IRoomObjectLogicProvider logics
+    IRoomObjectLogicProvider logics,
+    ILogger<FurnitureStatusIndex>? logger = null
 )
 {
     private readonly SemaphoreSlim _building = new(1, 1);
@@ -177,7 +181,8 @@ internal sealed class FurnitureStatusIndex(
                             habboRevisions.TryGetValue(asset, out var revision) ? revision : null,
                             asset == FurnitureAssetNames.POSTER && hasPosters,
                             stamps.Sold.Contains(definition.Id),
-                            IsMismatch(definition.Logic, matching, registered)
+                            IsMismatch(definition.Logic, matching, registered),
+                            IsVendingConfigurationMissing(definition)
                         ),
                     };
                 })
@@ -198,7 +203,8 @@ internal sealed class FurnitureStatusIndex(
         string? habboRevision,
         bool drawnFromPosters,
         bool sold,
-        bool logicMismatch
+        bool logicMismatch,
+        bool vendingConfigurationMissing
     )
     {
         var tags = ImmutableArray.CreateBuilder<FurnitureTag>();
@@ -247,7 +253,23 @@ internal sealed class FurnitureStatusIndex(
         if (logicMismatch)
             tags.Add(FurnitureTag.LogicMismatch);
 
+        if (vendingConfigurationMissing)
+            tags.Add(FurnitureTag.VendingConfigMissing);
+
         return tags.ToImmutable();
+    }
+
+    private bool IsVendingConfigurationMissing(FurnitureDefinitionEntity definition)
+    {
+        if (definition.ProductType != ProductType.Floor || definition.Logic != "vending_machine")
+            return false;
+
+        var data = FurnitureExtraDataSections.ReadDefinition<VendingMachineData>(
+            definition.ExtraData,
+            VendingMachineData.SECTION,
+            logger ?? NullLogger<FurnitureStatusIndex>.Instance
+        );
+        return data is null || data.HandItems.IsDefaultOrEmpty || data.HandItems.Any(id => id <= 0);
     }
 
     /// <summary>

@@ -54,6 +54,27 @@ definitions theirs, and `{ "ids": [...], "logic": "..." }` those definitions one
 (the panel's picked rows). Each call is one change set in the history, rolled back as a whole;
 rooms load the new logic as they load again.
 
+**Hand items** in the Library are discovered from the avatar template's locally stored carry
+actions and the hotel's figure bundles. Names come from imported `handitemN` texts; an unnamed
+entry is shown by ID. Sync assets after a client release and import its texts to refresh the
+catalogue. The catalogue and its PNG previews read local data only. A missing or unreadable
+template explains what needs syncing; a temporary read failure keeps the last readable catalogue.
+The avatar template is built from a downloaded client release: download and build that release
+on Habbo updates first if the hotel does not yet have it.
+
+The furniture filter **vending needs items** (`vending-config-missing`) lists floor definitions
+running `vending_machine` whose default data has no valid positive hand-item list. Open Behaviour
+to select items, choose the dispensing animation and usage policy, then Save. This uses the normal
+definition edit and history, preserves unrelated JSON sections and extension fields, and keeps
+custom IDs that the current catalogue does not list. Invalid JSON or section data must be corrected
+in the raw field before the picker can edit it. The catalogue describes available hand items;
+staff still confirm which items a particular machine gives.
+
+`GET /api/gamedata/hand-items` returns the local catalogue and its revision;
+`GET /api/gamedata/hand-items/{id}/preview` returns its PNG, or 404 when unavailable. Both require
+`admin.gamedata.view`. Saving configuration uses `PUT /api/gamedata/furniture/{id}` and additionally
+requires `gamedata.manage`.
+
 A definition opened from the list edits every column it has: the furnidata fields, and the
 server's own (`logic`, `usagepolicy`, `cangroup`, `cansell`, `extradata`, and its identity,
 `classname` and `id`, its sprite id). The server's own are `FurnitureField.ServerOnly`: no Habbo

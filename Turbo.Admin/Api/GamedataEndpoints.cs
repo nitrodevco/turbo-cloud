@@ -34,6 +34,7 @@ internal sealed class GamedataEndpoints(
     IHabboClientBuilds clientBuilds,
     IAssetSyncService assetSync,
     IGamedataFurnitureService furniture,
+    IHandItemCatalog handItems,
     IGamedataFileService files,
     IGamedataHistoryService history,
     IGamedataImportJobs imports,
@@ -129,6 +130,21 @@ internal sealed class GamedataEndpoints(
                 FurnitureListAsync(q, type, tag, page, ct)
         );
         group.MapGet("/furniture/logics", () => Results.Ok(logics.LogicTypes));
+        group.MapGet(
+            "/hand-items",
+            async (CancellationToken ct) =>
+                Results.Ok(await handItems.GetAsync(ct).ConfigureAwait(false))
+        );
+        group.MapGet(
+            "/hand-items/{id:int}/preview",
+            async (int id, CancellationToken ct) =>
+                await handItems.GetPreviewAsync(id, ct).ConfigureAwait(false) is { } image
+                    ? Results.File(image, "image/png")
+                    : AdminResults.Error(
+                        StatusCodes.Status404NotFound,
+                        "No hand-item preview is available."
+                    )
+        );
         group.MapGet("/furniture/draft/{bundle}", DraftAsync);
         group.MapPost("/furniture", CreateDefinitionsAsync);
         group.MapGet("/furniture/{id:int}", DefinitionAsync);

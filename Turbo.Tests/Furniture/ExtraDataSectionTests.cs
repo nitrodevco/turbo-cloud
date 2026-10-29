@@ -51,4 +51,21 @@ public class ExtraDataSectionTests
             .RenterId.Should()
             .Be(4);
     }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("null")]
+    [InlineData("42")]
+    [InlineData("{not-json")]
+    public void Invalid_definition_data_is_reported_as_no_section(string json)
+    {
+        FurnitureExtraDataSections
+            .ReadDefinition<VendingMachineData>(
+                json,
+                VendingMachineData.SECTION,
+                NullLogger.Instance
+            )
+            .Should()
+            .BeNull();
+    }
 }
