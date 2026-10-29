@@ -50,6 +50,8 @@
   background-read lifetime. `AssetDiscoveryService` captures client releases locally per run;
   `AssetSyncService` orchestrates transfers and metadata persistence. Sync, explicit refresh and
   cold preview reads share one discovery gate; cached previews remain immediate.
+- `AssetJobs` owns the whole job lifetime as a hosted singleton. Shutdown closes admission,
+  cancels work and awaits transfers and final metadata saves before stopping the catalog.
 - Furniture trades commit both accepted offers, movements and a request-bound receipt in one
   custody transaction through the initiating inventory. Inventory grains reconcile current rows
   from durable participant obligations before using cached furniture; the recovery worker retries

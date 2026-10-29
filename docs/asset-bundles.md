@@ -93,6 +93,11 @@ complete. Shutdown cancels and joins background discovery and active or queued c
 disposing catalog resources. This coordinates discovery on one host; it does not serialize bundle
 transfers or add a transaction across remote listings and asset persistence.
 
+Asset jobs stop accepting work when shutdown begins. The host cancels the current job and waits
+for it, including metadata saves for completed file writes, within its shutdown deadline.
+Run automatic sync on one designated host and route manual sync jobs to that host; the in-memory
+job guard is not cluster-wide.
+
 A sync (`Turbo.Gamedata/Assets`):
 
 1. Reads Habbo's `external_variables` for the client revision (`flash-assets-<revision>` in
