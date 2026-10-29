@@ -161,6 +161,11 @@ internal sealed class GamedataFurnitureService(
                     item.Habbo
                 );
 
+                // What Sulake's data says the class does: a fridge's drinks, a crackable's
+                // contents. Habbo's fields were written first, so a state count or usage the
+                // behaviour knows better replaces them, as the migration's SQL did.
+                FurnitureBehaviourApplier.Apply(definition);
+
                 dbCtx.FurnitureDefinitions.Add(definition);
                 changes.Add(
                     (Change(item.ClassName, GamedataRecordType.FurnitureDefinition), definition)
@@ -1120,13 +1125,14 @@ internal sealed class GamedataFurnitureService(
                         // Only a definition being made gets a logic: an existing one keeps the
                         // logic staff gave it.
                         definition is null
-                            ? FurnitureDrafts.LogicOf(
-                                type,
-                                className,
-                                HabboFurnitureFiles.ClientLogicOf(habbo, files),
-                                habbo["category"]?.GetValue<string>(),
-                                registered
-                            )
+                            ? FurnitureBehaviourApplier.LogicOf(className)
+                                ?? FurnitureDrafts.LogicOf(
+                                    type,
+                                    className,
+                                    HabboFurnitureFiles.ClientLogicOf(habbo, files),
+                                    habbo["category"]?.GetValue<string>(),
+                                    registered
+                                )
                             : null
                     )
                 );

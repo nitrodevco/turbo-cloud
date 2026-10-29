@@ -493,6 +493,53 @@ public sealed class GamedataImportTests : IDisposable
             );
     }
 
+    // Installed from nothing 2026-10-29: MapFurnitureBehaviours had run on an empty table, so
+    // the fridges the import then made handed nothing out, and the crackables held nothing.
+    // The import gives a new definition its class's behaviour itself.
+    [Fact]
+    public async Task a_new_item_gets_the_behaviour_sulakes_data_gives_its_class()
+    {
+        var release = Release(
+            1,
+            Categorised(Item(Chair(xdim: 1), 40, "fridge"), "vending_machine"),
+            Item(Chair(xdim: 1), 41, "rare_icecream*3"),
+            Item(Chair(xdim: 1), 42, "bc_gift_14days"),
+            Item(Chair(xdim: 1), 43, "hole"),
+            Chair(xdim: 1)
+        );
+
+        var preview = await _furniture.PreviewImportAsync(release, Ct);
+
+        preview!
+            .Items.ToDictionary(x => x.ClassName, x => x.Logic)
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string?>
+                {
+                    ["fridge"] = "vending_machine",
+                    ["rare_icecream*3"] = "vending_machine",
+                    ["bc_gift_14days"] = "crackable",
+                    ["hole"] = "floor_hole",
+                    ["chair_norja"] = "default_floor",
+                }
+            );
+
+        await _furniture.ImportAsync(release, STAFF, Ct);
+
+        var made = (await DefinitionsAsync()).ToDictionary(x => x.Name);
+
+        made["fridge"].Logic.Should().Be("vending_machine");
+        made["fridge"].UsagePolicy.Should().Be(FurnitureUsageType.Everybody);
+        made["fridge"].ExtraData.Should().Contain("\"vending\"").And.Contain("[3,4,5,6]");
+        made["rare_icecream*3"].ExtraData.Should().Contain("[4]");
+        made["bc_gift_14days"].Logic.Should().Be("crackable");
+        made["bc_gift_14days"].TotalStates.Should().Be(3);
+        made["bc_gift_14days"].ExtraData.Should().Contain("\"rewardSet\":\"bcgift_1\"");
+        made["hole"].Logic.Should().Be("floor_hole");
+        made["chair_norja"].Logic.Should().Be("default_floor");
+        made["chair_norja"].ExtraData.Should().BeNull();
+    }
+
     /// <summary>
     /// A definition the hotel has keeps its logic, whether staff chose it or it is still the
     /// default an earlier import gave it: the logic column is the hotel's.

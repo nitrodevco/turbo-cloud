@@ -95,6 +95,12 @@ Whether it is floor or wall furniture is not edited: that changes which fields i
   The first import of a hotel that already had definitions has nothing to compare with. The
   client-only columns take Habbo's values; the server's columns keep the hotel's, and are
   reported. From then on Habbo's updates reach them too.
+- **What a class does.** A definition the import makes gets the behaviour Sulake's furni data
+  gives its class (`FurnitureBehaviours`, in Turbo.Database): a vending machine's hand items and
+  usage, a crackable's state count, usage and contents, the effect furni's logics, the Banzai
+  teleporter and the Black Hole. A colour variant takes its base item's. The
+  `MapFurnitureBehaviours` migration gave the same to the definitions a hotel had before it; a
+  hotel that imports after it ran gets it from the import, and a logic staff chose is left alone.
 - **Furniture files.** Taking an update in runs in the background. It first reads the asset file
   of each furniture it needs (`FurnitureFileUrl`, `hof_furni/<revision>/<name>.swf`), once per
   asset and revision; a furniture's colours share one file. What a file says is kept in

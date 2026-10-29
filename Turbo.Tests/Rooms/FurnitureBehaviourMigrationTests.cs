@@ -1,7 +1,7 @@
 using System.Reflection;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
-using Turbo.Database.Migrations;
+using Turbo.Database.Furniture;
 using Turbo.Furniture;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Players.Enums;
@@ -12,30 +12,24 @@ using Xunit;
 namespace Turbo.Tests.Rooms;
 
 /// <summary>
-/// What <c>MapFurnitureBehaviours</c> writes is what the logics read: every crackable and vending
+/// What <c>FurnitureBehaviours</c> holds (and <c>MapFurnitureBehaviours</c> wrote) is what the logics read: every crackable and vending
 /// section parses, every reward can be given, every logic it names is one the room registers,
 /// and no furni is mapped twice.
 /// </summary>
 public sealed class FurnitureBehaviourMigrationTests
 {
-    private static T Field<T>(string name) =>
-        (T)
-            typeof(MapFurnitureBehaviours)
-                .GetField(name, BindingFlags.NonPublic | BindingFlags.Static)!
-                .GetValue(null)!;
-
     private static (
         string Name,
         int States,
         int Usage,
         bool Walkable,
         string Crackable
-    )[] Crackables() => Field<(string, int, int, bool, string)[]>("CRACKABLES");
+    )[] Crackables() => FurnitureBehaviours.CRACKABLES;
 
     private static (string Name, int Usage, string Vending)[] Vending() =>
-        Field<(string, int, string)[]>("VENDING");
+        FurnitureBehaviours.VENDING;
 
-    private static (string Name, string Logic)[] Logics() => Field<(string, string)[]>("LOGICS");
+    private static (string Name, string Logic)[] Logics() => FurnitureBehaviours.LOGICS;
 
     private static T Read<T>(string section, string json)
         where T : class =>
