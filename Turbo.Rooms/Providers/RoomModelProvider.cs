@@ -44,12 +44,38 @@ public sealed class RoomModelProvider(
                 .RoomModels.AsNoTracking()
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
+            var models = ImmutableDictionary.CreateBuilder<int, RoomModelSnapshot>();
+            var leftOut = 0;
 
-            _modelsById = entities.Select(ToSnapshot).ToImmutableDictionary(x => x.Id);
+            // A model that does not read (a character the format has no height for) is left
+            // out with its reason, as a broken asset bundle is, instead of stopping the server:
+            // the rooms built on the others keep opening, and the hotel is told which to fix.
+            foreach (var entity in entities)
+            {
+                try
+                {
+                    var snapshot = ToSnapshot(entity);
+
+                    models[snapshot.Id] = snapshot;
+                }
+                catch (RoomModelDataInvalidException ex)
+                {
+                    leftOut++;
+                    _logger.LogError(
+                        "Room model {ModelName} ({ModelId}) was left out: {Reason}",
+                        entity.Name,
+                        entity.Id,
+                        ex.Message
+                    );
+                }
+            }
+
+            _modelsById = models.ToImmutable();
 
             _logger.LogInformation(
-                "Loaded room models: TotalModels={TotalModelCount}",
-                _modelsById.Count
+                "Loaded room models: TotalModels={TotalModelCount}, LeftOut={LeftOutCount}",
+                _modelsById.Count,
+                leftOut
             );
         }
         finally
