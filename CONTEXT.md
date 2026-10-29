@@ -50,6 +50,8 @@
   background-read lifetime. `AssetDiscoveryService` captures client releases locally per run;
   `AssetSyncService` orchestrates transfers and metadata persistence. Sync, explicit refresh and
   cold preview reads share one discovery gate; cached previews remain immediate.
+- `AssetJobs` owns the whole job lifetime as a hosted singleton. Shutdown closes admission,
+  cancels work and awaits transfers and final metadata saves before stopping the catalog.
 - Theme audience rules resolve through `IThemeResolver`, required by `IThemeAudiences`.
   Resolution takes preview requests explicitly and does not own displayed revisions.
   Session initialization and live reload share the singleton `IThemeClientState`; replacement

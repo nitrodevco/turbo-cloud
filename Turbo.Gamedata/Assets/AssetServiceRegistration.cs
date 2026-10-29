@@ -43,11 +43,14 @@ internal static class AssetServiceRegistration
     internal static IServiceCollection AddAssetBundleServices(this IServiceCollection services)
     {
         services.AddSingleton<IAssetBundleStore, AssetBundleStore>();
-        services.AddSingleton<IAssetJobs, AssetJobs>();
+        services.AddSingleton<AssetJobs>();
+        services.AddSingleton<IAssetJobs>(sp => sp.GetRequiredService<AssetJobs>());
         services.AddSingleton<AssetBundleChecks>();
         services.AddSingleton<IAssetBundleService, AssetBundleService>();
         services.AddSingleton<AssetDiscoveryCatalog>();
         services.AddHostedService(sp => sp.GetRequiredService<AssetDiscoveryCatalog>());
+        // Stop jobs before their discovery catalog; transfers and final saves outlive discovery.
+        services.AddHostedService(sp => sp.GetRequiredService<AssetJobs>());
         services.AddSingleton<IAssetSyncService, AssetSyncService>();
 
         return services;

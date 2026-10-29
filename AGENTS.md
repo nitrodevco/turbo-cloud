@@ -65,6 +65,8 @@ Default output format:
 - Asset discovery captures client releases per run. Preview, sync and background discovery share
   the catalog's coordination and publish only completed, uncancelled results. Shutdown drains
   queued callers as well as active reads before disposing the catalog's resources.
+- Asset jobs admit and retain their task under the same lock as shutdown. Stop rejects new jobs,
+  cancels the active job and awaits its final metadata flush while its dependencies remain alive.
 - Theme session initialization consumes variables and revision from one `IThemeFileService.ThemeViewAsync`
   result. Keep one materialization cache for session and live views; preserve default null projections,
   text URL placement and bounded revision retention. Do not pair independent variables/look reads.

@@ -23,7 +23,7 @@ internal sealed class AssetJobs(
     IHostApplicationLifetime lifetime,
     TimeProvider time,
     ILogger<IAssetJobs> logger
-) : IAssetJobs
+) : IAssetJobs, IHostedService, IDisposable
 {
     private readonly int _logLimit = Math.Max(1, config.Value.JobLogLimit);
     private readonly Lock _lock = new();
@@ -31,6 +31,9 @@ internal sealed class AssetJobs(
 
     private AssetJobSnapshot? _current;
     private CancellationTokenSource? _cancel;
+    private Task _running = Task.CompletedTask;
+    private Task? _stop;
+    private bool _stopped;
     private string _phase = "";
     private int _total;
     private int _done;
@@ -77,6 +80,11 @@ internal sealed class AssetJobs(
 
         lock (_lock)
         {
+            if (_stopped || lifetime.ApplicationStopping.IsCancellationRequested)
+                throw new InvalidOperationException(
+                    "The server is stopping; no asset job can start."
+                );
+
             if (_current?.Status == AssetJobStatus.Running)
                 throw new InvalidOperationException(
                     $"{_current.Title} is running; wait for it to finish, or stop it."
@@ -105,14 +113,42 @@ internal sealed class AssetJobs(
                 PlayerId = player.Value,
                 StartedAt = time.GetUtcNow().UtcDateTime,
             };
+
+            // Admit and retain together so shutdown cannot miss an accepted job.
+            // Not the request's token: the job outlives the request that started it.
+            var token = cancel.Token;
+            _running = Task.Run(() => RunAsync(job.Id, work, token), CancellationToken.None);
         }
 
         logger.LogInformation("Player {PlayerId} started the asset job {Title}", player, title);
 
-        // Not the request's token: the job outlives the request that started it.
-        _ = Task.Run(() => RunAsync(job.Id, work, cancel.Token), CancellationToken.None);
-
         return job;
+    }
+
+    public Task StartAsync(CancellationToken ct) => Task.CompletedTask;
+
+    public Task StopAsync(CancellationToken ct)
+    {
+        lock (_lock)
+        {
+            _stopped = true;
+            return (_stop ??= StopCoreAsync(_running, _cancel)).WaitAsync(ct);
+        }
+    }
+
+    private static async Task StopCoreAsync(Task running, CancellationTokenSource? cancel)
+    {
+        if (cancel is not null)
+            await cancel.CancelAsync().ConfigureAwait(false);
+#pragma warning disable VSTHRD003 // The retained job runs on the pool and includes its final metadata flush.
+        await running.ConfigureAwait(false);
+#pragma warning restore VSTHRD003
+    }
+
+    public void Dispose()
+    {
+        lock (_lock)
+            _cancel?.Dispose();
     }
 
     public bool Cancel()
