@@ -299,6 +299,55 @@ public sealed class FurnitureListTests : IDisposable
             .ThrowAsync<ArgumentException>();
     }
 
+    // The fridges, gates and teleports of a hotel installed before the import read the client
+    // category (2026-10-29) run the default: the list flags them, and one call fixes them.
+    [Fact]
+    public async Task a_definition_whose_client_category_or_client_logic_the_server_has_a_logic_for_is_flagged()
+    {
+        _fakes.Handlers["get_" + nameof(IRoomObjectLogicProvider.LogicTypes)] = _ =>
+            (IReadOnlyList<string>)
+                ["gate", "vending_machine", "exchange", "one_way_door", "guild_customized"];
+        _db.Insert(Categorised(Own(1, "country_gate", "default_floor"), "gate"));
+        _db.Insert(Categorised(Own(2, "fridge*2", "default_floor"), "vending_machine"));
+        _db.Insert(Categorised(Own(3, "CF_50_goldbar", "default_floor"), "credit"));
+        // The client logic wins over the category, and a chosen logic stands.
+        _db.Insert(Categorised(Own(4, "one_way_door", "default_floor"), "gate"));
+        _db.Insert(Categorised(Own(5, "gld_gate", "guild_customized"), "gate"));
+        _db.Insert(Categorised(Own(6, "chair", "default_floor"), "chair"));
+        _db.Insert(AssetFile(1, "CF_50_goldbar", 10, "furniture_credit"));
+        _db.Insert(AssetFile(2, "one_way_door", 10, "furniture_one_way_door"));
+
+        var listed = (await _furniture.ListAsync(null, null, null, 0, Ct)).Items.ToDictionary(x =>
+            x.ClassName
+        );
+
+        listed
+            .Where(x => x.Value.Tags.Contains(FurnitureTag.LogicMismatch))
+            .Select(x => (x.Key, x.Value.MatchingLogic))
+            .Should()
+            .BeEquivalentTo([
+                ("country_gate", "gate"),
+                ("fridge*2", "vending_machine"),
+                ("CF_50_goldbar", "exchange"),
+                ("one_way_door", "one_way_door"),
+            ]);
+        listed["gld_gate"].Tags.Should().NotContain(FurnitureTag.LogicMismatch);
+        listed["chair"].MatchingLogic.Should().BeNull();
+
+        (await _furniture.SetLogicAsync(null, null, STAFF, Ct))!.ChangeCount.Should().Be(4);
+        (await LogicsAsync())["fridge*2"].Should().Be("vending_machine");
+    }
+
+    private static FurnitureDefinitionEntity Categorised(
+        FurnitureDefinitionEntity definition,
+        string category
+    )
+    {
+        definition.ClientCategory = category;
+
+        return definition;
+    }
+
     private async Task<Dictionary<string, string>> LogicsAsync()
     {
         await using var db = await _db.CreateDbContextAsync(Ct);

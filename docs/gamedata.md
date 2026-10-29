@@ -39,10 +39,15 @@ change.
 Each definition has a **matching logic**: the one a new definition of it would get, the logic the
 server registers under its classname (colour variants: their base item's), else the server logic
 its asset file's client logic names (`furniture_guild_customized` -> `guild_customized`, from the
-newest read file in `habbo_furniture_assets`). A definition running the default logic, or a logic
-the server has not registered, where it has a matching one is tagged `logic-mismatch`: definitions
-made before matching by classname existed (a group forum terminal sold as plain furniture opens no
-forum), or whose logic a plugin later registered. A registered logic staff chose over the matching
+newest read file in `habbo_furniture_assets`; `furniture_credit`, `furniture_roomdimmer`,
+`furniture_habbowheel` and `furniture_randomstate` name `exchange`, `dimmer`, `habbo_wheel` and
+`random_state`), else the logic its furnidata category stands for: a floor item in the client
+category `vending_machine`, `gate`, `teleport` or `roller` is one, which its file never says
+(to the client a fridge, a gate and a teleport are all `furniture_multistate`). An import gives a
+new definition that logic. A definition running the default logic, or a logic the server has not
+registered, where it has a matching one is tagged `logic-mismatch`: definitions made before
+matching by classname existed (a group forum terminal sold as plain furniture opens no forum),
+or whose logic a plugin later registered. A registered logic staff chose over the matching
 one is left alone. The panel's Overview counts them, and `POST /api/gamedata/furniture/logic`
 fixes them: `{}` gives every tagged definition its matching logic, `{ "ids": [...] }` those
 definitions theirs, and `{ "ids": [...], "logic": "..." }` those definitions one registered logic
