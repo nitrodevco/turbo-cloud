@@ -34,9 +34,7 @@ internal static class FurnitureDrafts
     // are furniture_multistate (or furniture_basic) to it, and only the furnidata's category
     // (its client category) says what they are. A live hotel (2026-10-29) has 206 vending
     // machines, 226 gates, 59 teleports and 14 rollers so marked.
-    private static readonly Dictionary<string, string> CATEGORY_LOGICS = new(
-        StringComparer.Ordinal
-    )
+    private static readonly Dictionary<string, string> CATEGORY_LOGICS = new(StringComparer.Ordinal)
     {
         ["vending_machine"] = "vending_machine",
         ["gate"] = "gate",

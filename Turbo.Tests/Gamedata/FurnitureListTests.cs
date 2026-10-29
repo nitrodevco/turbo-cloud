@@ -305,7 +305,8 @@ public sealed class FurnitureListTests : IDisposable
     public async Task a_definition_whose_client_category_or_client_logic_the_server_has_a_logic_for_is_flagged()
     {
         _fakes.Handlers["get_" + nameof(IRoomObjectLogicProvider.LogicTypes)] = _ =>
-            (IReadOnlyList<string>)["gate", "vending_machine", "exchange", "one_way_door", "guild_customized"];
+            (IReadOnlyList<string>)
+                ["gate", "vending_machine", "exchange", "one_way_door", "guild_customized"];
         _db.Insert(Categorised(Own(1, "country_gate", "default_floor"), "gate"));
         _db.Insert(Categorised(Own(2, "fridge*2", "default_floor"), "vending_machine"));
         _db.Insert(Categorised(Own(3, "CF_50_goldbar", "default_floor"), "credit"));
