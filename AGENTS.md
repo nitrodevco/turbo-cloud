@@ -62,6 +62,8 @@ Default output format:
   `docs/orleans.md` to regenerate and review the owning project's `OrleansContracts.txt`;
   never refresh baselines merely to silence diagnostics, and preserve retired history.
 - Avoid introducing new dependencies unless required by the task.
+- Furniture import applies known vending defaults only while creating floor definitions assigned
+  the vending logic. Preserve existing server fields and keep historical migration seed data frozen.
 - Asset discovery captures client releases per run. Preview, sync and background discovery share
   the catalog's coordination and publish only completed, uncancelled results. Shutdown drains
   queued callers as well as active reads before disposing the catalog's resources.

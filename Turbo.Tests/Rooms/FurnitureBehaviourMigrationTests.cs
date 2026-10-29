@@ -1,7 +1,11 @@
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text.Json;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.Extensions.Logging.Abstractions;
-using Turbo.Database.Furniture;
+using Turbo.Database.Furniture.Defaults;
+using Turbo.Database.Migrations;
 using Turbo.Furniture;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Players.Enums;
@@ -18,18 +22,38 @@ namespace Turbo.Tests.Rooms;
 /// </summary>
 public sealed class FurnitureBehaviourMigrationTests
 {
+    [Fact]
+    public void Shared_defaults_keep_the_historical_migration_sql_unchanged()
+    {
+        var migration = new MapFurnitureBehaviours();
+        var up = migration.UpOperations.Cast<SqlOperation>().Select(x => x.Sql).ToArray();
+        var down = migration.DownOperations.Cast<SqlOperation>().Select(x => x.Sql).ToArray();
+        up.Should().HaveCount(766);
+        down.Should().HaveCount(766);
+        // Fingerprints captured from the migration before its data was extracted.
+        Convert
+            .ToHexStringLower(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(up)))
+            .Should()
+            .Be("ea909d526111886573a4e25b0517fff0b8bd3864f5e25921769da941c8f4371b");
+        Convert
+            .ToHexStringLower(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(down)))
+            .Should()
+            .Be("d8de7227ccbfd56e53104c615ed9b5eafb6a53342f8abece865f61681c324630");
+    }
+
     private static (
         string Name,
         int States,
         int Usage,
         bool Walkable,
         string Crackable
-    )[] Crackables() => FurnitureBehaviours.CRACKABLES;
+    )[] Crackables() => FurnitureBehaviourDefaults20261008.Crackables.ToArray();
 
     private static (string Name, int Usage, string Vending)[] Vending() =>
-        FurnitureBehaviours.VENDING;
+        FurnitureVendingDefaults20261008.Entries.ToArray();
 
-    private static (string Name, string Logic)[] Logics() => FurnitureBehaviours.LOGICS;
+    private static (string Name, string Logic)[] Logics() =>
+        FurnitureBehaviourDefaults20261008.Logics.ToArray();
 
     private static T Read<T>(string section, string json)
         where T : class =>

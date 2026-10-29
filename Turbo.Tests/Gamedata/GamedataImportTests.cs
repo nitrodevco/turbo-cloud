@@ -7,22 +7,29 @@ using Microsoft.Extensions.Options;
 using Turbo.Catalog.Providers;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Gamedata;
+using Turbo.Database.Extensions;
+using Turbo.Furniture;
 using Turbo.Gamedata;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Furniture;
 using Turbo.Gamedata.Habbo;
 using Turbo.Gamedata.History;
+using Turbo.Primitives.Action;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Providers;
 using Turbo.Primitives.Texts;
+using Turbo.Rooms.Object.Furniture.Floor;
+using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -538,6 +545,139 @@ public sealed class GamedataImportTests : IDisposable
         made["hole"].Logic.Should().Be("floor_hole");
         made["chair_norja"].Logic.Should().Be("default_floor");
         made["chair_norja"].ExtraData.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("fridge", new[] { 3, 4, 5, 6 }, true, FurnitureUsageType.Everybody)]
+    [InlineData("rare_icecream*2", new[] { 4 }, true, FurnitureUsageType.Everybody)]
+    [InlineData("classic7_fridge", new[] { 42, 43, 66 }, false, FurnitureUsageType.Everybody)]
+    [InlineData("classic7_drinkdispenser", new[] { 29, 30 }, false, FurnitureUsageType.Controller)]
+    public async Task a_new_vending_definition_uses_its_known_hand_items_and_usage_policy(
+        string className,
+        int[] handItems,
+        bool animates,
+        FurnitureUsageType usage
+    )
+    {
+        _fakes.Handlers["get_" + nameof(IRoomObjectLogicProvider.LogicTypes)] = _ =>
+            (IReadOnlyList<string>)["default_floor", "default_wall", "vending_machine"];
+        _db.Insert(AssetFile(1, HabboFurnitureFiles.AssetName(className), 61856, 2));
+        var release = Release(1, Categorised(Item(Chair(1), 40, className), "vending_machine"));
+        var changeSet = await _furniture.ImportAsync(release, STAFF, Ct);
+        var definition = (await DefinitionsAsync()).Single();
+        definition.Logic.Should().Be("vending_machine");
+        definition.UsagePolicy.Should().Be(usage);
+        var data = FurnitureExtraDataSections.Read<VendingMachineData>(
+            new ExtraData(null),
+            definition.ExtraData,
+            VendingMachineData.SECTION,
+            NullLogger.Instance
+        );
+        data.Should().NotBeNull();
+        data!.HandItems.Should().Equal(handItems);
+        data.Animates.Should().Be(animates);
+        var changes = await _history.GetChangesAsync(changeSet!.Id, Ct);
+        var recorded = JsonNode.Parse(
+            changes!
+                .Value.Single(x => x.RecordType == GamedataRecordType.FurnitureDefinition)
+                .After!
+        )!;
+        recorded["extradata"]!.GetValue<string>().Should().Be(definition.ExtraData);
+        recorded["usagepolicy"]!.GetValue<int>().Should().Be((int)usage);
+
+        // Serve a guest through the room's use path using the persisted definition, not test defaults.
+        var room = new WiredRoom(8, 8);
+        var guest = room.Enter(1, 4, 3);
+        var item = new RoomFloorItem
+        {
+            ObjectId = 60,
+            OwnerId = 999,
+            OwnerName = "owner",
+            Definition = definition.ToSnapshot(0.01),
+        };
+        item.SetExtraData(null);
+        item.SetPosition(3, 3);
+        item.SetRotation(Rotation.East);
+        item.SetLogic(
+            new FurnitureVendingMachineLogic(
+                room.StuffData,
+                new RoomFloorItemContext(room.Harness.Room, item)
+            )
+        );
+        room.Harness.State.ItemsById.Add((RoomObjectId)60, item);
+        room.Map.AddItem(item);
+        await room.Harness.Room.UseItemByIdAsync(ActionContext.CreateForPlayer(101, 1), 60, Ct);
+        if (usage == FurnitureUsageType.Everybody)
+            handItems.Should().Contain(guest.HandItemId);
+        else
+            guest.HandItemId.Should().Be(0);
+        item.Logic.GetState()
+            .Should()
+            .Be(animates && usage == FurnitureUsageType.Everybody ? 1 : 0);
+        (await _furniture.ImportAsync(release, STAFF, Ct)).Should().BeNull();
+        (await DefinitionsAsync()).Single().ExtraData.Should().Be(definition.ExtraData);
+    }
+
+    [Fact]
+    public async Task vending_defaults_require_a_known_floor_item_using_the_vending_logic()
+    {
+        _fakes.Handlers["get_" + nameof(IRoomObjectLogicProvider.LogicTypes)] = _ =>
+            (IReadOnlyList<string>)
+                ["default_floor", "default_wall", "vending_machine", "bling_fridge"];
+        var release = Release(
+            1,
+            Categorised(Item(Chair(1), 40, "unknown_dispenser"), "vending_machine"),
+            Categorised(Item(Chair(1), 41, "bling_fridge"), "vending_machine"),
+            Categorised(Item(Poster(), 4002, "fridge"), "vending_machine")
+        );
+        var preview = await _furniture.PreviewImportAsync(release, Ct);
+        preview!.Items.Single(x => x.ClassName == "bling_fridge").Logic.Should().Be("bling_fridge");
+        preview.Items.Single(x => x.ClassName == "fridge").Logic.Should().Be("default_wall");
+        await _furniture.ImportAsync(release, STAFF, Ct);
+        var definitions = await DefinitionsAsync();
+        definitions.Should().HaveCount(3);
+        definitions
+            .Should()
+            .OnlyContain(x =>
+                x.ExtraData == null && x.UsagePolicy == FurnitureUsageType.Controller
+            );
+        definitions.Single(x => x.Name == "unknown_dispenser").Logic.Should().Be("vending_machine");
+        definitions.Single(x => x.Name == "bling_fridge").Logic.Should().Be("bling_fridge");
+        definitions.Single(x => x.Name == "fridge").Logic.Should().Be("default_wall");
+    }
+
+    [Fact]
+    public async Task later_imports_preserve_staff_vending_data_and_usage_policy()
+    {
+        _fakes.Handlers["get_" + nameof(IRoomObjectLogicProvider.LogicTypes)] = _ =>
+            (IReadOnlyList<string>)["default_floor", "default_wall", "vending_machine"];
+        await _furniture.ImportAsync(
+            Release(1, Categorised(Item(Chair(1), 40, "fridge"), "vending_machine")),
+            STAFF,
+            Ct
+        );
+        var definition = (await DefinitionsAsync()).Single();
+        const string custom =
+            """{"vending":{"handItems":[999],"animates":false},"staff":{"label":"custom"}}""";
+        await _furniture.UpdateDefinitionAsync(
+            definition.Id,
+            new JsonObject
+            {
+                ["usagepolicy"] = (int)FurnitureUsageType.Nobody,
+                ["extradata"] = custom,
+            },
+            STAFF,
+            Ct
+        );
+        await _furniture.ImportAsync(
+            Release(2, Categorised(Item(Chair(2), 40, "fridge"), "vending_machine")),
+            STAFF,
+            Ct
+        );
+        definition = (await DefinitionsAsync()).Single();
+        definition.Width.Should().Be(2);
+        definition.UsagePolicy.Should().Be(FurnitureUsageType.Nobody);
+        definition.ExtraData.Should().Be(custom);
     }
 
     /// <summary>

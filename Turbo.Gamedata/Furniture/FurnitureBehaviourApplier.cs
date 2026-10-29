@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Furniture;
+using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Gamedata.Furniture;
@@ -16,9 +17,12 @@ namespace Turbo.Gamedata.Furniture;
 /// </summary>
 internal static class FurnitureBehaviourApplier
 {
-    /// <summary>The logic the behaviour gives the class, or null when it has none for it.</summary>
-    public static string? LogicOf(string className)
+    /// <summary>The known floor behaviour, preserving the resolved custom logic and wall behavior.</summary>
+    public static string LogicOf(ProductType type, string className, string resolvedLogic)
     {
+        if (type != ProductType.Floor || !FurnitureRecords.IsDefaultLogic(resolvedLogic))
+            return resolvedLogic;
+
         var name = FurnitureBehaviours.BaseName(className);
 
         if (FurnitureBehaviours.CrackablesByName.ContainsKey(name))
@@ -27,7 +31,7 @@ internal static class FurnitureBehaviourApplier
         if (FurnitureBehaviours.VendingByName.ContainsKey(name))
             return FurnitureBehaviours.VENDING_MACHINE;
 
-        return FurnitureBehaviours.LogicsByName.GetValueOrDefault(name);
+        return FurnitureBehaviours.LogicsByName.GetValueOrDefault(name) ?? resolvedLogic;
     }
 
     /// <summary>
@@ -36,6 +40,9 @@ internal static class FurnitureBehaviourApplier
     /// </summary>
     public static bool Apply(FurnitureDefinitionEntity definition)
     {
+        if (definition.ProductType != ProductType.Floor)
+            return false;
+
         var name = FurnitureBehaviours.BaseName(definition.Name);
 
         if (FurnitureBehaviours.CrackablesByName.TryGetValue(name, out var crackable))
@@ -47,7 +54,11 @@ internal static class FurnitureBehaviourApplier
             definition.TotalStates = crackable.States;
             definition.UsagePolicy = (FurnitureUsageType)crackable.Usage;
             definition.CanWalk = definition.CanWalk || crackable.Walkable;
-            definition.ExtraData = WithSection(definition.ExtraData, "crackable", crackable.Crackable);
+            definition.ExtraData = WithSection(
+                definition.ExtraData,
+                "crackable",
+                crackable.Crackable
+            );
 
             return true;
         }

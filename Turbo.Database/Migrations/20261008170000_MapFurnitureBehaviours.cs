@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Turbo.Database.Context;
-using Turbo.Database.Furniture;
+using Turbo.Database.Furniture.Defaults;
 
 #nullable disable
 
@@ -47,27 +47,38 @@ namespace Turbo.Database.Migrations
     [Migration("20261008170000_MapFurnitureBehaviours")]
     public partial class MapFurnitureBehaviours : Migration
     {
-
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            foreach (var (name, states, usage, walkable, crackable) in FurnitureBehaviours.CRACKABLES)
+            foreach (
+                var (
+                    name,
+                    states,
+                    usage,
+                    walkable,
+                    crackable
+                ) in FurnitureBehaviourDefaults20261008.Crackables
+            )
                 migrationBuilder.Sql(
-                    $"UPDATE `furniture_definitions` SET `logic` = '{FurnitureBehaviours.CRACKABLE}', `total_states` = {states}, `usage_policy` = {usage}, "
+                    $"UPDATE `furniture_definitions` SET `logic` = '{FurnitureBehaviourDefaults20261008.CRACKABLE}', `total_states` = {states}, `usage_policy` = {usage}, "
                         + (walkable ? "`can_walk` = 1, " : "")
-                        + $"`extra_data` = {WithSection("crackable", crackable)} WHERE {Unmapped(name, FurnitureBehaviours.CRACKABLE)};"
+                        + $"`extra_data` = {WithSection("crackable", crackable)} WHERE {Unmapped(name, FurnitureBehaviourDefaults20261008.CRACKABLE)};"
                 );
 
-            foreach (var (name, usage, vending) in FurnitureBehaviours.VENDING)
+            foreach (var (name, usage, vending) in FurnitureVendingDefaults20261008.Entries)
                 migrationBuilder.Sql(
-                    $"UPDATE `furniture_definitions` SET `logic` = '{FurnitureBehaviours.VENDING_MACHINE}', `usage_policy` = {usage}, "
-                        + $"`extra_data` = {WithSection("vending", vending)} WHERE {Unmapped(name, FurnitureBehaviours.VENDING_MACHINE)};"
+                    $"UPDATE `furniture_definitions` SET `logic` = '{FurnitureBehaviourDefaults20261008.VENDING_MACHINE}', `usage_policy` = {usage}, "
+                        + $"`extra_data` = {WithSection("vending", vending)} WHERE {Unmapped(name, FurnitureBehaviourDefaults20261008.VENDING_MACHINE)};"
                 );
 
-            foreach (var (name, logic) in FurnitureBehaviours.LOGICS)
+            foreach (var (name, logic) in FurnitureBehaviourDefaults20261008.Logics)
                 migrationBuilder.Sql(
                     $"UPDATE `furniture_definitions` SET `logic` = '{logic}'"
-                        + (logic == FurnitureBehaviours.EFFECT_PROVIDER ? ", `usage_policy` = 2" : "")
+                        + (
+                            logic == FurnitureBehaviourDefaults20261008.EFFECT_PROVIDER
+                                ? ", `usage_policy` = 2"
+                                : ""
+                        )
                         + $" WHERE {Unmapped(name, logic)};"
                 );
         }
@@ -77,17 +88,17 @@ namespace Turbo.Database.Migrations
         {
             // Back to plain furniture without the section; the state count, usage and walkability
             // written before are not kept anywhere, and stay.
-            foreach (var (name, _, _, _, _) in FurnitureBehaviours.CRACKABLES)
+            foreach (var (name, _, _, _, _) in FurnitureBehaviourDefaults20261008.Crackables)
                 migrationBuilder.Sql(
-                    $"UPDATE `furniture_definitions` SET `logic` = 'default_floor', `extra_data` = {WithoutSection("crackable")} WHERE {Mapped(name, FurnitureBehaviours.CRACKABLE)};"
+                    $"UPDATE `furniture_definitions` SET `logic` = 'default_floor', `extra_data` = {WithoutSection("crackable")} WHERE {Mapped(name, FurnitureBehaviourDefaults20261008.CRACKABLE)};"
                 );
 
-            foreach (var (name, _, _) in FurnitureBehaviours.VENDING)
+            foreach (var (name, _, _) in FurnitureVendingDefaults20261008.Entries)
                 migrationBuilder.Sql(
-                    $"UPDATE `furniture_definitions` SET `logic` = 'default_floor', `extra_data` = {WithoutSection("vending")} WHERE {Mapped(name, FurnitureBehaviours.VENDING_MACHINE)};"
+                    $"UPDATE `furniture_definitions` SET `logic` = 'default_floor', `extra_data` = {WithoutSection("vending")} WHERE {Mapped(name, FurnitureBehaviourDefaults20261008.VENDING_MACHINE)};"
                 );
 
-            foreach (var (name, logic) in FurnitureBehaviours.LOGICS)
+            foreach (var (name, logic) in FurnitureBehaviourDefaults20261008.Logics)
                 migrationBuilder.Sql(
                     $"UPDATE `furniture_definitions` SET `logic` = 'default_floor' WHERE {Mapped(name, logic)};"
                 );
