@@ -10,7 +10,9 @@ public class OrleansConfig
 
     public string SiloAddress { get; init; } = "127.0.0.1";
     public int SiloPort { get; init; } = 11111;
-    public int GatewayPort { get; init; } = 3000;
+    // Not 3000: that is the port nitro-next's dev server takes (docs/turbo-development.md), and
+    // the two are run side by side on one machine.
+    public int GatewayPort { get; init; } = 30001;
     public int GrainCollectionAgeMinutes { get; init; } = 2;
     public int RoomStreamPollMs { get; init; } = 10;
 
