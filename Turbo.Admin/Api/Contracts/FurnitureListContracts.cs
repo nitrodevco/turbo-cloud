@@ -24,6 +24,7 @@ public static class FurnitureTagNames
         (FurnitureTag.BundleOutdated, "bundle-outdated"),
         (FurnitureTag.NotSold, "not-sold"),
         (FurnitureTag.LogicMismatch, "logic-mismatch"),
+        (FurnitureTag.VendingConfigMissing, "vending-config-missing"),
     ];
 
     public static string Of(FurnitureTag tag) =>

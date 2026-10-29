@@ -35,4 +35,7 @@ public enum FurnitureTag
     /// but it runs the plain default (or a logic the server does not have).
     /// </summary>
     LogicMismatch = 7,
+
+    /// <summary>A floor vending definition has no valid list of positive hand-item ids.</summary>
+    VendingConfigMissing = 8,
 }

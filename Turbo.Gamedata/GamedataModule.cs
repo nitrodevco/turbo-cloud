@@ -14,6 +14,7 @@ using Turbo.Gamedata.Files;
 using Turbo.Gamedata.Furniture;
 using Turbo.Gamedata.Habbo;
 using Turbo.Gamedata.Habbo.Client;
+using Turbo.Gamedata.HandItems;
 using Turbo.Gamedata.History;
 using Turbo.Gamedata.HotelView;
 using Turbo.Gamedata.Plugins;
@@ -102,6 +103,7 @@ public sealed class GamedataModule : IHostPluginModule
         services.AddSingleton<IHabboVariableService, HabboVariableService>();
         services.AddSingleton<IHotelViewService, HotelViewService>();
         services.AddSingleton<IHotelTextProvider, HotelTextProvider>();
+        services.AddSingleton<IHandItemCatalog, HandItemCatalog>();
         services.AddSingleton<IGamedataFigureService, GamedataFigureService>();
         services.AddSingleton<IFigureDataProvider, FigureDataProvider>();
         services.AddSingleton<IGamedataImportJobs, FurnitureImportJobs>();

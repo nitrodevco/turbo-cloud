@@ -338,6 +338,73 @@ public sealed class FurnitureListTests : IDisposable
         (await LogicsAsync())["fridge*2"].Should().Be("vending_machine");
     }
 
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("{}", true)]
+    [InlineData("{", true)]
+    [InlineData("[]", true)]
+    [InlineData("{\"vending\":null}", true)]
+    [InlineData("{\"vending\":{\"handItems\":[]}}", true)]
+    [InlineData("{\"vending\":{\"handItems\":[0,1128]}}", true)]
+    [InlineData("{\"vending\":{\"handItems\":[-1]}}", true)]
+    [InlineData("{\"vending\":{\"handItems\":[1128],\"animates\":\"yes\"}}", true)]
+    [InlineData("{\"vending\":{\"HandItems\":[1128],\"Animates\":false}}", false)]
+    [InlineData("{\"vending\":{\"handItems\":[1128]},\"staff\":{\"note\":\"kept\"}}", false)]
+    public async Task the_vending_queue_reports_missing_or_invalid_configuration(
+        string? extraData,
+        bool missing
+    )
+    {
+        var definition = Own(1, "new_dispenser", "vending_machine");
+        definition.ExtraData = extraData;
+        _db.Insert(definition);
+        var page = await _furniture.ListAsync(null, null, FurnitureTag.VendingConfigMissing, 0, Ct);
+        page.Total.Should().Be(missing ? 1 : 0);
+        page.TagCounts.GetValueOrDefault(FurnitureTag.VendingConfigMissing)
+            .Should()
+            .Be(missing ? 1 : 0);
+        var detail = await _furniture.GetDefinitionAsync(1, Ct);
+        detail!.Tags.Contains(FurnitureTag.VendingConfigMissing).Should().Be(missing);
+    }
+
+    [Fact]
+    public async Task saving_vending_configuration_removes_it_from_the_queue_and_keeps_other_sections()
+    {
+        var definition = Own(1, "new_dispenser", "vending_machine");
+        definition.ExtraData = """{"staff":{"note":"kept"}}""";
+        _db.Insert(definition);
+        _db.Insert(Own(2, "plain_chair", "default_floor"));
+        var wall = Own(3, "wall", "vending_machine");
+        wall.ProductType = ProductType.Wall;
+        _db.Insert(wall);
+        var page = await _furniture.ListAsync(null, null, FurnitureTag.VendingConfigMissing, 0, Ct);
+        page.Items.Should().ContainSingle().Which.Id.Should().Be(1);
+        var saved = await _furniture.UpdateDefinitionAsync(
+            1,
+            new JsonObject
+            {
+                ["extradata"] =
+                    """{"staff":{"note":"kept"},"vending":{"handItems":[1128],"animates":false}}""",
+                ["usagepolicy"] = 0,
+            },
+            STAFF,
+            Ct
+        );
+        saved!.Tags.Should().NotContain(FurnitureTag.VendingConfigMissing);
+        page = await _furniture.ListAsync(null, null, FurnitureTag.VendingConfigMissing, 0, Ct);
+        page.Total.Should().Be(0);
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        var row = await db.FurnitureDefinitions.SingleAsync(x => x.Id == 1, Ct);
+        JsonNode.Parse(row.ExtraData!)!["staff"]!["note"]!.GetValue<string>().Should().Be("kept");
+        var history = await db.GamedataChanges.SingleAsync(
+            x => x.RecordId == 1 && x.RecordType == GamedataRecordType.FurnitureDefinition,
+            Ct
+        );
+        history.Before.Should().Contain("kept");
+        history.After.Should().Contain("1128");
+    }
+
     private static FurnitureDefinitionEntity Categorised(
         FurnitureDefinitionEntity definition,
         string category
