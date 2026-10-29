@@ -65,6 +65,8 @@ Default output format:
 - Hand-item catalogues read locally stored client actions, figure assets and imported texts.
   Keep server hand-item IDs distinct from sprite-part IDs. Vending edits preserve unrelated
   extra-data sections and custom IDs, and use the definition history rather than direct writes.
+- Furniture import applies known vending defaults only while creating floor definitions assigned
+  the vending logic. Preserve existing server fields and keep historical migration seed data frozen.
 - Asset discovery captures client releases per run. Preview, sync and background discovery share
   the catalog's coordination and publish only completed, uncancelled results. Shutdown drains
   queued callers as well as active reads before disposing the catalog's resources.

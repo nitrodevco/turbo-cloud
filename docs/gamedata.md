@@ -111,6 +111,16 @@ Whether it is floor or wall furniture is not edited: that changes which fields i
     reports it as kept.
   - An item the hotel has no definition of is added under Habbo's sprite id. If one of the
     hotel's own definitions holds that id, it gets the next free one.
+    A new floor definition assigned `vending_machine` also receives the known hand-item list,
+    dispensing animation setting and usage policy from the frozen vending defaults used by
+    `MapFurnitureBehaviours`. Colour variants use their base classname. Unknown machines keep
+    their empty defaults; existing definitions retain their saved configuration on later imports.
+    The per-furniture server configuration supplies the IDs: for example,
+    [fridge.xml](https://github.com/80O/FurniData/blob/77aa627c7e05e2699442d06d1772386270f63fc1/Data/fridge.xml)
+    lists drinks `3,4,5,6`, and
+    [rare_icecream.xml](https://github.com/80O/FurniData/blob/77aa627c7e05e2699442d06d1772386270f63fc1/Data/rare_icecream.xml)
+    lists `4`. Newer entries retain the migration's mappings from original NFT counterparts,
+    external texts and Habbox documentation; those entries do not all have direct XML evidence.
   - Definitions Habbo dropped are left alone.
 
   The first import of a hotel that already had definitions has nothing to compare with. The
