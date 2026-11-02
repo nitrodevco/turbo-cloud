@@ -9,6 +9,7 @@ The documentation starts at [docs/documentation.md](docs/documentation.md), from
 2. Run bootstrap once.
 3. Set your local DB connection string.
 4. Run the app in Development mode.
+5. Fill the hotel: [docs/first-hotel.md](docs/first-hotel.md).
 
 Clone:
 
@@ -42,6 +43,14 @@ bash/zsh:
 ```bash
 DOTNET_ENVIRONMENT=Development dotnet run --project Turbo.Main/Turbo.Main.csproj
 ```
+
+## From a Server to a Hotel
+The server makes and migrates its own database, but ships no dump: a new hotel has the rules and
+none of the content. Habbo's furniture, texts, products and clothing are downloaded by the server
+and taken in from the admin panel; the catalog is generated from them; the navigator's tabs and
+categories, the room models and the first player are yours to add. Each step, what it fills and
+how to check it: [The First Hotel](docs/first-hotel.md). Without it the client opens on an empty
+shop, a navigator with no tabs and a "Create room" that refuses every layout.
 
 ## What This Repository Is
 `Turbo.Cloud.sln` is the main Turbo emulator solution.

@@ -4,6 +4,7 @@
     - [Contribution Guide](contributions.md)
 - ## Getting Started
     - [Installation](installation.md)
+    - [The First Hotel](first-hotel.md)
     - [Configuration](configuration.md)
     - [Agentic Development](ai.md)
     - [Turbo Boost](turbo-boost.md)
