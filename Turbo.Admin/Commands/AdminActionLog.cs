@@ -27,6 +27,12 @@ public sealed class AdminActionLog(
     /// <summary>A restart asked for or called off: <c>restart &lt;minutes&gt; [reason]</c> or <c>restart cancel</c>.</summary>
     public const string RESTART = "restart";
 
+    /// <summary>
+    /// A database backup built, downloaded or deleted: <c>backup &lt;tables&gt;</c>,
+    /// <c>download &lt;id&gt;</c> or <c>delete &lt;id&gt;</c>.
+    /// </summary>
+    public const string DATABASE = "database";
+
     /// <summary>A group deleted by staff: <c>group delete &lt;id&gt;</c>.</summary>
     public const string GROUP = "group";
 

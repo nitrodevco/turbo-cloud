@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Turbo.Admin.Api;
 using Turbo.Admin.Assets;
+using Turbo.Admin.Backups;
 using Turbo.Admin.Catalog;
 using Turbo.Admin.Commands;
 using Turbo.Admin.Configuration;
@@ -60,6 +61,8 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<AdminCatalogAudit>();
         services.AddSingleton<AdminCatalogImport>();
         services.AddSingleton<AdminJobs>();
+        services.AddSingleton<AdminDatabaseBackups>();
+        services.AddHostedService(sp => sp.GetRequiredService<AdminDatabaseBackups>());
         services.AddSingleton<AdminCatalogPageMerge>();
         services.AddSingleton<AdminCatalogAddFurni>();
         services.AddSingleton<AdminCatalogImages>();

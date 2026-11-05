@@ -174,7 +174,11 @@ public sealed class PluginIsolationTests : IDisposable
     {
         var (manager, _) = Create();
         using var db = new SqliteDb();
-        var tables = new PluginTables(db, NullLogger<PluginTables>.Instance);
+        var tables = new PluginTables(
+            db,
+            TestDatabaseDump.Create(),
+            NullLogger<PluginTables>.Instance
+        );
         var admin = new PluginAdministration(
             manager,
             tables,

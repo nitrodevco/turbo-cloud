@@ -726,6 +726,7 @@ public sealed class DataPluginTests : IDisposable
             ),
             new Turbo.Plugins.Data.PluginTables(
                 _db,
+                TestDatabaseDump.Create(),
                 NullLogger<Turbo.Plugins.Data.PluginTables>.Instance
             ),
             [],

@@ -301,6 +301,9 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<AdminCatalogAudit>();
         services.AddSingleton<AdminCatalogImport>();
         services.AddSingleton<Turbo.Admin.Api.AdminJobs>();
+        services.AddSingleton(Options.Create(new Turbo.Database.Configuration.DatabaseConfig()));
+        services.AddSingleton<Turbo.Database.Backups.DatabaseDump>();
+        services.AddSingleton<Turbo.Admin.Backups.AdminDatabaseBackups>();
         services.AddSingleton<AdminCatalogPageMerge>();
         services.AddSingleton<AdminCatalogAddFurni>();
         services.AddSingleton<AdminCatalogImages>();

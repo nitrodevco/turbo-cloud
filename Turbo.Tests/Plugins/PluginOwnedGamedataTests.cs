@@ -128,7 +128,11 @@ public sealed class PluginOwnedGamedataTests : IDisposable
         );
         _plugins = new PluginAdministration(
             _manager,
-            new PluginTables(_catalog.Db, NullLogger<PluginTables>.Instance),
+            new PluginTables(
+                _catalog.Db,
+                TestDatabaseDump.Create(),
+                NullLogger<PluginTables>.Instance
+            ),
             [seeds],
             NullLogger<PluginAdministration>.Instance
         );

@@ -692,7 +692,11 @@ public sealed class PluginEndpointsTests : IAsyncDisposable
             NullLogger<PluginManager>.Instance
         );
 
-        var tables = new PluginTables(_db, NullLogger<PluginTables>.Instance);
+        var tables = new PluginTables(
+            _db,
+            TestDatabaseDump.Create(),
+            NullLogger<PluginTables>.Instance
+        );
         var plugins = new PluginAdministration(
             manager,
             tables,

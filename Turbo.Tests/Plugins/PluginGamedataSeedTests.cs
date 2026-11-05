@@ -100,7 +100,7 @@ public sealed class PluginGamedataSeedTests : IDisposable
         );
         _plugins = new PluginAdministration(
             _manager,
-            new PluginTables(_db, NullLogger<PluginTables>.Instance),
+            new PluginTables(_db, TestDatabaseDump.Create(), NullLogger<PluginTables>.Instance),
             [seeds],
             NullLogger<PluginAdministration>.Instance
         );

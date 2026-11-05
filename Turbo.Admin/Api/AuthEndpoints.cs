@@ -95,6 +95,9 @@ internal sealed class AuthEndpoints(IGrainFactory grainFactory)
                     .ConfigureAwait(false),
                 await identity
                     .HoldsAsync(grainFactory, PermissionNodes.Approvals.VIEW, ct)
+                    .ConfigureAwait(false),
+                await identity
+                    .HoldsAsync(grainFactory, PermissionNodes.Admin.DATABASE_BACKUP, ct)
                     .ConfigureAwait(false)
             )
         );

@@ -98,6 +98,16 @@ public sealed class AdminConfig
     public int JobKeepMinutes { get; init; } = 30;
 
     /// <summary>
+    /// Where a database backup built in the panel is written before it is downloaded. Empty is a
+    /// <c>turbo-backups</c> folder in the system's temporary folder; a relative path is under the
+    /// server's own folder. Point it at a disk with room for the tables backed up.
+    /// </summary>
+    public string DatabaseBackupDirectory { get; init; } = "";
+
+    /// <summary>How long a database backup built in the panel is kept to download, then deleted.</summary>
+    public int DatabaseBackupKeepMinutes { get; init; } = 60;
+
+    /// <summary>
     /// The page layouts the catalog editor offers, besides any a page already uses: those the
     /// client ships a window for, and the codes it maps onto one (<c>bots</c> is drawn as
     /// <c>default_3x3</c>). A code the client has no window for leaves the page empty.

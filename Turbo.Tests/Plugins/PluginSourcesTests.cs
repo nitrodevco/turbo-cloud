@@ -303,7 +303,11 @@ public sealed class PluginSourcesTests : IDisposable
             NullLogger<PluginManager>.Instance
         );
 
-        var tables = new PluginTables(new SqliteDb(), NullLogger<PluginTables>.Instance);
+        var tables = new PluginTables(
+            new SqliteDb(),
+            TestDatabaseDump.Create(),
+            NullLogger<PluginTables>.Instance
+        );
         _plugins = new PluginAdministration(
             manager,
             tables,

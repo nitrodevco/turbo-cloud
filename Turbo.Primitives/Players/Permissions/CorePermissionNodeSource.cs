@@ -419,6 +419,11 @@ public sealed class CorePermissionNodeSource : IPermissionNodeSource
             "Restart the server from the admin panel after a countdown players are warned of, so settings waiting on a restart apply. The host must start the process again."
         ),
         new(
+            PermissionNodes.Admin.DATABASE_BACKUP,
+            "Build a backup of the database's tables in the admin panel and download it as SQL. It holds everything in them, private messages and secrets included.",
+            ExplicitOnly: true
+        ),
+        new(
             PermissionNodes.Settings.MANAGE,
             "Change the server's settings in the admin panel: override appsettings.json, replace a secret, and put a setting back."
         ),

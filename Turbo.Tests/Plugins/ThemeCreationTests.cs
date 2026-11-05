@@ -382,6 +382,7 @@ public sealed class ThemeCreationTests : IDisposable
             _manager,
             new PluginTables(
                 _fakes.Create<IDbContextFactory<TurboDbContext>>(),
+                TestDatabaseDump.Create(),
                 NullLogger<PluginTables>.Instance
             ),
             [],
@@ -411,6 +412,7 @@ public sealed class ThemeCreationTests : IDisposable
             _manager,
             new PluginTables(
                 _fakes.Create<IDbContextFactory<TurboDbContext>>(),
+                TestDatabaseDump.Create(),
                 NullLogger<PluginTables>.Instance
             ),
             [],

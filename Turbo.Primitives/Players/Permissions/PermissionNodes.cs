@@ -436,6 +436,14 @@ public static class PermissionNodes
         public const string SERVER_RESTART = "admin.server.restart";
 
         /// <summary>
+        /// Build a backup of the hotel's database in the panel, of the tables chosen, and download
+        /// it as SQL. A backup holds everything in those tables (private messages, sign-in
+        /// tickets, the settings' secrets), so the node is explicit only: no wildcard grants it.
+        /// Every backup built, downloaded or deleted is in the command log.
+        /// </summary>
+        public const string DATABASE_BACKUP = "admin.database.backup";
+
+        /// <summary>
         /// See the game's content in the panel: achievements, badges, the navigator's categories,
         /// groups, pets and bots. Changing it needs <see cref="Content.MANAGE"/> as well.
         /// </summary>

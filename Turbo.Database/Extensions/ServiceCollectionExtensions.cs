@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
 using Turbo.Contracts.Plugins;
+using Turbo.Database.Backups;
 using Turbo.Database.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Delegates;
@@ -65,6 +66,10 @@ public static class ServiceCollectionExtensions
         // One migrator for the emulator's tables and every plugin's, and one lock between them.
         services.AddSingleton<IMigrationLock, MySqlMigrationLock>();
         services.AddSingleton<DatabaseMigrator>();
+
+        // Writing tables out as SQL: the panel's database backup and a plugin's table export.
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<DatabaseDump>();
 
         // Pooled: every grain turn that touches the database creates a context, and TurboDbContext
         // holds nothing but its options, so a reset context from the pool serves as a new one.

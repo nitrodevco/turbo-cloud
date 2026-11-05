@@ -46,6 +46,7 @@
 - [Hotel view](#hotel-view)
 - [Plugins](#plugins)
 - [Server settings](#server-settings)
+- [Database backups](#database-backups)
 - [Commands](#commands)
 - [Configuration](#configuration)
 - [Live updates](#live-updates)
@@ -108,7 +109,7 @@ and show as tabs along its header:
 | Appearance | **Themes**, **Style properties**, **Windows & skins**, **Template patches**, **Images**, **Texts**, **Outdated patches** (all of a theme in one place: [plugin-data.md](plugin-data.md), "In the panel") | Windows & skins: Windows, Skins; Texts: By window, By shown text |
 | Staff | **Access** | Groups, Players, Who has a node, Log, Nodes, Staff passkeys |
 | Staff | **Logs** | Command log, Chat log, Messages, Currency, Room visits, Permission log |
-| Server | **Settings**, **Console** | |
+| Server | **Settings**, **Database**, **Console** | |
 
 You only see the places and tabs you may open. The hotel's state (open, maintenance, shutting
 down) and who is online sit at the top of the sidebar; click it for the hotel controls.
@@ -1339,6 +1340,7 @@ passkey; they add more while signed in instead.
 | `permissions.manage` | Changing permissions on that page, within the rule in [Permission editor](#permission-editor). The in-game `:group` command needs it too, and follows the same rule. |
 | `permissions.superuser` | With `permissions.manage`: lifts the weight and held-node limits of the permission editor (see [Permission editor](#permission-editor)). No wildcard grants it. |
 | `admin.settings.view` | The Settings page: every server setting, where its value comes from and what waits on a restart. Secrets are never shown. |
+| `admin.database.backup` | The Database page: building a backup of the tables chosen, downloading it as SQL and deleting it from the server. A backup holds everything in its tables, so no wildcard grants it. |
 | `settings.manage` | Changing settings on that page: overriding appsettings.json, replacing a secret, putting a setting back (see `docs/settings.md`). |
 | `admin.content.view` | The Content page: achievements, badges, the navigator's categories, groups, pets and bots. |
 | `content.manage` | Changing the content on that page: publishing achievements, pinning badges' rarity, giving or taking them (with `command.givebadge` or `command.takebadge` as well, as `:givebadge` and `:takebadge` need, each in the command log), and the rest of its tabs. |
@@ -1662,6 +1664,39 @@ environment always wins over the panel; secrets can be replaced but are never sh
 stands on (its own address, the database) is changed only in the files and the environment.
 `docs/settings.md` has the details.
 
+## Database backups
+
+The **Database** page (Server → Database) backs up the tables you choose as one `.sql` file to
+download. It needs `admin.database.backup`, which no wildcard grants: a backup holds everything in
+its tables, private messages, login tickets and the settings' secrets among them. The owner gives it
+on purpose, to themselves or to whoever needs it.
+
+- **Choose the tables.** Every table of the database is listed with its rows and size. On MySQL the
+  rows are the database's own estimate (on MySQL 8 up to a day old), marked `≈`. Find tables by
+  name; **Choose all** or the tables found add to what is chosen already.
+- **Build backup** writes them on the server, then the panel downloads the file. A large database
+  takes a while: it runs as a job (see `JobWaitSeconds`), so the panel's proxy does not cut it off.
+  One backup is built at a time.
+- **The file** starts with `SET NAMES utf8mb4`, `SET TIME_ZONE = '+00:00'`,
+  `SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO'` and `SET FOREIGN_KEY_CHECKS = 0`. Then, for each table,
+  `DROP TABLE IF EXISTS`, its `CREATE TABLE` as `SHOW CREATE TABLE` gives it, and its rows in
+  `INSERT` statements of up to `Turbo:Database:DumpStatementKb`. Running it
+  (`mysql <database> < file.sql`, or an import in your database tool) puts those tables back as they
+  were and leaves every other table alone. Every table is read in one consistent snapshot, so tables
+  that refer to each other match.
+- **Ready to download** lists the backups still on the server: download one again, or delete it.
+  Each is kept `DatabaseBackupKeepMinutes` after it is built, then deleted; stopping or restarting
+  the server deletes them too. The files are in `DatabaseBackupDirectory`, readable by the server's
+  own user only.
+
+A backup is what the database holds. What a grain has not written yet (a room's furni moved in the
+last seconds) is not in it, as it would not be in `mysqldump`'s. For a backup of a whole hotel
+before an upgrade, your host's database backups or `mysqldump` work as well and need no panel.
+
+Every backup built (with its tables), downloaded or deleted is in the command log as `database`,
+from the panel. The routes are `GET /api/database/tables`, `GET` and `POST /api/database/backups`
+(`tables`), `GET /api/database/backups/{id}/file` and `DELETE /api/database/backups/{id}`.
+
 ## Commands
 
 | Command | Who | What |
@@ -1695,6 +1730,8 @@ them.
 | `ReportsPageSize` | `50` | | Reports per page on the Reports page. |
 | `JobWaitSeconds` | `3` | | How long a request for long work (a catalog reset, rollback, import, generate or publish) waits before it answers `202` and the panel asks after it at `GET /api/jobs/{id}`. Keep it well under the proxy's timeout. |
 | `JobKeepMinutes` | `30` | | How long a finished job's answer is kept for whoever started it. |
+| `DatabaseBackupDirectory` | the system's temporary folder, `turbo-backups` | | Where the Database page writes a backup before it is downloaded. A relative path is under the server's own folder. Point it at a disk with room for the tables you back up. |
+| `DatabaseBackupKeepMinutes` | `60` | | How long a backup is kept on the server to download, then deleted. |
 | `MessagesPageSize` | `100` | | Messages per page on the Messages page. |
 | `CurrencyLogPageSize` | `100` | | Changes per page on the Currency log. |
 | `PerformanceSampleSeconds` | `10` | | How often the Performance page's figures are taken. |

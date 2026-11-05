@@ -57,7 +57,11 @@ public sealed class PluginUninstallTests : IDisposable
             NullLogger<PluginManager>.Instance
         );
 
-        var tables = new PluginTables(_db, NullLogger<PluginTables>.Instance);
+        var tables = new PluginTables(
+            _db,
+            TestDatabaseDump.Create(),
+            NullLogger<PluginTables>.Instance
+        );
 
         _plugins = new PluginAdministration(
             _manager,
@@ -228,7 +232,7 @@ public sealed class PluginUninstallTests : IDisposable
         sql.Should().Contain("CREATE TABLE sample_reports");
         sql.Should()
             .Contain(
-                "INSERT INTO \"sample_reports\" (\"id\", \"text\") VALUES (1, 'it''s broken');"
+                "INSERT INTO \"sample_reports\" (\"id\", \"text\") VALUES\n(1, 'it''s broken'),\n(2, NULL);"
             );
         sql.Should().NotContain("sample_extra_items");
         (await _plugins.ExportDataAsync("nobody", output, Ct)).Should().BeFalse();

@@ -24,5 +24,6 @@ public sealed record MeResponse(
     bool CanViewMessages,
     bool CanViewTelemetry,
     bool CanManageCampaigns,
-    bool CanViewApprovals
+    bool CanViewApprovals,
+    bool CanBackupDatabase
 );

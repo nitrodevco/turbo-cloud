@@ -55,6 +55,7 @@ and start Turbo. That is the whole setup.
 | `MigrationLockSeconds` | `60` | How long a migration waits for another one to finish. |
 | `MigrationCommandTimeoutMinutes` | `30` | How long one statement of a migration may run. The usual 30 seconds is too short for an `ALTER` on a table with millions of rows. |
 | `ServerVersion` | _(ask the server)_ | `mysql 8.4.0` or `mariadb 11.4.0`. Skips the question at startup, and lets `migrate --script` run with no connection. |
+| `DumpStatementKb` | `1024` | The longest `INSERT` the server writes when it writes tables out as SQL (the admin panel's database backup, a plugin's table export). Rows are grouped up to it; keep it under the database server's `max_allowed_packet`. |
 
 In the Ploi environment these are `TURBO_DB_MIGRATE`, `TURBO_DB_ALLOW_DESTRUCTIVE_MIGRATIONS`,
 `TURBO_DB_MIGRATION_LOCK_SECONDS` and `TURBO_DB_SERVER_VERSION`.
@@ -85,7 +86,8 @@ non-zero code (so a supervisor can see the server did not come up), in these cas
   (or restore a backup) and start again: applying resumes at that migration.
 
 Before applying to a database that has data, the server warns that a backup is the only way back.
-Take one.
+Take one: `mysqldump`, your host's backups, or the admin panel's **Database** page, which writes
+the tables you choose as one `.sql` file (see [Database backups](admin-panel.md#database-backups)).
 
 ## `Turbo.Main migrate`
 

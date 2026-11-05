@@ -195,7 +195,7 @@ public sealed class PluginSettingsTests : IDisposable
 
         var plugins = new PluginAdministration(
             _manager,
-            new PluginTables(_db, NullLogger<PluginTables>.Instance),
+            new PluginTables(_db, TestDatabaseDump.Create(), NullLogger<PluginTables>.Instance),
             [new PluginSettingData(_settings.Settings)],
             NullLogger<PluginAdministration>.Instance
         );
