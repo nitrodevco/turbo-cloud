@@ -7,7 +7,7 @@
     <PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="18.12.1" />
   </ItemGroup>
   <ItemGroup>
-    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.400" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="11.0.100" />
     <!--
       Roslyn transitives are pinned so central transitive pinning resolves a single version:
       Orleans 10 requires Microsoft.CodeAnalysis 5.x, while EF Core 9 design-time packages
