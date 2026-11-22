@@ -155,7 +155,7 @@ A plugin is a folder of C# sources, a `manifest.json` and any files it brings. T
 you both halves of one, a server half and a client module, with tests and one dev command:
 
 ```shell
-dotnet new install ./templates/turbo-plugin
+dotnet new install ./docs/examples/turbo-plugin
 dotnet new turbo-plugin -n Skills --key skills --turbo <path to turbo-cloud> --nitro <path to nitro-next>
 cd Skills && npm run dev
 ```

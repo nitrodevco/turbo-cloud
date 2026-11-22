@@ -19,7 +19,7 @@ manifest.json    key, version, Sources (the server compiles server/**/*.cs; no a
 ## Three commands
 
 ```sh
-dotnet new install <turbo-cloud>/templates/turbo-plugin        # once per machine
+dotnet new install <turbo-cloud>/docs/examples/turbo-plugin    # once per machine
 dotnet new turbo-plugin -n Skills --key skills --turbo <turbo-cloud> --nitro <nitro-next>
 cd Skills && npm run dev
 ```

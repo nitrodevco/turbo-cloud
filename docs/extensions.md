@@ -448,7 +448,7 @@ noted.
    hotel's data plugin, and the panel packages either as a data plugin (`docs/plugin-data.md`).
 9. **Scaffolding and dev loop**: `dotnet new turbo-plugin` generating both halves and their tests,
    one command that rebuilds and hot-reloads both while a player is online, one that packages the
-   zip the panel installs: `templates/turbo-plugin` (`docs/client-modules.md`, "Start from the
+   zip the panel installs: `docs/examples/turbo-plugin` (`docs/client-modules.md`, "Start from the
    template"); `PluginTemplateTests` keeps it building against the server. Named messages and
    `npm run make` are in it (step 10).
 10. **Conventions over boilerplate**: a `TurboPlugin` base that reads key and version from the

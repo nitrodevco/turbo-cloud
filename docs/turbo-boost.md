@@ -51,7 +51,7 @@ declares (`<!-- typed with: declare const roomB: number; -->`). A block fenced `
 
 ## 2. Installing it in a plugin
 
-A plugin made from `templates/turbo-plugin`:
+A plugin made from `docs/examples/turbo-plugin`:
 
 ```sh
 npm run ai                           # install: asks which agents, then writes their files

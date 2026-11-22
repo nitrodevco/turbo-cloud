@@ -86,7 +86,7 @@ public sealed class ScheduledTaskPluginTests : IDisposable
         var (scheduler, host, manager) = Hotel(services =>
             services.AddSingleton<IClientModuleDirectory>(_fakes.Create<IClientModuleDirectory>())
         );
-        var template = Path.Combine(RepositoryRoot(), "templates", "turbo-plugin", "server");
+        var template = Path.Combine(RepositoryRoot(), "docs", "examples", "turbo-plugin", "server");
 
         PluginBuilder.Write(
             _folder,

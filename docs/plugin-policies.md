@@ -46,7 +46,7 @@ Neither needs registering. A public class implementing a policy interface, or an
 `IEventHandler<T>` for one of the events, anywhere in the plugin's assembly is found as the plugin
 loads (built once with the plugin's services and the hotel's, `IHotel` included) and taken away as
 it unloads. `npm run make policy purchase|room-entry|placement|registration|avatar-effect|purchase-fulfilment|public-room-order|room-arrival [<name>]` in a plugin made from
-`templates/turbo-plugin` writes one.
+`docs/examples/turbo-plugin` writes one.
 
 With no plugin policy the hotel decides as it always has: the official checks (the offer, the club
 level, the balance; bans, passwords, a full room, the doorbell; building rights, the spot, the

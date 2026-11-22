@@ -39,7 +39,7 @@ the tests. The test framework is yours (the template uses xUnit); the kit's asse
 server compiles a plugin against, so a plugin's own sources cannot use it. Like the plugin SDK it
 is versioned with the server.
 
-`templates/turbo-plugin` (`dotnet new turbo-plugin`) has a test project on the kit, and
+`docs/examples/turbo-plugin` (`dotnet new turbo-plugin`) has a test project on the kit, and
 `npm run make command hug` / `npm run make message ping` write a test beside the piece they add
 (`tests/<Name>.Tests/Commands/HugCommandTests.cs`).
 

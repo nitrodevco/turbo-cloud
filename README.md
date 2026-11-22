@@ -114,7 +114,7 @@ from `Turbo:Plugin:DevPluginPaths`:
 If the same plugin key exists in both places, `DevPluginPaths` wins and a warning is logged. You can
 list several plugin folders when developing several plugins at once.
 
-A new plugin with a server half and a client module: `dotnet new turbo-plugin` from `templates/turbo-plugin` gives both, tests and one `npm run dev` (`docs/client-modules.md`, "Start from the template").
+A new plugin with a server half and a client module: `dotnet new turbo-plugin` from `docs/examples/turbo-plugin` gives both, tests and one `npm run dev` (`docs/client-modules.md`, "Start from the template").
 `npm run dev` keeps `dist/<key>/` current; in the Development environment with
 `Turbo:Plugin:HotReloadEnabled`, a saved source compiles and reloads the plugin in-process.
 `npm run check` compiles the sources as the server does.

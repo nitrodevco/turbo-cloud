@@ -43,17 +43,19 @@ using Xunit;
 namespace Turbo.Tests.Plugins;
 
 /// <summary>
-/// <c>templates/turbo-plugin</c> is what <c>dotnet new turbo-plugin</c> generates, and a template's
-/// files are a working plugin as they stand (its default name is <c>Skills</c>). So its server half
-/// is compiled and loaded here as a hotel would load it, with what its <c>npm run make</c> adds, and
-/// what its project builds against is checked against the server's own assemblies: a change to the
-/// server that breaks a new plugin fails here, not in an author's first build.
+/// <c>docs/examples/turbo-plugin</c> is what <c>dotnet new turbo-plugin</c> generates, and a
+/// template's files are a working plugin as they stand (its default name is <c>Skills</c>). So its
+/// server half is compiled and loaded here as a hotel would load it, with what its
+/// <c>npm run make</c> adds, and what its project builds against is checked against the server's
+/// own assemblies: a change to the server that breaks a new plugin fails here, not in an author's
+/// first build.
 /// </summary>
 public sealed class PluginTemplateTests : IDisposable
 {
     private static readonly string Template = Path.Combine(
         RepositoryRoot(),
-        "templates",
+        "docs",
+        "examples",
         "turbo-plugin"
     );
 

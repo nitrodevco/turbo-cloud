@@ -422,7 +422,8 @@ public sealed class SourcePluginTests : IDisposable
         File.ReadAllText(
                 Path.Combine(
                     RepositoryRoot(),
-                    "templates",
+                    "docs",
+                    "examples",
                     "turbo-plugin",
                     "server",
                     "Skills.csproj"

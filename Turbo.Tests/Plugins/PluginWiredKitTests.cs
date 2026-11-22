@@ -310,7 +310,7 @@ public sealed class PluginWiredKitTests : IDisposable
     }
 
     /// <summary>
-    /// Compiled with what a plugin project references (templates/turbo-plugin/server): the
+    /// Compiled with what a plugin project references (docs/examples/turbo-plugin/server): the
     /// runtime, Turbo.Contracts and Turbo.Primitives with the Orleans abstractions they name.
     /// No room, grain or host assembly.
     /// </summary>

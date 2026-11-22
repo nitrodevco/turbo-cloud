@@ -85,7 +85,7 @@ page:
   two internals moved to contracts (the furni custody to `IRoomFurniWriter`, the box variable ids to
   `WiredVariableId.OfBox`).
 
-The template (`templates/turbo-plugin`) is already in the new shape: when in doubt, copy what it does.
+The template (`docs/examples/turbo-plugin`) is already in the new shape: when in doubt, copy what it does.
 
 ### 1. Build a server that ships the plugin SDK
 

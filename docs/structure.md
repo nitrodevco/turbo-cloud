@@ -16,8 +16,8 @@
 
 A plugin is one folder that holds both halves of a feature: the C# the server compiles and the
 TypeScript the client runs, with the files, texts and tests that go with them. The template
-(`templates/turbo-plugin`) lays the folder out the way the server and the tools expect, so you
-rarely have to think about where something goes. Make one with:
+(`docs/examples/turbo-plugin`) lays the folder out the way the server and the tools expect, so
+you rarely have to think about where something goes. Make one with:
 
 ```shell
 dotnet new turbo-plugin -n Skills --key skills --turbo <path to turbo-cloud> --nitro <path to nitro-next>
@@ -196,7 +196,6 @@ For core work, the `turbo-cloud` repository is one .NET solution, `Turbo.Cloud.s
 | `Turbo.Database/` | The EF Core context, entities and migrations |
 | `Turbo.Testing/` | `FakeHotel` and the other testers plugins use |
 | `Turbo.Tests/` | The server's tests |
-| `templates/turbo-plugin/` | The plugin template |
-| `docs/` | This documentation; `docs-site/` builds the website from it |
+| `docs/` | This documentation and its examples, the plugin template among them (`docs/examples/turbo-plugin/`); `docs-site/` builds the website from it |
 
 [`CONTEXT.md`](../CONTEXT.md) says which project may depend on which, and where new code belongs.

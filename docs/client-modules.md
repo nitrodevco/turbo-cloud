@@ -163,14 +163,14 @@ served; older ones are deleted.
 
 ### Start from the template
 
-`templates/turbo-plugin` is a `dotnet new` template for a plugin with both halves: the server
+`docs/examples/turbo-plugin` is a `dotnet new` template for a plugin with both halves: the server
 sources (a `TurboPlugin` of one line, a `[PluginSettings]` class for the panel, a permission node
 source, a command, named messages and their handlers) and a client module in TypeScript and React written with nitro-next's
 `@nitrodevco/client-module-sdk` (a window, a toolbar icon, a patch to the purse), with server and
 client tests. Three commands:
 
 ```sh
-dotnet new install <turbo-cloud>/templates/turbo-plugin
+dotnet new install <turbo-cloud>/docs/examples/turbo-plugin
 dotnet new turbo-plugin -n Skills --key skills --turbo <turbo-cloud> --nitro <nitro-next>
 cd Skills && npm run dev
 ```
