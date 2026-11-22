@@ -13,7 +13,7 @@ for its area, and comes here only when every change needs it.
 
 ## Foundational context
 This repository targets the following core stack. When coding, prefer patterns compatible with these versions:
-- .NET SDK `10.0.400` (from `global.json`)
+- .NET SDK `10.0.404` (from `global.json`)
 - C# / BCL `net10.0`
 - Orleans `10.4.2`
 - EF Core `10.0.15` (on the major the target framework and the MySQL provider share: EF Core 11 needs .NET 11)
