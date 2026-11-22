@@ -14,7 +14,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Pets;
 /// empty one stays in the room. Official troughs went 4, 3, 2, 1 and a water bowl 4, 3, 2 with the
 /// drinks, none was removed in 9 minutes, and a hay bucket stood at 0 (official client capture
 /// 2026-10-17, room "saddle club"). One left alone for <c>SupplyRefillMs</c>, or not served
-/// since the room loaded, is full again at its next serving.
+/// since the room loaded, is full again at its next serving. A pet served stays until its action
+/// is done: no decision of its own turns it from the item or walks it off meanwhile.
 /// </summary>
 public abstract class FurniturePetSupplyLogic(
     IStuffDataFactory stuffDataFactory,
@@ -65,6 +66,9 @@ public abstract class FurniturePetSupplyLogic(
         }
 
         await ServeAsync(pet, left, ct);
+
+        // It eats, drinks or plays to the end, facing the item it turned to on arrival.
+        PetModule.StayUntilActionEnds(pet);
     }
 
     /// <summary>

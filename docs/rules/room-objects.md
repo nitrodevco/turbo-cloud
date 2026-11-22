@@ -238,6 +238,13 @@ plugin authors.
   consumes the item from the inventory before applying it and gives it back when the product
   then has no effect. Only the room flow checks `IsOwnedOutrightBy`; the inventory flow refuses
   rented items (`FurnitureItemSnapshot.IsRented`) instead.
+- A pet using something faces it and stays until it is done. Arriving beside an item it
+  cannot stand on, it turns to the item's tile next to it (`RoomPetModule.TurnToItem`, through
+  `FloorFootprint.NearestTileTo`); fed from a hand, it turns to the player (`TurnTo`). Every
+  serving then holds the pet's next decision until its action ends (`StayUntilActionEnds`, in
+  `FurniturePetSupplyLogic` for all its kinds). Only the drink held it, so a cat playing beside
+  its ball looked round mid-play, and the turn faced the item's anchor, a diagonal from beside
+  the far end of a long trough.
 - Wire shapes (pet figure struct, `PetInfo` field order, bot skill ids, chatter string) come
   from the Flash client and are recorded on the enums and helpers under
   `Turbo.Primitives/Pets` and `Turbo.Primitives/Bots`; verify against the client before changing.

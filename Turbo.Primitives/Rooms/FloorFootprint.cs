@@ -50,4 +50,15 @@ public readonly record struct FloorFootprint(int X, int Y, int Width, int Length
 
     /// <summary>A tile on the furni or touching it, diagonals included.</summary>
     public bool IsOnOrNextTo(int x, int y) => DistanceTo(x, y) <= 1;
+
+    /// <summary>
+    /// The covered tile nearest the given one: the tile itself when it is covered, the one
+    /// straight across from a tile beside the furni, the corner from a tile off a corner. A furni
+    /// sized zero covers its anchor.
+    /// </summary>
+    public (int X, int Y) NearestTileTo(int x, int y) =>
+        (
+            Math.Clamp(x, X, X + Math.Max(1, Width) - 1),
+            Math.Clamp(y, Y, Y + Math.Max(1, Length) - 1)
+        );
 }

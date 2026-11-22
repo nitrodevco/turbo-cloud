@@ -257,10 +257,6 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
 
         if (PetModule.IsAtItem(pet, item))
         {
-            // Beside an item it cannot stand on, the pet turns to it (official: 4,1 facing 4,2).
-            if (pet.X != item.X || pet.Y != item.Y)
-                pet.SetRotation(RotationExtensions.FromPoints(pet.X, pet.Y, item.X, item.Y));
-
             await PetModule.OnPetReachedItemAsync(pet, ct);
 
             // Nothing was served (the bowl ran dry on the way): the smile ends with the walk.

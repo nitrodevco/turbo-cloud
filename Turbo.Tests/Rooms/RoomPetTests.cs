@@ -133,6 +133,28 @@ public sealed class RoomPetTests
     }
 
     [Fact]
+    public async Task APetFedFromAHand_FacesWhoeverFeedsIt_UntilItHasEaten()
+    {
+        _harness.Fakes.Handlers["ApplyPetNutritionOperationAsync"] = _ =>
+            Task.FromResult(new PetNutritionOperationResult { Nutrition = 100, ActualGain = 0 });
+        await PlaceAsync(); // standing at 4,4 facing south
+        await SayAsync("Rex free");
+        MoveOwnerTo(5, 4); // east of it
+        _owner.SetHandItem(2);
+
+        (await Pets.PassHandItemToPetAsync(Owner, PET, Ct)).Should().BeTrue();
+
+        // Its next decision falls due while it eats, with dice that would look round.
+        Pets.UseRandom(new HighestRandom());
+        await _harness.Room.PetTickSystem.ProcessPetsAsync(_harness.NowMs() + 1_000, Ct);
+
+        var pet = PetSnapshot();
+        pet.BodyRotation.Should().Be(Rotation.East);
+        pet.HeadRotation.Should().Be(Rotation.East);
+        pet.Status.Should().Contain("/eat");
+    }
+
+    [Fact]
     public async Task APetFollowingItsOwner_TurnsItsHeadWithItsBody()
     {
         await PlaceAsync();

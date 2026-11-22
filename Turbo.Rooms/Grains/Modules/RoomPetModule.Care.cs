@@ -294,15 +294,21 @@ public sealed partial class RoomPetModule
 
         ClearActionStatuses(pet);
 
+        // It eats from the hand facing whoever holds it out, and stays until it has eaten.
+        TurnTo(pet, player.X, player.Y);
         pet.AddStatus(AvatarStatusType.Eat, string.Empty);
         pet.ActionExpiresAtMs = NowMs() + Config.HandItemEatDurationMs;
+        StayUntilActionEnds(pet);
 
         await AvatarModule.SetHandItemAsync(player, 0, ct);
 
         return true;
     }
 
-    /// <summary>The pet arrived at the item it was walking to.</summary>
+    /// <summary>
+    /// The pet arrived at the item it was walking to: beside one it cannot stand on, it turns to
+    /// it first.
+    /// </summary>
     internal async Task OnPetReachedItemAsync(IRoomPet pet, CancellationToken ct)
     {
         var itemId = pet.TargetItemId;
@@ -311,6 +317,8 @@ public sealed partial class RoomPetModule
 
         if (!State.ItemsById.TryGetValue(itemId, out var item))
             return;
+
+        TurnToItem(pet, item);
 
         switch (item.Logic)
         {

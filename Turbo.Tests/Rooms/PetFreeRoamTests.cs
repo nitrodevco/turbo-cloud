@@ -34,6 +34,7 @@ public sealed class PetFreeRoamTests
     private const int SEAT = 41;
     private const int TOY = 42;
     private const int DRINK = 43;
+    private const int FOOD = 44;
 
     private readonly WiredRoom _room = new(10, 10);
     private readonly RoomPlayerAvatar _owner = new() { ObjectId = 5, PlayerId = OWNER };
@@ -168,6 +169,83 @@ public sealed class PetFreeRoamTests
             .Be(1, "official horses drank at a trough from the tile beside it, never a corner");
         pet.Rotation.Should().Be(RotationExtensions.FromPoints(pet.X, pet.Y, 5, 5));
         Status().Should().Contain("/eat", "the horse drinks there");
+    }
+
+    [Fact]
+    public async Task A_horse_beside_the_far_end_of_a_long_trough_faces_the_trough_not_its_anchor()
+    {
+        _pet = _pet with { Energy = 10 };
+        // Over 4,5 and 5,5; the horse stands at 5,4, beside the far end.
+        _room.AddFloorItem(
+            DRINK,
+            4,
+            5,
+            "pet_drink",
+            canWalk: false,
+            createLogic: (factory, ctx) => new FurniturePetDrinkLogic(factory, ctx),
+            width: 2
+        );
+        await PlaceFreeAsync(5, 4);
+
+        await DecideAsync(new ScriptedRandom(step: 1));
+        await SetOffAsync();
+        await DecideAsync(new ScriptedRandom(step: 1, chance: 99));
+
+        Pet()
+            .Rotation.Should()
+            .Be(Rotation.South, "the trough is straight ahead of it; its anchor is on a diagonal");
+        Status().Should().Contain("/gst sml", "it is served there");
+    }
+
+    [Fact]
+    public async Task A_cat_faces_the_ball_it_plays_with_until_the_play_is_done()
+    {
+        // A cat played beside a ball facing away from it: its next decision fell due mid-play
+        // and it looked round.
+        _pet = Cat();
+        NoDrinkWanted();
+        _room.AddFloorItem(TOY, 5, 5, "pet_toy", canWalk: false, createLogic: (factory, ctx) =>
+            new FurniturePetToyLogic(factory, ctx)
+        );
+        await PlaceFreeAsync();
+
+        var decidedAt = await GoAndArriveAsync();
+
+        Status().Should().Contain("/pla");
+
+        await DecideMidActionAsync(decidedAt);
+
+        var pet = Pet();
+        pet.Rotation.Should().Be(RotationExtensions.FromPoints(pet.X, pet.Y, 5, 5));
+        Status().Should().Contain("/pla", "it plays on");
+    }
+
+    [Fact]
+    public async Task A_hungry_cat_faces_the_bowl_it_eats_from_until_it_has_eaten()
+    {
+        // Hungry under 30; one serving of 20 feeds it, so nothing sends it back to the bowl.
+        _pet = Cat() with { Nutrition = 25 };
+        NoDrinkWanted(toyEither: true);
+        _room.AddFloorItem(
+            FOOD,
+            5,
+            5,
+            "pet_food",
+            canWalk: false,
+            createLogic: (factory, ctx) => new FurniturePetFoodLogic(factory, ctx),
+            totalStates: 6
+        );
+        await PlaceFreeAsync();
+
+        var decidedAt = await GoAndArriveAsync();
+
+        Status().Should().Contain("/eat");
+
+        await DecideMidActionAsync(decidedAt);
+
+        var pet = Pet();
+        pet.Rotation.Should().Be(RotationExtensions.FromPoints(pet.X, pet.Y, 5, 5));
+        Status().Should().Contain("/eat", "it eats on");
     }
 
     [Fact]
@@ -401,9 +479,9 @@ public sealed class PetFreeRoamTests
 
     private string Status() => ((RoomPetAvatarSnapshot)Pet().GetSnapshot()).Status;
 
-    private async Task PlaceFreeAsync()
+    private async Task PlaceFreeAsync(int x = 4, int y = 4)
     {
-        (await Pets.PlacePetAsync(ActionContext.CreateForPlayer(OWNER, 1), PET, 4, 4, Ct))
+        (await Pets.PlacePetAsync(ActionContext.CreateForPlayer(OWNER, 1), PET, x, y, Ct))
             .Should()
             .BeTrue();
         await _room.Harness.Room.ChatSystem.SendChatFromPlayerAsync(
@@ -439,6 +517,36 @@ public sealed class PetFreeRoamTests
         await DecideAsync(new ScriptedRandom(step: 1, chance: 99));
         await RunTimersAsync();
         await RunTimersAsync();
+    }
+
+    /// <summary>
+    /// The pet decides on the room's clock (its next decision then falls due 4 s on), goes for a
+    /// supply and is served there 3 s after it decided; the time it decided is returned.
+    /// </summary>
+    private async Task<long> GoAndArriveAsync()
+    {
+        _now = RoomClockMs();
+        var decidedAt = _now;
+        Pets.UseRandom(new ScriptedRandom(step: 1));
+        await _room.Harness.Room.PetTickSystem.ProcessPetsAsync(_now, Ct);
+        await SetOffAsync();
+        await WalkAsync();
+
+        _room.Harness.Clock.AdvanceMs(3_000);
+        await _room.Harness.Room.PetTickSystem.ProcessPetsAsync(RoomClockMs(), Ct);
+
+        return decidedAt;
+    }
+
+    /// <summary>
+    /// The pet's next decision, due 4.5 s after the last and so mid-action, with dice that have
+    /// an idle pet look round (to the south-west, which no side of an item faces).
+    /// </summary>
+    private Task DecideMidActionAsync(long decidedAt)
+    {
+        Pets.UseRandom(new ScriptedRandom(step: 5, chance: 99));
+
+        return _room.Harness.Room.PetTickSystem.ProcessPetsAsync(decidedAt + 4_500, Ct);
     }
 
     /// <summary>The pet's lead-in: it turns to the item, then sets off.</summary>
@@ -484,6 +592,13 @@ public sealed class PetFreeRoamTests
                 ? Math.Clamp(step, minValue, maxValue - 1)
                 : Math.Clamp(minValue + step, minValue, Math.Max(minValue, maxValue - 1));
     }
+
+    /// <summary>A cat: no idle actions of its own type, so an idle one looks round.</summary>
+    private static PetSnapshot Cat() =>
+        Horse() with
+        {
+            Figure = Horse().Figure with { TypeId = PetTypes.CAT, CustomParts = [] },
+        };
 
     private static PetSnapshot Horse() =>
         new()

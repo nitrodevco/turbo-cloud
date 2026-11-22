@@ -11,6 +11,7 @@ using Turbo.Primitives.Messages.Outgoing.Room.Pets;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
+using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
@@ -257,6 +258,14 @@ public sealed partial class RoomPetModule
         pet.ActionExpiresAtMs = 0;
     }
 
+    /// <summary>
+    /// Keeps the pet at what it is doing until the action ends: a decision falling due meanwhile
+    /// looked round, sat or wandered off mid-meal, and a cat playing beside its ball turned away
+    /// from it.
+    /// </summary>
+    internal void StayUntilActionEnds(IRoomPet pet) =>
+        pet.NextActionAtMs = Math.Max(pet.NextActionAtMs, pet.ActionExpiresAtMs);
+
     private void SetTimedStatus(IRoomPet pet, AvatarStatusType status, int durationMs)
     {
         pet.Sit(false);
@@ -482,6 +491,34 @@ public sealed partial class RoomPetModule
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Turns a pet beside the item it uses to face it: toward the item's tile next to it, as the
+    /// official horses faced a trough (4,1 facing 4,2), not toward the item's anchor, which from
+    /// beside the far end of a long item lies on a diagonal. A pet on the item keeps the way it
+    /// came on.
+    /// </summary>
+    internal void TurnToItem(IRoomPet pet, IRoomObject item)
+    {
+        var (x, y) = item is IRoomFloorItem floorItem
+            ? FloorFootprint.Of(floorItem).NearestTileTo(pet.X, pet.Y)
+            : (item.X, item.Y);
+
+        TurnTo(pet, x, y);
+    }
+
+    /// <summary>
+    /// Turns the whole pet to face a tile. One on that tile, ridden (it turns with its rider) or
+    /// sitting or lying on a seat or bed (which holds it the way it faces, as it holds a player
+    /// looking round) stays as it is.
+    /// </summary>
+    internal void TurnTo(IRoomPet pet, int x, int y)
+    {
+        if ((pet.X == x && pet.Y == y) || pet.IsRiding || AvatarModule.IsHeldByFurni(pet))
+            return;
+
+        pet.SetRotation(RotationExtensions.FromPoints(pet.X, pet.Y, x, y));
     }
 
     /// <summary>Whether a pet may stand on the item's tile, whoever stands there now.</summary>
