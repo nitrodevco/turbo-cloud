@@ -176,6 +176,8 @@ client, a setting and a weekly reset. [Directory Structure](structure.md) walks 
 
 ## Next Steps
 
+- [The First Hotel](first-hotel.md): from the empty database the server just made to a hotel
+  you can play in: Habbo's data, room models, the navigator, the catalog, the currencies.
 - [Configuration](configuration.md): where settings come from and how to change them.
 - [Directory Structure](structure.md): what goes where in a plugin.
 - [Packet Lifecycle](lifecycle.md): what happens between a click in the client and the reply.
