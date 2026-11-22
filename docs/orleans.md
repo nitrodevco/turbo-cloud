@@ -127,17 +127,31 @@ a failing check, or hand-edit active entries.
 
 These manifests protect Orleans RPC contracts and grain identities. They do not validate
 Habbo packets, serialized state schemas or behavioral compatibility; those still need
-their own tests and review. See the [upstream analyzer guide](https://github.com/dotnet/orleans/blob/v10.3.1/docs/site/src/content/docs/grains/grain-versioning/contract-compatibility-analyzer.md).
+their own tests and review. See the [upstream analyzer guide](https://github.com/dotnet/orleans/blob/v10.4.2/docs/site/src/content/docs/grains/grain-versioning/contract-compatibility-analyzer.md).
 
 ## Messenger integration deployment
 
 The messenger integration changes the return type of `IPlayerMessengerGrain.SendMessageAsync`
 from `bool` to a nullable error code and replaces the parameters and return type of
-`ReceiveMessageAsync`. The reviewed baseline records the new signatures and preserves the
-previous declarations as comments. These changes are not compatible with mixed old/new
-silos. Stop all Turbo silos and Orleans clients, deploy the same build everywhere, then
+`ReceiveMessageAsync`. The reviewed baseline records the new signatures; the previous
+declarations it kept as comments were dropped when the manifest was regenerated under 10.3.1.
+These changes are not compatible with mixed old/new silos. Stop all Turbo silos and Orleans clients, deploy the same build everywhere, then
 restart together; do not roll this change through a running cluster. Apply the messenger
 database migrations before starting the updated server.
+
+## Orleans 10.4 contract cleanup deployment
+
+Orleans 10.4 reports an RPC method whose `CancellationToken` is not its last parameter
+(`ORLEANS0113`), and numbers that method's arguments differently from 10.3.1.
+`IRoomGrain.SendChatFromPlayerAsync`, `UseItemByIdAsync` and `ClickItemByIdAsync` now take `ct`
+last, so their wire identities changed. The same change accepts two older breaks the manifest
+had kept as `ORLEANS0027`: `IInventoryGrain.GrantLtdFurnitureAsync` returning the granted items,
+and `IWiredTradeGrain.StartChestDepositAsync` taking the chest's free capacity. Each retired
+signature is a `# Previous declaration` comment at the end of `Turbo.Primitives/OrleansContracts.txt`,
+and regenerating with 10.4 keeps those comments. These changes are not compatible with mixed
+old/new silos: stop every Turbo silo and Orleans client, deploy the same build everywhere, then
+restart together.
+
 ## Request Flow Examples
 ### Example A: Catalog purchase
 `Turbo.PacketHandlers/Catalog/PurchaseFromCatalogMessageHandler.cs`:

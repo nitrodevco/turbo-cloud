@@ -109,10 +109,16 @@ public sealed class IdleWakeTests
         action switch
         {
             "walk" => _harness.Room.WalkAvatarToAsync(Player, 5, 5, CancellationToken.None),
-            "use furniture" => _harness.Room.UseItemByIdAsync(Player, 77, CancellationToken.None),
+            "use furniture" => _harness.Room.UseItemByIdAsync(
+                Player,
+                77,
+                param: -1,
+                CancellationToken.None
+            ),
             "click furniture" => _harness.Room.ClickItemByIdAsync(
                 Player,
                 77,
+                param: -1,
                 CancellationToken.None
             ),
             _ => _harness.Room.SendChatFromPlayerAsync(
@@ -120,6 +126,8 @@ public sealed class IdleWakeTests
                 RoomChatType.Chat,
                 "hello",
                 0,
+                trackingId: -1,
+                recipientName: null,
                 CancellationToken.None
             ),
         };

@@ -8,7 +8,7 @@
   <!-- The plugin test kit (turbo-cloud docs/plugin-testing.md), from the server the plugin builds against. -->
   <Import Project="$(TurboBin)/plugin-sdk/Turbo.Plugin.Tests.props" />
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
     <PackageReference Include="xunit.v3" Version="3.2.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="all" />
   </ItemGroup>

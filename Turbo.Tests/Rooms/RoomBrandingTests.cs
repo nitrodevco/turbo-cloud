@@ -117,7 +117,7 @@ public sealed class RoomBrandingTests
     [Fact]
     public void The_background_and_the_300_billboard_stack_nothing_on_them()
     {
-        var builder = new MigrationBuilder("Pomelo.EntityFrameworkCore.MySql");
+        var builder = new MigrationBuilder("Microting.EntityFrameworkCore.MySql");
 
         typeof(MapRoomBrandingAndTonerLogic)
             .GetMethod("Up", BindingFlags.NonPublic | BindingFlags.Instance)!

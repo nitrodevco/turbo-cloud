@@ -15,9 +15,9 @@ for its area, and comes here only when every change needs it.
 This repository targets the following core stack. When coding, prefer patterns compatible with these versions:
 - .NET SDK `10.0.400` (from `global.json`)
 - C# / BCL `net10.0`
-- Orleans `10.3.1`
-- EF Core `9.0.19` (held on 9.x: Pomelo `9.0.0` pins `Microsoft.EntityFrameworkCore.Relational` to `[9.0.0, 9.0.999]`)
-- Pomelo MySQL provider `9.0.0`
+- Orleans `10.4.2`
+- EF Core `10.0.15` (on the major the target framework and the MySQL provider share: EF Core 11 needs .NET 11)
+- MySQL provider `Microting.EntityFrameworkCore.MySql` `10.0.14` (Pomelo's successor; Pomelo stopped at EF Core 9)
 - SuperSocket `2.1.0`
 
 ## Rules by area

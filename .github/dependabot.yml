@@ -19,7 +19,10 @@ updates:
       nuget-compatible:
         patterns: ["*"]
         update-types: [minor, patch]
-    # EF stays on 9.x until the MySQL provider supports the next major version.
+    # EF and its MySQL provider move a major only with the target framework: EF Core 11 and
+    # Microting.EntityFrameworkCore.MySql 11 need .NET 11.
     ignore:
       - dependency-name: "Microsoft.EntityFrameworkCore*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microting.EntityFrameworkCore.MySql"
         update-types: ["version-update:semver-major"]

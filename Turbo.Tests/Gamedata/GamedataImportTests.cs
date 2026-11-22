@@ -606,7 +606,12 @@ public sealed partial class GamedataImportTests : IDisposable
         );
         room.Harness.State.ItemsById.Add((RoomObjectId)60, item);
         room.Map.AddItem(item);
-        await room.Harness.Room.UseItemByIdAsync(ActionContext.CreateForPlayer(101, 1), 60, Ct);
+        await room.Harness.Room.UseItemByIdAsync(
+            ActionContext.CreateForPlayer(101, 1),
+            60,
+            param: -1,
+            Ct
+        );
         if (usage == FurnitureUsageType.Everybody)
             handItems.Should().Contain(guest.HandItemId);
         else

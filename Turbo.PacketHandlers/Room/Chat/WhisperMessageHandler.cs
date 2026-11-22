@@ -32,8 +32,9 @@ public class WhisperMessageHandler(IGrainFactory grainFactory) : IMessageHandler
                 RoomChatType.Whisper,
                 message.Text,
                 message.StyleId,
-                ct,
-                recipientName: message.RecipientName
+                trackingId: -1,
+                recipientName: message.RecipientName,
+                ct
             )
             .ConfigureAwait(false);
     }

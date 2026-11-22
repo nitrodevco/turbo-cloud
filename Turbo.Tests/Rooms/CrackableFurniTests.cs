@@ -97,7 +97,12 @@ public sealed class CrackableFurniTests
         _room.Enter(OWNER_AVATAR, 3, 4);
         var box = AddCrackable(id, 3, 3, OWNER, BC_BOX, totalStates: 3);
 
-        await _room.Harness.Room.UseItemByIdAsync(ActionContext.CreateForPlayer(OWNER, 1), id, Ct);
+        await _room.Harness.Room.UseItemByIdAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            id,
+            param: -1,
+            Ct
+        );
         await RunTimersAsync();
 
         Progress(box).Hits.Should().Be(0);
@@ -533,6 +538,7 @@ public sealed class CrackableFurniTests
         await _room.Harness.Room.UseItemByIdAsync(
             ActionContext.CreateForPlayer(playerId, 1),
             BOX,
+            param: -1,
             Ct
         );
 

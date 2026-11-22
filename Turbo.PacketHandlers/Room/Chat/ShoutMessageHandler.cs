@@ -28,6 +28,8 @@ public class ShoutMessageHandler(IGrainFactory grainFactory) : IMessageHandler<S
                 RoomChatType.Shout,
                 message.Text,
                 message.StyleId,
+                trackingId: -1,
+                recipientName: null,
                 ct
             )
             .ConfigureAwait(false);

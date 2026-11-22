@@ -120,15 +120,15 @@ public sealed partial class RoomGrain
     public async Task<bool> UseItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
+        int param,
+        CancellationToken ct
     )
     {
         try
         {
             try
             {
-                return await ActionModule.UseItemByIdAsync(ctx, itemId, ct, param);
+                return await ActionModule.UseItemByIdAsync(ctx, itemId, param, ct);
             }
             finally
             {
@@ -153,15 +153,15 @@ public sealed partial class RoomGrain
     public async Task<bool> ClickItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
+        int param,
+        CancellationToken ct
     )
     {
         try
         {
             AvatarModule.TouchAvatar(ctx.PlayerId, NowMs());
 
-            if (!await ActionModule.ClickItemByIdAsync(ctx, itemId, ct, param))
+            if (!await ActionModule.ClickItemByIdAsync(ctx, itemId, param, ct))
                 return false;
 
             return true;

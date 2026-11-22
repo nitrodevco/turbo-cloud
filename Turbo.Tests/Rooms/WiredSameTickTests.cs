@@ -260,7 +260,12 @@ public sealed class WiredSameTickTests
     private Task UseThroughCallAsync() => CallAsync(UseAsync);
 
     private Task UseAsync() =>
-        _room.Harness.Room.UseItemByIdAsync(ActionContext.CreateForPlayer(PLAYER, 1), SWITCH, Ct);
+        _room.Harness.Room.UseItemByIdAsync(
+            ActionContext.CreateForPlayer(PLAYER, 1),
+            SWITCH,
+            param: -1,
+            Ct
+        );
 
     /// <summary>A call into the room as Orleans makes it: through the room's call filter.</summary>
     private async Task<List<IComposer>> CallAsync(

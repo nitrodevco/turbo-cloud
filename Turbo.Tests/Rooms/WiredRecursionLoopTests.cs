@@ -81,7 +81,7 @@ public sealed class WiredRecursionLoopTests
         ).Should().BeTrue();
         await StartAsync();
 
-        await _room.Harness.Room.UseItemByIdAsync(_room.ContextFor(AVATAR), LAMP, Ct);
+        await _room.Harness.Room.UseItemByIdAsync(_room.ContextFor(AVATAR), LAMP, param: -1, Ct);
         await TickAsync(1);
 
         Runs().Should().Be(100);

@@ -34,6 +34,11 @@ Read a `Turbo.Tests/Support` file only when you need a member not listed here.
   `.Settings`, `.Running<T>()` (what the server took at start), `.Restart()`. `TestHotelConfig` has every kind.
 - `InMemoryDb(throwOnUnorderedTake)` and `SqliteDb` (relational; `.Insert(entity)`) are database
   factories. `CapturingLogger<T>.AtLeast(level)` asserts on log output.
+- The `MySql*` tests run only when `TURBO_TEST_MYSQL` names a server (no database; one that may
+  create them), and each makes and drops a database of its own. CI does not set it, so run them
+  yourself when a change touches migrations, raw SQL, transactions or the provider: seven of them
+  once broke unnoticed. A fixture that drives the real host `IHotel` builds it through
+  `Turbo.Tests/Hotel/HostHotelServices.Build`.
 - `Fakes`: an unconfigured call returns a completed task, `default`, or another fake for an
   interface, so a grain method returning a record or class gives null. Stub it with
   `Fakes.Handlers["MethodName"] = call => ...` or `Fakes.Instances[(typeof(IMyGrain), key)] = ...`;

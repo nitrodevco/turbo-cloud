@@ -772,7 +772,7 @@ internal sealed partial class RoomService(
 
         var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
 
-        await roomGrain.UseItemByIdAsync(ctx, itemId, ct, param).ConfigureAwait(false);
+        await roomGrain.UseItemByIdAsync(ctx, itemId, param, ct).ConfigureAwait(false);
     }
 
     public async Task ClickItemInRoomAsync(
@@ -787,6 +787,6 @@ internal sealed partial class RoomService(
 
         var roomGrain = _grainFactory.GetRoomGrain(ctx.RoomId);
 
-        await roomGrain.ClickItemByIdAsync(ctx, itemId, ct, param).ConfigureAwait(false);
+        await roomGrain.ClickItemByIdAsync(ctx, itemId, param, ct).ConfigureAwait(false);
     }
 }

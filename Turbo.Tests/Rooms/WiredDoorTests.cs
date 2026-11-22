@@ -142,7 +142,12 @@ public sealed class WiredDoorTests
         _room.Harness.Room.WalkAvatarToAsync(ActionContext.CreateForPlayer(OWNER, 1), x, y, Ct);
 
     private Task UseAsync(int id) =>
-        _room.Harness.Room.UseItemByIdAsync(ActionContext.CreateForPlayer(OWNER, 1), id, Ct);
+        _room.Harness.Room.UseItemByIdAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            id,
+            param: -1,
+            Ct
+        );
 
     /// <summary>Walks the avatar there tick by tick, running the room's timers between ticks.</summary>
     private async Task WalkToAsync(RoomPlayerAvatar avatar, int x, int y, Action? onEachStep = null)

@@ -261,7 +261,7 @@ public sealed class JukeboxRoomTests
         );
 
     private Task<bool> UseAsync(int playerId, int param) =>
-        _room.Room.UseItemByIdAsync(ActionContext.CreateForPlayer(playerId, 1), JUKEBOX, Ct, param);
+        _room.Room.UseItemByIdAsync(ActionContext.CreateForPlayer(playerId, 1), JUKEBOX, param, Ct);
 
     private static SongSnapshot Song(int id) =>
         new()

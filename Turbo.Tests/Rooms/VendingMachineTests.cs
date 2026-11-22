@@ -150,7 +150,12 @@ public sealed class VendingMachineTests
     }
 
     private Task UseAsync(int playerId) =>
-        _room.Harness.Room.UseItemByIdAsync(ActionContext.CreateForPlayer(playerId, 1), FRIDGE, Ct);
+        _room.Harness.Room.UseItemByIdAsync(
+            ActionContext.CreateForPlayer(playerId, 1),
+            FRIDGE,
+            param: -1,
+            Ct
+        );
 
     private async Task WalkUntilStoppedAsync(RoomPlayerAvatar avatar)
     {

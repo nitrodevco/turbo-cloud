@@ -29,7 +29,7 @@
     <TurboPluginReference Include="Microsoft.EntityFrameworkCore" />
     <TurboPluginReference Include="Microsoft.EntityFrameworkCore.Abstractions" />
     <TurboPluginReference Include="Microsoft.EntityFrameworkCore.Relational" />
-    <TurboPluginReference Include="Pomelo.EntityFrameworkCore.MySql" />
+    <TurboPluginReference Include="Microting.EntityFrameworkCore.MySql" />
     <TurboPluginReference Include="Orleans.Core.Abstractions" />
     <TurboPluginReference Include="Orleans.Serialization.Abstractions" />
     <TurboPluginReference Include="Orleans.Serialization" />

@@ -152,8 +152,9 @@ public class ChatHeadDirectionTests
                 type,
                 "hello",
                 0,
-                CancellationToken.None,
-                recipientName: type == RoomChatType.Whisper ? "listener" : null
+                trackingId: -1,
+                recipientName: type == RoomChatType.Whisper ? "listener" : null,
+                CancellationToken.None
             );
     }
 }

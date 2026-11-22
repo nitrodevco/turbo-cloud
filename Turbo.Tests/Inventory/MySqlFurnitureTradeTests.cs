@@ -67,10 +67,17 @@ public sealed class MySqlFurnitureTradeTests
             .Be(2);
     }
 
+    /// <summary>
+    /// Both trades read before either locks a row, so the loser's snapshot predates the winner's
+    /// commit: MySQL hands the loser the winner's rows, while MariaDB 11.6+
+    /// (<c>innodb_snapshot_isolation</c>, on by default) refuses its locking read with error 1020.
+    /// Either way the loser declines instead of failing.
+    /// </summary>
     [Fact]
     public async Task OppositeTradesOverlappingRowsHaveOneAtomicWinner()
     {
-        await using var store = await MySqlTradeStore.CreateAsync();
+        var barrier = new ReceiptInsertBarrier();
+        await using var store = await MySqlTradeStore.CreateAsync([barrier]);
         await store.SeedAsync();
         var custody = await store.NewCustodyAsync();
         var forward = store.Request();
@@ -87,6 +94,12 @@ public sealed class MySqlFurnitureTradeTests
             custody.ExchangeTradeAsync(reverse, MovementCause.New(MovementCauses.TRADE, SECOND), Ct)
         );
 
+        barrier
+            .WaitingInserts.Should()
+            .BeGreaterThanOrEqualTo(
+                2,
+                "both trades passed their receipt lookup before either locked"
+            );
         results.Count(x => x).Should().Be(1);
         await using var db = await store.Factory.CreateDbContextAsync(Ct);
         (await db.Furnitures.OrderBy(x => x.Id).Select(x => x.PlayerEntityId).ToListAsync(Ct))

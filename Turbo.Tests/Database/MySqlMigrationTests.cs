@@ -25,6 +25,14 @@ public sealed class MySqlMigrationTests : IAsyncLifetime
 {
     private static readonly string? SERVER = Environment.GetEnvironmentVariable("TURBO_TEST_MYSQL");
 
+    /// <summary>
+    /// For a database migrated partway first: it has applied migrations, so the migrator refuses
+    /// the drops later in the history (<c>DropBuildersClubFurnitureOfferId</c>, for one) without
+    /// the operator's say-so. These tests are about what the later migrations do to rows, not the
+    /// guard, which <c>DatabaseMigratorTests</c> covers.
+    /// </summary>
+    private static readonly MigrationRunOptions DROPS_ALLOWED = new() { AllowDestructive = true };
+
     private readonly string _database = "turbo_test_" + Guid.NewGuid().ToString("N")[..12];
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -68,7 +76,7 @@ public sealed class MySqlMigrationTests : IAsyncLifetime
 
     private static DatabaseMigrator Migrator(
         MigrationMode mode = MigrationMode.Auto,
-        int lockSeconds = 30,
+        int? lockSeconds = null,
         CapturingLogger<DatabaseMigrator>? log = null
     ) =>
         new(
@@ -76,9 +84,11 @@ public sealed class MySqlMigrationTests : IAsyncLifetime
                 new DatabaseConfig
                 {
                     Migrate = mode,
-                    MigrationLockSeconds = lockSeconds,
-                    // The emulator's history has drops from before this feature; a database
-                    // that is created has nothing to lose, so none of these tests need them.
+                    // The hotel's own wait unless a test shortens it: the second of two servers
+                    // started together waits out a whole run from empty, tens of seconds here.
+                    MigrationLockSeconds = lockSeconds ?? new DatabaseConfig().MigrationLockSeconds,
+                    // A database the migrator creates has nothing to lose; one migrated partway
+                    // first passes DROPS_ALLOWED.
                     AllowDestructiveMigrations = false,
                 }
             ),
@@ -280,8 +290,7 @@ public sealed class MySqlMigrationTests : IAsyncLifetime
             .ToList();
         await db.Database.MigrateAsync(known[20], Ct);
 
-        var result = await Migrator()
-            .MigrateAsync(db, "core", new MigrationRunOptions { AllowDestructive = true }, Ct);
+        var result = await Migrator().MigrateAsync(db, "core", DROPS_ALLOWED, Ct);
 
         result.Applied.Should().Equal(known.Skip(21));
     }
@@ -303,7 +312,7 @@ public sealed class MySqlMigrationTests : IAsyncLifetime
             Ct
         );
 
-        await Migrator().MigrateAsync(db, "core", null, Ct);
+        await Migrator().MigrateAsync(db, "core", DROPS_ALLOWED, Ct);
 
         var parts = await db
             .Pets.AsNoTracking()
@@ -325,7 +334,7 @@ public sealed class MySqlMigrationTests : IAsyncLifetime
             Ct
         );
 
-        await Migrator().MigrateAsync(db, "core", null, Ct);
+        await Migrator().MigrateAsync(db, "core", DROPS_ALLOWED, Ct);
 
         var topics = await db.CfhTopics.AsNoTracking().OrderBy(x => x.Id).ToListAsync(Ct);
 
@@ -413,7 +422,7 @@ public sealed class MySqlMigrationTests : IAsyncLifetime
             Ct
         );
 
-        await Migrator().MigrateAsync(db, "core", null, Ct);
+        await Migrator().MigrateAsync(db, "core", DROPS_ALLOWED, Ct);
 
         var topics = await db.CfhTopics.AsNoTracking().ToDictionaryAsync(x => x.Id, Ct);
 

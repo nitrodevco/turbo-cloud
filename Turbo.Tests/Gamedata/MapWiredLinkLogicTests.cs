@@ -58,7 +58,7 @@ public sealed class MapWiredLinkLogicTests
 
     private static List<string> Sql(string method)
     {
-        var builder = new MigrationBuilder("Pomelo.EntityFrameworkCore.MySql");
+        var builder = new MigrationBuilder("Microting.EntityFrameworkCore.MySql");
 
         typeof(MapWiredLinkLogic)
             .GetMethod(method, BindingFlags.NonPublic | BindingFlags.Instance)!

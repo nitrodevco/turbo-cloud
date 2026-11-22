@@ -32,112 +32,142 @@ public sealed partial class FurnitureCustody
 
         try
         {
-            return await dbCtxFactory
-                .InTransactionAsync(
-                    async dbCtx =>
-                    {
-                        var prior = await dbCtx
-                            .FurnitureTradeReceipts.AsNoTracking()
-                            .SingleOrDefaultAsync(x => x.OperationId == cause.OperationId, ct)
-                            .ConfigureAwait(false);
-                        if (prior is not null)
-                        {
-                            if (!ReceiptMatches(prior, hash))
-                                throw new InvalidOperationException(
-                                    "The trade operation id was already used for a different request."
-                                );
-                            return UnitOfWork.Rollback(true);
-                        }
-
-                        var initiatorIds = request.InitiatorItems.Select(ItemId).ToArray();
-                        var partnerIds = request.PartnerItems.Select(ItemId).ToArray();
-                        var receipt = new FurnitureTradeReceiptEntity
-                        {
-                            OperationId = cause.OperationId,
-                            RequestHash = hash,
-                            InitiatorId = request.InitiatorId.Value,
-                            PartnerId = request.PartnerId.Value,
-                            InitiatorItemIds = JsonSerializer.Serialize(initiatorIds),
-                            PartnerItemIds = JsonSerializer.Serialize(partnerIds),
-                            CreatedAt = DateTime.UtcNow,
-                        };
-                        dbCtx.FurnitureTradeReceipts.Add(receipt);
-                        receiptInsertPending = true;
-                        await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
-                        receiptInsertPending = false;
-
-                        var allIds = initiatorIds.Concat(partnerIds).Order().ToArray();
-
-                        // Read the participating rows in id order under MySQL locks. SQLite's
-                        // behavior fixture strips FOR UPDATE; the MySQL tests exercise real contention.
-                        var placeholders = string.Join(", ", allIds.Select((_, i) => $"{{{i}}}"));
-                        var arguments = allIds.Cast<object>().ToArray();
-                        var sql =
-                            $"SELECT * FROM furniture WHERE id IN ({placeholders}) ORDER BY id FOR UPDATE";
-                        var rows =
-                            allIds.Length == 0
-                                ? []
-                                : await dbCtx
-                                    .Furnitures.FromSqlRaw(sql, arguments)
-                                    .AsNoTracking()
-                                    .ToListAsync(ct)
+            for (var attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    return await dbCtxFactory
+                        .InTransactionAsync(
+                            async dbCtx =>
+                            {
+                                var prior = await dbCtx
+                                    .FurnitureTradeReceipts.AsNoTracking()
+                                    .SingleOrDefaultAsync(
+                                        x => x.OperationId == cause.OperationId,
+                                        ct
+                                    )
                                     .ConfigureAwait(false);
-                        if (
-                            !ValidOffer(rows, request.InitiatorItems, request.InitiatorId.Value)
-                            || !ValidOffer(rows, request.PartnerItems, request.PartnerId.Value)
-                        )
-                            return UnitOfWork.Rollback(false);
+                                if (prior is not null)
+                                {
+                                    if (!ReceiptMatches(prior, hash))
+                                        throw new InvalidOperationException(
+                                            "The trade operation id was already used for a different request."
+                                        );
+                                    return UnitOfWork.Rollback(true);
+                                }
 
-                        if (
-                            !await TransferTradeSideAsync(
-                                    dbCtx,
-                                    initiatorIds,
-                                    request.InitiatorId.Value,
-                                    request.PartnerId.Value,
-                                    ct
+                                var initiatorIds = request.InitiatorItems.Select(ItemId).ToArray();
+                                var partnerIds = request.PartnerItems.Select(ItemId).ToArray();
+                                var receipt = new FurnitureTradeReceiptEntity
+                                {
+                                    OperationId = cause.OperationId,
+                                    RequestHash = hash,
+                                    InitiatorId = request.InitiatorId.Value,
+                                    PartnerId = request.PartnerId.Value,
+                                    InitiatorItemIds = JsonSerializer.Serialize(initiatorIds),
+                                    PartnerItemIds = JsonSerializer.Serialize(partnerIds),
+                                    CreatedAt = DateTime.UtcNow,
+                                };
+                                dbCtx.FurnitureTradeReceipts.Add(receipt);
+                                receiptInsertPending = true;
+                                await dbCtx.SaveChangesAsync(ct).ConfigureAwait(false);
+                                receiptInsertPending = false;
+
+                                var allIds = initiatorIds.Concat(partnerIds).Order().ToArray();
+
+                                // Read the participating rows in id order under MySQL locks. SQLite's
+                                // behavior fixture strips FOR UPDATE; the MySQL tests exercise real contention.
+                                var placeholders = string.Join(
+                                    ", ",
+                                    allIds.Select((_, i) => $"{{{i}}}")
+                                );
+                                var arguments = allIds.Cast<object>().ToArray();
+                                var sql =
+                                    $"SELECT * FROM furniture WHERE id IN ({placeholders}) ORDER BY id FOR UPDATE";
+                                var rows =
+                                    allIds.Length == 0
+                                        ? []
+                                        : await dbCtx
+                                            .Furnitures.FromSqlRaw(sql, arguments)
+                                            .AsNoTracking()
+                                            .ToListAsync(ct)
+                                            .ConfigureAwait(false);
+                                if (
+                                    !ValidOffer(
+                                        rows,
+                                        request.InitiatorItems,
+                                        request.InitiatorId.Value
+                                    )
+                                    || !ValidOffer(
+                                        rows,
+                                        request.PartnerItems,
+                                        request.PartnerId.Value
+                                    )
                                 )
-                                .ConfigureAwait(false)
-                        )
-                            return UnitOfWork.Rollback(false);
-                        if (
-                            !await TransferTradeSideAsync(
-                                    dbCtx,
-                                    partnerIds,
-                                    request.PartnerId.Value,
-                                    request.InitiatorId.Value,
-                                    ct
+                                    return UnitOfWork.Rollback(false);
+
+                                if (
+                                    !await TransferTradeSideAsync(
+                                            dbCtx,
+                                            initiatorIds,
+                                            request.InitiatorId.Value,
+                                            request.PartnerId.Value,
+                                            ct
+                                        )
+                                        .ConfigureAwait(false)
                                 )
-                                .ConfigureAwait(false)
+                                    return UnitOfWork.Rollback(false);
+                                if (
+                                    !await TransferTradeSideAsync(
+                                            dbCtx,
+                                            partnerIds,
+                                            request.PartnerId.Value,
+                                            request.InitiatorId.Value,
+                                            ct
+                                        )
+                                        .ConfigureAwait(false)
+                                )
+                                    return UnitOfWork.Rollback(false);
+
+                                var initiator = request.InitiatorId;
+                                var partner = request.PartnerId;
+                                movements.Record(
+                                    dbCtx,
+                                    [
+                                        .. Moved(
+                                            cause,
+                                            request.InitiatorItems,
+                                            Inventory(initiator),
+                                            Inventory(partner)
+                                        ),
+                                        .. Moved(
+                                            cause.StartingAt(
+                                                checked(
+                                                    cause.FirstSeq + request.InitiatorItems.Length
+                                                )
+                                            ),
+                                            request.PartnerItems,
+                                            Inventory(partner),
+                                            Inventory(initiator)
+                                        ),
+                                    ]
+                                );
+
+                                return UnitOfWork.Commit(true);
+                            },
+                            ct
                         )
-                            return UnitOfWork.Rollback(false);
-
-                        var initiator = request.InitiatorId;
-                        var partner = request.PartnerId;
-                        movements.Record(
-                            dbCtx,
-                            [
-                                .. Moved(
-                                    cause,
-                                    request.InitiatorItems,
-                                    Inventory(initiator),
-                                    Inventory(partner)
-                                ),
-                                .. Moved(
-                                    cause.StartingAt(
-                                        checked(cause.FirstSeq + request.InitiatorItems.Length)
-                                    ),
-                                    request.PartnerItems,
-                                    Inventory(partner),
-                                    Inventory(initiator)
-                                ),
-                            ]
-                        );
-
-                        return UnitOfWork.Commit(true);
-                    },
-                    ct
-                )
-                .ConfigureAwait(false);
+                        .ConfigureAwait(false);
+                }
+                // Two overlapping trades: the loser's fresh transaction reads the winner's commit
+                // and declines. MariaDB 11.6+ refuses its first attempt where MySQL would not.
+                catch (Exception ex) when (attempt < 2 && ex.IsRetryableWriteConflict())
+                {
+                    receiptInsertPending = false;
+                    await Task.Delay(TimeSpan.FromMilliseconds(25 * (attempt + 1)), ct)
+                        .ConfigureAwait(false);
+                }
+            }
         }
         catch (DbUpdateException ex) when (receiptInsertPending)
         {

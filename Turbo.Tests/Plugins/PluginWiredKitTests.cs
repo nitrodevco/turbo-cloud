@@ -183,7 +183,7 @@ public sealed class PluginWiredKitTests : IDisposable
         (
             await _room
                 .Harness.Module<RoomActionModule>()
-                .UseItemByIdAsync(_room.ContextFor(5), button.ObjectId, Ct, param: 0)
+                .UseItemByIdAsync(_room.ContextFor(5), button.ObjectId, param: 0, Ct)
         )
             .Should()
             .BeTrue();

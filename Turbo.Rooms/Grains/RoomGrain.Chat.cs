@@ -15,9 +15,9 @@ public sealed partial class RoomGrain
         RoomChatType chatType,
         string text,
         int styleId,
-        CancellationToken ct,
-        int trackingId = -1,
-        string? recipientName = null
+        int trackingId,
+        string? recipientName,
+        CancellationToken ct
     )
     {
         try

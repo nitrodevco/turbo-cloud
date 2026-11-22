@@ -26,7 +26,12 @@ public sealed class DailyTaskActivityTests
         var item = harness.CreateFloorItem(70, 1, 1, Altitude.FromInt(0), name: "bbq_grill");
         harness.AddToRoom(item);
 
-        await harness.Room.UseItemByIdAsync(ActionContext.CreateForPlayer(PLAYER, 1), 70, Ct);
+        await harness.Room.UseItemByIdAsync(
+            ActionContext.CreateForPlayer(PLAYER, 1),
+            70,
+            param: -1,
+            Ct
+        );
 
         var call = harness.Fakes.Log.Of("RecordActivityAsync").Should().ContainSingle().Subject;
         call.Key.Should().Be((long)PLAYER);
@@ -41,7 +46,7 @@ public sealed class DailyTaskActivityTests
         var item = harness.CreateFloorItem(70, 1, 1, Altitude.FromInt(0), name: "bbq_grill");
         harness.AddToRoom(item);
 
-        await harness.Room.UseItemByIdAsync(ActionContext.CreateForSystem(1), 70, Ct);
+        await harness.Room.UseItemByIdAsync(ActionContext.CreateForSystem(1), 70, param: -1, Ct);
 
         harness.Fakes.Log.Of("RecordActivityAsync").Should().BeEmpty();
     }

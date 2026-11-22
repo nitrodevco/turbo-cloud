@@ -76,7 +76,12 @@ public sealed class FloorHoleTests
         _room.Harness.Room.WalkAvatarToAsync(ActionContext.CreateForPlayer(OWNER, 1), x, y, Ct);
 
     private Task UseAsync() =>
-        _room.Harness.Room.UseItemByIdAsync(ActionContext.CreateForPlayer(OWNER, 1), HOLE, Ct);
+        _room.Harness.Room.UseItemByIdAsync(
+            ActionContext.CreateForPlayer(OWNER, 1),
+            HOLE,
+            param: -1,
+            Ct
+        );
 
     private IRoomFloorItem AddHole() =>
         AddFurni(

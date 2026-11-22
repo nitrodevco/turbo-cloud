@@ -33,7 +33,7 @@ internal static class PluginReferences
         "Microsoft.EntityFrameworkCore",
         "Microsoft.EntityFrameworkCore.Abstractions",
         "Microsoft.EntityFrameworkCore.Relational",
-        "Pomelo.EntityFrameworkCore.MySql",
+        "Microting.EntityFrameworkCore.MySql",
         // Serializable types ([GenerateSerializer]) and the grain interfaces the contracts name.
         "Orleans.Core.Abstractions",
         "Orleans.Serialization.Abstractions",

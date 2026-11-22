@@ -28,8 +28,9 @@ public class ChatMessageHandler(IGrainFactory grainFactory) : IMessageHandler<Ch
                 RoomChatType.Chat,
                 message.Text,
                 message.StyleId,
-                ct,
-                trackingId: message.TrackingId
+                trackingId: message.TrackingId,
+                recipientName: null,
+                ct
             )
             .ConfigureAwait(false);
     }

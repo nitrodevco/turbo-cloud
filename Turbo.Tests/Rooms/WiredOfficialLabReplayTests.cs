@@ -247,15 +247,20 @@ public sealed class WiredOfficialLabReplayTests
                         break;
                     case "click":
                         NewWindow(at);
-                        await _room.Harness.Room.ClickItemByIdAsync(Actor(), evt[2].GetInt32(), Ct);
+                        await _room.Harness.Room.ClickItemByIdAsync(
+                            Actor(),
+                            evt[2].GetInt32(),
+                            param: -1,
+                            Ct
+                        );
                         break;
                     case "use":
                         NewWindow(at);
                         await _room.Harness.Room.UseItemByIdAsync(
                             Actor(),
                             evt[2].GetInt32(),
-                            Ct,
-                            evt[3].GetInt32()
+                            evt[3].GetInt32(),
+                            Ct
                         );
                         break;
                     case "other":

@@ -1,11 +1,9 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
-using Orleans;
 using Turbo.Contracts.Hotel;
 using Turbo.Database.Configuration;
 using Turbo.Database.Context;
@@ -17,9 +15,7 @@ using Turbo.Database.Entities.Room;
 using Turbo.Database.Migrations;
 using Turbo.Furniture;
 using Turbo.Furniture.Configuration;
-using Turbo.Main.Hotel;
 using Turbo.Players.Providers;
-using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Editing;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
@@ -27,11 +23,9 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Navigator.Enums;
-using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
-using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -191,25 +185,13 @@ public sealed class MySqlHostHotelReadsTests(MySqlHostHotelReadsTests.Database d
 
             var fakes = new Fakes();
 
-            Hotel = new ServiceCollection()
-                .AddSingleton<IDbContextFactory<TurboDbContext>>(factory)
-                .AddSingleton(fakes.Create<IGrainFactory>())
-                .AddSingleton(fakes.Create<ISessionGateway>())
-                .AddSingleton(fakes.Create<INavigatorService>())
-                .AddSingleton(fakes.Create<IPlayerNoticeService>())
-                .AddSingleton(fakes.Create<ICatalogSnapshotProvider<NormalCatalog>>())
-                .AddSingleton(fakes.Create<ICatalogEditService>())
-                .AddSingleton(fakes.Create<IExpiringPageService>())
-                .AddSingleton<ICurrencyTypeProvider>(currencies)
-                .AddSingleton<IFurnitureDefinitionProvider>(definitions)
-                .AddSingleton(new TestEventBus().System)
-                .AddSingleton(fakes.Create<Turbo.Primitives.Navigator.IPublicRoomEditor>())
-                .AddSingleton(fakes.Create<Turbo.Primitives.Rooms.IRoomService>())
-                .AddSingleton<Turbo.Admin.Commands.AdminActionLog>()
-                .AddLogging()
-                .AddTurboHotel()
-                .BuildServiceProvider()
-                .GetRequiredService<IHotel>();
+            Hotel = HostHotelServices.Build(
+                factory,
+                fakes,
+                currencies,
+                definitions,
+                fakes.Create<IPublicRoomEditor>()
+            );
         }
 
         public async ValueTask DisposeAsync()

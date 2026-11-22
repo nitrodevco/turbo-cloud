@@ -13,9 +13,9 @@ public partial interface IRoomGrain
         RoomChatType chatType,
         string text,
         int styleId,
-        CancellationToken ct,
-        int trackingId = -1,
-        string? recipientName = null
+        int trackingId,
+        string? recipientName,
+        CancellationToken ct
     );
     public Task<bool> SetAvatarTypingAsync(ActionContext ctx, bool isTyping, CancellationToken ct);
 

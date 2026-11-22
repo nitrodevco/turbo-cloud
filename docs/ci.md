@@ -43,8 +43,9 @@ imports are not embedded, but logs can still contain build properties and runner
 paths. Successful builds do not upload these diagnostics.
 
 Dependabot checks GitHub Actions and NuGet weekly, grouping minor/patch updates
-per ecosystem. Major upgrades remain separate, with EF major upgrades held until
-the MySQL provider is compatible. Dependency PRs still require review.
+per ecosystem. Major upgrades remain separate, and EF Core and its MySQL provider
+(`Microting.EntityFrameworkCore.MySql`) are held on their major until the target
+framework moves with them. Dependency PRs still require review.
 
 Local workflow validation: `actionlint .github/workflows/quality.yml`.
 The existing `TurboCloudFastCheck` and `TurboCloudQualityGate` MSBuild targets

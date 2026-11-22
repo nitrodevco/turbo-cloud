@@ -190,7 +190,12 @@ public sealed class MultiHeightBlockTests
 
         async Task UseAndRunWiredAsync(int itemId)
         {
-            await _room.Harness.Room.UseItemByIdAsync(ActionContext.CreateForSystem(1), itemId, ct);
+            await _room.Harness.Room.UseItemByIdAsync(
+                ActionContext.CreateForSystem(1),
+                itemId,
+                param: -1,
+                ct
+            );
             await RunWiredAsync();
         }
     }

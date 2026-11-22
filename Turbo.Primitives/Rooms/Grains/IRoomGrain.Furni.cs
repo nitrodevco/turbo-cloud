@@ -53,14 +53,14 @@ public partial interface IRoomGrain
     public Task<bool> UseItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
+        int param,
+        CancellationToken ct
     );
     public Task<bool> ClickItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
+        int param,
+        CancellationToken ct
     );
 
     /// <summary>

@@ -310,7 +310,12 @@ public sealed class FloorSwitchUseTests
             .Count(x => ((AchievementFact)x.Args[2]!).Source == AchievementSources.FURNITURE);
 
     private Task UseAsync() =>
-        _room.Harness.Room.UseItemByIdAsync(ActionContext.CreateForPlayer(PLAYER, 1), SWITCH, Ct);
+        _room.Harness.Room.UseItemByIdAsync(
+            ActionContext.CreateForPlayer(PLAYER, 1),
+            SWITCH,
+            param: -1,
+            Ct
+        );
 
     private IRoomFloorItem AddSwitch(string name, int x, int y, int totalStates = 2) =>
         _room.AddFloorItem(

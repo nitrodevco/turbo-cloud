@@ -1,10 +1,8 @@
 using System.Collections.Immutable;
 using FluentAssertions;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Orleans;
-using Turbo.Admin.Commands;
 using Turbo.Contracts.Hotel;
 using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Players;
@@ -19,7 +17,6 @@ using Turbo.Primitives.Availability;
 using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Badges.Grains;
 using Turbo.Primitives.Badges.Snapshots;
-using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Editing;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Tags;
@@ -368,28 +365,7 @@ public sealed class HostHotelContractTests : HotelContract
                     await _world.NewInventoryAsync(player.Value, ct);
             }
 
-            _hotel = new ServiceCollection()
-                .AddSingleton<Microsoft.EntityFrameworkCore.IDbContextFactory<Turbo.Database.Context.TurboDbContext>>(
-                    db
-                )
-                .AddSingleton(fakes.Create<IGrainFactory>())
-                .AddSingleton(fakes.Create<ISessionGateway>())
-                .AddSingleton(fakes.Create<INavigatorService>())
-                .AddSingleton(fakes.Create<IRoomService>())
-                .AddSingleton(fakes.Create<IPlayerNoticeService>())
-                .AddSingleton(fakes.Create<ICatalogSnapshotProvider<NormalCatalog>>())
-                .AddSingleton(fakes.Create<ICatalogEditService>())
-                .AddSingleton(fakes.Create<IExpiringPageService>())
-                .AddSingleton(fakes.Create<IHotelAvailability>())
-                .AddSingleton<ICurrencyTypeProvider>(currencies)
-                .AddSingleton<IFurnitureDefinitionProvider>(definitions)
-                .AddSingleton(new TestEventBus().System)
-                .AddSingleton<IPublicRoomEditor>(Editor())
-                .AddSingleton<AdminActionLog>()
-                .AddLogging()
-                .AddTurboHotel()
-                .BuildServiceProvider()
-                .GetRequiredService<IHotel>();
+            _hotel = HostHotelServices.Build(db, fakes, currencies, definitions, Editor());
         }
 
         public ValueTask DisposeAsync()

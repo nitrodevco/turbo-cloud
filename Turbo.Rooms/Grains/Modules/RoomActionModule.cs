@@ -376,8 +376,8 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
     public async Task<bool> UseItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
+        int param,
+        CancellationToken ct
     )
     {
         if (!State.ItemsById.TryGetValue(itemId, out var item))
@@ -496,8 +496,8 @@ public sealed partial class RoomActionModule(RoomGrain roomGrain) : RoomGrainCom
     public async Task<bool> ClickItemByIdAsync(
         ActionContext ctx,
         RoomObjectId itemId,
-        CancellationToken ct,
-        int param = -1
+        int param,
+        CancellationToken ct
     )
     {
         // The client can click its placement preview before PlaceObject arrives, or an item

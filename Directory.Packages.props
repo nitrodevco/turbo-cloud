@@ -7,11 +7,12 @@
     <PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="18.12.1" />
   </ItemGroup>
   <ItemGroup>
-    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.400" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.404" />
     <!--
-      Roslyn transitives are pinned so central transitive pinning resolves a single version:
-      Orleans 10 requires Microsoft.CodeAnalysis 5.x, while EF Core 9 design-time packages
-      still ask for 4.8.0.
+      Roslyn and its transitives are pinned together so central transitive pinning resolves one
+      version: Orleans 10 asks for Microsoft.CodeAnalysis 5.x and EF Core 10's design-time
+      packages for 5.0.0, and the plugin policy analyzer (Turbo.Plugins.Policy) must stay
+      loadable by every SDK 10 compiler.
     -->
     <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="5.0.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
@@ -19,58 +20,59 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="5.0.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.0.0" />
     <!--
-      EF Core is held on 9.x: Pomelo.EntityFrameworkCore.MySql 9.0.0 pins
-      Microsoft.EntityFrameworkCore.Relational to [9.0.0, 9.0.999]. Move to EF Core 10 once
-      Pomelo ships an EF Core 10 provider.
+      EF Core stays on the major the target framework and the MySQL provider share:
+      Microting.EntityFrameworkCore.MySql 10.0.14 asks for Relational [10.0.14, 10.0.999], and
+      EF Core 11 (with Microting 11) needs .NET 11.
     -->
-    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.19" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.19" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.19" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Abstractions" Version="9.0.19" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.19" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Abstractions" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.15" />
     <PackageVersion
       Include="Microsoft.Extensions.DependencyInjection.Abstractions"
-      Version="10.0.11"
+      Version="10.0.15"
     />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyModel" Version="10.0.11" />
-    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
-    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
-    <PackageVersion Include="Microsoft.Orleans.Serialization.Abstractions" Version="10.3.1" />
-    <PackageVersion Include="Microsoft.Orleans.Persistence.Memory" Version="10.3.1" />
-    <PackageVersion Include="Microsoft.Orleans.Server" Version="10.3.1" />
-    <PackageVersion Include="Microsoft.Orleans.Streaming" Version="10.3.1" />
-    <PackageVersion Include="Microsoft.Orleans.Core.Abstractions" Version="10.3.1" />
-    <PackageVersion Include="Microsoft.Orleans.Sdk" Version="10.3.1" />
-    <PackageVersion Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyModel" Version="10.0.15" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.21.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
+    <PackageVersion Include="Microsoft.Orleans.Serialization.Abstractions" Version="10.4.2" />
+    <PackageVersion Include="Microsoft.Orleans.Persistence.Memory" Version="10.4.2" />
+    <PackageVersion Include="Microsoft.Orleans.Server" Version="10.4.2" />
+    <PackageVersion Include="Microsoft.Orleans.Streaming" Version="10.4.2" />
+    <PackageVersion Include="Microsoft.Orleans.Core.Abstractions" Version="10.4.2" />
+    <PackageVersion Include="Microsoft.Orleans.Sdk" Version="10.4.2" />
+    <!-- Pomelo's successor: Pomelo.EntityFrameworkCore.MySql stopped at EF Core 9. -->
+    <PackageVersion Include="Microting.EntityFrameworkCore.MySql" Version="10.0.14" />
     <PackageVersion Include="SuperSocket.Server" Version="2.1.0" />
     <PackageVersion Include="SuperSocket.Server.Abstractions" Version="2.1.0" />
     <PackageVersion Include="SuperSocket.ProtoBase" Version="2.1.0" />
     <PackageVersion Include="SuperSocket.WebSocket.Server" Version="2.1.0" />
     <PackageVersion Include="Scrutor" Version="6.1.0" />
     <!-- Admin panel passkeys (WebAuthn attestation and assertion checks). -->
-    <PackageVersion Include="Fido2" Version="4.2.0" />
+    <PackageVersion Include="Fido2" Version="4.3.3" />
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.7.0" />
     <!-- Publishing asset bundles to FTP/FTPS and SFTP targets. -->
-    <PackageVersion Include="FluentFTP" Version="55.0.0" />
-    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
-    <PackageVersion Include="SkiaSharp" Version="4.153.1" />
-    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.1" />
+    <PackageVersion Include="FluentFTP" Version="55.1.0" />
+    <PackageVersion Include="SSH.NET" Version="2026.0.1" />
+    <PackageVersion Include="SkiaSharp" Version="4.157.0" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.157.0" />
   </ItemGroup>
   <ItemGroup>
     <!--
       Test-only. FluentAssertions is held on 7.x: 8.0 moved to a commercial licence, and 7.x is
       the last Apache-2.0 line.
     -->
-    <PackageVersion Include="FluentAssertions" Version="7.2.0" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageVersion Include="FluentAssertions" Version="7.2.2" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.19" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.19" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.15" />
   </ItemGroup>
 </Project>

@@ -120,6 +120,11 @@ Rules for inventory sections, unseen items, badges and trading.
   both owner changes, movements and a request-bound receipt commit together. Resolve the receipt
   before validating old ownership on retry; never compensate an ambiguous response.
   Present opening locks the same wrapper and checks its current owner before releasing contents.
+- The commit retries a lost write (`IsRetryableWriteConflict`) in a fresh transaction. The receipt
+  lookup opens the transaction's snapshot before its `FOR UPDATE`, so when two trades overlap,
+  the loser's snapshot predates the winner's commit: MySQL hands it the winner's rows and it
+  declines, but MariaDB 11.6+ (`innodb_snapshot_isolation`, on by default) refuses the locking
+  read with `ER_CHECKREAD` instead. Any transaction that reads before it locks needs that retry.
 - Each participant's durable reconciliation obligation is checked before cached furniture reads.
   Reload current custody and acknowledge only captured receipts after a stable load and successful
   unseen/client invalidation calls. A bounded hosted worker retries across restarts. Delayed

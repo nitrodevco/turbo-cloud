@@ -78,14 +78,18 @@ public sealed class PluginUnloadTests : IDisposable
     [Fact]
     public async Task A_plugin_with_a_database_context_unloads_and_reloads_without_a_leak()
     {
-        // The host's database settings, as a plugin reaches them; the version is given, so
-        // nothing connects.
+        // The host's database settings, as a plugin reaches them; the version is given, and the
+        // port is one nothing listens on, so the migration read fails before a login. A MySQL on
+        // the machine that refused the login would make this plugin the process's first
+        // MySqlConnector user: its connection pool's reaper and its timeout timer keep the
+        // execution context they start in, and EF Core 10's execution strategy flows the plugin's
+        // context options in that one. A server's own context always connects first.
         var host = new ServiceCollection()
             .AddSingleton(
                 Options.Create(
                     new Turbo.Database.Configuration.DatabaseConfig
                     {
-                        ConnectionString = "server=127.0.0.1;database=none",
+                        ConnectionString = "server=127.0.0.1;port=1;database=none",
                         ServerVersion = "8.0.0-mysql",
                     }
                 )

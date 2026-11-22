@@ -598,7 +598,7 @@ public sealed class WiredFurniStateMatrixTests
             .Harness.Fakes.SentToRoom<ObjectDataUpdateMessageComposer>()
             .Count();
 
-        await _room.Harness.Room.UseItemByIdAsync(_room.ContextFor(AVATAR), CHAIR, Ct);
+        await _room.Harness.Room.UseItemByIdAsync(_room.ContextFor(AVATAR), CHAIR, param: -1, Ct);
         await RunWiredAsync();
 
         lamp.Logic.GetState().Should().Be(fires ? 1 : 0);
@@ -658,7 +658,7 @@ public sealed class WiredFurniStateMatrixTests
         if (!userInside)
             return;
 
-        await _room.Harness.Room.UseItemByIdAsync(_room.ContextFor(AVATAR), GATE, Ct);
+        await _room.Harness.Room.UseItemByIdAsync(_room.ContextFor(AVATAR), GATE, param: -1, Ct);
 
         gate.Logic.GetState().Should().Be(OPEN, "a use from inside changes nothing either");
     }

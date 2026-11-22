@@ -106,7 +106,8 @@ public sealed class CoreMigrationsTests
                 && property.GetDefaultValue() is not null
                 && !property.IsPrimaryKey()
                 // A created_at is MySQL's to stamp (CURRENT_TIMESTAMP), never the code's.
-                && property.GetValueGenerationStrategy() == MySqlValueGenerationStrategy.None
+                && MySqlPropertyExtensions.GetValueGenerationStrategy(property)
+                    == MySqlValueGenerationStrategy.None
                 && property.ValueGenerated != ValueGenerated.Never
             )
             .Select(property => $"{property.DeclaringType.DisplayName()}.{property.Name}");

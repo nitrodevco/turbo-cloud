@@ -59,7 +59,7 @@ public sealed class PluginFurniHooksTests : IDisposable
         (
             await _room
                 .Harness.Module<RoomActionModule>()
-                .UseItemByIdAsync(_room.ContextFor(ALICE), portal.ObjectId, Ct, param: 0)
+                .UseItemByIdAsync(_room.ContextFor(ALICE), portal.ObjectId, param: 0, Ct)
         )
             .Should()
             .BeTrue();

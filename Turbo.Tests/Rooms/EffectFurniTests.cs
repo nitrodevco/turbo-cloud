@@ -210,6 +210,7 @@ public sealed class EffectFurniTests
         _room.Harness.Room.UseItemByIdAsync(
             ActionContext.CreateForPlayer(playerId, 1),
             objectId,
+            param: -1,
             Ct
         );
 

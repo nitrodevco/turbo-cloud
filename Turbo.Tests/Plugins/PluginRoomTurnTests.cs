@@ -93,7 +93,7 @@ public sealed class PluginRoomTurnTests : IDisposable
         (
             await _room
                 .Harness.Module<RoomActionModule>()
-                .UseItemByIdAsync(_room.ContextFor(ALICE), MACHINE, Ct, param: 0)
+                .UseItemByIdAsync(_room.ContextFor(ALICE), MACHINE, param: 0, Ct)
         )
             .Should()
             .BeTrue("a visitor without rights may use it");
@@ -113,7 +113,7 @@ public sealed class PluginRoomTurnTests : IDisposable
         (
             await _room
                 .Harness.Module<RoomActionModule>()
-                .UseItemByIdAsync(_room.ContextFor(ALICE), MACHINE, Ct, param: 0)
+                .UseItemByIdAsync(_room.ContextFor(ALICE), MACHINE, param: 0, Ct)
         )
             .Should()
             .BeTrue();

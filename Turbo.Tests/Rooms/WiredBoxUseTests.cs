@@ -36,7 +36,7 @@ public sealed class WiredBoxUseTests
             createLogic: (factory, ctx) => new WiredActionGiveVariable(_room.Grains, factory, ctx)
         );
 
-        await _room.Harness.Room.UseItemByIdAsync(Owner, BOX, Ct);
+        await _room.Harness.Room.UseItemByIdAsync(Owner, BOX, param: -1, Ct);
 
         box.Logic.GetUsagePolicy().Should().Be(FurnitureUsageType.Controller);
         OpensSentToOwner().Should().ContainSingle().Which.ItemId.Should().Be(BOX);
