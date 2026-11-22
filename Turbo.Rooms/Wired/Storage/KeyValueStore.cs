@@ -13,9 +13,9 @@ public sealed class KeyValueStore : IWiredVariableStore
     /// <summary>Creation and last write times per key, for the variable age wired.</summary>
     public Dictionary<string, WiredVariableTimestamps> Timestamps { get; set; } = [];
 
-    private Func<Task>? _onChanged;
+    private Action? _onChanged;
 
-    public void SetAction(Func<Task>? onChanged) => _onChanged = onChanged;
+    public void SetAction(Action? onChanged) => _onChanged = onChanged;
 
     /// <summary>
     /// The store this one was started from, whose variables it shares: a signalled stack's context
@@ -142,6 +142,6 @@ public sealed class KeyValueStore : IWiredVariableStore
 
     private void MarkDirty()
     {
-        _ = _onChanged?.Invoke();
+        _onChanged?.Invoke();
     }
 }

@@ -1382,6 +1382,7 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         services.AddSingleton(_room.Grains);
         services.AddSingleton(fakes.Create<IOwnerBootstrap>());
         services.AddSingleton(Options.Create(new Turbo.Players.Configuration.OnboardingConfig()));
+        services.AddSingleton(Options.Create(new Turbo.Players.Configuration.PlayerConfig()));
         services.AddSingleton<IPlayerNamePolicy>(
             new PlayerNamePolicy(Options.Create(new Turbo.Players.Configuration.PlayerConfig()))
         );

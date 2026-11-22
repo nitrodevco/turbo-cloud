@@ -429,4 +429,35 @@ public sealed class MySqlMigrationTests : IAsyncLifetime
         topics[10].Name.Should().Be("selling_buying_accounts_or_furni");
         topics[10].Consequence.Should().Be("auto_reply");
     }
+
+    [Fact]
+    public async Task ARoomLimitStaffSetUnderTheNavigator_MovesToTheRoomsUnlessTheRoomsHasOne()
+    {
+        RequireServer();
+        await using var db = Context();
+        await db.Database.MigrateAsync("20261101090000_SeedCurrencyTypes", Ct);
+        await db.Database.ExecuteSqlRawAsync(
+            "INSERT INTO `server_settings` (`setting_path`, `value`, `created_at`) VALUES "
+                + "('Turbo:Navigator:MaxPlayersLimit', '100', NOW()), "
+                + "('Turbo:Navigator:MaxTagLength', '40', NOW()), "
+                + "('Turbo:Rooms:RoomTagMaxLength', '25', NOW())",
+            Ct
+        );
+
+        await Migrator().MigrateAsync(db, "core", DROPS_ALLOWED, Ct);
+
+        var settings = await db
+            .ServerSettings.AsNoTracking()
+            .ToDictionaryAsync(x => x.Path, x => x.Value, Ct);
+
+        settings
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string>
+                {
+                    ["Turbo:Rooms:MaxPlayersLimit"] = "100",
+                    ["Turbo:Rooms:RoomTagMaxLength"] = "25",
+                }
+            );
+    }
 }

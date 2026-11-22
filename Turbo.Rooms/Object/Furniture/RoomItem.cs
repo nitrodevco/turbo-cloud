@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Turbo.Furniture;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Snapshots;
@@ -43,12 +42,7 @@ public abstract class RoomItem<TSelf, TLogic, TContext>
     {
         _extraData = new ExtraData(extraData);
 
-        _extraData.SetAction(() =>
-        {
-            MarkDirty();
-
-            return Task.CompletedTask;
-        });
+        _extraData.SetAction(MarkDirty);
     }
 
     public void SetOwnerId(PlayerId ownerId)

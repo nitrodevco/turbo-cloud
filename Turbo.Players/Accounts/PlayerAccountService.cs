@@ -28,14 +28,13 @@ public sealed class PlayerAccountService(
     IOwnerBootstrap owner,
     IWordFilter wordFilter,
     IOptions<OnboardingConfig> onboarding,
+    IOptions<PlayerConfig> players,
     IPlayerNamePolicy namePolicy,
     ILogger<IPlayerAccountService> logger,
     EventSystem? events = null,
     IGamePolicies? policies = null
 ) : IPlayerAccountService
 {
-    public const int MOTTO_MAX_LENGTH = 38;
-
     public async Task<NewPlayerResult> CreateAsync(NewPlayer player, CancellationToken ct)
     {
         var made = await MakeAsync(player, ct).ConfigureAwait(false);
@@ -68,8 +67,10 @@ public sealed class PlayerAccountService(
             ? PlayerFigures.DefaultFor(player.Gender)
             : player.Figure.Trim();
 
-        if (motto.Length > MOTTO_MAX_LENGTH)
-            return NewPlayerResult.Refused($"A motto is up to {MOTTO_MAX_LENGTH} characters.");
+        if (motto.Length > players.Value.MottoMaxLength)
+            return NewPlayerResult.Refused(
+                $"A motto is up to {players.Value.MottoMaxLength} characters."
+            );
 
         if (figure.Length > PlayerFigures.MAX_LENGTH)
             return NewPlayerResult.Refused(

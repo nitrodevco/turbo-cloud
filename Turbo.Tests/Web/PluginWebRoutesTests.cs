@@ -1107,6 +1107,7 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
         services.AddSingleton<IDbContextFactory<TurboDbContext>>(_db);
         services.AddSingleton(_fakes.Create<IOwnerBootstrap>());
         services.AddSingleton(Options.Create(new Turbo.Players.Configuration.OnboardingConfig()));
+        services.AddSingleton(Options.Create(new Turbo.Players.Configuration.PlayerConfig()));
         services.AddSingleton<IPlayerNamePolicy>(
             new PlayerNamePolicy(Options.Create(new Turbo.Players.Configuration.PlayerConfig()))
         );

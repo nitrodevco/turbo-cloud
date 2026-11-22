@@ -1039,7 +1039,7 @@ needs:
 - **A name:** 3 to 15 letters, digits and `- = ? ! @ : . , _`, with no spaces and not starting
   with `@` (commands read `@` as a group of players). It can't be anyone else's name, whatever the
   capitals.
-- **A motto** of up to 38 characters, and a **gender**.
+- **A motto** of up to `Turbo:Players:MottoMaxLength` characters (38), and a **gender**.
 - **A figure.** Leave it empty for the gender's default look.
 
 A player row is all a login needs: their wallet, settings and permissions are made the first time

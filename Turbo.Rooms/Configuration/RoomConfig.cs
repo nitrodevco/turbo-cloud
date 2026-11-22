@@ -30,11 +30,27 @@ public class RoomConfig
             ["val13_water"] = "furniture_water_area",
             ["stackable_water"] = "furniture_water_area",
         };
+
+    // A room's own limits: the navigator holds a new room to them and the room holds every
+    // change (settings, tags) to them.
+
+    /// <summary>The most visitors a room may allow.</summary>
     public int MaxPlayersLimit { get; init; } = 50;
+
+    /// <summary>The shortest name a new room may have, in characters.</summary>
+    public int RoomNameMinLength { get; init; } = 3;
+
+    /// <summary>The longest room name, in characters.</summary>
     public int RoomNameMaxLength { get; init; } = 60;
+
+    /// <summary>The longest room description, in characters.</summary>
     public int RoomDescriptionMaxLength { get; init; } = 128;
     public int RoomPasswordMaxLength { get; init; } = 64;
+
+    /// <summary>The most tags a room carries.</summary>
     public int RoomTagsMax { get; init; } = 2;
+
+    /// <summary>The longest tag, in characters.</summary>
     public int RoomTagMaxLength { get; init; } = 30;
     public int RoomIdleSleepTimeoutMinSeconds { get; init; } = 60;
     public int RoomIdleSleepTimeoutMaxSeconds { get; init; } = 3600;

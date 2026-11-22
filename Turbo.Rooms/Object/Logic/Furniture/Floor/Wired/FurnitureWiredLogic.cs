@@ -1160,14 +1160,11 @@ public abstract partial class FurnitureWiredLogic(
             return Task.CompletedTask;
 
         _wiredData.SetAction(() =>
-        {
             _ctx.RoomObject.ExtraData.UpdateSection(
                 ExtraDataSectionType.WIRED,
                 JsonSerializer.SerializeToNode(_wiredData, _wiredData.GetType())
-            );
-
-            return Task.CompletedTask;
-        });
+            )
+        );
 
         return Task.CompletedTask;
     }

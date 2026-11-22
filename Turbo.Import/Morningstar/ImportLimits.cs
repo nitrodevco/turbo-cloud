@@ -23,6 +23,9 @@ public sealed record ImportLimits
     /// <summary><c>RoomConfig.RoomTagMaxLength</c>.</summary>
     public required int RoomTagMaxLength { get; init; }
 
+    /// <summary><c>PlayerConfig.MottoMaxLength</c>.</summary>
+    public required int MottoMaxLength { get; init; }
+
     /// <summary><c>PlayerConfig.MessengerMaxMessageLength</c>.</summary>
     public required int MessengerMessageMaxLength { get; init; }
 

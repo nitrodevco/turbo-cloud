@@ -1,12 +1,11 @@
-using System;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace Turbo.Primitives.Furniture;
 
 public interface IExtraData
 {
-    public void SetAction(Func<Task>? onSnapshotChanged);
+    /// <summary>What to do each time the data changes (the room marks the item to be saved).</summary>
+    public void SetAction(System.Action? onSnapshotChanged);
     public bool TryGetSection(string name, out JsonElement element);
     public void UpdateSection<TSection>(string name, TSection section);
     public void DeleteSection(string name);

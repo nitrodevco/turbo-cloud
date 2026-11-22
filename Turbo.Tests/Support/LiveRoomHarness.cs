@@ -1,11 +1,13 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Orleans;
 using Orleans.Runtime;
 using Orleans.Streams;
+using Turbo.Database.Context;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
@@ -56,17 +58,24 @@ public sealed class LiveRoomHarness
         Turbo.Players.Policies.GamePolicies.None;
 
     private readonly RoomConfig _roomConfig;
+    private readonly IDbContextFactory<TurboDbContext>? _db;
 
+    /// <param name="db">
+    /// The room's database; an in-memory one by default, which cannot run a bulk update
+    /// (<c>ExecuteUpdateAsync</c>), so a test of a write that uses one passes a <see cref="SqliteDb"/>.
+    /// </param>
     public LiveRoomHarness(
         int width = 10,
         int height = 10,
         RoomConfig? roomConfig = null,
         Altitude[]? heights = null,
         ManualTimeProvider? clock = null,
-        RoomModelSnapshot? model = null
+        RoomModelSnapshot? model = null,
+        IDbContextFactory<TurboDbContext>? db = null
     )
     {
         _roomConfig = roomConfig ?? new RoomConfig();
+        _db = db;
         Clock = clock ?? new ManualTimeProvider(ManualTimeProvider.FixedStart);
         Fakes.Handlers["GetService"] = call =>
             call.Args[0] is Type t && t.IsInterface && !t.IsGenericType ? Fakes.Create(t) : null;
@@ -222,7 +231,7 @@ public sealed class LiveRoomHarness
                 typeof(NullLogger<>).MakeGenericType(t.GetGenericArguments()[0])
             );
         if (t.IsGenericType && t.Name.StartsWith("IDbContextFactory"))
-            return new InMemoryDb();
+            return _db ?? new InMemoryDb();
         if (t.IsInterface)
             return Fakes.Create(t);
         return RuntimeHelpers.GetUninitializedObject(t);

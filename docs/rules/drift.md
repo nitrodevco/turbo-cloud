@@ -37,6 +37,9 @@ finishing a change, check it against this list; each line is a mistake that was 
   - `_ = SomethingAsync(...)` is `.Ignore()` by another name. Await the task, return it, or end it
     with `.LogAndForget(logger, "what it was doing")`. Handlers await their sends. Room code that
     must not hold up the tick (broadcasts, event publishes, wired box flashes) uses `LogAndForget`.
+    A callback typed `Func<Task>` whose callers cannot await it is an `Action`: extra data, wired
+    data and wired storage each discarded the task of a change callback every implementation
+    finished at once, and the stuff data's callback was never set by anyone.
   - Do not use an exception as a lookup (`First` inside `try`, an index inside `try`): use
     `TryGetValue`, a bounds check or `GetIntParamOrDefault`. The only commented swallows left are
     in runtime primitives that have no logger and run during unload (`ReloadableExport`,
@@ -432,6 +435,12 @@ finishing a change, check it against this list; each line is a mistake that was 
   approving one request and approving the lot did not, so an exclusive group could be approved
   past it. The limit is now a question with a name (`GuildGrain.FreeMemberSlots`) that all three
   ask. When you find a limit checked in one path, list every other way to reach that state.
+  Two copies of one limit are two paths waiting to disagree: creating a room kept to
+  `Turbo:Navigator`'s name, description, visitor and tag limits and every later change to
+  `Turbo:Rooms`', so a hotel that raised one had rooms it could make but not edit. A limit
+  belongs to what it limits (`RoomConfig`), and every path reads it there. A limit the client
+  keeps in its own text field is no limit at all: a player could set a motto of any length,
+  while a new account was held to 38 (`PlayerConfig.MottoMaxLength` now holds both).
 - **A tool outside the server asks the server's rules, it does not copy them.** The
   Morningstar import decided an item's logic with its own copy of the room's classname rules,
   which had one of their eight swaps (wired boxes). Turbo's `bb_counter` is plain furniture by its

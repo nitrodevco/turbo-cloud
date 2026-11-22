@@ -910,13 +910,11 @@ public abstract class FurnitureWiredVariableLogic
                     _storage.Clock = _roomGrain._time;
 
                 _storage?.SetAction(() =>
-                {
                     _ctx.RoomObject.ExtraData.UpdateSection(
                         ExtraDataSectionType.STORAGE,
                         JsonSerializer.SerializeToNode(_storage, _storage.GetType())
-                    );
-                    return Task.CompletedTask;
-                });
+                    )
+                );
             }
         }
     }

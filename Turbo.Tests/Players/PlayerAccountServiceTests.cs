@@ -44,6 +44,7 @@ public sealed class PlayerAccountServiceTests : IDisposable
             new NoOwner(),
             new PassThroughWordFilter(),
             Options.Create(new OnboardingConfig()),
+            Options.Create(new PlayerConfig()),
             new PlayerNamePolicy(
                 Options.Create(new PlayerConfig { BlockedNames = ["Admin", "MOD-*"] })
             ),
@@ -188,6 +189,7 @@ public sealed class PlayerAccountServiceTests : IDisposable
             new NoOwner(),
             new PassThroughWordFilter(),
             Options.Create(new OnboardingConfig()),
+            Options.Create(new PlayerConfig()),
             new PlayerNamePolicy(Options.Create(new PlayerConfig())),
             NullLogger<IPlayerAccountService>.Instance,
             _events.System,

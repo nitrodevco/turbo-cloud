@@ -1,7 +1,5 @@
-using System;
 using System.Globalization;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Furniture.StuffData;
 
@@ -21,7 +19,6 @@ internal abstract class StuffDataBase : IStuffData
     public int UniqueNumber { get; set; } = 0;
     public int UniqueSeries { get; set; } = 0;
 
-    protected Func<Task>? _onSnapshotChanged;
     protected bool _dirty = true;
     protected StuffDataSnapshot? _snapshot;
 
@@ -47,13 +44,9 @@ internal abstract class StuffDataBase : IStuffData
 
     public virtual string GetLegacyString() => string.Empty;
 
-    public void SetAction(Func<Task>? onSnapshotChanged) => _onSnapshotChanged = onSnapshotChanged;
-
     public void MarkDirty()
     {
         _dirty = true;
-
-        _ = _onSnapshotChanged?.Invoke();
     }
 
     public virtual StuffDataSnapshot GetSnapshot()

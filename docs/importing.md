@@ -68,7 +68,7 @@ seconds, so a hotel of millions of items takes minutes.
 
 | Morningstar | Turbo | Notes |
 |---|---|---|
-| `users` | `players` | Name, motto, look, gender, created, last online. A name that differs from another only in case gets `_<id>` appended. |
+| `users` | `players` | Name, motto, look, gender, created, last online. A name that differs from another only in case gets `_<id>` appended; a motto is cut to `Turbo:Players:MottoMaxLength`. |
 | `users.credits`, `users_currency` | `player_currencies`, `currency_types` | Type 0 is duckets, 5 diamonds; a type the target lacks is added. |
 | `users_subscriptions`, `users_settings.club_expire_timestamp` | `player_subscriptions` | Habbo Club, the later of the two. |
 | `users_settings` | `players`, `player_settings` | Respect, online time, volumes, privacy switches, chat bubble and style, home room. |

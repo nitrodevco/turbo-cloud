@@ -28,6 +28,7 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Primitives.Texts;
+using Turbo.Rooms.Configuration;
 
 namespace Turbo.Navigator;
 
@@ -41,6 +42,7 @@ public sealed class NavigatorService(
     INavigatorProvider navigatorProvider,
     IGrainFactory grainFactory,
     IOptions<NavigatorConfig> config,
+    IOptions<RoomConfig> roomConfig,
     IOptions<PlayerNavigatorConfig> playerNavigatorConfig,
     IPermissionRegistryProvider permissionRegistryProvider,
     IWordFilter wordFilter,
@@ -51,6 +53,7 @@ public sealed class NavigatorService(
     private readonly INavigatorProvider _navigatorProvider = navigatorProvider;
     private readonly IGrainFactory _grainFactory = grainFactory;
     private readonly NavigatorConfig _config = config.Value;
+    private readonly RoomConfig _roomConfig = roomConfig.Value;
     private readonly PlayerNavigatorConfig _playerNavigatorConfig = playerNavigatorConfig.Value;
     private readonly IPermissionRegistryProvider _permissionRegistryProvider =
         permissionRegistryProvider;
@@ -59,8 +62,6 @@ public sealed class NavigatorService(
 
     public int FavouriteRoomLimit => _playerNavigatorConfig.MaxFavouriteRooms;
     public int MaxSearchCodeLength => _config.MaxSearchCodeLength;
-    public int MaxTagsPerRoom => _config.MaxTagsPerRoom;
-    public int MaxTagLength => _config.MaxTagLength;
     public TimeSpan RoomEventDuration => TimeSpan.FromMinutes(_config.RoomEventDurationMinutes);
 
     public async Task<ImmutableArray<NavigatorTopLevelContextSnapshot>> GetTopLevelContextAsync() =>
@@ -441,11 +442,11 @@ public sealed class NavigatorService(
         description = description?.Trim() ?? string.Empty;
 
         if (
-            name.Length < _config.RoomNameMinLength
-            || name.Length > _config.RoomNameMaxLength
-            || description.Length > _config.RoomDescriptionMaxLength
+            name.Length < _roomConfig.RoomNameMinLength
+            || name.Length > _roomConfig.RoomNameMaxLength
+            || description.Length > _roomConfig.RoomDescriptionMaxLength
             || playersMax <= 0
-            || playersMax > _config.MaxPlayersLimit
+            || playersMax > _roomConfig.MaxPlayersLimit
             || !Enum.IsDefined(tradeType)
         )
         {
@@ -466,8 +467,11 @@ public sealed class NavigatorService(
         if (!canCreate)
             return null;
 
-        name = _wordFilter.FilterAndTruncate(name, _config.RoomNameMaxLength);
-        description = _wordFilter.FilterAndTruncate(description, _config.RoomDescriptionMaxLength);
+        name = _wordFilter.FilterAndTruncate(name, _roomConfig.RoomNameMaxLength);
+        description = _wordFilter.FilterAndTruncate(
+            description,
+            _roomConfig.RoomDescriptionMaxLength
+        );
 
         var modelId = await _navigatorProvider
             .GetRoomModelIdByNameAsync(modelName ?? string.Empty, ct)

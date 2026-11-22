@@ -124,7 +124,5 @@ public interface INavigatorService
 
     /// <summary>Longest search code or filter accepted from the client.</summary>
     public int MaxSearchCodeLength { get; }
-    public int MaxTagsPerRoom { get; }
-    public int MaxTagLength { get; }
     public TimeSpan RoomEventDuration { get; }
 }

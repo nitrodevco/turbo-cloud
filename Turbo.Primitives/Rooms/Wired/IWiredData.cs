@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
 
 namespace Turbo.Primitives.Rooms.Wired;
@@ -32,6 +30,6 @@ public interface IWiredData
         IReadOnlyList<IWiredParamRule> rules,
         IWiredParamRule? tailRule = null
     );
-    public void SetAction(Func<Task>? onSnapshotChanged);
+    public void SetAction(System.Action? onSnapshotChanged);
     public void MarkDirty();
 }

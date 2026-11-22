@@ -18,6 +18,13 @@ public class PlayerConfig
     /// </summary>
     public List<string> BlockedNames { get; init; } = [];
 
+    /// <summary>
+    /// The longest motto, in characters: what a new account may be given and what a player's own
+    /// change is cut to. 38 by default, as Nitro's <c>motto.max.length</c> is; a client only
+    /// limits its own text field, so the server holds every motto to it.
+    /// </summary>
+    public int MottoMaxLength { get; init; } = 38;
+
     /// <summary>Maximum wait for a best-effort player notice, in milliseconds.</summary>
     public int NoticeTimeoutMs { get; init; } = 5000;
 

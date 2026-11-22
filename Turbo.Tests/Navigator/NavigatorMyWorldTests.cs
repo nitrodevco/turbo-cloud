@@ -19,6 +19,7 @@ using Turbo.Primitives.Players.Snapshots.Navigator;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Rooms.Configuration;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -319,6 +320,7 @@ public sealed class NavigatorMyWorldTests
             provider,
             _fakes.Create<IGrainFactory>(),
             Options.Create(config ?? new NavigatorConfig()),
+            Options.Create(new RoomConfig()),
             Options.Create(new PlayerNavigatorConfig()),
             _fakes.Create<IPermissionRegistryProvider>(),
             _fakes.Create<IWordFilter>(),

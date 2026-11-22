@@ -182,7 +182,7 @@ room that is gone) answers status `1` and room `0`, and the flow ends on the hot
 
 The room is made through the navigator like any other room, so the hotel's room limit and maximum
 user count apply (Habbo's starter rooms take 75 users; Turbo's limit is
-`Turbo:Navigator:MaxPlayersLimit`). Furni the hotel has no definition for are left out and logged.
+`Turbo:Rooms:MaxPlayersLimit`). Furni the hotel has no definition for are left out and logged.
 
 Of Habbo's rooms only type `10` is recorded so far (`model_h`, wallpaper 2403, floor 610, 21 furni
 of the `nt_newbie_room` line). Types `11` and `12` need one new Habbo account each to record; until

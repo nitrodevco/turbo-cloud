@@ -106,6 +106,7 @@ public sealed class PublicSiteTests : IAsyncDisposable
         services.AddSingleton<IDbContextFactory<TurboDbContext>>(_db);
         services.AddSingleton<IOwnerBootstrap>(_owner);
         services.AddSingleton(Options.Create(new Turbo.Players.Configuration.OnboardingConfig()));
+        services.AddSingleton(Options.Create(new Turbo.Players.Configuration.PlayerConfig()));
         services.AddSingleton<IPlayerNamePolicy>(
             new PlayerNamePolicy(Options.Create(new Turbo.Players.Configuration.PlayerConfig()))
         );

@@ -15,7 +15,6 @@ using Orleans;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Room;
 using Turbo.Furniture.Custody;
-using Turbo.Navigator.Configuration;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.ExtraData;
@@ -27,6 +26,7 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Wired.WebApi;
+using Turbo.Rooms.Configuration;
 
 namespace Turbo.Navigator.Onboarding;
 
@@ -49,7 +49,7 @@ public sealed class StarterRoomService(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IFurnitureCustody custody,
     IGrainFactory grainFactory,
-    IOptions<NavigatorConfig> navigatorConfig,
+    IOptions<RoomConfig> roomConfig,
     IStarterRoomDirectory directory,
     ILogger<IStarterRoomService> logger
 ) : IStarterRoomService
@@ -167,7 +167,7 @@ public sealed class StarterRoomService(
                 description,
                 template.Model,
                 template.Category,
-                Math.Min(template.MaxUsers, navigatorConfig.Value.MaxPlayersLimit),
+                Math.Min(template.MaxUsers, roomConfig.Value.MaxPlayersLimit),
                 RoomTradeModeType.Disabled,
                 ct
             )
@@ -239,7 +239,7 @@ public sealed class StarterRoomService(
                 description,
                 modelName ?? string.Empty,
                 source.NavigatorCategoryEntityId ?? 0,
-                Math.Min(source.PlayersMax, navigatorConfig.Value.MaxPlayersLimit),
+                Math.Min(source.PlayersMax, roomConfig.Value.MaxPlayersLimit),
                 source.TradeType,
                 ct
             )

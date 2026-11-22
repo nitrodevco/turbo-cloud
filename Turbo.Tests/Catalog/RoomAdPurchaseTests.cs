@@ -27,6 +27,7 @@ using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Rooms.Configuration;
 using Turbo.Tests.Support;
 using Xunit;
 using static Turbo.Tests.Catalog.CatalogFixture;
@@ -454,6 +455,7 @@ public sealed class RoomAdPurchaseTests : IDisposable
             _fakes.Create<INavigatorProvider>(),
             _fakes.Create<IGrainFactory>(),
             Options.Create(new NavigatorConfig()),
+            Options.Create(new RoomConfig()),
             Options.Create(new PlayerNavigatorConfig()),
             _fakes.Create<IPermissionRegistryProvider>(),
             _fakes.Create<IWordFilter>(),

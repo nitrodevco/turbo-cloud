@@ -76,19 +76,15 @@ public class NavigatorConfig
     // The per-player limits of this section (history, favourites, saved searches, collapsed
     // codes, view modes, the search quota) are bound into Turbo.Players' PlayerNavigatorConfig,
     // since the grain that enforces them lives there.
+    // A new room's name, description, visitors and tags keep to the room's own limits
+    // (RoomConfig), as every later change to them does.
     public int MaxRoomsPerPlayer { get; init; } = 50;
-    public int RoomNameMinLength { get; init; } = 3;
-    public int RoomNameMaxLength { get; init; } = 60;
-    public int RoomDescriptionMaxLength { get; init; } = 128;
-    public int MaxPlayersLimit { get; init; } = 50;
 
     /// <summary>
     /// Longest search code or filter echoed back and used as a cache key. What a player may
     /// save is bounded separately, by the columns it is stored in.
     /// </summary>
     public int MaxSearchCodeLength { get; init; } = 64;
-    public int MaxTagsPerRoom { get; init; } = 2;
-    public int MaxTagLength { get; init; } = 30;
     public int PopularTagsLimit { get; init; } = 50;
     public int RoomEventDurationMinutes { get; init; } = 120;
 

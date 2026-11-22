@@ -1,6 +1,5 @@
 using System;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Turbo.Primitives.Furniture;
 
 namespace Turbo.Furniture;
@@ -19,9 +18,9 @@ public sealed class ExtraData(string? extraData) : IExtraData
     private ExtraDataReader? _reader = new(extraData);
     private string? _snapshot = extraData ?? "{}";
 
-    private Func<Task>? _onSnapshotChanged;
+    private Action? _onSnapshotChanged;
 
-    public void SetAction(Func<Task>? onSnapshotChanged) => _onSnapshotChanged = onSnapshotChanged;
+    public void SetAction(Action? onSnapshotChanged) => _onSnapshotChanged = onSnapshotChanged;
 
     public bool TryGetSection(string name, out JsonElement element) =>
         (_reader ??= new ExtraDataReader(GetJsonString())).TryGet(name, out element);
@@ -47,6 +46,6 @@ public sealed class ExtraData(string? extraData) : IExtraData
         _snapshot = null;
         _reader = null;
 
-        _ = _onSnapshotChanged?.Invoke();
+        _onSnapshotChanged?.Invoke();
     }
 }

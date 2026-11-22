@@ -15,6 +15,7 @@ using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Rooms.Configuration;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -75,24 +76,41 @@ public sealed class NavigatorCreateRoomRewardTrackTests
             .Equal(RewardTrackActionTypes.CREATE_ROOM);
     }
 
-    private static Task<RoomId?> CreateAsync(NavigatorService service, string model) =>
+    [Fact]
+    public async Task A_new_room_keeps_to_the_rooms_own_limits()
+    {
+        // The limits every later change to the room keeps to hold the new room too.
+        var service = Service(new RoomConfig { RoomNameMaxLength = 5, MaxPlayersLimit = 20 });
+
+        (await CreateAsync(service, "model_a")).Should().BeNull();
+        (await CreateAsync(service, "model_a", name: "hutch")).Should().BeNull();
+        (await CreateAsync(service, "model_a", name: "hutch", players: 20)).Should().Be((RoomId)9);
+    }
+
+    private static Task<RoomId?> CreateAsync(
+        NavigatorService service,
+        string model,
+        string name = "my room",
+        int players = 25
+    ) =>
         service.CreateRoomAsync(
             PLAYER,
-            "my room",
+            name,
             "",
             model,
             0,
-            25,
+            players,
             RoomTradeModeType.Disabled,
             Ct
         );
 
-    private NavigatorService Service() =>
+    private NavigatorService Service(RoomConfig? rooms = null) =>
         new(
             NullLogger<INavigatorService>.Instance,
             _fakes.Create<INavigatorProvider>(),
             _fakes.Create<IGrainFactory>(),
             Options.Create(new NavigatorConfig()),
+            Options.Create(rooms ?? new RoomConfig()),
             Options.Create(new PlayerNavigatorConfig()),
             _fakes.Create<IPermissionRegistryProvider>(),
             _fakes.Create<IWordFilter>(),

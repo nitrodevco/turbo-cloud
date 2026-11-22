@@ -222,7 +222,8 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
 
     public async Task SetMottoAsync(string text, CancellationToken ct)
     {
-        text = _wordFilter.Filter(text);
+        // The client limits only its own text field; a motto sent past it is cut to the hotel's.
+        text = _wordFilter.FilterAndTruncate(text, _playerConfig.MottoMaxLength);
 
         if (_state.Motto == text)
             return;

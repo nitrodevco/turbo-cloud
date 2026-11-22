@@ -80,6 +80,7 @@ internal static class ImportStartup
                 RoomPlayersMax = rooms.MaxPlayersLimit,
                 RoomTagsMax = rooms.RoomTagsMax,
                 RoomTagMaxLength = rooms.RoomTagMaxLength,
+                MottoMaxLength = players.MottoMaxLength,
                 MessengerMessageMaxLength = players.MessengerMaxMessageLength,
                 WiredSelectedItemsMax = wired.SelectedItemsLimit,
                 WiredActionDelayMaxPulses = wired.ActionDelayMaxPulses,

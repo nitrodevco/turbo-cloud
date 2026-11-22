@@ -131,6 +131,7 @@ PlaceItemsOnAvatars = policy
 EnableDiagonalChecking = legacy
 WaterAreaLogicByDefinition = data
 MaxPlayersLimit = limit
+RoomNameMinLength = policy
 RoomNameMaxLength = client
 RoomDescriptionMaxLength = client
 RoomPasswordMaxLength = client

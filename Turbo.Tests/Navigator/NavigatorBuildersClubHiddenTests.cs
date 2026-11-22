@@ -15,6 +15,7 @@ using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Players.Snapshots.Navigator;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
+using Turbo.Rooms.Configuration;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -129,6 +130,7 @@ public sealed class NavigatorBuildersClubHiddenTests
             _fakes.Create<INavigatorProvider>(),
             _fakes.Create<IGrainFactory>(),
             Options.Create(new NavigatorConfig()),
+            Options.Create(new RoomConfig()),
             Options.Create(new PlayerNavigatorConfig()),
             _fakes.Create<IPermissionRegistryProvider>(),
             _fakes.Create<IWordFilter>(),

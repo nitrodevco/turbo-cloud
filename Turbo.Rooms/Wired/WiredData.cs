@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired;
 
@@ -26,7 +25,7 @@ public class WiredData : IWiredData
     private IReadOnlyList<IWiredParamRule> _intRules = [];
     private IWiredParamRule? _tailRule;
 
-    private Func<Task>? _onSnapshotChanged;
+    private Action? _onSnapshotChanged;
 
     public T GetIntParam<T>(int index)
     {
@@ -81,10 +80,10 @@ public class WiredData : IWiredData
             ? _intRules[index]
             : _tailRule ?? throw new ArgumentOutOfRangeException(nameof(index));
 
-    public void SetAction(Func<Task>? onSnapshotChanged) => _onSnapshotChanged = onSnapshotChanged;
+    public void SetAction(Action? onSnapshotChanged) => _onSnapshotChanged = onSnapshotChanged;
 
     public void MarkDirty()
     {
-        _ = _onSnapshotChanged?.Invoke();
+        _onSnapshotChanged?.Invoke();
     }
 }

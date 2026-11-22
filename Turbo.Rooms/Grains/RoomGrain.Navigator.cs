@@ -140,7 +140,9 @@ public sealed partial class RoomGrain
         if (!await SecurityModule.GetIsRoomOwnerAsync(ctx))
             return false;
 
-        tags = _wordFilter.FilterTags(tags);
+        tags = _wordFilter.FilterTags(
+            RoomTags.Normalize(tags, _roomConfig.RoomTagsMax, _roomConfig.RoomTagMaxLength)
+        );
 
         var value = RoomTags.Join(tags);
 

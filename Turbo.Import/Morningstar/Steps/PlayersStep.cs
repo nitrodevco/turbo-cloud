@@ -27,9 +27,6 @@ namespace Turbo.Import.Morningstar.Steps;
 /// </summary>
 internal sealed class PlayersStep : IImportStep
 {
-    // Morningstar's own motto column; Turbo's holds any length.
-    private const int MOTTO_MAX_LENGTH = 127;
-
     public string Name => "players";
 
     public async Task RunAsync(ImportContext ctx, CancellationToken ct)
@@ -100,7 +97,7 @@ internal sealed class PlayersStep : IImportStep
             }
 
             var motto = row.String("motto") is { } stored
-                ? ClientText.Truncate(stored, MOTTO_MAX_LENGTH)
+                ? ClientText.Truncate(stored, ctx.Options.Limits.MottoMaxLength)
                 : null;
 
             await players

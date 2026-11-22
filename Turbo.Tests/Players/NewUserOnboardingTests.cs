@@ -9,7 +9,6 @@ using Turbo.Database.Entities.Navigator;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Database.Extensions;
-using Turbo.Navigator.Configuration;
 using Turbo.Navigator.Onboarding;
 using Turbo.Players.Configuration;
 using Turbo.Players.Grains;
@@ -26,6 +25,7 @@ using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Wired.WebApi;
+using Turbo.Rooms.Configuration;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -235,6 +235,7 @@ public sealed class NewUserOnboardingTests : IDisposable
             _fakes.Create<Turbo.Primitives.Players.Accounts.IOwnerBootstrap>(),
             new PassThroughWordFilter(),
             Options.Create(new OnboardingConfig { Enabled = true }),
+            Options.Create(new PlayerConfig()),
             new Turbo.Players.Accounts.PlayerNamePolicy(Options.Create(new PlayerConfig())),
             NullLogger<Turbo.Primitives.Players.Accounts.IPlayerAccountService>.Instance
         );
@@ -346,7 +347,7 @@ public sealed class NewUserOnboardingTests : IDisposable
 
         made.Should().Be(new CreatedStarterRoom(new RoomId(ROOM), "Hutch.'s  room"));
         madeName.Should().Be("Hutch.'s  room");
-        madeUsers.Should().Be(new NavigatorConfig().MaxPlayersLimit);
+        madeUsers.Should().Be(new RoomConfig().MaxPlayersLimit);
 
         await using var db = await _db.CreateDbContextAsync(Ct);
         var room = await db.Rooms.SingleAsync(x => x.Id == ROOM, Ct);
@@ -768,7 +769,7 @@ public sealed class NewUserOnboardingTests : IDisposable
             _db,
             TestCustody.Over(_db),
             _fakes.Create<IGrainFactory>(),
-            Options.Create(new NavigatorConfig()),
+            Options.Create(new RoomConfig()),
             Directory(),
             NullLogger<IStarterRoomService>.Instance
         );

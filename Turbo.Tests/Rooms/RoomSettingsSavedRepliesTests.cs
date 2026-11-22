@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using FluentAssertions;
+using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Outgoing.Navigator;
@@ -8,8 +9,10 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
+using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Rooms.Configuration;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -101,9 +104,53 @@ public class RoomSettingsSavedRepliesTests
             );
     }
 
-    private static async Task<LiveRoomHarness> OwnedRoomAsync()
+    [Fact]
+    public async Task Tags_from_the_room_info_keep_to_the_rooms_own_limits()
     {
-        var harness = new LiveRoomHarness();
+        using var db = new SqliteDb();
+        db.Insert(
+            new PlayerEntity
+            {
+                Id = OWNER,
+                Name = "owner",
+                Figure = "hd-180-1",
+                Gender = AvatarGenderType.Male,
+                PlayerStatus = PlayerStatusType.Offline,
+            }
+        );
+        db.Insert(
+            new RoomModelEntity
+            {
+                Id = 1,
+                Name = "model",
+                Model = "00",
+                DoorX = 0,
+                DoorY = 0,
+                DoorRotation = Rotation.North,
+                Enabled = true,
+                Custom = false,
+            }
+        );
+        var harness = await OwnedRoomAsync(db);
+        var limits = new RoomConfig();
+
+        // The client sends two; a packet can carry anything.
+        await harness.Room.SetTagsAsync(
+            ActionContext.CreateForPlayer(OWNER, new RoomId(1)),
+            ["party", new string('x', limits.RoomTagMaxLength + 1), "chill", "games"],
+            Ct
+        );
+
+        await using var ctx = await harness.Room._dbCtxFactory.CreateDbContextAsync(Ct);
+        var tags = RoomTags.Parse((await ctx.Rooms.FindAsync([1], Ct))!.Tags);
+
+        tags.Should().HaveCount(limits.RoomTagsMax);
+        tags.Should().OnlyContain(x => x.Length <= limits.RoomTagMaxLength);
+    }
+
+    private static async Task<LiveRoomHarness> OwnedRoomAsync(SqliteDb? sqlite = null)
+    {
+        var harness = new LiveRoomHarness(db: sqlite);
         harness.State.RoomSnapshot = harness.State.RoomSnapshot with
         {
             OwnerId = (PlayerId)OWNER,
@@ -125,6 +172,7 @@ public class RoomSettingsSavedRepliesTests
                 new RoomEntity
                 {
                     Id = 1,
+                    LastActive = ManualTimeProvider.FixedStart.UtcDateTime,
                     Name = "Party",
                     PlayerEntityId = OWNER,
                     RoomModelEntityId = 1,

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Turbo.Achievements;
 using Turbo.Database.Achievements;
 using Turbo.Database.Entities.Players;
+using Turbo.Players.Configuration;
 using Turbo.Players.Grains;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Figures;
@@ -59,6 +60,22 @@ public sealed class PlayerAchievementActionTests : IDisposable
             .Should()
             .Be(1);
         (await db.Players.SingleAsync(x => x.Id == PLAYER_ID, Ct)).Motto.Should().Be("new motto");
+    }
+
+    [Fact]
+    public async Task A_motto_sent_past_the_hotels_limit_is_cut_to_it()
+    {
+        _db.Insert(NewPlayer());
+        var grain = NewGrain(currentMotto: "existing");
+        var limit = new PlayerConfig().MottoMaxLength;
+
+        // The client limits only its own text field; a packet can carry any length.
+        await grain.SetMottoAsync(new string('m', limit + 50), Ct);
+
+        await using var db = await _db.CreateDbContextAsync(Ct);
+        (await db.Players.SingleAsync(x => x.Id == PLAYER_ID, Ct))
+            .Motto.Should()
+            .Be(new string('m', limit));
     }
 
     [Fact]
