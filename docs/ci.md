@@ -42,10 +42,12 @@ Failed restore/build steps upload MSBuild binary logs for three days. Project
 imports are not embedded, but logs can still contain build properties and runner
 paths. Successful builds do not upload these diagnostics.
 
-Dependabot checks GitHub Actions and NuGet weekly, grouping minor/patch updates
-per ecosystem. Major upgrades remain separate, and EF Core and its MySQL provider
-(`Microting.EntityFrameworkCore.MySql`) are held on their major until the target
-framework moves with them. Dependency PRs still require review.
+Dependabot is off: there is no `.github/dependabot.yml`, and Dependabot security
+updates are disabled in the repository settings, so dependencies are upgraded by
+hand. Roslyn stays on 5.0.0 and EF Core and its MySQL provider on major 10, for
+the reasons `Directory.Packages.props` gives, and `Microsoft.Extensions.*` 11 needs
+.NET 11. Turning Dependabot back on needs ignore rules for each of them, or every
+run opens pull requests that cannot build.
 
 Local workflow validation: `actionlint .github/workflows/quality.yml`.
 The existing `TurboCloudFastCheck` and `TurboCloudQualityGate` MSBuild targets
