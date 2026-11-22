@@ -6,9 +6,10 @@ plugin contracts and theme creation, not a claim that every subsystem has been r
 The separate admin frontend and the earlier Theme Studio attachment were not available in
 this audit; UI and attachment-specific conclusions remain unverified.
 
-Subsequent consolidation removed the direct handler/database project reference and its baseline
-exception. The dated inventory and findings below retain the original audit evidence; the live
-architecture check reads the current project files.
+The dated inventory and findings below retain the original audit evidence; the live
+architecture check reads the current project files. Where each stands now (2026-11-22): steps 1
+to 6 of [the changes below](#independently-reviewable-changes) landed in #485 to #492, which
+settles findings 1, 2, 4, 5 and 6. Finding 3 is open, and with it steps 7 and 8.
 
 ## Current dependency map
 
@@ -37,22 +38,22 @@ flowchart TD
 ```
 
 Arrows are compile-time references, not permission to query another domain's tables.
-For example, the handler-to-database edge exists even though the handler source search
-found no database API usage.
+For example, the handler-to-database edge existed at the audited commit even though the
+handler source search found no database API usage; #490 removed it.
 
 ## Findings and priorities
 
 Priorities reflect correctness risk first, then the work needed to establish replaceable
 components. A large file or a service-registration count alone is not a defect.
 
-| Priority | Finding and evidence | Consequence and bounded next step |
-| --- | --- | --- |
-| 1 | `Turbo.Plugins/ThemeAuthoring.cs:57–125` checks for an existing key, writes directly to its final plugin directory, then reloads; failure deletes that directory. | Publication spans multiple asynchronous writes. Reproduce concurrent same-key creation and discovery before designing staging, exclusive key reservation and rollback that cannot delete another operation's output. This audit establishes non-atomic file publication, not a reproduced production failure. |
-| 2 | `Turbo.Gamedata/GamedataModule.cs` constructs `ThemeAudienceService` and `ThemeLiveReload` by casting `IGamedataFileService` to `GamedataFileService`. Their constructors (`Plugins/ThemeAudienceService.cs:32`, `Plugins/ThemeLiveReload.cs:33`) require the concrete implementation. | Replacing only `IGamedataFileService` can fail at resolution. Identify the smaller theme-file capability these services need; introduce a contract with tests before advertising provider replacement. |
-| 3 | `Turbo.Main/Program.cs:138,148` always registers gamedata and admin modules; `Turbo.Main.csproj:57,64` references both assemblies. `Turbo.Admin/Api/AdminApiServer.cs:35` separately gates the API on its enabled option. | Admin is operationally optional, but its assembly is required by the host build. Preserve today's enabled/off behavior; define the supported absence contract before removing assemblies or registrations. |
-| 4 | `Turbo.Gamedata/Assets/AssetSyncService.cs` combines listing/cache (`PreviewAsync`, `ListHabboAsync`), download/conversion (`FetchAsync`), storage (`KeepAsync`) and batched metadata writes (`WriteAsync`, `SaveAsync`). Its constructor also depends on client-download and client-build implementations. | Discovery, conversion and persistence changes share one orchestration class. Extract discovery behind an internal contract first; preserve concurrency limits, cancellation, batch writes and partial-sync resumability. Do not split by line count. |
-| 5 | `Turbo.PacketHandlers/Turbo.PacketHandlers.csproj:13` references `Turbo.Database`; searches for `Turbo.Database`, `EntityFrameworkCore`, `TurboDbContext` and `IDbContext` found no source use. | An unnecessary dependency allows future boundary drift. Remove it in a focused build-verified change; the initial architecture check records this single existing edge as debt. No handler query violation was demonstrated. |
-| 6 | `Turbo.Gamedata/GamedataModule.cs` registers asset bundles/publishing, gamedata, client modules, themes and plugin seeds together. | Their shared installation has become one registration surface. This change extracts asset registration into an internal helper while preserving descriptor order, lifetimes, configuration and hosted-service order. This alone does not make assets independently removable. |
+| Priority | Finding and evidence | Consequence and bounded next step | Now |
+| --- | --- | --- | --- |
+| 1 | `Turbo.Plugins/ThemeAuthoring.cs:57–125` checks for an existing key, writes directly to its final plugin directory, then reloads; failure deletes that directory. | Publication spans multiple asynchronous writes. Reproduce concurrent same-key creation and discovery before designing staging, exclusive key reservation and rollback that cannot delete another operation's output. This audit establishes non-atomic file publication, not a reproduced production failure. | Settled (#489): a theme is built in `.theme-staging` under a key reserved by `PluginManager.TryReservePublication`, then published whole. |
+| 2 | `Turbo.Gamedata/GamedataModule.cs` constructs `ThemeAudienceService` and `ThemeLiveReload` by casting `IGamedataFileService` to `GamedataFileService`. Their constructors (`Plugins/ThemeAudienceService.cs:32`, `Plugins/ThemeLiveReload.cs:33`) require the concrete implementation. | Replacing only `IGamedataFileService` can fail at resolution. Identify the smaller theme-file capability these services need; introduce a contract with tests before advertising provider replacement. | Settled (#486): both take `IThemeFileService`, which `GamedataModule` registers without a cast. |
+| 3 | `Turbo.Main/Program.cs:138,148` always registers gamedata and admin modules; `Turbo.Main.csproj:57,64` references both assemblies. `Turbo.Admin/Api/AdminApiServer.cs:35` separately gates the API on its enabled option. | Admin is operationally optional, but its assembly is required by the host build. Preserve today's enabled/off behavior; define the supported absence contract before removing assemblies or registrations. | Open: `Program.cs` still adds both (`AddHostPlugin<GamedataModule>`, `AddHostPlugin<AdminModule>`). Step 7. |
+| 4 | `Turbo.Gamedata/Assets/AssetSyncService.cs` combines listing/cache (`PreviewAsync`, `ListHabboAsync`), download/conversion (`FetchAsync`), storage (`KeepAsync`) and batched metadata writes (`WriteAsync`, `SaveAsync`). Its constructor also depends on client-download and client-build implementations. | Discovery, conversion and persistence changes share one orchestration class. Extract discovery behind an internal contract first; preserve concurrency limits, cancellation, batch writes and partial-sync resumability. Do not split by line count. | Settled (#487, #492): discovery is `AssetDiscoveryService` and `AssetDiscoveryCatalog`; the sync service orchestrates transfers and metadata. |
+| 5 | `Turbo.PacketHandlers/Turbo.PacketHandlers.csproj:13` references `Turbo.Database`; searches for `Turbo.Database`, `EntityFrameworkCore`, `TurboDbContext` and `IDbContext` found no source use. | An unnecessary dependency allows future boundary drift. Remove it in a focused build-verified change; the initial architecture check records this single existing edge as debt. No handler query violation was demonstrated. | Settled (#490): the reference is gone and the baseline is empty. |
+| 6 | `Turbo.Gamedata/GamedataModule.cs` registers asset bundles/publishing, gamedata, client modules, themes and plugin seeds together. | Their shared installation has become one registration surface. This change extracts asset registration into an internal helper while preserving descriptor order, lifetimes, configuration and hosted-service order. This alone does not make assets independently removable. | Settled (#485): `Assets/AssetServiceRegistration.cs`. |
 
 Evidence correcting earlier assumptions:
 
@@ -95,19 +96,19 @@ same distribution mechanism to share capability contracts.
 
 ## Independently reviewable changes
 
-Each row is a proposed focused PR; only the foundation and registration extraction are
-implemented here. There is no new draft/publish model or feature-disable switch in this change.
+Each row was proposed as a focused PR, the first two together with this audit. Rows 1 to 6 have
+landed; 7 and 8 are open. There is still no new draft/publish model or feature-disable switch.
 
-| Order | Change | Acceptance and checks |
-| --- | --- | --- |
-| 1 | Audit, dependency inventory, boundary ratchet and opt-in Jev reviewer (this change) | Scripts pass offline tests; current baseline passes; a new forbidden contract edge fails; missing/invalid API answers fail visibly; live semantic review remains advisory. |
-| 2 | Extract asset registration (included as the first small refactor) | Same service descriptors/order, singleton aliases and named HTTP settings; unchanged hosted-service ordering; required .NET gates and suite. |
-| 3 | Remove handler database reference | Compile all consumers, run handler/architecture checks, remove the now-stale baseline exception. Do not remove plugin-owned database support. |
-| 4 | Make theme creation publication safe | Reproduce same-key concurrency, discovery during creation and cancellation; stage outside discovery; reserve key; publish fully; rollback owns only its own output. Test create/copy/reload failure and retry. |
-| 5 | Introduce a theme-file capability | Replace concrete casts without changing invalidation, audience selection, hashes or live reload. Test alternate implementation resolution and current behavior. |
-| 6 | Extract asset discovery from orchestration | Use deterministic HTTP fixtures; preserve download/conversion limits, cancellation and partial-sync resume; verify failure never discards valid stored bundles. |
-| 7 | Define official-component absence matrix | Test admin disabled, management unavailable with existing content still served, and absent provider startup diagnostics. Only then change packaging/module selection. |
-| 8 | Trace and unify Theme Studio draft/publication | Trace current API, file, database, invalidation and client-revision flow. Define atomic revision switch and failure recovery; test readers never observe mixed revisions before UI redesign. |
+| Order | Change | Acceptance and checks | Status |
+| --- | --- | --- | --- |
+| 1 | Audit, dependency inventory, boundary ratchet and opt-in Jev reviewer | Scripts pass offline tests; current baseline passes; a new forbidden contract edge fails; missing/invalid API answers fail visibly; live semantic review remains advisory. | Landed (#485) |
+| 2 | Extract asset registration (the first small refactor) | Same service descriptors/order, singleton aliases and named HTTP settings; unchanged hosted-service ordering; required .NET gates and suite. | Landed (#485) |
+| 3 | Remove handler database reference | Compile all consumers, run handler/architecture checks, remove the now-stale baseline exception. Do not remove plugin-owned database support. | Landed (#490) |
+| 4 | Make theme creation publication safe | Reproduce same-key concurrency, discovery during creation and cancellation; stage outside discovery; reserve key; publish fully; rollback owns only its own output. Test create/copy/reload failure and retry. | Landed (#489) |
+| 5 | Introduce a theme-file capability | Replace concrete casts without changing invalidation, audience selection, hashes or live reload. Test alternate implementation resolution and current behavior. | Landed (#486) |
+| 6 | Extract asset discovery from orchestration | Use deterministic HTTP fixtures; preserve download/conversion limits, cancellation and partial-sync resume; verify failure never discards valid stored bundles. | Landed (#487; its lifetime in #492) |
+| 7 | Define official-component absence matrix | Test admin disabled, management unavailable with existing content still served, and absent provider startup diagnostics. Only then change packaging/module selection. | Open |
+| 8 | Trace and unify Theme Studio draft/publication | Trace current API, file, database, invalidation and client-revision flow. Define atomic revision switch and failure recovery; test readers never observe mixed revisions before UI redesign. | Open. #488 and #491 settled the reading side (a session's variables and look come from one build); the draft, save and publish trace is not done. |
 
 For each extraction measure the number of implementation dependencies removed, affected
 callers and behavior checks required. Moving the same coupling into more files is not the goal.

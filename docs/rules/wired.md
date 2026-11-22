@@ -312,12 +312,8 @@ the room. A plugin's box is hosted by core's own kinds, so these hold for it too
   editor for and no box returns. The client knows codes, never furni names; the furni a code
   belongs to is looked up in the hotel's `furniture_definitions`. Do not write a box for a code
   no furni in the hotel carries: nobody can place it, and its param layout goes untested.
-  Still missing after this pass, each for want of a system rather than a box: the chest item
-  type scanner (addon 18, which writes a context variable, and context variables hold no
-  value yet), reward tracks
-  (58, 59), achievements (the enabler addon 2001 and action 51, which progresses one) and the
-  web API addon (2002). Give effect (52), override height (53), the level condition (44), the
-  global placeholder (2000) and variable box 8 have no furni in the hotel.
+  On 2026-11-22 it found a box for every code and no code claimed by two
+  ([What the room system is still missing](../room-gaps.md)).
 - What an editor class does not say is in two other places, and both are read before a box is
   written or called unknowable. The hotel's texts and furnidata
   (`nitro-assets/gamedata/ExternalTexts.json`, `FurnitureData.json`): the `usage_info` and

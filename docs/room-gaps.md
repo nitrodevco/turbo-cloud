@@ -4,7 +4,8 @@
 - [How this was measured](#how-this-was-measured)
 - [1. Missing because the system behind them does not exist](#1-missing-because-the-system-behind-them-does-not-exist)
     - [The room queue and spectators](#the-room-queue-and-spectators)
-    - [Purchasable clothing and chat styles](#purchasable-clothing-and-chat-styles)
+    - [Hoppers, VIP gates and talent shows](#hoppers-vip-gates-and-talent-shows)
+    - [Chat styles granted in play](#chat-styles-granted-in-play)
     - [Rented furni](#rented-furni)
     - [Games](#games)
     - [NFT](#nft)
@@ -17,9 +18,9 @@
 
 ## Introduction
 
-A survey of the room system against the client, last taken on 2026-10-11 (first taken
-2026-09-20). It is here so the next person does not have to re-derive it, and so a gap can be
-argued with rather than rediscovered.
+A survey of the room system against the client, last taken on 2026-11-22 (first taken
+2026-09-20, then 2026-10-11). It is here so the next person does not have to re-derive it, and so
+a gap can be argued with rather than rediscovered.
 
 ## How this was measured
 
@@ -28,7 +29,7 @@ Three passes, because no one of them sees everything:
 1. `python scripts/packetgap.py Room Roomsettings Navigator Userdefinedroomevents` — what
    nitro-next uses that this server does not answer, and `python scripts/wiredgap.py` — the wired
    codes the client has an editor for that no box returns. The packet report only reaches what
-   the port itself implements, and its `STUB` / `UNSENT` verdicts are heuristics.
+   the port itself implements, and its `STUB` / `UNSENT` / `MISSING` verdicts are heuristics.
 2. The server's own room domains, read directly: handlers whose body is
    `await ValueTask.CompletedTask`, and composers still carrying
    `TODO: add properties if/when identified`.
@@ -40,10 +41,14 @@ matter. On this pass it still lists, and none of these is a gap:
 
 - the six wired `Update*Composer` handlers as stubs: each is a one-line subclass of
   `UpdateWiredMessageHandler<T>` that does the work in the base;
+- the six `WiredLink*Composer` packets (create, rename, delete a network; get and save the
+  configuration; get the connections) as missing: the revision parses all six into one
+  `WiredLinkRequestMessage`, which `WiredLinkRequestMessageHandler` answers by operation;
 - `SlideObjectBundle` (`RoomRollerSystem`), `FlatControllerRemoved` (`RoomSecurityModule`),
-  `WiredTradeItemsUpdate` (`WiredTradeGrain`) and `WiredEnvironment` (`RoomWiredSystem.ClickUser`)
-  as unsent: each is built in a grain or system the report does not follow;
-- `WiredSaveSuccessEventMessageComposer` as empty: that packet genuinely carries no payload.
+  `WiredTradeItemsUpdate` (`WiredTradeGrain`), `WiredEnvironment` (`RoomWiredSystem.ClickUser`),
+  `FurnitureLabelsAndRegions` (`RoomWiredSystem.Labels`, sent with the room entry) and the two
+  `VariableLeaderboard*` messages (`RoomVariableLeaderboardSystem`) as unsent: each is built in
+  a grain or system the report does not follow.
 
 ## 1. Missing because the system behind them does not exist
 
@@ -61,12 +66,19 @@ alone would leave a handler that lies.
 A full room turns visitors away today (`RoomEntryAccessType.Full`). A queue would hold them
 instead, and spectating would let them watch without a slot.
 
-### Purchasable clothing and chat styles
+### Hoppers, VIP gates and talent shows
 
-`CustomizeAvatarWithFurniComposer` — handler is a no-op. The `clothing_change` furni logic
-exists, but there is no clothing inventory for a booth to hand anything out of. The two
-`UserPurchasableChatStyle*` messages have no composer at all and belong to the same missing
-system (things a player owns and may wear or speak in).
+`CustomUserNotificationMessage` is complete (`CustomUserNotificationType`) and never sent. The
+client opens a window with it when a costume hopper, a VIP hopper or a VIP gate turns a user
+away, or a talent show vote finds no stage or no audience. None of those furni has a logic on
+the server, and there are no talent shows.
+
+### Chat styles granted in play
+
+A player's chat styles are rows, read when the player's settings grain loads; the purchasable
+and NFT ones go out on every room entry (see *Closed* below). Nothing grants one during play,
+so `UserPurchasableChatStyleChangedMessage`, which tells the client that one was added or taken
+away (`added:bool, styleId:int`), has no composer.
 
 ### Rented furni
 
@@ -78,12 +90,15 @@ from rentable *spaces*, which are built.
 ### Games
 
 `GamePlayerValueMessage` (a player's score in a game room) is never sent: there are no game
-rooms. `RoomUseHabbiconMessage` belongs to Habbicons, which do not exist either.
+rooms.
 
 ### NFT
 
-`UserNftChatStylesMessage` is never sent. Out of scope for a private hotel unless somebody wants
-the collectibles system, which is a no-op handler across the board.
+The collectibles hub's read requests are answered as Habbo answers an account with no wallets,
+and a player's NFT chat styles go out on every entry. Minting, claiming a bonus or reward item,
+transferring assets and buying mint tokens (`MintItem`, `NftCollectiblesClaimBonusItem`,
+`NftCollectiblesClaimRewardItem`, `NftTransferAssets`, `PurchaseMintToken`) are no-op handlers.
+Out of scope for a private hotel unless somebody wants a collectibles system.
 
 ## 2. Complete on the wire, but nothing known causes them
 
@@ -106,7 +121,6 @@ be a guess, so each waits for a decision.
   have, so with today's texts it draws nothing at all. The packet sits beside the post-it
   messages, which suggests "N notes were left in your room", but nothing confirms it.
 - `SpecialSystemChatMessage` — no composer; nitro-next listens for it.
-- `WiredMenuErrorMessage` — composer has no payload, never sent.
 
 ## 4. Rules written but not enforced
 
@@ -122,19 +136,12 @@ Found by reading rather than by the tool. None of these is a packet.
 
 ## 5. Wired
 
-`wiredgap.py` lists eight codes without a box: give effect (52), override height (53), the two
-reward track actions (58, 59), the level condition (44), the global placeholder (2000), the web
-API addon (2002) and variable box 8. Of these only the reward tracks and the web API have furni
-in the hotel; the others cannot be placed and are not gaps until a furni carries them
-([Wired Rules](rules/wired.md#wired)).
+`wiredgap.py` finds a box for every code the client has an editor for: triggers, actions,
+conditions, selectors, addons and variable boxes alike, and no code claimed by two boxes.
 
-Still missing around the wired menu and the trading block:
-
-- user permanent variables (`WiredGetUserPermanentVariables`, `WiredSetUserPermanentVariable`
-  and their results), the variable owners page and `WiredUpdateRoom`;
-- self-donation (`SelfDonateItem` / `SelfDonationResult`);
-- the web API key (`WiredGenerateWebApiKey` / `WiredWebApiKeyResult`);
-- the chest item type scanner (addon 18), which needs context variables that hold values.
+Still missing around the wired menu and the trading block is self-donation:
+`SelfDonateItemComposer` has no message on the server and `SelfDonationResultMessage` no
+composer.
 
 Chests, contracts and the transaction wired are done ([Wired Rules](rules/wired.md#wired-chests)).
 
@@ -161,6 +168,23 @@ Recorded so nobody goes looking:
   written by hand or brought in by the import can put its door off the map or on a hole. People
   then come in on the open tile nearest it (`RoomMapModule.EntryX` / `EntryY`), and the client
   is told that tile as the entry tile; they used to land on the hole, or on `0,0`.
+- **Purchasable clothing.** `CustomizeAvatarWithFurni` binds a clothing furni's figure sets to
+  its owner (`FurniturePurchasableClothingLogic`, a `BindClothingInteraction`) and uses the furni
+  up.
+- **Chat styles on entry.** Every entry opens with the player's NFT chat styles (an empty list for
+  an account without any), and an owner of purchasable styles is sent those too
+  (`UserPurchasableChatStyles`), both from `RoomService`.
+- **Habbicons** exist (`PlayerHabbiconGrain`); the room shows one through
+  `RoomAvatarModule.ShowHabbiconAsync` (`RoomUseHabbicon`).
+- **The wired menu.** User permanent variables are read and set
+  (`WiredGetUserPermanentVariables`, `WiredSetUserPermanentVariable`), `WiredUpdateRoom` reloads
+  the room's wired, the web API key is made (`WiredGenerateWebApiKey` /
+  `WiredWebApiKeyResult`), and `WiredMenuError` is sent when the variables asked for belong to
+  something no longer there.
+- **Every wired code has a box**, among them give effect (52), override height (53), the reward
+  track actions (58, 59), the level condition (44), the achievement enabler and action, the
+  global placeholder (2000), the web API addon (2002) and the chest item type scanner (addon 18).
+- **Wired link networks** are answered (see *How this was measured*).
 - **`SpecialRoomEffect`** is the staff room command `:roomeffect rotate|shake|flip|disco`
   (`command.roomeffect`). The effect is the client's: a few seconds of play, nothing kept. It is
   not a snowstorm, as this page once said.
@@ -171,4 +195,5 @@ The map and heightmap, furni placement, movement and stacking, room settings and
 moderation rules (`WhoCanMute` / `WhoCanKick` / `WhoCanBan` are all read by
 `RoomModerationModule`), bans, mutes, the doorbell, ratings, room events, the navigator and its
 cached listings, trading, pets, bots, entry logs, the floor plan editor, the wired boxes
-themselves, rollers, and the configuration furni above. The `Navigator` domain reports no gaps.
+themselves, wired link networks, rollers, and the configuration furni above. The `Navigator`
+domain reports no gaps.

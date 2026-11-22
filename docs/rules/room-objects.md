@@ -103,8 +103,8 @@ plugin authors.
   composers nitro-next constructs and the messages it listens to with the handlers that do
   something and the composers something sends. Its "stub" and "unsent" are heuristics, so read
   the file before acting on a line. What it still lists, and why, is kept in
-  [docs/room-gaps.md](../room-gaps.md): purchasable clothing (no clothing inventory), the room
-  queue and spectators, and `UseObject` and `BotSkillListUpdate`, whose composers are complete
+  [docs/room-gaps.md](../room-gaps.md): rented furni, the room queue and spectators, the
+  hoppers and VIP gates, and `UseObject` and `BotSkillListUpdate`, whose composers are complete
   but which nothing known causes. `SpecialRoomEffect` is sent by the `:roomeffect` room command.
 - The configuration furni (`FurnitureConfigurationControlLogic`: the Invisible Furni
   Controller, the Handitem blocker and the `:chooser` disabler) each switch one flag of
