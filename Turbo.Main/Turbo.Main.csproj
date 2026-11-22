@@ -56,6 +56,7 @@
     <ProjectReference Include="..\Turbo.Furniture\Turbo.Furniture.csproj" />
     <ProjectReference Include="..\Turbo.Gamedata\Turbo.Gamedata.csproj" />
     <ProjectReference Include="..\Turbo.Guilds\Turbo.Guilds.csproj" />
+    <ProjectReference Include="..\Turbo.Import\Turbo.Import.csproj" />
     <ProjectReference Include="..\Turbo.Inventory\Turbo.Inventory.csproj" />
     <ProjectReference Include="..\Turbo.Logging\Turbo.Logging.csproj" />
     <ProjectReference Include="..\Turbo.Messages\Turbo.Messages.csproj" />

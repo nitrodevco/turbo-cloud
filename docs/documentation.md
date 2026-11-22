@@ -50,6 +50,7 @@
     - [Getting Started](database.md)
     - [Plugin Tables & Migrations](database.md#a-plugins-tables)
     - [Movements Ledger](movements.md)
+    - [Importing a Morningstar Hotel](importing.md)
 - ## Testing
     - [Getting Started](testing.md)
     - [The Test Hotel](plugin-testing.md)

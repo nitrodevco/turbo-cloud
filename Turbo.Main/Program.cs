@@ -21,6 +21,7 @@ using Turbo.Events.Extensions;
 using Turbo.Furniture;
 using Turbo.Gamedata;
 using Turbo.Guilds;
+using Turbo.Import;
 using Turbo.Inventory;
 using Turbo.Logging.Extensions;
 using Turbo.Main.Console;
@@ -69,7 +70,19 @@ internal class Program
             return migrate.Error is null ? DatabaseStartup.EXIT_OK : DatabaseStartup.EXIT_USAGE;
         }
 
-        if (migrate is null)
+        // `Turbo.Main import ...` copies another emulator's hotel in and exits; nothing else starts.
+        var import = ImportCommandLine.IsImportCommand(args) ? ImportCommandLine.Parse(args) : null;
+
+        if (import is { Help: true } or { Error: not null })
+        {
+            ImportStartup.PrintUsage(bootstrapLogger, import.Error);
+
+            return import.Error is null ? DatabaseStartup.EXIT_OK : DatabaseStartup.EXIT_USAGE;
+        }
+
+        var command = migrate is not null || import is not null;
+
+        if (!command)
             System.Console.WriteLine(
                 @"
      ████████╗██╗   ██╗██████╗ ██████╗  ██████╗ 
@@ -81,14 +94,14 @@ internal class Program
             "
             );
 
-        if (migrate is null)
+        if (!command)
             bootstrapLogger.LogInformation(
                 "Starting {GetProjectName} {GetProductVersion}",
                 GetProjectName(),
                 GetProjectVersion()
             );
 
-        var builder = Host.CreateApplicationBuilder(migrate?.HostArgs ?? args);
+        var builder = Host.CreateApplicationBuilder(migrate?.HostArgs ?? import?.HostArgs ?? args);
 
         builder.Configuration.AddEnvironmentVariables(prefix: "TURBO__");
         // Above appsettings.json, below every environment variable and the command line.
@@ -167,6 +180,11 @@ internal class Program
         if (migrate is not null)
             return await DatabaseStartup
                 .RunCommandAsync(host.Services, migrate, bootstrapLogger, ct)
+                .ConfigureAwait(false);
+
+        if (import is not null)
+            return await ImportStartup
+                .RunCommandAsync(host.Services, import, bootstrapLogger, TimeProvider.System, ct)
                 .ConfigureAwait(false);
 
         return await RunAsync(host, bootstrapLogger, ct).ConfigureAwait(false);

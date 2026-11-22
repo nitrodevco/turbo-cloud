@@ -51,6 +51,14 @@ public sealed class AssetWriteGuardTests
             "a room deletion's backstop for the pets and bots still in it, sent home with their movements (room.delete)",
         ["Turbo.Rooms.Grains.Jukebox.JukeboxGrain"] =
             "a disk's place in the playlist, in the unit of work of the custody move that put it in the jukebox",
+        ["Turbo.Import.Morningstar.Steps.PlayersStep"] =
+            "an import of another hotel into an empty database before it opens (docs/importing.md): like a migration, it writes the hotel's starting rows, which no movement precedes",
+        ["Turbo.Import.Morningstar.Steps.FurnitureStep"] =
+            "an import of another hotel into an empty database before it opens (docs/importing.md): like a migration, it writes the hotel's starting rows, which no movement precedes",
+        ["Turbo.Import.Morningstar.Steps.PetsStep"] =
+            "an import of another hotel into an empty database before it opens (docs/importing.md): like a migration, it writes the hotel's starting rows, which no movement precedes",
+        ["Turbo.Import.Morningstar.Steps.BotsStep"] =
+            "an import of another hotel into an empty database before it opens (docs/importing.md): like a migration, it writes the hotel's starting rows, which no movement precedes",
     };
 
     /// <summary>The rows guarded, and the interface the pet and bot rows are written through.</summary>

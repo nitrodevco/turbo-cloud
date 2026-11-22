@@ -15,6 +15,8 @@
   - Domain services, snapshot providers, and Orleans grain orchestration.
 - `Turbo.Operations/`
   - Running the hotel: bans, the maintenance and shutdown countdown, and the operator chat commands (`docs/commands.md` §4.1).
+- `Turbo.Import/`
+  - Copying another emulator's hotel (Arcturus Morningstar) into the database: `Turbo.Main import` (`docs/importing.md`).
 - `Turbo.Database/`
   - EF Core context and persistence infrastructure.
 - `Turbo.Primitives/`

@@ -66,6 +66,7 @@
     <ProjectReference Include="..\Turbo.PacketHandlers\Turbo.PacketHandlers.csproj" />
     <!-- For PermissionNodeReaderTests, which reads every server assembly's IL. -->
     <ProjectReference Include="..\Turbo.Guilds\Turbo.Guilds.csproj" />
+    <ProjectReference Include="..\Turbo.Import\Turbo.Import.csproj" />
     <ProjectReference Include="..\Turbo.Inventory\Turbo.Inventory.csproj" />
     <ProjectReference Include="..\Turbo.Navigator\Turbo.Navigator.csproj" />
     <!-- For the Support harnesses, which build grains, rooms and packet round-trips without a silo. -->
