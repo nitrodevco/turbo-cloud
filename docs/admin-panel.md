@@ -927,7 +927,10 @@ read the series again, so switching it off stops it at once. Players see the new
 publish.
 
 **Currencies.** An offer's second price names a row of `currency_types`, and the hotel charges
-that row's activity-point type. Duckets are row 4 but type 0, so earlier code that charged the row
+that row's activity-point type. A new hotel starts with `credits`, `duckets` (activity point type 0)
+and `diamonds` (type 5), the three the client always draws in the purse (`SeedCurrencyTypes`, which
+adds a row only where the hotel has no currency of that kind); staff rename, disable or add others
+on the Content page. Duckets are row 4 but type 0, so earlier code that charged the row
 number charged the wrong currency. The editor only offers activity-point currencies that are
 enabled.
 
