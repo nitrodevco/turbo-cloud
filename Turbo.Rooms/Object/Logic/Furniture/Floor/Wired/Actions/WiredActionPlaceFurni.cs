@@ -457,9 +457,9 @@ public class WiredActionPlaceFurni(
                 return false;
 
             if (
-                State.Model is { } model
-                && players[0].X == model.DoorX
-                && players[0].Y == model.DoorY
+                State.Model is not null
+                && players[0].X == MapModule.EntryX
+                && players[0].Y == MapModule.EntryY
             )
             {
                 refused = true;

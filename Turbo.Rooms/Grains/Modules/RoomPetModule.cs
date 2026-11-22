@@ -606,8 +606,8 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
         }
 
         var model = State.Model;
-        var startX = model?.DoorX ?? 0;
-        var startY = model?.DoorY ?? 0;
+        var startX = map.EntryX;
+        var startY = map.EntryY;
         var maxRadius = Math.Max(map.Width, map.Height);
 
         for (var radius = 0; radius <= maxRadius; radius++)

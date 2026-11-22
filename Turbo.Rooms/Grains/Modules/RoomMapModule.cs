@@ -441,8 +441,8 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
             Width = State.Model?.Width ?? 0,
             Height = State.Model?.Height ?? 0,
             Size = State.Model?.Size ?? 0,
-            DoorX = State.Model?.DoorX ?? 0,
-            DoorY = State.Model?.DoorY ?? 0,
+            DoorX = EntryX,
+            DoorY = EntryY,
             DoorRotation = State.Model?.DoorRotation ?? 0,
             TileEncodedHeights = [.. State.TileEncodedHeights],
         };

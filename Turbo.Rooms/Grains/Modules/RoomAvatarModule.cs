@@ -44,17 +44,9 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
     )
     {
         var objectId = GetNextObjectId();
-        var startX = State.Model?.DoorX ?? 0;
-        var startY = State.Model?.DoorY ?? 0;
+        var startX = MapModule.EntryX;
+        var startY = MapModule.EntryY;
         var startRot = State.Model?.DoorRotation ?? Rotation.North;
-
-        if (!MapModule.InBounds(startX, startY))
-        {
-            // TODO get a valid tile
-            startX = 0;
-            startY = 0;
-            startRot = Rotation.North;
-        }
 
         // Arriving through a teleporter starts the player inside it rather than at the door,
         // when it is still here and free; otherwise they walk in the ordinary way.

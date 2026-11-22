@@ -373,11 +373,11 @@ public sealed partial class RoomMapModule
         foreach (var item in items)
             AddItem(item);
 
-        var doorIdx = ToIdx(model.DoorX, model.DoorY);
+        var doorIdx = ToIdx(EntryX, EntryY);
 
         foreach (var avatar in avatars)
         {
-            avatar.SetPosition(model.DoorX, model.DoorY);
+            avatar.SetPosition(EntryX, EntryY);
             avatar.NextTileId = -1;
 
             AddAvatar(avatar, false);

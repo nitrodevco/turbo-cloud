@@ -255,6 +255,13 @@ plugin authors.
   or either adjacent octant.** Ignore speakers outside that range and on the same tile.
   AS3's avatar renderer accepts the server's head direction; apply this rule in the chat
   system, not as a global clamp that changes explicit direction updates or pet behavior.
+- **Where people come in is `RoomMapModule.EntryX` / `EntryY`, never the model's `DoorX` /
+  `DoorY`.** It is the model's door, or the open tile nearest it when a model row puts its door
+  off the map or on a hole. The spawn, the entry tile and camera the client is told
+  (`RoomMapSnapshot.DoorX`), leaving on the door tile, the floor plan rebuild, the pets' search
+  for a free tile and the wired place-furni refusal all read it; only the floor plan save reads
+  the model's own door, to keep it. The spawn read the raw door and put players on a hole, or on
+  0,0 for a door off the map, and each of the other five would have disagreed with it.
 - **Rejected room entry does not load room contents.** Activation hydrates the metadata, rights
   and bans needed for the access decision. Load map, furniture and NPC state only after an
   allowed decision, before clearing the player's current room; recheck access after loading

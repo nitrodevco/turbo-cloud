@@ -202,7 +202,7 @@ public sealed class RoomAvatarTickSystem(RoomGrain roomGrain) : RoomGrainCompone
             avatar is not IRoomPlayer player
             || !State.RoomSnapshot.LeaveOnDoorTile
             || model is null
-            || nextTileId != MapModule.ToIdx(model.DoorX, model.DoorY)
+            || nextTileId != MapModule.ToIdx(MapModule.EntryX, MapModule.EntryY)
         )
             return false;
 

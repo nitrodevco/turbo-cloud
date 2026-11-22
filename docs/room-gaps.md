@@ -112,11 +112,6 @@ be a guess, so each waits for a decision.
 
 Found by reading rather than by the tool. None of these is a packet.
 
-- **`RoomSecurityModule.CanPlaceFurniAsync` carries a `// TODO placement rules?`** and simply
-  defers to `CanManipulateFurniAsync`. Placing and moving are the same permission today.
-- **`RoomAvatarModule.CreateAvatarFromPlayerAsync` has a `// TODO get a valid tile`**: a room
-  whose door tile is out of bounds drops the avatar at `0,0` rather than looking for somewhere it
-  can stand. Reachable now that the floor plan editor can move a door.
 - **`GetOccupiedTilesAsync` counts floor items only.** `RoomTileFlags.FurnitureOccupied` is set
   from the floor stack, so a tile whose only furniture is on its wall reads as free and the floor
   plan editor will let it be deleted. The save path handles it safely — the wall item falls
@@ -159,6 +154,13 @@ Recorded so nobody goes looking:
   (`wiredfurni.variables.pickup.*`) and goes through only on the client's confirmed resend
   (`IFurnitureLogic.GetPickupConfirmation`).
 - **`WiredClickUser`** and `WiredEnvironment` are answered and sent.
+- **Placing is a rule of its own.** `RoomSecurityModule.CanPlaceFurniAsync` lets a rights holder
+  place furni only when `RoomConfig.RightsHoldersCanPlaceFurni` says so; it no longer just
+  defers to moving.
+- **A door that is no tile of its model.** The floor plan editor refuses one, but a model row
+  written by hand or brought in by the import can put its door off the map or on a hole. People
+  then come in on the open tile nearest it (`RoomMapModule.EntryX` / `EntryY`), and the client
+  is told that tile as the entry tile; they used to land on the hole, or on `0,0`.
 - **`SpecialRoomEffect`** is the staff room command `:roomeffect rotate|shake|flip|disco`
   (`command.roomeffect`). The effect is the client's: a few seconds of play, nothing kept. It is
   not a snowstorm, as this page once said.
