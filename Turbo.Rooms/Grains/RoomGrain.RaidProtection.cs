@@ -107,8 +107,8 @@ public sealed partial class RoomGrain
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         return await dbCtx
-                .RoomRaidProtections.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.RoomEntityId == _state.RoomId.Value, ct)
+            .RoomRaidProtections.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.RoomEntityId == _state.RoomId.Value, ct)
             ?? NewRaidProtection();
     }
 

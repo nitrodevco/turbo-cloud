@@ -41,17 +41,15 @@ internal sealed class AccountEndpoints(
 
     public void Map(IEndpointRouteBuilder api)
     {
-        api.MapGet(
-            "/config",
-            () =>
-                Results.Ok(
-                    new SiteConfigResponse(
-                        Web.HotelName,
-                        Web.RegistrationOpen,
-                        Web.Discord.IsConfigured,
-                        Web.ClientUrl.Contains("{ticket}", StringComparison.Ordinal)
-                    )
+        api.MapGet("/config", () =>
+            Results.Ok(
+                new SiteConfigResponse(
+                    Web.HotelName,
+                    Web.RegistrationOpen,
+                    Web.Discord.IsConfigured,
+                    Web.ClientUrl.Contains("{ticket}", StringComparison.Ordinal)
                 )
+            )
         );
         api.MapGet("/me", MeAsync);
         api.MapGet("/names/{name}", NameAsync);

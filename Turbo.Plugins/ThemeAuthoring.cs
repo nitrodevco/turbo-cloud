@@ -75,8 +75,7 @@ internal sealed partial class ThemeAuthoring(
             )
             : null;
         ct.ThrowIfCancellationRequested();
-        using var reservation =
-            manager.TryReservePublication(key)
+        using var reservation = manager.TryReservePublication(key)
             ?? throw new ArgumentException(
                 $"The plugin key {key} is already being published: try again later.",
                 nameof(request)
@@ -129,8 +128,7 @@ internal sealed partial class ThemeAuthoring(
                     .ConfigureAwait(false);
 
             // Validate/read the result before publication too: a bad copied theme leaves no final folder.
-            var theme =
-                host.GetService<IPluginStyles>()?.ThemeOf(key, staging)
+            var theme = host.GetService<IPluginStyles>()?.ThemeOf(key, staging)
                 ?? new PluginTheme(key, copy?.Extends ?? parent);
             await manager.PublishThemeAsync(key, staging, marker, ct).ConfigureAwait(false);
             return theme;
@@ -182,8 +180,7 @@ internal sealed partial class ThemeAuthoring(
         CancellationToken ct
     )
     {
-        var theme =
-            ThemeOf(source)
+        var theme = ThemeOf(source)
             ?? throw new ArgumentException(
                 $"{source} is no theme the hotel has to copy.",
                 nameof(source)

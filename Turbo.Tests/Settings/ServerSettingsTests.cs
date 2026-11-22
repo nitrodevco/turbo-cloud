@@ -125,14 +125,12 @@ public sealed class ServerSettingsTests : IDisposable
     [Fact]
     public void the_restart_countdown_and_countdown_notice_settings_apply_at_once_the_other_operations_ones_after_a_restart()
     {
-        var harness = Harness(
-            "{}",
-            (services, configuration) =>
-                services.Configure<Turbo.Operations.Configuration.OperationsConfig>(
-                    configuration.GetSection(
-                        Turbo.Operations.Configuration.OperationsConfig.SECTION_NAME
-                    )
+        var harness = Harness("{}", (services, configuration) =>
+            services.Configure<Turbo.Operations.Configuration.OperationsConfig>(
+                configuration.GetSection(
+                    Turbo.Operations.Configuration.OperationsConfig.SECTION_NAME
                 )
+            )
         );
 
         harness
@@ -338,18 +336,13 @@ public sealed class ServerSettingsTests : IDisposable
     [Fact]
     public void the_panel_stands_on_its_own_address_and_the_database_so_those_are_startup_settings()
     {
-        var harness = Harness(
-            "{}",
-            (services, configuration) =>
-            {
-                services.Configure<AdminConfig>(configuration.GetSection(AdminConfig.SECTION_NAME));
-                services.Configure<Turbo.Database.Configuration.DatabaseConfig>(
-                    configuration.GetSection(
-                        Turbo.Database.Configuration.DatabaseConfig.SECTION_NAME
-                    )
-                );
-            }
-        );
+        var harness = Harness("{}", (services, configuration) =>
+        {
+            services.Configure<AdminConfig>(configuration.GetSection(AdminConfig.SECTION_NAME));
+            services.Configure<Turbo.Database.Configuration.DatabaseConfig>(
+                configuration.GetSection(Turbo.Database.Configuration.DatabaseConfig.SECTION_NAME)
+            );
+        });
         var settings = harness.Settings;
 
         settings.Get("Turbo:Admin:Url")!.Startup.Should().BeTrue();
@@ -363,10 +356,8 @@ public sealed class ServerSettingsTests : IDisposable
     [Fact]
     public async Task the_clients_pages_apply_at_once_so_a_saved_preview_page_waits_on_no_restart()
     {
-        var harness = Harness(
-            "{}",
-            (services, configuration) =>
-                services.Configure<AdminConfig>(configuration.GetSection(AdminConfig.SECTION_NAME))
+        var harness = Harness("{}", (services, configuration) =>
+            services.Configure<AdminConfig>(configuration.GetSection(AdminConfig.SECTION_NAME))
         );
 
         harness.Settings.Get("Turbo:Admin:ClientPreviewUrl")!.Live.Should().BeTrue();
@@ -389,9 +380,8 @@ public sealed class ServerSettingsTests : IDisposable
     {
         var configuration = new ConfigurationManager();
 
-        ServerSettingsConfiguration.AddTo(
-            configuration,
-            () => new ServerSettingsLoad([], "The panel's settings couldn't be read: no database")
+        ServerSettingsConfiguration.AddTo(configuration, () =>
+            new ServerSettingsLoad([], "The panel's settings couldn't be read: no database")
         );
 
         var log = new CapturingLogger<ServerSettingsService>();
@@ -416,15 +406,10 @@ public sealed class ServerSettingsTests : IDisposable
         var reads = 0;
         var configuration = new ConfigurationManager();
 
-        ServerSettingsConfiguration.AddTo(
-            configuration,
-            () =>
-                reads++ == 0
-                    ? new ServerSettingsLoad(
-                        [],
-                        "The panel's settings couldn't be read: no database"
-                    )
-                    : ServerSettingsLoad.NONE
+        ServerSettingsConfiguration.AddTo(configuration, () =>
+            reads++ == 0
+                ? new ServerSettingsLoad([], "The panel's settings couldn't be read: no database")
+                : ServerSettingsLoad.NONE
         );
 
         var services = new ServiceCollection();

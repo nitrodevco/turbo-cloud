@@ -83,9 +83,7 @@ public sealed class ServerSettingsAcrossSilosTests : IDisposable
         (await HotelNameAsync(filesB)).Should().Be("Turbo Hotel");
 
         // What the watcher does every Turbo:Settings:CheckSeconds.
-        (await _settingsB.Settings.CheckAsync(Ct))
-            .Should()
-            .BeTrue();
+        (await _settingsB.Settings.CheckAsync(Ct)).Should().BeTrue();
 
         (await HotelNameAsync(filesB))
             .Should()
@@ -118,9 +116,7 @@ public sealed class ServerSettingsAcrossSilosTests : IDisposable
         var version = _settingsA.Settings.Version;
 
         // The silo it was saved on read them as it saved.
-        (await _settingsA.Settings.CheckAsync(Ct))
-            .Should()
-            .BeFalse();
+        (await _settingsA.Settings.CheckAsync(Ct)).Should().BeFalse();
         _settingsA.Settings.Version.Should().Be(version);
     }
 
@@ -165,15 +161,10 @@ public sealed class ServerSettingsAcrossSilosTests : IDisposable
     }
 
     private SettingsHarness Settings() =>
-        new(
-            _db,
-            APP_SETTINGS,
-            (services, configuration) =>
-                services
-                    .Configure<TestHotelConfig>(
-                        configuration.GetSection(TestHotelConfig.SECTION_NAME)
-                    )
-                    .Configure<TestMapConfig>(configuration.GetSection(TestMapConfig.SECTION_NAME))
+        new(_db, APP_SETTINGS, (services, configuration) =>
+            services
+                .Configure<TestHotelConfig>(configuration.GetSection(TestHotelConfig.SECTION_NAME))
+                .Configure<TestMapConfig>(configuration.GetSection(TestMapConfig.SECTION_NAME))
         );
 
     /// <summary>A silo's gamedata files, built from its own settings, with its own clock.</summary>

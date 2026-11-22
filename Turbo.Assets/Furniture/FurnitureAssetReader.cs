@@ -68,8 +68,8 @@ public static class FurnitureAssetReader
         var visualization = Parse(library.GetXml($"{type}_visualization"), "visualization");
         var model = logic?.Element("model");
         var dimensions = model?.Element("dimensions");
-        var visualizations =
-            visualization?.Element("graphics")?.Elements("visualization").ToList() ?? [];
+        var visualizations = visualization?.Element("graphics")?.Elements("visualization").ToList()
+            ?? [];
         var animations = visualizations
             .SelectMany(x => x.Element("animations")?.Elements("animation") ?? [])
             .Select(x =>
@@ -108,8 +108,8 @@ public static class FurnitureAssetReader
         var type = Text(data["type"]) ?? string.Empty;
         var model = data["logic"]?["model"];
         var dimensions = model?["dimensions"];
-        var visualizations =
-            (data["visualizations"] as JsonArray)?.OfType<JsonObject>().ToList() ?? [];
+        var visualizations = (data["visualizations"] as JsonArray)?.OfType<JsonObject>().ToList()
+            ?? [];
         var animations = visualizations
             .SelectMany(x => Items(x["animations"]))
             .Select(x =>

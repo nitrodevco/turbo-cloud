@@ -73,10 +73,8 @@ public class FurniturePresentLogic : FurnitureFloorLogic
 
         await SetStateAsync(PresentStates.OPENING);
 
-        TimerSystem.Schedule(
-            _ctx.ObjectId,
-            RoomConfig.PresentOpenMs,
-            token => OpenedAsync(ctx, token)
+        TimerSystem.Schedule(_ctx.ObjectId, RoomConfig.PresentOpenMs, token =>
+            OpenedAsync(ctx, token)
         );
 
         return true;

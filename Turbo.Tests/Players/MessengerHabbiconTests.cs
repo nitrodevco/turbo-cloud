@@ -106,9 +106,7 @@ public sealed class MessengerHabbiconTests : IDisposable
         var packet = PacketHarness.Encode(composer);
 
         // chat id, type 1, the Habbicon, then the rest as for a text.
-        (packet.PopInt(), packet.PopInt(), packet.PopInt())
-            .Should()
-            .Be((2, 1, HABBICON));
+        (packet.PopInt(), packet.PopInt(), packet.PopInt()).Should().Be((2, 1, HABBICON));
         var text = PacketHarness.Encode(composer with { HabbiconId = 0, Message = "hi" });
         (text.PopInt(), text.PopInt(), text.PopString()).Should().Be((2, 0, "hi"));
     }

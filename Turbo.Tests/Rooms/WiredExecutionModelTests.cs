@@ -342,7 +342,9 @@ public sealed class WiredExecutionModelTests
                                 definitionSpecifics: [0],
                                 variableIds: [levelId.ToString(), ""]
                             )
-                        ).Should().BeTrue();
+                        )
+                            .Should()
+                            .BeTrue();
                     }
                 ),
             ]
@@ -795,7 +797,9 @@ public sealed class WiredExecutionModelTests
                         [WiredFurniSourceType.SelectedItems],
                     ]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
         }
         else
         {
@@ -809,7 +813,9 @@ public sealed class WiredExecutionModelTests
                         [receiveSource],
                     ]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
         }
 
         foreach (var action in actions ?? [])
@@ -840,7 +846,9 @@ public sealed class WiredExecutionModelTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
     }
 
     private ActionSpec Log(string text, int delayPulses = 0) =>
@@ -884,7 +892,9 @@ public sealed class WiredExecutionModelTests
                         ],
                         definitionSpecifics: [delayPulses]
                     )
-                ).Should().BeTrue();
+                )
+                    .Should()
+                    .BeTrue();
             }
         );
 

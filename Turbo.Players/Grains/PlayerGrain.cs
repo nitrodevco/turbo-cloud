@@ -303,10 +303,9 @@ internal sealed partial class PlayerGrain : Grain, IPlayerGrain
     {
         await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-        var entity =
-            await dbCtx
-                .Players.AsNoTracking()
-                .SingleOrDefaultAsync(x => x.Id == (int)_state.PlayerId, ct)
+        var entity = await dbCtx
+            .Players.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == (int)_state.PlayerId, ct)
             ?? throw new TurboException(TurboErrorCodeEnum.PlayerNotFound);
 
         _state.Name = entity.Name;

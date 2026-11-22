@@ -171,19 +171,16 @@ internal static partial class ClientTemplates
             {
                 try
                 {
-                    var template = LayoutTemplateMapper.Map(
-                        xml,
-                        ResolveAsset,
-                        frame =>
-                            LayoutTemplateMapper.FrameMargins(
-                                frame,
-                                LayoutTemplateMapper.ContentMargins(
-                                    SkinOf(
-                                        frame["tag"]!.GetValue<string>(),
-                                        frame["style"]?.GetValue<string>() ?? "0"
-                                    )
+                    var template = LayoutTemplateMapper.Map(xml, ResolveAsset, frame =>
+                        LayoutTemplateMapper.FrameMargins(
+                            frame,
+                            LayoutTemplateMapper.ContentMargins(
+                                SkinOf(
+                                    frame["tag"]!.GetValue<string>(),
+                                    frame["style"]?.GetValue<string>() ?? "0"
                                 )
                             )
+                        )
                     );
 
                     if (template is null)

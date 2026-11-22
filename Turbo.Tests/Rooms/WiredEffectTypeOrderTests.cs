@@ -141,7 +141,9 @@ public sealed class WiredEffectTypeOrderTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
     }
 
     private async Task AddFreezeAsync()

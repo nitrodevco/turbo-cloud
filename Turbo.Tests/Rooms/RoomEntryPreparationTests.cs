@@ -374,10 +374,8 @@ public class RoomEntryPreparationTests
 
         var packets = await OpenRoomAsync(harness);
 
-        Assert.DoesNotContain(
-            packets,
-            packet =>
-                packet.Header == PacketHarness.Outgoing("UserPurchasableChatStylesMessageComposer")
+        Assert.DoesNotContain(packets, packet =>
+            packet.Header == PacketHarness.Outgoing("UserPurchasableChatStylesMessageComposer")
         );
     }
 
@@ -476,9 +474,8 @@ public class RoomEntryPreparationTests
         ];
         var firsts = order.Select(name => headers.IndexOf(PacketHarness.Outgoing(name))).ToList();
 
-        Assert.All(
-            firsts,
-            index => Assert.True(index >= 0, "missing: " + order[firsts.IndexOf(index)])
+        Assert.All(firsts, index =>
+            Assert.True(index >= 0, "missing: " + order[firsts.IndexOf(index)])
         );
         Assert.Equal(firsts.Order().ToList(), firsts);
         Assert.Equal(

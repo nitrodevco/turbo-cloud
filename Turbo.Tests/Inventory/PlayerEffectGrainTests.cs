@@ -277,9 +277,7 @@ public sealed class PlayerEffectGrainTests : IDisposable
         await effects.ActivateEffectAsync(EFFECT, Ct);
 
         // The client activates again on every room it enters.
-        (await effects.ActivateEffectAsync(EFFECT, Ct))
-            .Should()
-            .BeTrue();
+        (await effects.ActivateEffectAsync(EFFECT, Ct)).Should().BeTrue();
 
         (await RowsAsync()).Single().InactiveCount.Should().Be(1);
         _fakes.Sent<AvatarEffectActivatedMessageComposer>().Should().ContainSingle();
@@ -307,9 +305,7 @@ public sealed class PlayerEffectGrainTests : IDisposable
         await effects.GiveEffectAsync(OTHER_EFFECT, 0, 1, true, Ct);
 
         // A copy that waits is not worn until it is activated.
-        (await effects.SelectEffectAsync(EFFECT, Ct))
-            .Should()
-            .BeFalse();
+        (await effects.SelectEffectAsync(EFFECT, Ct)).Should().BeFalse();
         (await effects.SelectEffectAsync(OTHER_EFFECT, Ct)).Should().BeTrue();
         (await effects.SelectEffectAsync(12345, Ct)).Should().BeFalse();
 
@@ -418,9 +414,7 @@ public sealed class PlayerEffectGrainTests : IDisposable
         _clock.Advance(TimeSpan.FromSeconds(DURATION + 5));
 
         // The list already leaves it out, and the next request finds it ended.
-        (await effects.GetEffectsAsync(Ct))
-            .Should()
-            .BeEmpty();
+        (await effects.GetEffectsAsync(Ct)).Should().BeEmpty();
         (await effects.SelectEffectAsync(EFFECT, Ct)).Should().BeFalse();
 
         (await RowsAsync()).Should().BeEmpty();
@@ -754,9 +748,7 @@ public sealed class PlayerEffectGrainTests : IDisposable
         await activating.Should().ThrowAsync<InvalidOperationException>();
 
         // Memory no longer lists what the database does not hold.
-        (await effects.GetEffectsAsync(Ct))
-            .Should()
-            .BeEmpty();
+        (await effects.GetEffectsAsync(Ct)).Should().BeEmpty();
         (await effects.ActivateEffectAsync(EFFECT, Ct)).Should().BeFalse();
     }
 

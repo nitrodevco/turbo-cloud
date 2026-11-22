@@ -50,7 +50,9 @@ public sealed class WiredTriggererMatchesSourcesTests
                     [WiredPlayerSourceType.SelectorUsers],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         condition.Evaluate(Context(selected)).Should().Be(passes);
     }

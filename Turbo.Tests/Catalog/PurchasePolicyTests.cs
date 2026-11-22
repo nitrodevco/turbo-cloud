@@ -88,10 +88,8 @@ public sealed class PurchasePolicyTests : IDisposable
         _policies.Register("alpha", Allowing("alpha"));
         _policies.Register(
             "beta",
-            new Policy(
-                "beta",
-                _asked,
-                _ => PurchaseDecision.Refuse(error: CatalogPurchaseErrorType.RequiresHabboClub)
+            new Policy("beta", _asked, _ =>
+                PurchaseDecision.Refuse(error: CatalogPurchaseErrorType.RequiresHabboClub)
             )
         );
         _policies.Register("gamma", Allowing("gamma"));

@@ -86,12 +86,8 @@ public sealed class WiredGiveFromChestAmountTests
 
         var chest = (FurnitureWiredChestLogic)
             _room
-                .AddFloorItem(
-                    CHEST,
-                    4,
-                    4,
-                    "wired_chest_coins",
-                    createLogic: (factory, ctx) => new FurnitureWiredCoinsChestLogic(factory, ctx)
+                .AddFloorItem(CHEST, 4, 4, "wired_chest_coins", createLogic: (factory, ctx) =>
+                    new FurnitureWiredCoinsChestLogic(factory, ctx)
                 )
                 .Logic;
 
@@ -146,7 +142,9 @@ public sealed class WiredGiveFromChestAmountTests
                 definitionSpecifics: [0],
                 variableIds: ["n"]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
 

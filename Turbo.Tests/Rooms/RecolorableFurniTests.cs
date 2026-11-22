@@ -128,9 +128,7 @@ public sealed class RecolorableFurniTests
         await RecolorAsync(OWNER, 12, RecolorScopeType.OnlyThis, ORANGE);
 
         // The letters' palette has no BLUE: the letter keeps its orange.
-        (await RecolorAsync(OWNER, 10, RecolorScopeType.SameColor, BLUE))
-            .Should()
-            .BeTrue();
+        (await RecolorAsync(OWNER, 10, RecolorScopeType.SameColor, BLUE)).Should().BeTrue();
 
         _room
             .Harness.Fakes.SentToRoom<FurniRecolorUpdateMessageComposer>()
@@ -422,9 +420,7 @@ public sealed class RecolorableFurniTests
             );
 
         // #FF3456 is in no palette; #FFFFFF is.
-        (await red.SetValueAsync(ctx, Key(red, 10), 255))
-            .Should()
-            .BeFalse();
+        (await red.SetValueAsync(ctx, Key(red, 10), 255)).Should().BeFalse();
         ColorOf(block).Should().Be(BLUE);
         (await rgb.SetValueAsync(ctx, Key(rgb, 10), 0x1000000)).Should().BeFalse();
         (await rgb.SetValueAsync(ctx, Key(rgb, 10), 0xFFFFFF)).Should().BeTrue();

@@ -14,13 +14,10 @@ public sealed class CompositeServiceProviderBag(IServiceProvider baseSp)
 
     public IServiceProvider Get(IServiceProvider owner)
     {
-        var lazy = _byOwner.GetOrAdd(
-            owner,
-            o => new Lazy<IServiceProvider>(
-                () => new CompositeServiceProvider(_baseSp, o),
-                LazyThreadSafetyMode.ExecutionAndPublication
-            )
-        );
+        var lazy = _byOwner.GetOrAdd(owner, o => new Lazy<IServiceProvider>(
+            () => new CompositeServiceProvider(_baseSp, o),
+            LazyThreadSafetyMode.ExecutionAndPublication
+        ));
 
         return lazy.Value;
     }

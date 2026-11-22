@@ -40,7 +40,9 @@ public sealed class WiredWallItemIdTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         box.GetStuffIds().Should().Equal(LAMP);
         box.GetSnapshot().StuffIds.Should().Equal(-LAMP);

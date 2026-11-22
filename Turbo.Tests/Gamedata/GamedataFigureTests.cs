@@ -273,9 +273,7 @@ public sealed class GamedataFigureTests : IDisposable
         var first = await _figures.PreviewImportAsync(null, Ct);
 
         // Asked again (the updates page asks for every kind on each visit) it is the same, not read anew.
-        (await _figures.PreviewImportAsync(null, Ct))
-            .Should()
-            .BeSameAs(first);
+        (await _figures.PreviewImportAsync(null, Ct)).Should().BeSameAs(first);
         first!.Version.Id.Should().Be(next);
         first.Updated.Should().Be(1);
 
@@ -346,9 +344,7 @@ public sealed class GamedataFigureTests : IDisposable
         (await Found("\"club\":1|\"club\":2")).Should().Equal("211");
         (await Found("\"sellable\":true")).Should().Equal("212");
         // Hidden is the piece's own flag, never preselectable's.
-        (await Found("\"selectable\":false"))
-            .Should()
-            .Equal("213");
+        (await Found("\"selectable\":false")).Should().Equal("213");
         (await Found("\"gender\":\"U\"", "\"club\":0")).Should().Equal("210", "212", "213");
     }
 

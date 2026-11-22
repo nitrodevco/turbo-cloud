@@ -57,15 +57,13 @@ internal sealed class NavigatorPublicEndpoints(
                 CancellationToken ct
             ) => SaveCategoryAsync(id, request, http, ct)
         );
-        group.MapDelete(
-            "/categories/{id:int}",
-            (int id, HttpContext http, CancellationToken ct) =>
-                ChangeAsync(
-                    http,
-                    $"category delete {id}",
-                    async () => await editor.DeleteCategoryAsync(id, ct).ConfigureAwait(false),
-                    removed => removed ? Results.NoContent() : Results.NotFound()
-                )
+        group.MapDelete("/categories/{id:int}", (int id, HttpContext http, CancellationToken ct) =>
+            ChangeAsync(
+                http,
+                $"category delete {id}",
+                async () => await editor.DeleteCategoryAsync(id, ct).ConfigureAwait(false),
+                removed => removed ? Results.NoContent() : Results.NotFound()
+            )
         );
         group.MapPut(
             "/categories/order",

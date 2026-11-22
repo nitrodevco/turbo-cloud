@@ -193,8 +193,7 @@ internal sealed class PluginMessageValue
         foreach (var parameter in constructor.GetParameters())
         {
             var name = parameter.Name!;
-            var property =
-                type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance)
+            var property = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance)
                 ?? throw new ArgumentException(
                     $"{path}.{name}: {type.Name} has no public property {name} to read the field from."
                 );

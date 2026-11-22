@@ -78,7 +78,9 @@ public sealed class WiredSignalSplitOrderTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateSelectorMessage>(
                 2,
@@ -104,7 +106,9 @@ public sealed class WiredSignalSplitOrderTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent

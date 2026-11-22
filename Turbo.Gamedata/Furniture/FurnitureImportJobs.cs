@@ -229,32 +229,28 @@ internal sealed class FurnitureImportJobs(
         {
             var changeSet = await import(ct).ConfigureAwait(false);
 
-            Update(
-                job,
-                x =>
-                    x with
-                    {
-                        Phase = GamedataImportPhase.Done,
-                        ChangeSet = changeSet,
-                        FinishedAt = time.GetUtcNow().UtcDateTime,
-                    }
+            Update(job, x =>
+                x with
+                {
+                    Phase = GamedataImportPhase.Done,
+                    ChangeSet = changeSet,
+                    FinishedAt = time.GetUtcNow().UtcDateTime,
+                }
             );
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Taking in Habbo's {File} {Id} failed", job.File, job.ReleaseId);
 
-            Update(
-                job,
-                x =>
-                    x with
-                    {
-                        Phase = GamedataImportPhase.Failed,
-                        Error = ct.IsCancellationRequested
-                            ? "The server stopped before it finished."
-                            : ex.Message,
-                        FinishedAt = time.GetUtcNow().UtcDateTime,
-                    }
+            Update(job, x =>
+                x with
+                {
+                    Phase = GamedataImportPhase.Failed,
+                    Error = ct.IsCancellationRequested
+                        ? "The server stopped before it finished."
+                        : ex.Message,
+                    FinishedAt = time.GetUtcNow().UtcDateTime,
+                }
             );
         }
     }
@@ -288,30 +284,26 @@ internal sealed class FurnitureImportJobs(
                 )
                 .ConfigureAwait(false);
 
-            Update(
-                job,
-                x =>
-                    x with
-                    {
-                        Phase = GamedataImportPhase.Import,
-                        FilesDone = _filesDone,
-                        FilesFailed = _filesFailed,
-                    }
+            Update(job, x =>
+                x with
+                {
+                    Phase = GamedataImportPhase.Import,
+                    FilesDone = _filesDone,
+                    FilesFailed = _filesFailed,
+                }
             );
 
             var changeSet = await furniture
                 .ImportAsync(job.ReleaseId, player, ct)
                 .ConfigureAwait(false);
 
-            Update(
-                job,
-                x =>
-                    x with
-                    {
-                        Phase = GamedataImportPhase.Done,
-                        ChangeSet = changeSet,
-                        FinishedAt = time.GetUtcNow().UtcDateTime,
-                    }
+            Update(job, x =>
+                x with
+                {
+                    Phase = GamedataImportPhase.Done,
+                    ChangeSet = changeSet,
+                    FinishedAt = time.GetUtcNow().UtcDateTime,
+                }
             );
 
             logger.LogInformation(
@@ -325,19 +317,17 @@ internal sealed class FurnitureImportJobs(
         {
             logger.LogError(ex, "Taking in Habbo {Revision} failed", job.Revision);
 
-            Update(
-                job,
-                x =>
-                    x with
-                    {
-                        Phase = GamedataImportPhase.Failed,
-                        FilesDone = _filesDone,
-                        FilesFailed = _filesFailed,
-                        Error = ct.IsCancellationRequested
-                            ? "The server stopped before it finished."
-                            : ex.Message,
-                        FinishedAt = time.GetUtcNow().UtcDateTime,
-                    }
+            Update(job, x =>
+                x with
+                {
+                    Phase = GamedataImportPhase.Failed,
+                    FilesDone = _filesDone,
+                    FilesFailed = _filesFailed,
+                    Error = ct.IsCancellationRequested
+                        ? "The server stopped before it finished."
+                        : ex.Message,
+                    FinishedAt = time.GetUtcNow().UtcDateTime,
+                }
             );
         }
     }

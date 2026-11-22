@@ -67,13 +67,12 @@ public class FurnitureCrackableLogic : FurnitureFloorLogic
     public FurnitureCrackableLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
         : base(stuffDataFactory, ctx)
     {
-        _data =
-            FurnitureExtraDataSections.Read<CrackableData>(
-                ctx.RoomObject.ExtraData,
-                ctx.Definition.ExtraData,
-                CrackableData.SECTION,
-                Logger
-            ) ?? new CrackableData();
+        _data = FurnitureExtraDataSections.Read<CrackableData>(
+            ctx.RoomObject.ExtraData,
+            ctx.Definition.ExtraData,
+            CrackableData.SECTION,
+            Logger
+        ) ?? new CrackableData();
 
         if (StuffData is ICrackableStuffData crackable)
         {

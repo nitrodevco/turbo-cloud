@@ -93,7 +93,9 @@ public sealed class WiredSignalActivationsTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         _room.AddBox<WiredActionWriteToLogs>(RECEIVER_ACTION, 2, 0, "wf_act_log");
         (
@@ -117,7 +119,9 @@ public sealed class WiredSignalActivationsTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         // No selector picks furni: "exactly 0" passes, "exactly 5" fails.
         _room.AddBox<WiredConditionSelectQuantity>(SENDER_CONDITION, 0, 0, "wf_cnd_slc_quantity");
@@ -134,7 +138,9 @@ public sealed class WiredSignalActivationsTests
                     [WiredPlayerSourceType.SelectorUsers],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         if (negative)
             _room.AddBox<WiredActionNegativeSendSignal>(
@@ -163,7 +169,9 @@ public sealed class WiredSignalActivationsTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent

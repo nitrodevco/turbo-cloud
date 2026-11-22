@@ -93,7 +93,8 @@ public sealed class WiredGiveRewardClaimTests
             .BeTrue();
     }
 
-    private async Task SaveOncePerUserAsync() => (
+    private async Task SaveOncePerUserAsync() =>
+        (
             await _room.SaveAsync<UpdateActionMessage>(
                 BOX,
                 intParams: [(int)WiredRewardIntervalType.Once, 0, 0, 1],
@@ -103,7 +104,9 @@ public sealed class WiredGiveRewardClaimTests
                 ],
                 stringParam: "0,ACH_Test1,100"
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
     private Task<bool> ExecuteAsync()
     {

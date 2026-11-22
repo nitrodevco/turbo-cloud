@@ -174,7 +174,9 @@ public sealed class GroupForumEndpointTests : IAsyncDisposable
                     moderatePermission = 2,
                 }
             )
-        ).StatusCode.Should().Be(HttpStatusCode.BadRequest, "the forum refused them");
+        )
+            .StatusCode.Should()
+            .Be(HttpStatusCode.BadRequest, "the forum refused them");
     }
 
     /// <summary>The forum's answer: the settings written when it takes them.</summary>

@@ -105,7 +105,9 @@ public sealed class WiredCallStacksConditionsTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         // Its selection holds no furni: "exactly 0" passes, "exactly 5" fails.
         _room.AddBox<WiredConditionSelectQuantity>(CALLEE_CONDITION, 2, 0, "wf_cnd_slc_quantity");
@@ -122,7 +124,9 @@ public sealed class WiredCallStacksConditionsTests
                     [WiredPlayerSourceType.SelectorUsers],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         _room.AddBox<WiredActionWriteToLogs>(CALLEE_ACTION, 2, 0, "wf_act_log");
         (
@@ -146,7 +150,9 @@ public sealed class WiredCallStacksConditionsTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         // The caller's own condition: the negative call is its else branch.
         _room.AddBox<WiredConditionSelectQuantity>(CALLER_CONDITION, 0, 0, "wf_cnd_slc_quantity");
@@ -163,7 +169,9 @@ public sealed class WiredCallStacksConditionsTests
                     [WiredPlayerSourceType.SelectorUsers],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         // The call picks the callee's trigger, so the callee is placed first.
         if (negative)
@@ -186,7 +194,9 @@ public sealed class WiredCallStacksConditionsTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent

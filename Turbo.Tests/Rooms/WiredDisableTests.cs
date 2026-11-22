@@ -210,7 +210,9 @@ public sealed class WiredDisableTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent
             {
@@ -243,7 +245,9 @@ public sealed class WiredDisableTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent
             {

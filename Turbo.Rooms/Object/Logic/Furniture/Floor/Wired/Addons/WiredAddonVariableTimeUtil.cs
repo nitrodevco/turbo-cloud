@@ -84,12 +84,8 @@ public class WiredAddonVariableTimeUtil(
 
             var field = name;
 
-            yield return Create(
-                fieldIndex,
-                parentName,
-                field,
-                parent,
-                (p, key) => Calendar(p, key, field)
+            yield return Create(fieldIndex, parentName, field, parent, (p, key) =>
+                Calendar(p, key, field)
             );
         }
 
@@ -102,12 +98,8 @@ public class WiredAddonVariableTimeUtil(
 
             var unit = name;
 
-            yield return Create(
-                fieldIndex,
-                parentName,
-                unit,
-                parent,
-                (p, key) => Duration(p, key, unit)
+            yield return Create(fieldIndex, parentName, unit, parent, (p, key) =>
+                Duration(p, key, unit)
             );
         }
     }

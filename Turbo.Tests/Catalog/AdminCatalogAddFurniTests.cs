@@ -65,16 +65,12 @@ public sealed class AdminCatalogAddFurniTests : IDisposable
         [
             .. furni.Select(f =>
                 _catalog
-                    .AddDefinition(
-                        _nextId++,
-                        f.Name,
-                        set: x =>
-                        {
-                            x.FurniLine = line;
-                            x.PublicName = f.PublicName;
-                            x.PartColors = f.Parts?.ToList();
-                        }
-                    )
+                    .AddDefinition(_nextId++, f.Name, set: x =>
+                    {
+                        x.FurniLine = line;
+                        x.PublicName = f.PublicName;
+                        x.PartColors = f.Parts?.ToList();
+                    })
                     .Id
             ),
         ];

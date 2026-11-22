@@ -24,9 +24,8 @@ public static class AchievementProjection
             int.MaxValue,
             Math.Max(0, (progress?.Value ?? 0) / definition.UnitDivisor)
         );
-        var activity = System.Linq.Enumerable.FirstOrDefault(
-            level.Rewards,
-            x => x.Currency?.CurrencyType == CurrencyType.ActivityPoints
+        var activity = System.Linq.Enumerable.FirstOrDefault(level.Rewards, x =>
+            x.Currency?.CurrencyType == CurrencyType.ActivityPoints
         );
         return new()
         {

@@ -75,13 +75,12 @@ public sealed class ExpiringPageService(
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
-        var page =
-            await dbCtx
-                .CatalogPages.AsNoTracking()
-                .Where(x => x.Id == pageId)
-                .Select(x => new { x.Name })
-                .FirstOrDefaultAsync(ct)
-                .ConfigureAwait(false)
+        var page = await dbCtx
+            .CatalogPages.AsNoTracking()
+            .Where(x => x.Id == pageId)
+            .Select(x => new { x.Name })
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false)
             ?? throw new ArgumentException($"There is no catalog page {pageId}.", nameof(pageId));
 
         if (string.IsNullOrWhiteSpace(page.Name))

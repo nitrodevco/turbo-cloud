@@ -68,15 +68,14 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
 
         var path = Path.Combine(folder, MANIFEST);
         var json = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
-        var name =
-            json.Select(x => x.Key)
-                .FirstOrDefault(x =>
-                    string.Equals(
-                        x,
-                        nameof(PluginManifest.ApiVersion),
-                        StringComparison.OrdinalIgnoreCase
-                    )
+        var name = json.Select(x => x.Key)
+            .FirstOrDefault(x =>
+                string.Equals(
+                    x,
+                    nameof(PluginManifest.ApiVersion),
+                    StringComparison.OrdinalIgnoreCase
                 )
+            )
             ?? nameof(PluginManifest.ApiVersion);
 
         json[name] = PluginApi.VERSION;
@@ -97,8 +96,7 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         if (pluginKey == IHotelDataPlugin.KEY)
             return Folder;
 
-        var folder =
-            manager.FoundFolderOf(pluginKey)
+        var folder = manager.FoundFolderOf(pluginKey)
             ?? throw new KeyNotFoundException("There is no plugin with that key.");
 
         if (!PluginHelpers.IsDataOnly(PluginHelpers.ReadManifest(folder), folder))
@@ -403,8 +401,7 @@ internal sealed partial class HotelDataPlugin(PluginManager manager, IServicePro
         {
             var hotel = pluginKey == IHotelDataPlugin.KEY;
             var created = hotel && Ensure();
-            var folder =
-                FolderOf(pluginKey)
+            var folder = FolderOf(pluginKey)
                 ?? throw new KeyNotFoundException("There is no plugin with that key.");
             var path = Path.Combine(folder, WWWROOT, STYLES, file);
 

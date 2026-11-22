@@ -170,12 +170,8 @@ public class WiredAddonVariableLevelUp(
 
             var index = i;
 
-            yield return Create(
-                index,
-                parentName,
-                SUB_NAMES[index],
-                parent,
-                (p, key) => Compute(p, key, index)
+            yield return Create(index, parentName, SUB_NAMES[index], parent, (p, key) =>
+                Compute(p, key, index)
             );
         }
     }

@@ -46,11 +46,8 @@ internal class RoomObjectLogicFeatureProcessor(IRoomObjectLogicProvider roomObje
             sp.Contributes(PluginContributionKinds.FURNI_LOGIC, attribute.Key, concrete.Name);
 
             batch.Add(
-                _roomObjectLogicFactory.RegisterLogic(
-                    attribute.Key,
-                    sp,
-                    (sp, ctx) =>
-                        (IRoomObjectLogic)ActivatorUtilities.CreateInstance(sp, concrete, ctx)
+                _roomObjectLogicFactory.RegisterLogic(attribute.Key, sp, (sp, ctx) =>
+                    (IRoomObjectLogic)ActivatorUtilities.CreateInstance(sp, concrete, ctx)
                 )
             );
         }

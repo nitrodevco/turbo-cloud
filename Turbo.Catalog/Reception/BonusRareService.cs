@@ -199,10 +199,9 @@ public sealed class BonusRareService(
         }
         else
         {
-            row =
-                await dbCtx
-                    .BonusRareCampaigns.FirstOrDefaultAsync(x => x.Id == campaign.Id, ct)
-                    .ConfigureAwait(false)
+            row = await dbCtx
+                .BonusRareCampaigns.FirstOrDefaultAsync(x => x.Id == campaign.Id, ct)
+                .ConfigureAwait(false)
                 ?? throw new ArgumentException(
                     $"There is no bonus rare campaign {campaign.Id}.",
                     nameof(campaign)

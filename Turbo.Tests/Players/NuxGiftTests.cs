@@ -187,9 +187,7 @@ public sealed class NuxGiftTests : IDisposable
         (await grain.GetDueStepsAsync(Ct)).Should().BeEmpty();
 
         // Taken for good: the grain coming back finds the steps picked.
-        (await (await GrainAsync()).GetDueStepsAsync(Ct))
-            .Should()
-            .BeEmpty();
+        (await (await GrainAsync()).GetDueStepsAsync(Ct)).Should().BeEmpty();
         await using var db = await _db.CreateDbContextAsync(Ct);
 
         db.PlayerProductClaims.Select(x => x.ClaimId)

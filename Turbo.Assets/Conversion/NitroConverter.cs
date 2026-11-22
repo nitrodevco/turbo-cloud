@@ -188,8 +188,7 @@ public static class NitroConverter
             )
             .Order(StringComparer.Ordinal)
             .ToList();
-        var json =
-            jsons.FirstOrDefault(x => x == $"{name}.json")
+        var json = jsons.FirstOrDefault(x => x == $"{name}.json")
             ?? jsons.FirstOrDefault()
             ?? throw new AssetFormatException("The old .nitro bundle has no asset data.");
 
@@ -209,8 +208,7 @@ public static class NitroConverter
         var converted = LegacyAssetData.Convert(legacy);
         var library = legacy["name"]?.GetValue<string>() ?? json[..^".json".Length];
         var bundleName = name ?? library;
-        var image =
-            legacyFiles.Keys.FirstOrDefault(x => x == $"{json[..^".json".Length]}.png")
+        var image = legacyFiles.Keys.FirstOrDefault(x => x == $"{json[..^".json".Length]}.png")
             ?? legacyFiles.Keys.FirstOrDefault(x =>
                 x.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
             );

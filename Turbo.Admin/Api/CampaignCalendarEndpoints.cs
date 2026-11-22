@@ -31,17 +31,13 @@ internal sealed class CampaignCalendarEndpoints(
                 "Campaign calendars have one node, admin.campaigns.manage, to see and change them."
             );
 
-        group.MapGet(
-            "/",
-            async (CancellationToken ct) =>
-                Results.Ok(new { calendars = await calendars.ListAsync(ct).ConfigureAwait(false) })
+        group.MapGet("/", async (CancellationToken ct) =>
+            Results.Ok(new { calendars = await calendars.ListAsync(ct).ConfigureAwait(false) })
         );
-        group.MapGet(
-            "/{id:int}",
-            async (int id, CancellationToken ct) =>
-                await calendars.GetAsync(id, ct).ConfigureAwait(false) is { } calendar
-                    ? Results.Ok(calendar)
-                    : Results.NotFound()
+        group.MapGet("/{id:int}", async (int id, CancellationToken ct) =>
+            await calendars.GetAsync(id, ct).ConfigureAwait(false) is { } calendar
+                ? Results.Ok(calendar)
+                : Results.NotFound()
         );
         group.MapPost(
             "/",
@@ -49,22 +45,19 @@ internal sealed class CampaignCalendarEndpoints(
                 SaveAsync(0, calendar, http, ct)
         );
         group.MapPut("/{id:int}", SaveAsync);
-        group.MapDelete(
-            "/{id:int}",
-            async (int id, HttpContext http, CancellationToken ct) =>
-            {
-                if (!await calendars.DeleteAsync(id, ct).ConfigureAwait(false))
-                    return Results.NotFound();
+        group.MapDelete("/{id:int}", async (int id, HttpContext http, CancellationToken ct) =>
+        {
+            if (!await calendars.DeleteAsync(id, ct).ConfigureAwait(false))
+                return Results.NotFound();
 
-                logger.LogInformation(
-                    "Staff {StaffId} removed campaign calendar {CalendarId}",
-                    AdminIdentity.Of(http).PlayerId.Value,
-                    id
-                );
+            logger.LogInformation(
+                "Staff {StaffId} removed campaign calendar {CalendarId}",
+                AdminIdentity.Of(http).PlayerId.Value,
+                id
+            );
 
-                return Results.NoContent();
-            }
-        );
+            return Results.NoContent();
+        });
     }
 
     private async Task<IResult> SaveAsync(

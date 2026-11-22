@@ -116,8 +116,7 @@ internal sealed class InventoryFurnitureLoader(
 
     public IFurnitureItem CreateFromRoomItemSnapshot(RoomItemSnapshot snapshot)
     {
-        var definition =
-            _defsProvider.TryGetDefinition(snapshot.DefinitionId)
+        var definition = _defsProvider.TryGetDefinition(snapshot.DefinitionId)
             ?? throw new TurboException(TurboErrorCodeEnum.FurnitureDefinitionNotFound);
 
         return Build(
@@ -182,16 +181,16 @@ internal sealed class InventoryFurnitureLoader(
 
         if (TeleportFurniture.IsRoomLinker(definition.Name))
             return FurnitureExtraDataSections
-                    .Read<RoomLinkerData>(extraData, RoomLinkerData.SECTION, _logger)
-                    ?.ItemId
+                .Read<RoomLinkerData>(extraData, RoomLinkerData.SECTION, _logger)
+                ?.ItemId
                 ?? 0;
 
         if (!PresentData.IsPresent(definition.LogicName))
             return 0;
 
         return FurnitureExtraDataSections
-                .Read<PresentStorage>(extraData, PresentStorage.SECTION, _logger)
-                ?.GetObjectExtra()
+            .Read<PresentStorage>(extraData, PresentStorage.SECTION, _logger)
+            ?.GetObjectExtra()
             ?? 0;
     }
 

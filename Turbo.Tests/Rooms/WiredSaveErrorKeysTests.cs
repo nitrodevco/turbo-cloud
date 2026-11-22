@@ -71,12 +71,8 @@ public sealed class WiredSaveErrorKeysTests
     public async Task A_counter_box_takes_counters_only()
     {
         _room.AddBox<WiredActionControlClock>(BOX, 0, 0, "wf_act_control_clock");
-        _room.AddFloorItem(
-            COUNTER,
-            1,
-            0,
-            "wf_upcounter1",
-            createLogic: (factory, ctx) => new FurnitureCounterClock1Logic(factory, ctx)
+        _room.AddFloorItem(COUNTER, 1, 0, "wf_upcounter1", createLogic: (factory, ctx) =>
+            new FurnitureCounterClock1Logic(factory, ctx)
         );
         _room.AddFloorItem(LAMP, 2, 0);
 

@@ -9,9 +9,8 @@ internal class WiredGetAllVariablesDiffsMessageParser : IParser
 {
     public IMessageEvent Parse(IClientPacket packet)
     {
-        var variables = packet.PopList(
-            bytesPerItem: 6,
-            p => (Id: WiredVariableId.Parse(p.PopString()), Hash: new WiredVariableHash(p.PopInt()))
+        var variables = packet.PopList(bytesPerItem: 6, p =>
+            (Id: WiredVariableId.Parse(p.PopString()), Hash: new WiredVariableHash(p.PopInt()))
         );
 
         return new WiredGetAllVariablesDiffsMessage { VariableIdsWithHash = variables };

@@ -42,13 +42,12 @@ public class FurnitureCraftingLogic : FurnitureFloorLogic
     public FurnitureCraftingLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
         : base(stuffDataFactory, ctx)
     {
-        _data =
-            FurnitureExtraDataSections.Read<CraftingData>(
-                ctx.RoomObject.ExtraData,
-                ctx.Definition.ExtraData,
-                CraftingData.SECTION,
-                Logger
-            ) ?? new CraftingData();
+        _data = FurnitureExtraDataSections.Read<CraftingData>(
+            ctx.RoomObject.ExtraData,
+            ctx.Definition.ExtraData,
+            CraftingData.SECTION,
+            Logger
+        ) ?? new CraftingData();
     }
 
     /// <summary>The listed (not secret) recipe of this code, if the table makes it.</summary>

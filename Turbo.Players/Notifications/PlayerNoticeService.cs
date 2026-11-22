@@ -173,10 +173,9 @@ public sealed class PlayerNoticeService(
                     new NotificationDialogMessageComposer
                     {
                         NotificationType = row.NotificationType,
-                        Parameters =
-                            JsonSerializer
-                                .Deserialize<Dictionary<string, string>>(row.Parameters)
-                                ?.ToImmutableDictionary()
+                        Parameters = JsonSerializer
+                            .Deserialize<Dictionary<string, string>>(row.Parameters)
+                            ?.ToImmutableDictionary()
                             ?? ImmutableDictionary<string, string>.Empty,
                     },
                     ct

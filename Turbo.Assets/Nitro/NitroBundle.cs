@@ -110,8 +110,8 @@ public sealed class NitroBundle
             )
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();
-        var file =
-            candidates.FirstOrDefault(x => x == $"{name}.json") ?? candidates.FirstOrDefault();
+        var file = candidates.FirstOrDefault(x => x == $"{name}.json")
+            ?? candidates.FirstOrDefault();
 
         if (file is null)
             return null;

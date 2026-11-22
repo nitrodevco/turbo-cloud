@@ -54,21 +54,17 @@ public class WiredActionBotTeleport(
 
             await AvatarModule.SetAvatarEffectAsync(bot.ObjectId, TELEPORT_EFFECT_ID, ct);
 
-            WiredSystem.RunAfter(
-                ARRIVE_AFTER_MS,
-                token =>
-                    IsInRoom(bot)
-                    && FurniModule.TryGetItem(itemId, out var item)
-                    && item is IRoomFloorItem furni
-                        ? BotModule.TeleportToItemAsync(bot, furni, token)
-                        : Task.CompletedTask
+            WiredSystem.RunAfter(ARRIVE_AFTER_MS, token =>
+                IsInRoom(bot)
+                && FurniModule.TryGetItem(itemId, out var item)
+                && item is IRoomFloorItem furni
+                    ? BotModule.TeleportToItemAsync(bot, furni, token)
+                    : Task.CompletedTask
             );
-            WiredSystem.RunAfter(
-                EFFECT_OFF_AFTER_MS,
-                token =>
-                    IsInRoom(bot) && bot.EffectId == TELEPORT_EFFECT_ID
-                        ? AvatarModule.SetAvatarEffectAsync(bot.ObjectId, 0, token)
-                        : Task.CompletedTask
+            WiredSystem.RunAfter(EFFECT_OFF_AFTER_MS, token =>
+                IsInRoom(bot) && bot.EffectId == TELEPORT_EFFECT_ID
+                    ? AvatarModule.SetAvatarEffectAsync(bot.ObjectId, 0, token)
+                    : Task.CompletedTask
             );
         }
 

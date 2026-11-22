@@ -125,10 +125,9 @@ public sealed class AiHost(
     private async Task SaveKeyAsync(string provider, string? key, PlayerId by, CancellationToken ct)
     {
         var current = runtime.Config;
-        var name =
-            current.Providers.Keys.FirstOrDefault(x =>
-                string.Equals(x, provider, StringComparison.OrdinalIgnoreCase)
-            ) ?? throw new ArgumentException($"There is no provider named {provider}.");
+        var name = current.Providers.Keys.FirstOrDefault(x =>
+            string.Equals(x, provider, StringComparison.OrdinalIgnoreCase)
+        ) ?? throw new ArgumentException($"There is no provider named {provider}.");
 
         if (settings is null)
             throw new InvalidOperationException(

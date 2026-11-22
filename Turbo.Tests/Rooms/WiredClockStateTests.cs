@@ -122,14 +122,9 @@ public sealed class WiredClockStateTests
         (T)
             (object)
                 _room
-                    .AddFloorItem(
-                        id,
-                        id - 28,
-                        2,
-                        classname,
-                        createLogic: (factory, ctx) =>
-                            (Turbo.Primitives.Rooms.Object.Logic.IRoomObjectLogic)
-                                Activator.CreateInstance(typeof(T), factory, ctx)!
+                    .AddFloorItem(id, id - 28, 2, classname, createLogic: (factory, ctx) =>
+                        (Turbo.Primitives.Rooms.Object.Logic.IRoomObjectLogic)
+                            Activator.CreateInstance(typeof(T), factory, ctx)!
                     )
                     .Logic;
 

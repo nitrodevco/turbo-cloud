@@ -93,15 +93,11 @@ public sealed class CatalogService(
         foreach (var (minRank, node) in cuts.Gates)
             passed.Append(CatalogPageAccess.CanSee(minRank, node, permissions, level) ? '1' : '0');
 
-        return cuts.ByPassed.GetOrAdd(
-            passed.ToString(),
-            key =>
-                CatalogPageAccess.Cut(
-                    catalog,
-                    page =>
-                        !CatalogPageAccess.IsGated(page)
-                        || key[cuts.Gates.IndexOf((page.MinRank, page.RequiredNode))] == '1'
-                )
+        return cuts.ByPassed.GetOrAdd(passed.ToString(), key =>
+            CatalogPageAccess.Cut(catalog, page =>
+                !CatalogPageAccess.IsGated(page)
+                || key[cuts.Gates.IndexOf((page.MinRank, page.RequiredNode))] == '1'
+            )
         );
     }
 

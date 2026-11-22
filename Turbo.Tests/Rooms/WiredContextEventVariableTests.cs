@@ -305,7 +305,9 @@ public sealed class WiredContextEventVariableTests
                     [WiredPlayerSourceType.TriggeredUser],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await StartAsync(0, 0);
 
         await Wired.OnRoomEventAsync(
@@ -337,12 +339,8 @@ public sealed class WiredContextEventVariableTests
     private async Task TransactionTriggerAsync<TTrigger>(string name, bool pickContract = true)
         where TTrigger : class, Turbo.Primitives.Rooms.Object.Logic.IRoomObjectLogic
     {
-        _room.AddFloorItem(
-            CONTRACT,
-            6,
-            6,
-            "wired_contract_payment",
-            createLogic: (factory, ctx) => new FurnitureWiredPaymentContractLogic(factory, ctx)
+        _room.AddFloorItem(CONTRACT, 6, 6, "wired_contract_payment", createLogic: (factory, ctx) =>
+            new FurnitureWiredPaymentContractLogic(factory, ctx)
         );
         _room.AddBox<TTrigger>(1, 0, 0, name);
         (
@@ -354,7 +352,9 @@ public sealed class WiredContextEventVariableTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
     }
 
     private async Task ReceiveAsync()
@@ -369,7 +369,9 @@ public sealed class WiredContextEventVariableTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
     }
 
     /// <summary>

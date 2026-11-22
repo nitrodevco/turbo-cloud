@@ -219,8 +219,7 @@ public sealed class HotelCountdownNoticeService(
         if (!settings.Dismissible)
             variables["close"] = CLOSE_NEVER;
 
-        var template =
-            await textProvider.GetTextAsync(TextKey(kind), ct).ConfigureAwait(false)
+        var template = await textProvider.GetTextAsync(TextKey(kind), ct).ConfigureAwait(false)
             ?? DEFAULT_TEXTS[kind];
 
         return new TurboNoticeMessage

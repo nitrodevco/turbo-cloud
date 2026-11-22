@@ -149,9 +149,7 @@ public sealed class GamedataTextTests : IDisposable
         var first = await _texts.PreviewImportAsync(null, Ct);
 
         // Asked again (the updates page asks for every kind on each visit) it is the same, not read anew.
-        (await _texts.PreviewImportAsync(null, Ct))
-            .Should()
-            .BeSameAs(first);
+        (await _texts.PreviewImportAsync(null, Ct)).Should().BeSameAs(first);
         first!.Version.Id.Should().Be(next);
         first.Updated.Should().Be(1);
 

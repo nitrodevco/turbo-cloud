@@ -316,7 +316,9 @@ public sealed class WiredSameTickTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 EFFECT,
@@ -328,7 +330,9 @@ public sealed class WiredSameTickTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent
             {
@@ -372,7 +376,9 @@ public sealed class WiredSameTickTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         _room.AddBox<WiredActionProgressAchievement>(EFFECT, 0, 0, "wf_act_progress_ach");
         (
             await _room.SaveAsync<UpdateActionMessage>(

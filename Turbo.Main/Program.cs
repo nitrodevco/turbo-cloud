@@ -108,8 +108,8 @@ internal class Program
 
                     if (path is not null)
                     {
-                        var fileProvider =
-                            src.FileProvider ?? builder.Environment.ContentRootFileProvider;
+                        var fileProvider = src.FileProvider
+                            ?? builder.Environment.ContentRootFileProvider;
                         var fi = fileProvider?.GetFileInfo(path);
                         var physical = fi?.PhysicalPath ?? "<virtual or unresolved>";
 

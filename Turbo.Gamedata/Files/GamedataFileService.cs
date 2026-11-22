@@ -925,7 +925,16 @@ internal sealed class GamedataFileService(
                 })
                 .ToListAsync(ct)
                 .ConfigureAwait(false)
-        ).Where(x => !(x.SettingPath is null && x.LinkedFile is null && withheld.TryGetValue(x.Key, out var value) && value == x.Value)).ToList();
+        )
+            .Where(x =>
+                !(
+                    x.SettingPath is null
+                    && x.LinkedFile is null
+                    && withheld.TryGetValue(x.Key, out var value)
+                    && value == x.Value
+                )
+            )
+            .ToList();
 
         var variables = rows.ToDictionary(
             x => x.Key,

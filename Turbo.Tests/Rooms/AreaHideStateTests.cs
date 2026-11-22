@@ -32,12 +32,8 @@ public sealed class AreaHideStateTests
 
     public AreaHideStateTests()
     {
-        _hider = _room.AddFloorItem(
-            HIDER,
-            7,
-            7,
-            "area_hide",
-            createLogic: (factory, ctx) => new FurnitureAreaHideLogic(factory, ctx)
+        _hider = _room.AddFloorItem(HIDER, 7, 7, "area_hide", createLogic: (factory, ctx) =>
+            new FurnitureAreaHideLogic(factory, ctx)
         );
         _room.AddFloorItem(CRATE, 2, 3);
     }

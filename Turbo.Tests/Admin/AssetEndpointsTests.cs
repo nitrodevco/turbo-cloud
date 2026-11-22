@@ -452,9 +452,7 @@ public sealed class AssetEndpointsTests : IAsyncDisposable
         }
 
         // Each kind by what only it carries.
-        (await KindAsync("lamp.swf", NitroConverterTests.Swf()))
-            .Should()
-            .Be("furniture");
+        (await KindAsync("lamp.swf", NitroConverterTests.Swf())).Should().Be("furniture");
         (
             await KindAsync(
                 "bear.nitro",

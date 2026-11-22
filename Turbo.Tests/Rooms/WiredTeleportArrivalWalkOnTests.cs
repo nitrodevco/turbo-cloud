@@ -42,12 +42,8 @@ public sealed class WiredTeleportArrivalWalkOnTests
     [Fact]
     public async Task Arriving_in_a_teleport_from_another_room_is_walking_onto_it()
     {
-        _room.AddFloorItem(
-            TELEPORT,
-            3,
-            3,
-            "teleport",
-            createLogic: (factory, ctx) => new FurnitureTeleportLogic(factory, ctx)
+        _room.AddFloorItem(TELEPORT, 3, 3, "teleport", createLogic: (factory, ctx) =>
+            new FurnitureTeleportLogic(factory, ctx)
         );
         var lamp = _room.AddFloorItem(LAMP, 6, 6);
 
@@ -62,7 +58,9 @@ public sealed class WiredTeleportArrivalWalkOnTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 2,
@@ -74,7 +72,9 @@ public sealed class WiredTeleportArrivalWalkOnTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent
             {

@@ -625,8 +625,9 @@ internal sealed class WiredTradeGrain : Grain, IWiredTradeGrain
                 : WiredContractOffers.Credits(session.Offer),
             SecondPlayerId = PlayerId.Parse(0),
             SecondItems = [],
-            SecondCredits =
-                reward?.Nodes.Where(x => x.Type == TradeRequirementNodeType.Coin).Sum(x => x.Amount)
+            SecondCredits = reward
+                ?.Nodes.Where(x => x.Type == TradeRequirementNodeType.Coin)
+                .Sum(x => x.Amount)
                 ?? 0,
             CanAccept = CanAccept(session),
             Extra = timesMet,

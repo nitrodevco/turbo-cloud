@@ -530,42 +530,31 @@ public sealed class TestHotel : IAsyncDisposable
                 });
             }
         );
-        Host.Answer<IPlayerPermissionGrain>(
-            nameof(IPlayerPermissionGrain.HasAsync),
-            call =>
-                Task.FromResult(
-                    Fake.Players.All.FirstOrDefault(p => p.Id == TestPlayer.PlayerOf(call.Key))
-                        is { } player
-                        && Grants(player, (string)call.Args[0]!)
-                )
+        Host.Answer<IPlayerPermissionGrain>(nameof(IPlayerPermissionGrain.HasAsync), call =>
+            Task.FromResult(
+                Fake.Players.All.FirstOrDefault(p => p.Id == TestPlayer.PlayerOf(call.Key))
+                    is { } player
+                    && Grants(player, (string)call.Args[0]!)
+            )
         );
         // Who is online and players by name, as an operator command asks the hotel.
-        Host.Answer<ISessionGateway>(
-            nameof(ISessionGateway.GetOnlinePlayerIds),
-            _ => Fake.Players.OnlineIds()
+        Host.Answer<ISessionGateway>(nameof(ISessionGateway.GetOnlinePlayerIds), _ =>
+            Fake.Players.OnlineIds()
         );
-        Host.Answer<IPlayerDirectoryGrain>(
-            nameof(IPlayerDirectoryGrain.GetPlayerIdAsync),
-            call =>
-                Task.FromResult(
-                    Fake.Players.All.FirstOrDefault(p =>
-                        string.Equals(
-                            p.Name,
-                            (string)call.Args[0]!,
-                            StringComparison.OrdinalIgnoreCase
-                        )
-                    )
-                        is { } player
-                        ? (Turbo.Primitives.Players.PlayerId?)player.Id
-                        : null
+        Host.Answer<IPlayerDirectoryGrain>(nameof(IPlayerDirectoryGrain.GetPlayerIdAsync), call =>
+            Task.FromResult(
+                Fake.Players.All.FirstOrDefault(p =>
+                    string.Equals(p.Name, (string)call.Args[0]!, StringComparison.OrdinalIgnoreCase)
                 )
+                    is { } player
+                    ? (Turbo.Primitives.Players.PlayerId?)player.Id
+                    : null
+            )
         );
-        Host.Answer<IPlayerDirectoryGrain>(
-            nameof(IPlayerDirectoryGrain.GetPlayerNameAsync),
-            call =>
-                Task.FromResult(
-                    NameOf((Turbo.Primitives.Players.PlayerId)call.Args[0]!) ?? string.Empty
-                )
+        Host.Answer<IPlayerDirectoryGrain>(nameof(IPlayerDirectoryGrain.GetPlayerNameAsync), call =>
+            Task.FromResult(
+                NameOf((Turbo.Primitives.Players.PlayerId)call.Args[0]!) ?? string.Empty
+            )
         );
         Host.Answer<IPlayerDirectoryGrain>(
             nameof(IPlayerDirectoryGrain.GetPlayerNamesAsync),
@@ -577,11 +566,9 @@ public sealed class TestHotel : IAsyncDisposable
                         .ToImmutableDictionary(id => id, id => NameOf(id)!)
                 )
         );
-        Host.Answer<ISessionGateway>(
-            nameof(ISessionGateway.GetPlayerId),
-            call =>
-                _players.Values.FirstOrDefault(p => p.SessionKey == (SessionKey)call.Args[0]!)?.Id
-                ?? Turbo.Primitives.Players.PlayerId.Invalid
+        Host.Answer<ISessionGateway>(nameof(ISessionGateway.GetPlayerId), call =>
+            _players.Values.FirstOrDefault(p => p.SessionKey == (SessionKey)call.Args[0]!)?.Id
+            ?? Turbo.Primitives.Players.PlayerId.Invalid
         );
     }
 

@@ -44,7 +44,9 @@ public sealed class WiredFurniToFurniTargetTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var landed = new HashSet<int>();
 
@@ -81,7 +83,9 @@ public sealed class WiredFurniToFurniTargetTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         box.GetSnapshot().IntParams.Should().Equal(0, 1, 1, 0, 0);
     }
@@ -105,7 +109,9 @@ public sealed class WiredFurniToFurniTargetTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         box.GetSnapshot().IntParams.Should().Equal(0, 1, 1, 1, 0);
     }

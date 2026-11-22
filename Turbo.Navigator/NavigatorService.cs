@@ -1249,8 +1249,7 @@ public sealed class NavigatorService(
             {
                 // The new navigator already holds the player's navigator snapshot; only a
                 // legacy search has to ask for it.
-                var roomIds =
-                    query.Preferences?.FavouriteRoomIds
+                var roomIds = query.Preferences?.FavouriteRoomIds
                     ?? await GetFavouriteRoomIdsAsync(playerId, ct).ConfigureAwait(false);
 
                 return await GetRoomsInOrderAsync(query, roomIds, limit, ct).ConfigureAwait(false);
@@ -1371,10 +1370,10 @@ public sealed class NavigatorService(
         var categories = GetEventCategories();
 
         return (
-                int.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id)
-                    ? categories.FirstOrDefault(x => x.Id == id)
-                    : null
-            )
+            int.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id)
+                ? categories.FirstOrDefault(x => x.Id == id)
+                : null
+        )
             ?? categories.FirstOrDefault(x =>
                 string.Equals(x.Name, key, StringComparison.OrdinalIgnoreCase)
             );
@@ -1490,14 +1489,11 @@ public sealed class NavigatorService(
 
         return
         [
-            .. MergeLive(
-                    cached,
-                    query,
-                    x =>
-                        IsPublic(x)
-                        && x.ActiveEvent is { } evt
-                        && evt.IsActiveAt(now)
-                        && (eventCategoryId is null || evt.CategoryId == eventCategoryId)
+            .. MergeLive(cached, query, x =>
+                    IsPublic(x)
+                    && x.ActiveEvent is { } evt
+                    && evt.IsActiveAt(now)
+                    && (eventCategoryId is null || evt.CategoryId == eventCategoryId)
                 )
                 .OrderByDescending(x => x.ActiveEvent!.CreatedAtUtc)
                 .Take(limit),

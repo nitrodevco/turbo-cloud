@@ -106,12 +106,8 @@ public sealed class RoomArrivalPolicyTests
     [Fact]
     public async Task A_player_arriving_inside_a_teleporter_is_the_teleporters_and_no_policy_is_asked()
     {
-        _room.AddFloorItem(
-            LINKER,
-            6,
-            2,
-            "wf_room_linker",
-            createLogic: (stuff, ctx) => new FurnitureRoomLinkerLogic(stuff, ctx)
+        _room.AddFloorItem(LINKER, 6, 2, "wf_room_linker", createLogic: (stuff, ctx) =>
+            new FurnitureRoomLinkerLogic(stuff, ctx)
         );
 
         await EnterAsync(

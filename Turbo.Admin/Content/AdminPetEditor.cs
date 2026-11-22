@@ -90,8 +90,9 @@ public sealed class AdminPetEditor(
         }
         else
         {
-            row =
-                await dbCtx.PetBreeds.FirstOrDefaultAsync(x => x.Id == id, ct).ConfigureAwait(false)
+            row = await dbCtx
+                .PetBreeds.FirstOrDefaultAsync(x => x.Id == id, ct)
+                .ConfigureAwait(false)
                 ?? throw new ArgumentException($"There is no pet palette {id}.");
         }
 
@@ -130,8 +131,9 @@ public sealed class AdminPetEditor(
         }
         else
         {
-            row =
-                await dbCtx.PetSpeech.FirstOrDefaultAsync(x => x.Id == id, ct).ConfigureAwait(false)
+            row = await dbCtx
+                .PetSpeech.FirstOrDefaultAsync(x => x.Id == id, ct)
+                .ConfigureAwait(false)
                 ?? throw new ArgumentException($"There is no pet line {id}.");
             row.Line = line;
         }

@@ -177,18 +177,15 @@ public sealed class WiredGamesTimeRuntimeTests
     private FurnitureCounterClockLogic AddClock() =>
         (FurnitureCounterClockLogic)
             _room
-                .AddFloorItem(
-                    CLOCK,
-                    3,
-                    3,
-                    "wf_game_upcounter",
-                    createLogic: (factory, ctx) => new FurnitureCounterClockLogic(factory, ctx)
+                .AddFloorItem(CLOCK, 3, 3, "wf_game_upcounter", createLogic: (factory, ctx) =>
+                    new FurnitureCounterClockLogic(factory, ctx)
                 )
                 .Logic;
 
     // A clock box picking the counter.
     private async Task SaveClockBoxAsync<TMessage>(int id, int[] ints)
-        where TMessage : UpdateWiredMessage => (
+        where TMessage : UpdateWiredMessage =>
+        (
             await _room.SaveAsync<TMessage>(
                 id,
                 intParams: ints,
@@ -199,10 +196,13 @@ public sealed class WiredGamesTimeRuntimeTests
                 ],
                 definitionSpecifics: typeof(TMessage) == typeof(UpdateTriggerMessage) ? null : [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
     // EFFECT toggles PAD.
-    private async Task SaveToggleAsync() => (
+    private async Task SaveToggleAsync() =>
+        (
             await _room.SaveAsync<UpdateActionMessage>(
                 EFFECT,
                 intParams: [0],
@@ -213,7 +213,9 @@ public sealed class WiredGamesTimeRuntimeTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
     private Task StackChangedAsync() =>
         Wired.OnRoomEventAsync(

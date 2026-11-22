@@ -154,11 +154,11 @@ public sealed class OwnerBootstrap(
         await using var dbScope = db.ConfigureAwait(false);
 
         return await db
-                .Players.AsNoTracking()
-                .Where(x => x.Id == player.Value)
-                .Select(x => x.Name)
-                .FirstOrDefaultAsync(ct)
-                .ConfigureAwait(false)
+            .Players.AsNoTracking()
+            .Where(x => x.Id == player.Value)
+            .Select(x => x.Name)
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false)
             ?? player.Value.ToString();
     }
 

@@ -83,7 +83,9 @@ public sealed class WiredInitiateTransactionContractsTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
 
@@ -147,7 +149,9 @@ public sealed class WiredInitiateTransactionContractsTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         // A payment of one credit: a custom contract with neither side on gives nothing, so it
         // starts no transaction.
         (
@@ -190,12 +194,8 @@ public sealed class WiredInitiateTransactionContractsTests
     {
         var chest = (FurnitureWiredChestLogic)
             _room
-                .AddFloorItem(
-                    CHEST,
-                    6,
-                    2,
-                    "wired_chest_coins",
-                    createLogic: (factory, ctx) => new FurnitureWiredCoinsChestLogic(factory, ctx)
+                .AddFloorItem(CHEST, 6, 2, "wired_chest_coins", createLogic: (factory, ctx) =>
+                    new FurnitureWiredCoinsChestLogic(factory, ctx)
                 )
                 .Logic;
 

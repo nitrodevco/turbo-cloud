@@ -82,9 +82,8 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
                 error
             );
 
-        _reloads = ChangeToken.OnChange(
-            configuration.GetReloadToken,
-            () => Interlocked.Increment(ref _version)
+        _reloads = ChangeToken.OnChange(configuration.GetReloadToken, () =>
+            Interlocked.Increment(ref _version)
         );
     }
 
@@ -206,8 +205,7 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
             var existing = rows.FirstOrDefault(x =>
                 string.Equals(x.Path, setting.Path, StringComparison.OrdinalIgnoreCase)
             );
-            var before =
-                existing?.Value
+            var before = existing?.Value
                 ?? ReadUnderlyingMap(setting, [.. rows.Select(x => (x.Path, x.Value))]);
             var historyBefore = existing?.Value;
             var map = ParseStringMap(before, setting.Path);
@@ -807,15 +805,12 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
         )
         {
             var defaults = Instance(section, () => Activator.CreateInstance(section.Type));
-            var configured =
-                Instance(
-                    section,
-                    () => WholeCollectionBinding.Get(_configuration, section.Name, section.Type)
-                ) ?? defaults;
+            var configured = Instance(section, () =>
+                WholeCollectionBinding.Get(_configuration, section.Name, section.Type)
+            ) ?? defaults;
             // A plugin's own value is what it reads through its monitor: running and live alike.
-            var running = Instance(
-                section,
-                () => plugin is null ? Running(section.Type) : plugin.Running(section.Type)
+            var running = Instance(section, () =>
+                plugin is null ? Running(section.Type) : plugin.Running(section.Type)
             );
             var live =
                 plugin is not null ? running
@@ -996,11 +991,10 @@ internal sealed class ServerSettingsService : IServerSettings, IPluginSettingSec
             ENVIRONMENT_SEPARATOR,
             StringComparison.Ordinal
         );
-        var prefixes =
-            (_configuration as IConfigurationBuilder)
-                ?.Sources.OfType<EnvironmentVariablesConfigurationSource>()
-                .Select(x => x.Prefix ?? string.Empty)
-                .Distinct()
+        var prefixes = (_configuration as IConfigurationBuilder)
+            ?.Sources.OfType<EnvironmentVariablesConfigurationSource>()
+            .Select(x => x.Prefix ?? string.Empty)
+            .Distinct()
             ?? [string.Empty];
 
         foreach (var prefix in prefixes)

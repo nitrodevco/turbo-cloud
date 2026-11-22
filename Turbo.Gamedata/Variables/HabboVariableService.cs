@@ -106,14 +106,9 @@ internal sealed class HabboVariableService(
         var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
-        var version =
-            await dbCtx
-                .HabboVariableVersions.FindOrLatestAsync(
-                    versionId,
-                    config.CurrentValue.HabboDomain,
-                    ct
-                )
-                .ConfigureAwait(false)
+        var version = await dbCtx
+            .HabboVariableVersions.FindOrLatestAsync(versionId, config.CurrentValue.HabboDomain, ct)
+            .ConfigureAwait(false)
             ?? throw new ArgumentException(NO_VERSION, nameof(versionId));
         var plan = await PlanAsync(dbCtx, version, tracked: true, ct).ConfigureAwait(false);
         var picked = keys?.ToHashSet(StringComparer.Ordinal);

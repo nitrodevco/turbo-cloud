@@ -336,13 +336,8 @@ public sealed class PluginFurniHooksTests : IDisposable
             Ct
         );
 
-        return _room.AddFloorItem(
-            PORTAL,
-            2,
-            2,
-            logicKey,
-            canWalk: false,
-            createLogic: (_, ctx) => _room.Harness.LogicProvider.CreateLogicInstance(logicKey, ctx)
+        return _room.AddFloorItem(PORTAL, 2, 2, logicKey, canWalk: false, createLogic: (_, ctx) =>
+            _room.Harness.LogicProvider.CreateLogicInstance(logicKey, ctx)
         );
     }
 

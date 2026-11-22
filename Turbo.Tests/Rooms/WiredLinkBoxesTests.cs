@@ -410,7 +410,8 @@ public sealed class WiredLinkBoxesTests
         await TickAsync(2);
     }
 
-    private async Task SaveClickAsync(int boxId) => (
+    private async Task SaveClickAsync(int boxId) =>
+        (
             await _room.SaveAsync<UpdateTriggerMessage>(
                 boxId,
                 stuffIds: [LAMP],
@@ -419,7 +420,9 @@ public sealed class WiredLinkBoxesTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
     private async Task LogAsync(int boxId, string text) =>
         (

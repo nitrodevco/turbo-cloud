@@ -298,10 +298,8 @@ public sealed class OperatorCommandRunner(
             )
         ).ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
         var bound = prepared is null
-            ? descriptor.Binder.Bind(
-                argumentText,
-                null,
-                node => branchPermissions.GetValueOrDefault(node)
+            ? descriptor.Binder.Bind(argumentText, null, node =>
+                branchPermissions.GetValueOrDefault(node)
             )
             : CommandBindResult.Success(prepared.Arguments) with
             {
@@ -476,14 +474,13 @@ public sealed class OperatorCommandRunner(
         }
 
         var shared = CommandReplyKeys.IsShared(question);
-        var what =
-            await TextAsync(
-                shared ? question : CommandReplyKeys.ForCommand(descriptor.Name, question),
-                descriptor,
-                shared ? null : question,
-                result.Parameters,
-                ct
-            ) ?? string.Empty;
+        var what = await TextAsync(
+            shared ? question : CommandReplyKeys.ForCommand(descriptor.Name, question),
+            descriptor,
+            shared ? null : question,
+            result.Parameters,
+            ct
+        ) ?? string.Empty;
 
         await ReplyAsync(
             executor,
@@ -550,14 +547,11 @@ public sealed class OperatorCommandRunner(
         CommandResult result
     )
     {
-        await TryFinalizeAsync(
-            "audit",
-            token =>
-                LogUseAsync(descriptor, executor, context, argumentText, outcome, result, token)
+        await TryFinalizeAsync("audit", token =>
+            LogUseAsync(descriptor, executor, context, argumentText, outcome, result, token)
         );
-        await TryFinalizeAsync(
-            "completion hooks",
-            token => PublishExecutedAsync(descriptor, executor, outcome, result, token)
+        await TryFinalizeAsync("completion hooks", token =>
+            PublishExecutedAsync(descriptor, executor, outcome, result, token)
         );
 
         async Task TryFinalizeAsync(string step, Func<CancellationToken, Task> action)

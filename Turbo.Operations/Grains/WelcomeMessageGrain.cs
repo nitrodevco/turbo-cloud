@@ -36,12 +36,11 @@ internal sealed class WelcomeMessageGrain(
         {
             await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
 
-            _message =
-                await dbCtx
-                    .HotelSettings.AsNoTracking()
-                    .Where(x => x.Key == SETTING_KEY)
-                    .Select(x => x.Value)
-                    .FirstOrDefaultAsync(ct)
+            _message = await dbCtx
+                .HotelSettings.AsNoTracking()
+                .Where(x => x.Key == SETTING_KEY)
+                .Select(x => x.Value)
+                .FirstOrDefaultAsync(ct)
                 ?? string.Empty;
         }
         catch (Exception ex)

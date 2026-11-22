@@ -340,8 +340,7 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
                 return new VariableLeaderboardChoiceSnapshot
                 {
                     VariableId = variableId,
-                    DisplayName =
-                        config.DisplayOverrideFor(variableId)
+                    DisplayName = config.DisplayOverrideFor(variableId)
                         ?? VariableLeaderboardConfig.SuggestDisplayName(snapshot.VariableName),
                 };
             })

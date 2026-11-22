@@ -135,10 +135,9 @@ internal sealed class BadgeDirectoryGrain : Grain, IBadgeDirectoryGrain
 
         foreach (var code in codes)
         {
-            var owners =
-                counts
-                    .FirstOrDefault(x => x.Code.Equals(code, StringComparison.OrdinalIgnoreCase))
-                    ?.Count
+            var owners = counts
+                .FirstOrDefault(x => x.Code.Equals(code, StringComparison.OrdinalIgnoreCase))
+                ?.Count
                 ?? 0;
 
             // A code nobody holds any more is dropped, as the full recount leaves it out.

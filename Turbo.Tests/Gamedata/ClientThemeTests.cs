@@ -24,18 +24,13 @@ public sealed class ClientThemeTests
     private const string PNG = "image/png";
 
     /// <summary>The nine-slice's sheet: three by three pixels, each its own colour.</summary>
-    private static readonly RgbaImage BORDER_SHEET = Image(
-        3,
-        3,
-        (x, y) =>
-            [(byte)(40 + (x * 70)), (byte)(30 + (y * 80)), (byte)(10 + (x * 20) + (y * 5)), 255]
+    private static readonly RgbaImage BORDER_SHEET = Image(3, 3, (x, y) =>
+        [(byte)(40 + (x * 70)), (byte)(30 + (y * 80)), (byte)(10 + (x * 20) + (y * 5)), 255]
     );
 
     /// <summary>The icon set's sheet: two icons of two by two pixels side by side.</summary>
-    private static readonly RgbaImage ICON_SHEET = Image(
-        4,
-        2,
-        (x, y) => [(byte)(x * 60), (byte)(y * 120), 200, (byte)(100 + (x * 30))]
+    private static readonly RgbaImage ICON_SHEET = Image(4, 2, (x, y) =>
+        [(byte)(x * 60), (byte)(y * 120), 200, (byte)(100 + (x * 30))]
     );
 
     /// <summary>A grid cell's entity name, scale on each axis, and place in the three by three skin.</summary>
@@ -134,15 +129,12 @@ public sealed class ClientThemeTests
                 source.Width + 2,
                 source.Height + 2
             );
-            var extruded = Image(
-                source.Width + 2,
-                source.Height + 2,
-                (gx, gy) =>
-                    Pixel(
-                        source,
-                        Math.Clamp(gx - 1, 0, source.Width - 1),
-                        Math.Clamp(gy - 1, 0, source.Height - 1)
-                    )
+            var extruded = Image(source.Width + 2, source.Height + 2, (gx, gy) =>
+                Pixel(
+                    source,
+                    Math.Clamp(gx - 1, 0, source.Width - 1),
+                    Math.Clamp(gy - 1, 0, source.Height - 1)
+                )
             );
 
             gutter.SameAs(extruded).Should().BeTrue($"{name}'s edge is extruded into its gutter");

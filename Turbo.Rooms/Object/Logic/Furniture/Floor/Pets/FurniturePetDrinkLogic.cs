@@ -53,36 +53,28 @@ public class FurniturePetDrinkLogic(IStuffDataFactory stuffDataFactory, IRoomFlo
         pet.NextActionAtMs = Math.Max(pet.NextActionAtMs, pet.ActionExpiresAtMs);
         pet.MarkDirty();
 
-        TimerSystem.Schedule(
-            _ctx.ObjectId,
-            config.DrinkStartDelayMs,
-            async drinkCt =>
+        TimerSystem.Schedule(_ctx.ObjectId, config.DrinkStartDelayMs, async drinkCt =>
+        {
+            if (IsStillHere(pet))
+            {
+                pet.RemoveStatus(AvatarStatusType.Gesture);
+                pet.AddStatus(AvatarStatusType.Eat, string.Empty);
+                pet.MarkDirty();
+
+                await PetModule.SayVocalAsync(pet, "DRINKING", drinkCt);
+            }
+
+            TimerSystem.Schedule(_ctx.ObjectId, config.DrinkDurationMs, _ =>
             {
                 if (IsStillHere(pet))
                 {
-                    pet.RemoveStatus(AvatarStatusType.Gesture);
-                    pet.AddStatus(AvatarStatusType.Eat, string.Empty);
+                    pet.AddStatus(AvatarStatusType.Gesture, PetGestures.SMILE);
                     pet.MarkDirty();
-
-                    await PetModule.SayVocalAsync(pet, "DRINKING", drinkCt);
                 }
 
-                TimerSystem.Schedule(
-                    _ctx.ObjectId,
-                    config.DrinkDurationMs,
-                    _ =>
-                    {
-                        if (IsStillHere(pet))
-                        {
-                            pet.AddStatus(AvatarStatusType.Gesture, PetGestures.SMILE);
-                            pet.MarkDirty();
-                        }
-
-                        return ShowLeftAsync(left);
-                    }
-                );
-            }
-        );
+                return ShowLeftAsync(left);
+            });
+        });
     }
 
     public override Task OnPickupAsync(ActionContext ctx, CancellationToken ct)

@@ -87,7 +87,9 @@ public sealed class WiredSelectorSaveStateTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         Published().Should().BeEmpty();
         StatesSentTo(OWNER).Should().BeEmpty();

@@ -95,12 +95,8 @@ public sealed class FurniRemoveByAreaHideFlagTests
     public async Task An_area_hider_takes_furni_away_with_the_flag_and_a_pickup_without()
     {
         var room = new WiredRoom(8, 8);
-        var hider = room.AddFloorItem(
-            HIDER,
-            7,
-            7,
-            "area_hide",
-            createLogic: (factory, ctx) => new FurnitureAreaHideLogic(factory, ctx)
+        var hider = room.AddFloorItem(HIDER, 7, 7, "area_hide", createLogic: (factory, ctx) =>
+            new FurnitureAreaHideLogic(factory, ctx)
         );
         var crate = room.AddFloorItem(CRATE, 2, 3);
         var owner = ActionContext.CreateForSystem(1);

@@ -29,12 +29,8 @@ public sealed class PluginLogicReloadTests
         var room = new WiredRoom();
         var provider = room.Harness.LogicProvider;
         var first = provider.RegisterLogic(LOGIC, room.Harness.Services, Make<OldLoadLogic>);
-        var item = room.AddFloorItem(
-            1,
-            2,
-            2,
-            LOGIC,
-            createLogic: (_, ctx) => provider.CreateLogicInstance(LOGIC, ctx)
+        var item = room.AddFloorItem(1, 2, 2, LOGIC, createLogic: (_, ctx) =>
+            provider.CreateLogicInstance(LOGIC, ctx)
         );
         await TickAsync(room);
 

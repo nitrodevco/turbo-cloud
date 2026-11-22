@@ -402,7 +402,9 @@ public sealed class WiredSelectorLabAnswersTests
                 stringParam: stringParam,
                 definitionSpecifics: [false, false]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         return box;
     }
@@ -426,7 +428,9 @@ public sealed class WiredSelectorLabAnswersTests
                 ],
                 definitionSpecifics: [false, false]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         // The pile is a stack of its own, loaded as the room loads it.
         var wired = _room.Harness.Module<RoomWiredSystem>();

@@ -217,7 +217,9 @@ public sealed class WiredFurniUserBlockTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         (await effects(2)).Should().BeTrue();
 

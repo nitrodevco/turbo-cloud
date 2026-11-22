@@ -249,12 +249,8 @@ public sealed class WiredPetSmartVariableTests
         // The seed is used up before the plant is created, so each use plants a new one.
         for (var i = 0; i < 300; i++)
         {
-            var seed = _room.AddFloorItem(
-                60,
-                3,
-                3,
-                "mnstr_seed",
-                createLogic: (factory, ctx) => new FurnitureMonsterplantSeedLogic(factory, ctx)
+            var seed = _room.AddFloorItem(60, 3, 3, "mnstr_seed", createLogic: (factory, ctx) =>
+                new FurnitureMonsterplantSeedLogic(factory, ctx)
             );
 
             await seed.Logic.OnUseAsync(

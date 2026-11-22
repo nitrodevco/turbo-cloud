@@ -490,9 +490,8 @@ public sealed class ModerationIssueQueueTests : IDisposable
     public async Task A_default_sanction_with_none_configured_gives_nothing_and_says_so()
     {
         var reply = Assert.Single(
-            await DefaultSanctionAsync(
-                new OperationsConfig { CfhDefaultSanctions = [] },
-                w => w.Int(TROLL).Int(TOPIC).String("stop that")
+            await DefaultSanctionAsync(new OperationsConfig { CfhDefaultSanctions = [] }, w =>
+                w.Int(TROLL).Int(TOPIC).String("stop that")
             )
         );
 

@@ -26,11 +26,8 @@ public sealed class AdminCatalogAuditTests : IDisposable
     public AdminCatalogAuditTests()
     {
         _catalog.AddDefinition(LAMP, "lamp_basic", set: x => x.FurniLine = "basic");
-        _catalog.AddDefinition(
-            PATTERN,
-            "wallpaper",
-            ProductType.Wall,
-            x => x.FurniCategory = FurnitureCategory.WallPaper
+        _catalog.AddDefinition(PATTERN, "wallpaper", ProductType.Wall, x =>
+            x.FurniCategory = FurnitureCategory.WallPaper
         );
         _catalog.AddDefinition(RUG, "rug_red", set: x => x.ClientCategory = "rug");
         _catalog.AddDefinition(SOFA, "sofa_red");

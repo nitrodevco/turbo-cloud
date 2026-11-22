@@ -49,31 +49,23 @@ public sealed class GamedataModule : IHostPluginModule
         services.AddAssetBundleConfiguration(builder);
 
         services.TryAddSingleton(TimeProvider.System);
-        services.AddHttpClient(
-            HabboGamedataClient.HTTP_CLIENT,
-            (sp, http) =>
-            {
-                http.Timeout = TimeSpan.FromSeconds(
-                    sp.GetRequiredService<IOptions<GamedataConfig>>().Value.HabboTimeoutSeconds
-                );
-                http.DefaultRequestHeaders.UserAgent.ParseAdd(HabboGamedataClient.USER_AGENT);
-            }
-        );
-        services.AddHttpClient(
-            HabboClientService.HTTP_CLIENT,
-            (sp, http) =>
-            {
-                http.Timeout = TimeSpan.FromMinutes(
-                    Math.Max(
-                        1,
-                        sp.GetRequiredService<
-                            IOptions<GamedataConfig>
-                        >().Value.ClientDownloadMinutes
-                    )
-                );
-                http.DefaultRequestHeaders.UserAgent.ParseAdd(HabboGamedataClient.USER_AGENT);
-            }
-        );
+        services.AddHttpClient(HabboGamedataClient.HTTP_CLIENT, (sp, http) =>
+        {
+            http.Timeout = TimeSpan.FromSeconds(
+                sp.GetRequiredService<IOptions<GamedataConfig>>().Value.HabboTimeoutSeconds
+            );
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(HabboGamedataClient.USER_AGENT);
+        });
+        services.AddHttpClient(HabboClientService.HTTP_CLIENT, (sp, http) =>
+        {
+            http.Timeout = TimeSpan.FromMinutes(
+                Math.Max(
+                    1,
+                    sp.GetRequiredService<IOptions<GamedataConfig>>().Value.ClientDownloadMinutes
+                )
+            );
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(HabboGamedataClient.USER_AGENT);
+        });
         services.AddCloudflarePurgeClient();
         services.AddSingleton<HabboGamedataClient>();
         services.AddSingleton<HabboClientService>();

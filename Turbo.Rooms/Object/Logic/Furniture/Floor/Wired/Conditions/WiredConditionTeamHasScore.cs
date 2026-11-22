@@ -36,9 +36,8 @@ public class WiredConditionTeamHasScore(
         var points = GetIntParamOrDefault(1, 0);
         var comparison = GetIntParamOrDefault(2, 0);
 
-        return MatchesTeams(
-            ctx,
-            team => WiredComparison.CompareThreeWay(comparison, GameSystem.GetScore(team), points)
+        return MatchesTeams(ctx, team =>
+            WiredComparison.CompareThreeWay(comparison, GameSystem.GetScore(team), points)
         );
     }
 }

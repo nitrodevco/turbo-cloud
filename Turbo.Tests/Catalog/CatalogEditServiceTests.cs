@@ -475,9 +475,7 @@ public sealed class CatalogEditServiceTests : IDisposable
         );
 
         // It stands on its furniture alone, so nothing it came from has to stay.
-        (await _service.DeleteOfferAsync(Editor, SOLD, Ct))
-            .Error.Should()
-            .BeNull();
+        (await _service.DeleteOfferAsync(Editor, SOLD, Ct)).Error.Should().BeNull();
         (await ReadAsync(db => db.CatalogOffers.AnyAsync(x => x.Id == SOLD, Ct)))
             .Should()
             .BeFalse();

@@ -56,8 +56,7 @@ public sealed class TestRoom
     /// </summary>
     public TestFurni Furni(string logic, int x = 0, int y = 0, int state = 0)
     {
-        var plugin =
-            _hotel.Plugins.Values.FirstOrDefault(p => p.HasFurniLogic(logic))
+        var plugin = _hotel.Plugins.Values.FirstOrDefault(p => p.HasFurniLogic(logic))
             ?? throw new HotelAssertionException(
                 $"No live plugin has a [FurniLogic(\"{logic}\")] class: load it first."
             );

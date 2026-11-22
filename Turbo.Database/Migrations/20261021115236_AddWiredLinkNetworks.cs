@@ -62,10 +62,11 @@ namespace Turbo.Database.Migrations
                     },
                     constraints: table =>
                     {
-                        table.PrimaryKey(
-                            "PK_wired_link_endpoints",
-                            x => new { x.room_id, x.furni_id }
-                        );
+                        table.PrimaryKey("PK_wired_link_endpoints", x => new
+                        {
+                            x.room_id,
+                            x.furni_id,
+                        });
                         table.ForeignKey(
                             name: "FK_wired_link_endpoints_players_player_id",
                             column: x => x.player_id,

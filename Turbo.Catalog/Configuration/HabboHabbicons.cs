@@ -16,8 +16,7 @@ public static class HabboHabbicons
 
     public static List<HabbiconCollectionDefinition> Collections()
     {
-        using var stream =
-            typeof(HabboHabbicons).Assembly.GetManifestResourceStream(RESOURCE)
+        using var stream = typeof(HabboHabbicons).Assembly.GetManifestResourceStream(RESOURCE)
             ?? throw new InvalidOperationException("Habbo's Habbicon collections are missing.");
 
         return JsonSerializer.Deserialize<List<HabbiconCollectionDefinition>>(stream)

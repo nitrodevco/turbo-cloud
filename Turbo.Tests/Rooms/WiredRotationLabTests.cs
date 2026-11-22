@@ -224,7 +224,9 @@ public sealed class WiredRotationLabTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 TOGGLE,
@@ -236,7 +238,9 @@ public sealed class WiredRotationLabTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 ROTATE,
@@ -248,7 +252,9 @@ public sealed class WiredRotationLabTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent

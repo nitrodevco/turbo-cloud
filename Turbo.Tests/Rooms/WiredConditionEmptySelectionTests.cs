@@ -219,7 +219,9 @@ public sealed class WiredConditionEmptySelectionTests
                 definitionSpecifics: [quantifier],
                 variableIds: [LevelId]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         return condition;
     }

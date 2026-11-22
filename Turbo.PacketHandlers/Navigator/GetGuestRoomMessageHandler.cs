@@ -40,10 +40,8 @@ public class GetGuestRoomMessageHandler(
     ) =>
         new(
             !message.EnterRoom && message.RoomForward
-                ? RoomTelemetry.MeasureAsync(
-                    RoomTelemetry.NAVIGATOR_ENTRY,
-                    message.RoomId,
-                    () => HandleRequestAsync(message, ctx, ct)
+                ? RoomTelemetry.MeasureAsync(RoomTelemetry.NAVIGATOR_ENTRY, message.RoomId, () =>
+                    HandleRequestAsync(message, ctx, ct)
                 )
                 : HandleRequestAsync(message, ctx, ct)
         );

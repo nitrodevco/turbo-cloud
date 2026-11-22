@@ -41,11 +41,10 @@ public class ScrGetKickbackInfoMessageHandler(
                     // Only the run going on now: Habbo reads 0 a minute after a returning
                     // member's 31 days HC box starts (official client capture, 2026-10-13).
                     CurrentHcStreak = payday.CurrentStreakDays,
-                    FirstSubscriptionDate =
-                        payday.FirstSubscribedAt?.ToString(
-                            _config.FirstSubscriptionDateFormat,
-                            CultureInfo.InvariantCulture
-                        ) ?? string.Empty,
+                    FirstSubscriptionDate = payday.FirstSubscribedAt?.ToString(
+                        _config.FirstSubscriptionDateFormat,
+                        CultureInfo.InvariantCulture
+                    ) ?? string.Empty,
                     KickbackPercentage = payday.KickbackPercentage,
                     TotalCreditsMissed = payday.CreditsMissed,
                     TotalCreditsRewarded = payday.CreditsRewarded,

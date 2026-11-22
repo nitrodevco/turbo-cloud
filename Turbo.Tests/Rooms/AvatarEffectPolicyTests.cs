@@ -122,9 +122,7 @@ public sealed class AvatarEffectPolicyTests
     )
     {
         // Both come in as players do, so the room numbers their avatars.
-        (await EnterAsync(WEARER))
-            .Should()
-            .NotBeEmpty();
+        (await EnterAsync(WEARER)).Should().NotBeEmpty();
         var wearer = Wearer().ObjectId;
         await _room.Harness.Module<RoomAvatarModule>().SetAvatarEffectAsync(wearer, EFFECT, Ct);
         Register();

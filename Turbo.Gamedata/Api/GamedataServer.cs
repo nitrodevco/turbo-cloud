@@ -175,24 +175,20 @@ internal sealed class GamedataServer(
         app.UseCors();
         app.Use(AllowAnyOriginAsync);
         app.Use(HandleFailureAsync);
-        app.MapGet(
-            "/gamedata/hashes",
-            (HttpContext http, CancellationToken ct) => HashesAsync(http, files, ct)
+        app.MapGet("/gamedata/hashes", (HttpContext http, CancellationToken ct) =>
+            HashesAsync(http, files, ct)
         );
         if (photos is not null)
-            app.MapGet(
-                PHOTO_ROUTE + "{name}.png",
-                (HttpContext http, string name) => Photo(http, photos, name)
+            app.MapGet(PHOTO_ROUTE + "{name}.png", (HttpContext http, string name) =>
+                Photo(http, photos, name)
             );
         if (photos is not null)
         {
-            app.MapGet(
-                PHOTO_DATA_ROUTE + "{id}",
-                (HttpContext http, string id) => PhotoData(http, photos, id)
+            app.MapGet(PHOTO_DATA_ROUTE + "{id}", (HttpContext http, string id) =>
+                PhotoData(http, photos, id)
             );
-            app.MapPost(
-                PHOTO_DATA_ROUTE,
-                (HttpContext http, CancellationToken ct) => PhotoDataBatchAsync(http, photos, ct)
+            app.MapPost(PHOTO_DATA_ROUTE, (HttpContext http, CancellationToken ct) =>
+                PhotoDataBatchAsync(http, photos, ct)
             );
         }
         if (starterRooms is not null)
@@ -207,9 +203,8 @@ internal sealed class GamedataServer(
             );
         }
         if (thumbnails is not null)
-            app.MapGet(
-                ROOM_THUMBNAIL_ROUTE + "{roomId:int}.png",
-                (HttpContext http, int roomId) => RoomThumbnail(http, thumbnails, roomId)
+            app.MapGet(ROOM_THUMBNAIL_ROUTE + "{roomId:int}.png", (HttpContext http, int roomId) =>
+                RoomThumbnail(http, thumbnails, roomId)
             );
         if (modules is not null)
             app.MapGet(
@@ -217,14 +212,12 @@ internal sealed class GamedataServer(
                 (HttpContext http, string key, string path) => PluginFile(http, modules, key, path)
             );
         if (themes is not null && tickets is not null)
-            app.MapPost(
-                THEME_ROUTE,
-                (HttpContext http, CancellationToken ct) => ThemeAsync(http, themes, tickets, ct)
+            app.MapPost(THEME_ROUTE, (HttpContext http, CancellationToken ct) =>
+                ThemeAsync(http, themes, tickets, ct)
             );
         if (live is not null)
-            app.MapGet(
-                THEME_LIVE_ROUTE + "{revision}",
-                (HttpContext http, string revision) => ThemeLook(http, live, revision)
+            app.MapGet(THEME_LIVE_ROUTE + "{revision}", (HttpContext http, string revision) =>
+                ThemeLook(http, live, revision)
             );
         app.MapGet(
             "/gamedata/{file}/{version}",

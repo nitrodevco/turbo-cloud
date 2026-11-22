@@ -385,12 +385,8 @@ public sealed class WiredLabelTests
     }
 
     private IRoomFloorItem Label(int id) =>
-        _room.AddFloorItem(
-            id,
-            id % 8,
-            2,
-            "wf_label",
-            createLogic: (factory, ctx) => new FurnitureLabelLogic(factory, ctx)
+        _room.AddFloorItem(id, id % 8, 2, "wf_label", createLogic: (factory, ctx) =>
+            new FurnitureLabelLogic(factory, ctx)
         );
 
     private static FurnitureLabelData LabelOf(IRoomFloorItem item) =>

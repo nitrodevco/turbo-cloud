@@ -592,9 +592,7 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
 
         // Its answers are its own types (anonymous ones here), which the serializer learns: the host
         // must not keep them once the plugin is gone.
-        (await SendAsync(HttpMethod.Get, "notes"))
-            .Status.Should()
-            .Be(200);
+        (await SendAsync(HttpMethod.Get, "notes")).Status.Should().Be(200);
 
         await _manager!.ReloadAsync("board", Ct);
 
@@ -1024,40 +1022,39 @@ public sealed class PluginWebRoutesTests : IAsyncDisposable
         string pattern,
         bool anonymous,
         string attribute
-    ) =>
-        $$"""
-            using System;
-            using System.Threading;
-            using System.Threading.Tasks;
-            using Microsoft.Extensions.DependencyInjection;
-            using Turbo.Contracts.Plugins;
-            using Turbo.Contracts.Plugins.Exports;
-            using Turbo.Contracts.Plugins.Web;
-            using Turbo.Primitives.Players.Permissions;
+    ) => $$"""
+        using System;
+        using System.Threading;
+        using System.Threading.Tasks;
+        using Microsoft.Extensions.DependencyInjection;
+        using Turbo.Contracts.Plugins;
+        using Turbo.Contracts.Plugins.Exports;
+        using Turbo.Contracts.Plugins.Web;
+        using Turbo.Primitives.Players.Permissions;
 
-            namespace Bad;
+        namespace Bad;
 
-            public sealed class BadPlugin : ITurboPlugin
-            {
-                public string Key => "{{key}}";
-                public string Version => "1.0.0";
-                public void ConfigureServices(IServiceCollection services, PluginManifest manifest) { }
-                public Task StartAsync(IServiceProvider services, CancellationToken ct) => Task.CompletedTask;
-                public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
-                public Task BindExportsAsync(IExportBinder binder, IServiceProvider services) => Task.CompletedTask;
-                public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-            }
+        public sealed class BadPlugin : ITurboPlugin
+        {
+            public string Key => "{{key}}";
+            public string Version => "1.0.0";
+            public void ConfigureServices(IServiceCollection services, PluginManifest manifest) { }
+            public Task StartAsync(IServiceProvider services, CancellationToken ct) => Task.CompletedTask;
+            public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
+            public Task BindExportsAsync(IExportBinder binder, IServiceProvider services) => Task.CompletedTask;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
 
-            {{attribute}}
-            public sealed class TheRoute : IPluginWebRoute
-            {
-                public string Method => "{{method}}";
-                public string Pattern => "{{pattern}}";
-                public bool Anonymous => {{(anonymous ? "true" : "false")}};
-                public Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct) =>
-                    Task.FromResult(PluginWebResult.NoContent());
-            }
-            """;
+        {{attribute}}
+        public sealed class TheRoute : IPluginWebRoute
+        {
+            public string Method => "{{method}}";
+            public string Pattern => "{{pattern}}";
+            public bool Anonymous => {{(anonymous ? "true" : "false")}};
+            public Task<PluginWebResult> HandleAsync(PluginWebRequest request, CancellationToken ct) =>
+                Task.FromResult(PluginWebResult.NoContent());
+        }
+        """;
 
     private int _unloadMinCollections;
 

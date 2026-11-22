@@ -74,10 +74,7 @@ public sealed class MySqlHostHotelReadsTests(MySqlHostHotelReadsTests.Database d
             .Equal("al_x", "alfred");
         (await players.SearchAsync("al", 500, Ct)).Should().HaveCount(4);
         // A LIKE wildcard in what is typed is a character of the name, not a pattern.
-        (await players.SearchAsync("al_", 10, Ct))
-            .Select(x => x.Name)
-            .Should()
-            .Equal("al_x");
+        (await players.SearchAsync("al_", 10, Ct)).Select(x => x.Name).Should().Equal("al_x");
         (await players.SearchAsync("%", 10, Ct)).Should().BeEmpty();
     }
 

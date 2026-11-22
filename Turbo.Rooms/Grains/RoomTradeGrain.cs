@@ -115,19 +115,15 @@ internal sealed class RoomTradeGrain : Grain, IRoomTradeGrain
         RunAsync(ctx, accept ? "confirm" : "decline", () => ConfirmCoreAsync(ctx, accept, ct));
 
     public Task<bool> CloseAsync(ActionContext ctx, CancellationToken ct) =>
-        RunAsync(
-            ctx,
-            "close",
-            async () =>
-            {
-                if (!_state.TradesByPlayerId.TryGetValue(ctx.PlayerId, out var session))
-                    return false;
+        RunAsync(ctx, "close", async () =>
+        {
+            if (!_state.TradesByPlayerId.TryGetValue(ctx.PlayerId, out var session))
+                return false;
 
-                await EndAsync(session, ctx.PlayerId, TradeCloseReasonType.Closed, ct);
+            await EndAsync(session, ctx.PlayerId, TradeCloseReasonType.Closed, ct);
 
-                return true;
-            }
-        );
+            return true;
+        });
 
     public async Task CloseForPlayerAsync(PlayerId playerId, CancellationToken ct)
     {

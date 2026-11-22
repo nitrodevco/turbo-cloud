@@ -28,8 +28,8 @@ public static class SuperSocketHostBuilderExtensions
                 {
                     var gateway = sp.GetRequiredService<ISessionGateway>();
                     var revisionManager = sp.GetRequiredService<IRevisionManager>();
-                    var logger =
-                        sp.GetService<ILoggerFactory>()?.CreateLogger("Turbo.Networking.Session")
+                    var logger = sp.GetService<ILoggerFactory>()
+                        ?.CreateLogger("Turbo.Networking.Session")
                         ?? NullLogger.Instance;
 
                     return new SessionHandlers

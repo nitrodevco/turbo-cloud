@@ -55,7 +55,9 @@ public sealed class RoomBrandingTests
                 },
                 CancellationToken.None
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         item.SetExtraData(item.ExtraData.GetJsonString());
         var reloaded = new FurnitureRoomBrandingLogic(

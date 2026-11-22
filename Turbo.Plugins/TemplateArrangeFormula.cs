@@ -169,8 +169,7 @@ internal static partial class TemplateArrangeFormula
                 continue;
             }
 
-            var op =
-                OPERATORS.FirstOrDefault(x => rest.StartsWith(x, StringComparison.Ordinal))
+            var op = OPERATORS.FirstOrDefault(x => rest.StartsWith(x, StringComparison.Ordinal))
                 ?? throw new FormatException($"'{rest[0]}' is no part of a formula");
 
             tokens.Add(new Token(Kind.Operator, op));

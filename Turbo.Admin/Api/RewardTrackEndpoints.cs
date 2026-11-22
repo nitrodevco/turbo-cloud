@@ -30,38 +30,29 @@ internal sealed class RewardTrackEndpoints(AdminRewardTracks tracks)
                 "Reward tracks have one node, admin.rewardtracks.manage, to see and change them."
             );
 
-        group.MapGet(
-            "/",
-            () =>
-                Results.Ok(new { tracks = tracks.List(), actionTypes = RewardTrackActionTypes.ALL })
+        group.MapGet("/", () =>
+            Results.Ok(new { tracks = tracks.List(), actionTypes = RewardTrackActionTypes.ALL })
         );
-        group.MapGet(
-            "/{id}",
-            (string id) =>
-                tracks.Get(id) is { } track
-                    ? Results.Ok(
-                        new
-                        {
-                            track,
-                            warnings = tracks.Warnings(track),
-                            furni = tracks.PrizeFurni(track),
-                        }
-                    )
-                    : Results.NotFound()
+        group.MapGet("/{id}", (string id) =>
+            tracks.Get(id) is { } track
+                ? Results.Ok(
+                    new
+                    {
+                        track,
+                        warnings = tracks.Warnings(track),
+                        furni = tracks.PrizeFurni(track),
+                    }
+                )
+                : Results.NotFound()
         );
         group.MapPut("/{id}", SaveAsync);
-        group.MapDelete(
-            "/{id}",
-            async (string id, HttpContext http, CancellationToken ct) =>
-                await tracks
-                    .DeleteAsync(AdminIdentity.Of(http).PlayerId, id, ct)
-                    .ConfigureAwait(false)
-                    ? Results.NoContent()
-                    : Results.NotFound()
+        group.MapDelete("/{id}", async (string id, HttpContext http, CancellationToken ct) =>
+            await tracks.DeleteAsync(AdminIdentity.Of(http).PlayerId, id, ct).ConfigureAwait(false)
+                ? Results.NoContent()
+                : Results.NotFound()
         );
-        group.MapPost(
-            "/import/preview",
-            (RewardTrackImportRequest request) => Refusing(() => Results.Ok(tracks.Plan(request)))
+        group.MapPost("/import/preview", (RewardTrackImportRequest request) =>
+            Refusing(() => Results.Ok(tracks.Plan(request)))
         );
         group.MapPost(
             "/import",
@@ -92,15 +83,12 @@ internal sealed class RewardTrackEndpoints(AdminRewardTracks tracks)
                     )
                 )
         );
-        group.MapPost(
-            "/reload",
-            async (HttpContext http, CancellationToken ct) =>
-            {
-                await tracks.ReloadAsync(AdminIdentity.Of(http).PlayerId, ct).ConfigureAwait(false);
+        group.MapPost("/reload", async (HttpContext http, CancellationToken ct) =>
+        {
+            await tracks.ReloadAsync(AdminIdentity.Of(http).PlayerId, ct).ConfigureAwait(false);
 
-                return Results.Ok(new { tracks = tracks.List() });
-            }
-        );
+            return Results.Ok(new { tracks = tracks.List() });
+        });
     }
 
     private Task<IResult> SaveAsync(

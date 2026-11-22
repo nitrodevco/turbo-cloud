@@ -106,18 +106,14 @@ public sealed class PacketHarness
         var method = handlerType.GetMethod("HandleAsync")!;
         // Through the sign-in gate the server wraps every handler in: a session with no player
         // reaches only an [AllowAnonymous] handler.
-        var invoke = SignInGate.Wrap(
-            handlerType,
-            NullLogger.Instance,
-            async (inst, env, c, ct) =>
-            {
-                var result = method.Invoke(inst, [env, c, ct]);
-                if (result is ValueTask vt)
-                    await vt;
-                else if (result is Task t)
-                    await t;
-            }
-        );
+        var invoke = SignInGate.Wrap(handlerType, NullLogger.Instance, async (inst, env, c, ct) =>
+        {
+            var result = method.Invoke(inst, [env, c, ct]);
+            if (result is ValueTask vt)
+                await vt;
+            else if (result is Task t)
+                await t;
+        });
 
         await invoke(handler, message, ctx, CancellationToken.None);
 

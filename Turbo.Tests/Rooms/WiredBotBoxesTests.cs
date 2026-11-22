@@ -118,7 +118,9 @@ public sealed class WiredBotBoxesTests
                 stringParam: "Frank\thi",
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await Wired.OnRoomEventAsync(
             new Turbo.Primitives.Rooms.Events.Wired.RoomWiredStackChangedEvent
             {
@@ -194,7 +196,9 @@ public sealed class WiredBotBoxesTests
                 },
                 Ct
             )
-        ).Should().Be(fires);
+        )
+            .Should()
+            .Be(fires);
         (
             await avatar.MatchesEventAsync(
                 new BotReachedAvatarEvent
@@ -207,7 +211,9 @@ public sealed class WiredBotBoxesTests
                 },
                 Ct
             )
-        ).Should().Be(fires);
+        )
+            .Should()
+            .Be(fires);
     }
 
     // trigger.13.R1: Bot Reached Furni fires for a bot's first step onto any tile of the furni,
@@ -232,7 +238,9 @@ public sealed class WiredBotBoxesTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 2,
@@ -244,7 +252,9 @@ public sealed class WiredBotBoxesTests
                 stringParam: "Frank\treached",
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await Wired.OnRoomEventAsync(
             new Turbo.Primitives.Rooms.Events.Wired.RoomWiredStackChangedEvent
             {
@@ -481,7 +491,9 @@ public sealed class WiredBotBoxesTests
                 stringParam: "Frank",
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await give.ExecuteAsync(Execution(USER), Ct);
 
@@ -514,7 +526,9 @@ public sealed class WiredBotBoxesTests
                     [WiredPlayerSourceType.BotByName],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 2,
@@ -526,7 +540,9 @@ public sealed class WiredBotBoxesTests
                 stringParam: "Frank\treached",
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await Wired.OnRoomEventAsync(
             new Turbo.Primitives.Rooms.Events.Wired.RoomWiredStackChangedEvent
             {
@@ -653,7 +669,9 @@ public sealed class WiredBotBoxesTests
                 stringParam: text,
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         return box;
     }

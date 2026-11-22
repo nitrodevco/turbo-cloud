@@ -11,58 +11,42 @@
     <TurboEsbuildVersion>0.28.2</TurboEsbuildVersion>
     <_TurboEsbuildRid>$(RuntimeIdentifier)</_TurboEsbuildRid>
     <_TurboEsbuildRid Condition="'$(_TurboEsbuildRid)' == ''"
-      >$(NETCoreSdkRuntimeIdentifier)</_TurboEsbuildRid
-    >
+      >$(NETCoreSdkRuntimeIdentifier)</_TurboEsbuildRid>
     <!-- esbuild's Linux binaries are static, so a musl Linux runs them too. -->
     <_TurboEsbuildPlatform Condition="'$(_TurboEsbuildRid)' == 'win-x64'"
-      >win32-x64</_TurboEsbuildPlatform
-    >
+      >win32-x64</_TurboEsbuildPlatform>
     <_TurboEsbuildPlatform Condition="'$(_TurboEsbuildRid)' == 'win-arm64'"
-      >win32-arm64</_TurboEsbuildPlatform
-    >
+      >win32-arm64</_TurboEsbuildPlatform>
     <_TurboEsbuildPlatform
       Condition="'$(_TurboEsbuildRid)' == 'linux-x64' Or '$(_TurboEsbuildRid)' == 'linux-musl-x64'"
-      >linux-x64</_TurboEsbuildPlatform
-    >
+      >linux-x64</_TurboEsbuildPlatform>
     <_TurboEsbuildPlatform
       Condition="'$(_TurboEsbuildRid)' == 'linux-arm64' Or '$(_TurboEsbuildRid)' == 'linux-musl-arm64'"
-      >linux-arm64</_TurboEsbuildPlatform
-    >
+      >linux-arm64</_TurboEsbuildPlatform>
     <_TurboEsbuildPlatform Condition="'$(_TurboEsbuildRid)' == 'osx-x64'"
-      >darwin-x64</_TurboEsbuildPlatform
-    >
+      >darwin-x64</_TurboEsbuildPlatform>
     <_TurboEsbuildPlatform Condition="'$(_TurboEsbuildRid)' == 'osx-arm64'"
-      >darwin-arm64</_TurboEsbuildPlatform
-    >
+      >darwin-arm64</_TurboEsbuildPlatform>
     <!-- Each package's dist.integrity on the npm registry (npm view @esbuild/<platform>@<version> dist.integrity). -->
     <_TurboEsbuildIntegrity Condition="'$(_TurboEsbuildPlatform)' == 'win32-x64'"
-      >sha512-5ebpxr3nWMzrL/rnUI755Jkuee0bHL/Gq0WTF9lvcpv73wAp5eu8MfBUgWK9bhWvZjj7yX8etf/8tI8Ney695g==</_TurboEsbuildIntegrity
-    >
+      >sha512-5ebpxr3nWMzrL/rnUI755Jkuee0bHL/Gq0WTF9lvcpv73wAp5eu8MfBUgWK9bhWvZjj7yX8etf/8tI8Ney695g==</_TurboEsbuildIntegrity>
     <_TurboEsbuildIntegrity Condition="'$(_TurboEsbuildPlatform)' == 'win32-arm64'"
-      >sha512-PIhhEkE9uPBleRBrQEJpUn7MBnibZzbGzYWPmY3x+YoVg/95zbjB4CxPPOQ8l5tYYM4mMaCthF8/1DIfBQQyWQ==</_TurboEsbuildIntegrity
-    >
+      >sha512-PIhhEkE9uPBleRBrQEJpUn7MBnibZzbGzYWPmY3x+YoVg/95zbjB4CxPPOQ8l5tYYM4mMaCthF8/1DIfBQQyWQ==</_TurboEsbuildIntegrity>
     <_TurboEsbuildIntegrity Condition="'$(_TurboEsbuildPlatform)' == 'linux-x64'"
-      >sha512-4xTZr1FUmSoQW4XIWmit3tzQrUTZM+N3P0XV8xROKYF50XfI7xeO90+1bZvNwxIufQ9hDQVRJH5YhgPVF8A/HQ==</_TurboEsbuildIntegrity
-    >
+      >sha512-4xTZr1FUmSoQW4XIWmit3tzQrUTZM+N3P0XV8xROKYF50XfI7xeO90+1bZvNwxIufQ9hDQVRJH5YhgPVF8A/HQ==</_TurboEsbuildIntegrity>
     <_TurboEsbuildIntegrity Condition="'$(_TurboEsbuildPlatform)' == 'linux-arm64'"
-      >sha512-pW4AC0P3it8c7do9MVM4p51FzHzdM/TZrerurgRcHJ2WTa1VQ1CIq18xncfpBJw4ojkiZZrKW2yIBWBP92j6Ug==</_TurboEsbuildIntegrity
-    >
+      >sha512-pW4AC0P3it8c7do9MVM4p51FzHzdM/TZrerurgRcHJ2WTa1VQ1CIq18xncfpBJw4ojkiZZrKW2yIBWBP92j6Ug==</_TurboEsbuildIntegrity>
     <_TurboEsbuildIntegrity Condition="'$(_TurboEsbuildPlatform)' == 'darwin-x64'"
-      >sha512-uq6suIWYP37qzGddBKPw5QEQPi6HiLGsO7UmkpfyaYNQ3D+rN6w6WfwH+nuqcGXWvawGwxOEroO4YGnFh95azw==</_TurboEsbuildIntegrity
-    >
+      >sha512-uq6suIWYP37qzGddBKPw5QEQPi6HiLGsO7UmkpfyaYNQ3D+rN6w6WfwH+nuqcGXWvawGwxOEroO4YGnFh95azw==</_TurboEsbuildIntegrity>
     <_TurboEsbuildIntegrity Condition="'$(_TurboEsbuildPlatform)' == 'darwin-arm64'"
-      >sha512-n4KqkOQrraxHJcgjM1RvwbigfQKIKJVpM7xp+KsxiyUSrRdIXnt73VhrPAx0fV44hgfmIVKjxMN9J1t5jySVkw==</_TurboEsbuildIntegrity
-    >
+      >sha512-n4KqkOQrraxHJcgjM1RvwbigfQKIKJVpM7xp+KsxiyUSrRdIXnt73VhrPAx0fV44hgfmIVKjxMN9J1t5jySVkw==</_TurboEsbuildIntegrity>
     <_TurboEsbuildWindows>$(_TurboEsbuildPlatform.StartsWith('win32'))</_TurboEsbuildWindows>
     <_TurboEsbuildInPackage Condition="'$(_TurboEsbuildWindows)' == 'true'"
-      >package/esbuild.exe</_TurboEsbuildInPackage
-    >
+      >package/esbuild.exe</_TurboEsbuildInPackage>
     <_TurboEsbuildInPackage Condition="'$(_TurboEsbuildWindows)' != 'true'"
-      >package/bin/esbuild</_TurboEsbuildInPackage
-    >
+      >package/bin/esbuild</_TurboEsbuildInPackage>
     <_TurboEsbuildName Condition="'$(_TurboEsbuildWindows)' == 'true'"
-      >esbuild.exe</_TurboEsbuildName
-    >
+      >esbuild.exe</_TurboEsbuildName>
     <_TurboEsbuildName Condition="'$(_TurboEsbuildWindows)' != 'true'">esbuild</_TurboEsbuildName>
     <_TurboEsbuildDir>$(BaseIntermediateOutputPath)esbuild/$(TurboEsbuildVersion)/$(_TurboEsbuildPlatform)/</_TurboEsbuildDir>
     <_TurboEsbuildPackage>$(_TurboEsbuildDir)esbuild-$(_TurboEsbuildPlatform)-$(TurboEsbuildVersion).tgz</_TurboEsbuildPackage>

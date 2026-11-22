@@ -203,11 +203,10 @@ public sealed partial class CampaignCalendarService(
         }
         else
         {
-            row =
-                await db
-                    .CampaignCalendars.Include(x => x.Rewards)
-                    .FirstOrDefaultAsync(x => x.Id == campaign.Id, ct)
-                    .ConfigureAwait(false)
+            row = await db
+                .CampaignCalendars.Include(x => x.Rewards)
+                .FirstOrDefaultAsync(x => x.Id == campaign.Id, ct)
+                .ConfigureAwait(false)
                 ?? throw new ArgumentException($"There is no calendar {campaign.Id}.");
             db.CampaignCalendarRewards.RemoveRange(row.Rewards);
             row.Rewards.Clear();

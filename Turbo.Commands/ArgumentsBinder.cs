@@ -188,15 +188,13 @@ internal sealed class ArgumentsBinder : ICommandBinder
                 SuggestionSource = x.SuggestionSource,
                 SelectorNode = x.SelectorNode,
                 Description = x.Limits.Description,
-                Minimum =
-                    x.Limits.Minimum
+                Minimum = x.Limits.Minimum
                     ?? (
                         x.Kind == Kind.Integer ? int.MinValue.ToString(CultureInfo.InvariantCulture)
                         : x.Kind == Kind.Long ? long.MinValue.ToString(CultureInfo.InvariantCulture)
                         : null
                     ),
-                Maximum =
-                    x.Limits.Maximum
+                Maximum = x.Limits.Maximum
                     ?? (
                         x.Kind == Kind.Integer ? int.MaxValue.ToString(CultureInfo.InvariantCulture)
                         : x.Kind == Kind.Long ? long.MaxValue.ToString(CultureInfo.InvariantCulture)
@@ -611,8 +609,8 @@ internal sealed class ArgumentsBinder : ICommandBinder
         if (defaultValue is null && valueType.IsValueType && underlying is null)
             defaultValue = Activator.CreateInstance(valueType);
 
-        var limits =
-            info.GetCustomAttribute<CommandParameterAttribute>() ?? new CommandParameterAttribute();
+        var limits = info.GetCustomAttribute<CommandParameterAttribute>()
+            ?? new CommandParameterAttribute();
         if (
             (limits.Minimum is not null || limits.Maximum is not null)
             && kind != Kind.Integer

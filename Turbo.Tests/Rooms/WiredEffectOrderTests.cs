@@ -90,7 +90,9 @@ public sealed class WiredEffectOrderTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         foreach (var (box, ints) in new[] { (2, new[] { 1, 0, 0, 0, 0 }), (3, new[] { 0 }) })
         {
@@ -105,7 +107,9 @@ public sealed class WiredEffectOrderTests
                     ],
                     definitionSpecifics: [0]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
         }
 
         await Wired.OnRoomEventAsync(
@@ -387,7 +391,9 @@ public sealed class WiredEffectOrderTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         if (checkMoves)
         {
@@ -408,7 +414,9 @@ public sealed class WiredEffectOrderTests
                     ],
                     definitionSpecifics: [0]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
         }
 
         var box = 3;
@@ -428,7 +436,9 @@ public sealed class WiredEffectOrderTests
                     ],
                     definitionSpecifics: [0]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
 
             box++;
         }

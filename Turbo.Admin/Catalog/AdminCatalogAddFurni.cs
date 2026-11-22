@@ -121,37 +121,33 @@ public sealed class AdminCatalogAddFurni(
             return CatalogBuildOutcome<CatalogBulkResponse>.Refused(error);
 
         var offers = new List<CatalogNewOffer>();
-        var newPages = PagesOf(
-            plan.Pages,
-            pageId,
-            plan.Template,
-            (target, definitionId) =>
-                offers.Add(
-                    new CatalogNewOffer(
-                        target,
-                        new CatalogOfferDraft(
-                            pageId,
-                            string.Empty,
-                            request.CostCredits,
-                            request.CostCurrency,
-                            request.CurrencyTypeId,
-                            request.CanGift,
-                            CanBundle: true,
-                            request.ClubLevel,
-                            request.Visible,
-                            Product: null,
-                            Products:
-                            [
-                                new CatalogProductDraft(
-                                    plan.Types[definitionId],
-                                    definitionId,
-                                    null,
-                                    1
-                                ),
-                            ]
-                        )
+        var newPages = PagesOf(plan.Pages, pageId, plan.Template, (target, definitionId) =>
+            offers.Add(
+                new CatalogNewOffer(
+                    target,
+                    new CatalogOfferDraft(
+                        pageId,
+                        string.Empty,
+                        request.CostCredits,
+                        request.CostCurrency,
+                        request.CurrencyTypeId,
+                        request.CanGift,
+                        CanBundle: true,
+                        request.ClubLevel,
+                        request.Visible,
+                        Product: null,
+                        Products:
+                        [
+                            new CatalogProductDraft(
+                                plan.Types[definitionId],
+                                definitionId,
+                                null,
+                                1
+                            ),
+                        ]
                     )
                 )
+            )
         );
 
         var label =
@@ -207,11 +203,8 @@ public sealed class AdminCatalogAddFurni(
             );
 
         var moves = new List<CatalogOfferPlacement>();
-        var newPages = PagesOf(
-            plan.Pages,
-            pageId,
-            plan.Template,
-            (target, offerId) => moves.Add(new CatalogOfferPlacement(offerId, target))
+        var newPages = PagesOf(plan.Pages, pageId, plan.Template, (target, offerId) =>
+            moves.Add(new CatalogOfferPlacement(offerId, target))
         );
         var label =
             $"sorted the page {plan.Title} by {sortBy}, making {Pages(newPages.Count)} under it";

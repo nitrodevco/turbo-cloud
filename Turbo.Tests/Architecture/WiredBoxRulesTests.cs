@@ -117,20 +117,15 @@ public sealed class WiredBoxRulesTests
     {
         FurnitureWiredLogic? box = null;
 
-        room.AddFloorItem(
-            id,
-            1,
-            1,
-            Key(type),
-            createLogic: (factory, ctx) =>
-                box = (FurnitureWiredLogic)
-                    ActivatorUtilities.CreateInstance(
-                        room.Harness.Services,
-                        type,
-                        room.Grains,
-                        factory,
-                        ctx
-                    )
+        room.AddFloorItem(id, 1, 1, Key(type), createLogic: (factory, ctx) =>
+            box = (FurnitureWiredLogic)
+                ActivatorUtilities.CreateInstance(
+                    room.Harness.Services,
+                    type,
+                    room.Grains,
+                    factory,
+                    ctx
+                )
         );
 
         return box!;

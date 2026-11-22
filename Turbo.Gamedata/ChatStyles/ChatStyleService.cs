@@ -228,11 +228,10 @@ internal sealed partial class ChatStyleService(
             }
             else
             {
-                row =
-                    await dbCtx
-                        .PlayerChatStyles.Include(x => x.Bitmaps)
-                        .FirstOrDefaultAsync(x => x.Id == id, ct)
-                        .ConfigureAwait(false)
+                row = await dbCtx
+                    .PlayerChatStyles.Include(x => x.Bitmaps)
+                    .FirstOrDefaultAsync(x => x.Id == id, ct)
+                    .ConfigureAwait(false)
                     ?? throw new ArgumentException($"There is no chat style {id}.");
             }
 
@@ -597,8 +596,7 @@ internal sealed partial class ChatStyleService(
         foreach (var bitmap in library)
             Add(bitmap.Name, bitmap.Data);
 
-        var sheet =
-            SpriteSheetPacker.Pack(images, LIBRARY, trim: false)
+        var sheet = SpriteSheetPacker.Pack(images, LIBRARY, trim: false)
             ?? throw new InvalidOperationException("The chat styles' bitmaps could not be packed.");
         var definitions = new JsonObject
         {
@@ -872,11 +870,9 @@ internal sealed partial class ChatStyleService(
         var sheetName = bundle.Files.Keys.FirstOrDefault(x =>
             x.EndsWith("_spritesheet.json", StringComparison.Ordinal)
         );
-        var frames =
-            (sheetName is null ? null : Read(sheetName)?["frames"] as JsonObject)
+        var frames = (sheetName is null ? null : Read(sheetName)?["frames"] as JsonObject)
             ?? throw new ArgumentException("The bundle has no spritesheet.");
-        var imageName =
-            Read(sheetName!)?["meta"]?["image"]?.GetValue<string>()
+        var imageName = Read(sheetName!)?["meta"]?["image"]?.GetValue<string>()
             ?? sheetName![..^"_spritesheet.json".Length] + ".png";
         var sheet = bundle.Files.TryGetValue(imageName, out var png)
             ? RgbaImage.Decode(png)

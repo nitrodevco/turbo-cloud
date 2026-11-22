@@ -203,8 +203,7 @@ public sealed class ApprovalAssertions(TestApprovals approvals)
     /// <summary>The newest request of <paramref name="kind"/> is <paramref name="state"/> (executed, denied, expired, ...).</summary>
     public Approval HaveBeen(string kind, ApprovalState state)
     {
-        var newest =
-            Read(null, kind).FirstOrDefault()
+        var newest = Read(null, kind).FirstOrDefault()
             ?? throw new HotelAssertionException($"No request of {kind} was asked for.");
 
         return newest.State == state

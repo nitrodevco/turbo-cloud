@@ -60,8 +60,7 @@ internal sealed class HabboReleaseService(
             .GetExternalVariablesFileAsync(domain, ct)
             .ConfigureAwait(false);
         var variables = HabboGamedataClient.ParseVariables(variablesFile);
-        var revision =
-            RevisionOf(variables)
+        var revision = RevisionOf(variables)
             ?? throw new HttpRequestException(
                 $"habbo.{domain}'s external variables name no {CLIENT_URL_VARIABLE}, so its revision is unknown."
             );

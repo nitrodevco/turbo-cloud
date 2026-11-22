@@ -435,12 +435,10 @@ public sealed class AnthropicDriver(IHttpClientFactory http) : IAiDriver
     }
 
     private static string? ReadError(string body) =>
-        DriverHttp.ErrorMessage(
-            body,
-            root =>
-                root.TryGetProperty("error", out var error)
-                    ? $"{Str(error, "type")}: {Str(error, "message")}"
-                    : null
+        DriverHttp.ErrorMessage(body, root =>
+            root.TryGetProperty("error", out var error)
+                ? $"{Str(error, "type")}: {Str(error, "message")}"
+                : null
         );
 
     private static int Int(JsonElement obj, string name) =>

@@ -22,9 +22,8 @@ internal static class GuildBadgePartParser
         // A client is free to claim any count; PopList bounds it by what the packet holds. Only
         // as many layers as a badge can hold are kept, but every layer it claimed is read (no
         // maxItems here), or the rest of the packet would be misaligned.
-        var layers = packet.PopList(
-            BYTES_PER_LAYER,
-            static p => (PartId: p.PopInt(), ColorId: p.PopInt(), Position: p.PopInt())
+        var layers = packet.PopList(BYTES_PER_LAYER, static p =>
+            (PartId: p.PopInt(), ColorId: p.PopInt(), Position: p.PopInt())
         );
 
         return

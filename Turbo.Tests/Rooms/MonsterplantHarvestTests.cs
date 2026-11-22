@@ -124,12 +124,8 @@ public sealed class MonsterplantHarvestTests
             Task.FromResult<PetSnapshot?>(Plant());
         _room.Harness.Fakes.Handlers["ApplyPetRespectOperationAsync"] = _ =>
             Task.FromResult(new PetRespectOperationResult { Accepted = true, Respect = 1 });
-        var seed = _room.AddFloorItem(
-            60,
-            3,
-            3,
-            "monsterplant_seed",
-            createLogic: (factory, ctx) => new FurnitureMonsterplantSeedLogic(factory, ctx)
+        var seed = _room.AddFloorItem(60, 3, 3, "monsterplant_seed", createLogic: (factory, ctx) =>
+            new FurnitureMonsterplantSeedLogic(factory, ctx)
         );
         var owner = ActionContext.CreateForPlayer(OWNER, 1);
 

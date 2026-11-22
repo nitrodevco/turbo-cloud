@@ -29,11 +29,9 @@ public static class AchievementCatalogExtensions
     )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
-        var current =
-            catalog.Current.FirstOrDefault(x =>
-                string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)
-            )
-            ?? throw new InvalidOperationException($"There is no achievement with the key {key}.");
+        var current = catalog.Current.FirstOrDefault(x =>
+            string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)
+        ) ?? throw new InvalidOperationException($"There is no achievement with the key {key}.");
         if (current.State == state)
             return new(current.Key, state, state, current.Revision, false);
         var next = current with { Revision = current.Revision + 1, State = state };

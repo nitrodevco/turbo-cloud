@@ -23,9 +23,8 @@ public sealed class PermissionWhoHoldsTests
         var pending = new ConcurrentDictionary<long, TaskCompletionSource<bool>>();
         fakes.Handlers["HasAsync"] = call =>
             pending
-                .GetOrAdd(
-                    Convert.ToInt64(call.Key),
-                    _ => new(TaskCreationOptions.RunContinuationsAsynchronously)
+                .GetOrAdd(Convert.ToInt64(call.Key), _ =>
+                    new(TaskCreationOptions.RunContinuationsAsynchronously)
                 )
                 .Task;
 

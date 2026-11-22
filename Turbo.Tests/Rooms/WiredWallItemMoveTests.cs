@@ -301,7 +301,9 @@ public sealed class WiredWallItemMoveTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 ACTION,
@@ -325,7 +327,9 @@ public sealed class WiredWallItemMoveTests
                     : null,
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent

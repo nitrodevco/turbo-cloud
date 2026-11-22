@@ -107,7 +107,8 @@ public sealed class WiredPushWalkingUserTests
             .Be(SlideAvatarMoveType.Slide);
     }
 
-    private async Task SaveAsync(Rotation direction) => (
+    private async Task SaveAsync(Rotation direction) =>
+        (
             await _room.SaveAsync<UpdateActionMessage>(
                 MOVE_USER,
                 intParams: [(int)direction, -1],
@@ -117,7 +118,9 @@ public sealed class WiredPushWalkingUserTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
     private async Task WalkToAsync(int x, int y) =>
         (await _room.Harness.Room.AvatarModule.WalkAvatarToAsync(_avatar, x, y, Ct))

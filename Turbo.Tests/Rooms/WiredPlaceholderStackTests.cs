@@ -129,7 +129,9 @@ public sealed class WiredPlaceholderStackTests
                     [WiredPlayerSourceType.TriggeredUser],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateAddonMessage>(
                 129,
@@ -140,7 +142,9 @@ public sealed class WiredPlaceholderStackTests
                     [WiredPlayerSourceType.SelectorUsers],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
 
@@ -179,7 +183,9 @@ public sealed class WiredPlaceholderStackTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
 
@@ -198,7 +204,9 @@ public sealed class WiredPlaceholderStackTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         furni.GetStuffIds().Should().BeEmpty();
     }
@@ -230,7 +238,9 @@ public sealed class WiredPlaceholderStackTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
 
@@ -267,7 +277,9 @@ public sealed class WiredPlaceholderStackTests
                     [WiredPlayerSourceType.TriggeredUser],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
 

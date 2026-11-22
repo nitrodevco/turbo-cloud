@@ -48,15 +48,11 @@ static class Program
         };
         for (var expected = 0; expected < 1 << ringCoordinates.Length; expected++)
         {
-            var actual = WaterAreaMask.Build(
-                2,
-                2,
-                (x, y) =>
-                {
-                    var bit = Array.IndexOf(ringCoordinates, (x, y));
-                    return bit >= 0 && (expected & (1 << bit)) != 0;
-                }
-            );
+            var actual = WaterAreaMask.Build(2, 2, (x, y) =>
+            {
+                var bit = Array.IndexOf(ringCoordinates, (x, y));
+                return bit >= 0 && (expected & (1 << bit)) != 0;
+            });
             Assert(actual == expected, $"mask oracle {expected}");
         }
         AssertThrows(

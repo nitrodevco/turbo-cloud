@@ -20,11 +20,8 @@ public sealed partial class RoomGrain
         int y,
         CancellationToken ct
     ) =>
-        RunLoggedAsync(
-            ctx,
-            "place bot",
-            botId,
-            () => BotModule.PlaceBotAsync(ctx, botId, x, y, ct)
+        RunLoggedAsync(ctx, "place bot", botId, () =>
+            BotModule.PlaceBotAsync(ctx, botId, x, y, ct)
         );
 
     public Task<bool> MoveBotAsync(
@@ -35,11 +32,8 @@ public sealed partial class RoomGrain
         Rotation rotation,
         CancellationToken ct
     ) =>
-        RunLoggedAsync(
-            ctx,
-            "move bot",
-            objectId,
-            () => BotModule.MoveBotAsync(ctx, objectId, x, y, rotation, ct)
+        RunLoggedAsync(ctx, "move bot", objectId, () =>
+            BotModule.MoveBotAsync(ctx, objectId, x, y, rotation, ct)
         );
 
     public Task<bool> PickupBotAsync(ActionContext ctx, int botId, CancellationToken ct) =>
@@ -52,11 +46,8 @@ public sealed partial class RoomGrain
         string data,
         CancellationToken ct
     ) =>
-        RunLoggedAsync(
-            ctx,
-            "command bot",
-            botId,
-            () => BotModule.CommandBotAsync(ctx, botId, skill, data, ct)
+        RunLoggedAsync(ctx, "command bot", botId, () =>
+            BotModule.CommandBotAsync(ctx, botId, skill, data, ct)
         );
 
     public Task<bool> RequestBotCommandConfigurationAsync(
@@ -65,11 +56,8 @@ public sealed partial class RoomGrain
         BotSkillType skill,
         CancellationToken ct
     ) =>
-        RunLoggedAsync(
-            ctx,
-            "get the configuration of bot",
-            botId,
-            () => BotModule.RequestConfigurationAsync(ctx, botId, skill, ct)
+        RunLoggedAsync(ctx, "get the configuration of bot", botId, () =>
+            BotModule.RequestConfigurationAsync(ctx, botId, skill, ct)
         );
 
     public Task<bool> StaffUpdateBotAsync(
@@ -77,17 +65,12 @@ public sealed partial class RoomGrain
         BotStaffEditSnapshot edit,
         CancellationToken ct
     ) =>
-        RunLoggedAsync(
-            ActionContext.CreateForSystem(RoomId),
-            "staff update bot",
-            botId,
-            async () =>
-            {
-                await BotModule.EnsureBotsLoadedAsync(ct);
+        RunLoggedAsync(ActionContext.CreateForSystem(RoomId), "staff update bot", botId, async () =>
+        {
+            await BotModule.EnsureBotsLoadedAsync(ct);
 
-                return await BotModule.StaffUpdateBotAsync(botId, edit, ct);
-            }
-        );
+            return await BotModule.StaffUpdateBotAsync(botId, edit, ct);
+        });
 
     public Task<bool> StaffPickupBotAsync(int botId, CancellationToken ct) =>
         RunLoggedAsync(

@@ -50,10 +50,8 @@ public sealed class GiftPurchaseTests : IDisposable
     {
         _catalog.AddDefinition(WRAP, "present_wrap*1", set: x => x.Logic = PresentData.LOGIC_NAME);
         _catalog.AddDefinition(FREE_BOX, "present_gen", set: x => x.Logic = PresentData.LOGIC_NAME);
-        _catalog.AddDefinition(
-            TELEPORT,
-            "teleport",
-            set: x => x.Logic = TeleportFurniture.LOGIC_NAME
+        _catalog.AddDefinition(TELEPORT, "teleport", set: x =>
+            x.Logic = TeleportFurniture.LOGIC_NAME
         );
         AddOffer(TELEPORT_OFFER, TELEPORT, canGift: true);
         AddOffer(UNGIFTABLE_OFFER, CHAIR, canGift: false);

@@ -84,7 +84,9 @@ public sealed class WiredToggleFloorSwitchTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 EFFECT,
@@ -96,7 +98,9 @@ public sealed class WiredToggleFloorSwitchTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent
             {

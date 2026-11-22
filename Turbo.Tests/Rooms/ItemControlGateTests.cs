@@ -117,12 +117,8 @@ public sealed class ItemControlGateTests
     [InlineData(BUILDER, false)]
     public async Task Only_the_displays_owner_picks_its_playlist(int objectId, bool picks)
     {
-        _room.AddFloorItem(
-            DISPLAY,
-            5,
-            5,
-            "youtube",
-            createLogic: (factory, ctx) => new FurnitureYoutubeLogic(factory, ctx)
+        _room.AddFloorItem(DISPLAY, 5, 5, "youtube", createLogic: (factory, ctx) =>
+            new FurnitureYoutubeLogic(factory, ctx)
         );
 
         (
@@ -143,12 +139,8 @@ public sealed class ItemControlGateTests
     [InlineData(GUEST, false)]
     public async Task Rights_name_the_owners_mannequin(int objectId, bool names)
     {
-        _room.AddFloorItem(
-            MANNEQUIN,
-            5,
-            5,
-            "mannequin",
-            createLogic: (factory, ctx) => new FurnitureMannequinLogic(factory, ctx)
+        _room.AddFloorItem(MANNEQUIN, 5, 5, "mannequin", createLogic: (factory, ctx) =>
+            new FurnitureMannequinLogic(factory, ctx)
         );
 
         (

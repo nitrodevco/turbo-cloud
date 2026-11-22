@@ -83,11 +83,8 @@ public class WebSocketSessionContext(
     public string? ServerCloseReason => _state.CloseReason;
 
     public Task CloseSessionAsync(string reason = "closed by the server") =>
-        _state.CloseAsync(
-            this,
-            reason,
-            CloseAsync,
-            () => Connection.CloseAsync(SuperSocket.Connection.CloseReason.LocalClosing)
+        _state.CloseAsync(this, reason, CloseAsync, () =>
+            Connection.CloseAsync(SuperSocket.Connection.CloseReason.LocalClosing)
         );
 
     public void SetRevisionId(string revisionId) => _state.RevisionId = revisionId;

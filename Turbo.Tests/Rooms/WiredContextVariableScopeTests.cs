@@ -112,7 +112,9 @@ public sealed class WiredContextVariableScopeTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await GiveAsync(2, 7);
         (
             await _room.SaveAsync<UpdateActionMessage>(
@@ -130,7 +132,9 @@ public sealed class WiredContextVariableScopeTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         // A: number + 13.
         _room.AddBox<WiredTriggerReceiveSignal>(4, 0, 4, "wf_trg_recv_signal");
@@ -207,7 +211,8 @@ public sealed class WiredContextVariableScopeTests
             .Should()
             .BeTrue();
 
-    private async Task ReceiveAsync(int boxId, int antenna) => (
+    private async Task ReceiveAsync(int boxId, int antenna) =>
+        (
             await _room.SaveAsync<UpdateTriggerMessage>(
                 boxId,
                 stuffIds: [antenna],
@@ -216,7 +221,9 @@ public sealed class WiredContextVariableScopeTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
     private async Task StartAsync(int x, int y)
     {

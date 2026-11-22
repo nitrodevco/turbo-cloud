@@ -120,9 +120,8 @@ internal static class ServerSettingsCheck
                 .GetServices<IPostConfigureOptions<T>>()
                 .Select(step =>
                     WholeCollectionBinding.IsRebind(step)
-                        ? new PostConfigureOptions<T>(
-                            Options.DefaultName,
-                            x => WholeCollectionBinding.Rebind(x, configuration, bound)
+                        ? new PostConfigureOptions<T>(Options.DefaultName, x =>
+                            WholeCollectionBinding.Rebind(x, configuration, bound)
                         )
                         : step
                 ),

@@ -57,7 +57,9 @@ public sealed class WiredLab6AnswersTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (await SaveLogAsync("E8A", delayPulses: 6)).IsSaved.Should().BeTrue();
         await StartAsync(0, 0);
 

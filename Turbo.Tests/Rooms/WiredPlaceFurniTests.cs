@@ -99,7 +99,9 @@ public sealed class WiredPlaceFurniTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 2,
@@ -113,7 +115,9 @@ public sealed class WiredPlaceFurniTests
                     : null,
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         if (pickedAsTheyStand)
             _room.FloorItem(2).ExtraData.DeleteSection(WiredFurniSnapshotEntry.SECTION);
@@ -291,7 +295,9 @@ public sealed class WiredPlaceFurniTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 2,
@@ -452,7 +458,9 @@ public sealed class WiredPlaceFurniTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 2,
@@ -465,7 +473,9 @@ public sealed class WiredPlaceFurniTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent
             {

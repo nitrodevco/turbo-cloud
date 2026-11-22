@@ -288,8 +288,8 @@ public static partial class LayoutTemplateMapper
     )
     {
         var attrs = node.Attrs;
-        var variables =
-            Child(node, "variables")?.Children.Where(x => x.Tag == "var").ToList() ?? [];
+        var variables = Child(node, "variables")?.Children.Where(x => x.Tag == "var").ToList()
+            ?? [];
         var vars = new JsonObject();
 
         foreach (var entry in variables)
@@ -580,46 +580,39 @@ public static partial class LayoutTemplateMapper
     /// <summary>Flash's <c>unescape</c>: <c>%XX</c> and <c>%uXXXX</c> sequences.</summary>
     private static string Unescape(string value) =>
         EscapePattern()
-            .Replace(
-                value,
-                match =>
-                    (
-                        (char)
-                            int.Parse(
-                                match.Groups[1].Success
-                                    ? match.Groups[1].Value
-                                    : match.Groups[2].Value,
-                                NumberStyles.HexNumber,
-                                CultureInfo.InvariantCulture
-                            )
-                    ).ToString()
+            .Replace(value, match =>
+                (
+                    (char)
+                        int.Parse(
+                            match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value,
+                            NumberStyles.HexNumber,
+                            CultureInfo.InvariantCulture
+                        )
+                ).ToString()
             );
 
     private static string DecodeEntities(string value) =>
         EntityPattern()
-            .Replace(
-                value,
-                match =>
-                {
-                    var entity = match.Groups[1].Value;
+            .Replace(value, match =>
+            {
+                var entity = match.Groups[1].Value;
 
-                    if (entity[0] != '#')
-                        return ENTITIES.GetValueOrDefault(entity) ?? match.Value;
+                if (entity[0] != '#')
+                    return ENTITIES.GetValueOrDefault(entity) ?? match.Value;
 
-                    var code =
-                        entity.Length > 1 && entity[1] is 'x' or 'X'
-                            ? int.Parse(
-                                entity[2..],
-                                NumberStyles.HexNumber,
-                                CultureInfo.InvariantCulture
-                            )
-                            : int.Parse(entity[1..], CultureInfo.InvariantCulture);
+                var code =
+                    entity.Length > 1 && entity[1] is 'x' or 'X'
+                        ? int.Parse(
+                            entity[2..],
+                            NumberStyles.HexNumber,
+                            CultureInfo.InvariantCulture
+                        )
+                        : int.Parse(entity[1..], CultureInfo.InvariantCulture);
 
-                    return code is >= 0 and <= 0x10FFFF and not (>= 0xD800 and <= 0xDFFF)
-                        ? char.ConvertFromUtf32(code)
-                        : match.Value;
-                }
-            );
+                return code is >= 0 and <= 0x10FFFF and not (>= 0xD800 and <= 0xDFFF)
+                    ? char.ConvertFromUtf32(code)
+                    : match.Value;
+            });
 
     private static Node? Child(Node node, string tag) =>
         node.Children.FirstOrDefault(x => x.Tag == tag);

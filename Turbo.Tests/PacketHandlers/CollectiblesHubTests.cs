@@ -69,9 +69,8 @@ public sealed class CollectiblesHubTests
     [Fact]
     public async Task A_wallets_collector_score_is_nothing_at_level_zero()
     {
-        var (header, body) = await AskAsync(
-            "GetCollectorScoreMessageEvent",
-            w => w.String("0xwallet")
+        var (header, body) = await AskAsync("GetCollectorScoreMessageEvent", w =>
+            w.String("0xwallet")
         );
 
         header.Should().Be(PacketHarness.Outgoing("NftCollectionsScoreMessageComposer"));
@@ -81,9 +80,8 @@ public sealed class CollectiblesHubTests
     [Fact]
     public async Task A_wallet_holds_no_mint_tokens()
     {
-        var (header, body) = await AskAsync(
-            "GetCollectibleMintTokensMessageEvent",
-            w => w.String("0xwallet")
+        var (header, body) = await AskAsync("GetCollectibleMintTokensMessageEvent", w =>
+            w.String("0xwallet")
         );
 
         header.Should().Be(PacketHarness.Outgoing("CollectibleMintTokenCountMessageComposer"));

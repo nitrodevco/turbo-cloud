@@ -235,9 +235,7 @@ public sealed class PluginOwnedGamedataTests : IDisposable
         (await SentVariablesAsync()).ContainsKey(OVERRIDES).Should().BeFalse();
         (await SentTextsAsync()).Should().NotContainKey("theme.title");
         // Kept: installing it again sends them again.
-        (await _texts.GetValuesAsync(["theme.title"], Ct))
-            .Should()
-            .ContainKey("theme.title");
+        (await _texts.GetValuesAsync(["theme.title"], Ct)).Should().ContainKey("theme.title");
 
         WriteTheme(THEME_VARIABLES, "theme.title=Theme\ntheme.body=Body\n");
         await _manager.LoadAllAsync(ct: Ct);
@@ -583,9 +581,7 @@ public sealed class PluginOwnedGamedataTests : IDisposable
             );
 
         // A plugin turned off takes its libraries with it; the hotel's stay.
-        (await _plugins.SetEnabledAsync("theme", false, Ct))!
-            .Ok.Should()
-            .BeTrue();
+        (await _plugins.SetEnabledAsync("theme", false, Ct))!.Ok.Should().BeTrue();
 
         (await SentOverridesAsync())
             .Should()

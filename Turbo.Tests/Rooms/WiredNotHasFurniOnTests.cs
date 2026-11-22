@@ -49,7 +49,9 @@ public sealed class WiredNotHasFurniOnTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredProcessingContext(_room.Harness.Room)
         {
@@ -97,7 +99,9 @@ public sealed class WiredNotHasFurniOnTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         condition.Evaluate(NewContext()).Should().Be(holds);
     }

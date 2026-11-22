@@ -244,7 +244,9 @@ public sealed class WiredSignalChainTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateSelectorMessage>(
                 2,
@@ -270,7 +272,9 @@ public sealed class WiredSignalChainTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
     }
 
     /// <summary>
@@ -310,7 +314,9 @@ public sealed class WiredSignalChainTests
                     [antennaSource],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 5,
@@ -326,7 +332,9 @@ public sealed class WiredSignalChainTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
     }
 
     /// <summary>The room builds its stacks on the next tick after a box says its stack changed.</summary>

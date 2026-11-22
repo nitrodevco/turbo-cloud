@@ -22,47 +22,39 @@ internal sealed record ComponentAdapter(
         new Dictionary<string, ComponentAdapter>
         {
             // `DropmenuFrame`: the arrow is its own sprite at `arrowLayout`.
-            ["dropmenu"] = new(
-                ["arrow"],
-                roles =>
-                {
-                    var (arrow, fields) = ArrowTextures(roles);
+            ["dropmenu"] = new(["arrow"], roles =>
+            {
+                var (arrow, fields) = ArrowTextures(roles);
 
-                    if (arrow is not null)
-                        fields["arrowLayout"] = new JsonObject
-                        {
-                            ["right"] = ThemeNumbers.Json(arrow.Right),
-                            ["top"] = ThemeNumbers.Json(arrow.Top),
-                            ["width"] = ThemeNumbers.Json(arrow.Width),
-                            ["height"] = ThemeNumbers.Json(arrow.Height),
-                        };
+                if (arrow is not null)
+                    fields["arrowLayout"] = new JsonObject
+                    {
+                        ["right"] = ThemeNumbers.Json(arrow.Right),
+                        ["top"] = ThemeNumbers.Json(arrow.Top),
+                        ["width"] = ThemeNumbers.Json(arrow.Width),
+                        ["height"] = ThemeNumbers.Json(arrow.Height),
+                    };
 
-                    return fields;
-                }
-            ),
+                return fields;
+            }),
             // `Droplist`: the same arrow, placed by its top and right offsets, and the box at least as
             // tall as the skin is drawn (the thick one is 32, its arrow 10 down).
-            ["droplist"] = new(
-                ["arrow"],
-                roles =>
+            ["droplist"] = new(["arrow"], roles =>
+            {
+                var (arrow, fields) = ArrowTextures(roles);
+
+                if (arrow is not null)
                 {
-                    var (arrow, fields) = ArrowTextures(roles);
-
-                    if (arrow is not null)
+                    fields["arrowTop"] = ThemeNumbers.Json(arrow.Top);
+                    fields["arrowRight"] = ThemeNumbers.Json(arrow.Right);
+                    fields["layout"] = new JsonObject
                     {
-                        fields["arrowTop"] = ThemeNumbers.Json(arrow.Top);
-                        fields["arrowRight"] = ThemeNumbers.Json(arrow.Right);
-                        fields["layout"] = new JsonObject
-                        {
-                            ["minHeight"] = ThemeNumbers.Json(
-                                arrow.Top + arrow.Height + arrow.Bottom
-                            ),
-                        };
-                    }
-
-                    return fields;
+                        ["minHeight"] = ThemeNumbers.Json(arrow.Top + arrow.Height + arrow.Bottom),
+                    };
                 }
-            ),
+
+                return fields;
+            }),
         };
 
     /// <summary>An arrow the component places itself: its bitmap, and its hovering one where the skin changes it.</summary>

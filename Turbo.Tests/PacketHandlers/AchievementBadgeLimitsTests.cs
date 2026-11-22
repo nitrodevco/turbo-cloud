@@ -33,9 +33,8 @@ public sealed class AchievementBadgeLimitsTests
         Assert.Equal(1, login.Levels[0].Level);
         Assert.Equal(5, login.Levels[0].Limit);
         Assert.Equal("ACH_Login1", "ACH_" + login.BadgeCodePrefix + login.Levels[0].Level);
-        Assert.DoesNotContain(
-            composer.LimitsByBadgeCodePrefix,
-            x => x.BadgeCodePrefix.StartsWith("ACH_", StringComparison.Ordinal)
+        Assert.DoesNotContain(composer.LimitsByBadgeCodePrefix, x =>
+            x.BadgeCodePrefix.StartsWith("ACH_", StringComparison.Ordinal)
         );
     }
 

@@ -129,8 +129,7 @@ internal sealed partial class PlayerAchievementGrain : Grain, IPlayerAchievement
             var revisions = new Dictionary<(int, int), AchievementDefinition>();
             foreach (var admitted in facts)
             {
-                var fact =
-                    JsonSerializer.Deserialize<AchievementFact>(admitted.FactJson)
+                var fact = JsonSerializer.Deserialize<AchievementFact>(admitted.FactJson)
                     ?? throw new InvalidOperationException("Invalid admitted fact.");
                 var bindings = await ResolveBindingsAsync(db, admitted.BindingsJson, revisions, ct);
                 foreach (var definition in bindings)

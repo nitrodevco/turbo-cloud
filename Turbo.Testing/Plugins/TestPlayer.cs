@@ -108,8 +108,7 @@ public sealed class TestPlayer
     /// </summary>
     public async Task<TestPlayer> SaysAsync(string text, CancellationToken ct = default)
     {
-        var room =
-            Room
+        var room = Room
             ?? throw new HotelAssertionException(
                 $"{Name} says \"{text}\" in no room: put them in one first (InRoom(id))."
             );
@@ -146,19 +145,15 @@ public sealed class TestPlayer
         var session = _hotel.Sessions.Of<ISessionContext>(Id.Value);
 
         _hotel.Sessions.Answer<ISessionContext>("get_SessionKey", call => KeyOf(call.Key));
-        _hotel.Sessions.Answer<ISessionContext>(
-            "get_ActiveRoomId",
-            call => _hotel.PlayerOf(PlayerOf(call.Key)).Room?.Id ?? RoomId.Invalid
+        _hotel.Sessions.Answer<ISessionContext>("get_ActiveRoomId", call =>
+            _hotel.PlayerOf(PlayerOf(call.Key)).Room?.Id ?? RoomId.Invalid
         );
-        _hotel.Sessions.Answer<ISessionContext>(
-            nameof(ISessionContext.SendComposerAsync),
-            call =>
-            {
-                _hotel.PlayerOf(PlayerOf(call.Key))._session.Add(Decode(call.Args[0]!));
+        _hotel.Sessions.Answer<ISessionContext>(nameof(ISessionContext.SendComposerAsync), call =>
+        {
+            _hotel.PlayerOf(PlayerOf(call.Key))._session.Add(Decode(call.Args[0]!));
 
-                return Task.CompletedTask;
-            }
-        );
+            return Task.CompletedTask;
+        });
 
         return session;
     }

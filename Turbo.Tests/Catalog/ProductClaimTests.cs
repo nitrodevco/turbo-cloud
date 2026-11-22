@@ -165,9 +165,7 @@ public sealed class ProductClaimTests : IDisposable
         (await grain.ClaimAsync("off", 0, Ct)).Should().Be(ProductClaimResult.NotActive);
         (await grain.ClaimAsync(CLAIM, 2, Ct)).Should().Be(ProductClaimResult.Failed);
         // Two choices: a claim sent without one (the special items display's form) picks none.
-        (await grain.ClaimAsync(CLAIM, -1, Ct))
-            .Should()
-            .Be(ProductClaimResult.Failed);
+        (await grain.ClaimAsync(CLAIM, -1, Ct)).Should().Be(ProductClaimResult.Failed);
         (await grain.ClaimAsync("no_palette", -1, Ct)).Should().Be(ProductClaimResult.Failed);
 
         (await grain.HasClaimedAsync(CLAIM, Ct)).Should().BeFalse();

@@ -149,10 +149,9 @@ public sealed class AdminNavigatorEditor(
         }
         else
         {
-            row =
-                await dbCtx
-                    .NavigatorFlatCategories.FirstOrDefaultAsync(x => x.Id == id, ct)
-                    .ConfigureAwait(false)
+            row = await dbCtx
+                .NavigatorFlatCategories.FirstOrDefaultAsync(x => x.Id == id, ct)
+                .ConfigureAwait(false)
                 ?? throw new ArgumentException($"There is no category {id}.");
         }
 
@@ -225,10 +224,9 @@ public sealed class AdminNavigatorEditor(
         }
         else
         {
-            row =
-                await dbCtx
-                    .NavigatorEventCategories.FirstOrDefaultAsync(x => x.Id == id, ct)
-                    .ConfigureAwait(false)
+            row = await dbCtx
+                .NavigatorEventCategories.FirstOrDefaultAsync(x => x.Id == id, ct)
+                .ConfigureAwait(false)
                 ?? throw new ArgumentException($"There is no event category {id}.");
         }
 
@@ -306,10 +304,9 @@ public sealed class AdminNavigatorEditor(
         }
         else
         {
-            row =
-                await dbCtx
-                    .NavigatorTopLevelContexts.FirstOrDefaultAsync(x => x.Id == id, ct)
-                    .ConfigureAwait(false)
+            row = await dbCtx
+                .NavigatorTopLevelContexts.FirstOrDefaultAsync(x => x.Id == id, ct)
+                .ConfigureAwait(false)
                 ?? throw new ArgumentException($"There is no tab {id}.");
         }
 

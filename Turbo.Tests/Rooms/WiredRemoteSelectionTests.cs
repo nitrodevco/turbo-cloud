@@ -111,7 +111,9 @@ public sealed class WiredRemoteSelectionTests
                 ],
                 definitionSpecifics: [false, false]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredProcessingContext(_room.Harness.Room)
         {

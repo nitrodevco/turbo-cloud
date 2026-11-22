@@ -216,7 +216,9 @@ public sealed class PollEndpointsTests : IAsyncDisposable
                     }
                 )
             )
-        ).Should().Contain("two choices");
+        )
+            .Should()
+            .Contain("two choices");
         (
             await MessageAsync(
                 Poll(
@@ -234,7 +236,9 @@ public sealed class PollEndpointsTests : IAsyncDisposable
                     }
                 )
             )
-        ).Should().Contain("score poll");
+        )
+            .Should()
+            .Contain("score poll");
         (await MessageAsync(Poll(Choice(null, "Here?")) with { roomId = 99 }))
             .Should()
             .Contain("no room 99");

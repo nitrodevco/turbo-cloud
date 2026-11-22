@@ -248,10 +248,9 @@ public sealed partial class AdminGroupQueries(
         }
         else
         {
-            row =
-                await dbCtx
-                    .GuildBadgeParts.FirstOrDefaultAsync(x => x.Id == id, ct)
-                    .ConfigureAwait(false)
+            row = await dbCtx
+                .GuildBadgeParts.FirstOrDefaultAsync(x => x.Id == id, ct)
+                .ConfigureAwait(false)
                 ?? throw new ArgumentException($"There is no badge part {id}.");
             row.FileName = file;
             row.MaskFileName = mask;
@@ -300,10 +299,9 @@ public sealed partial class AdminGroupQueries(
         }
         else
         {
-            row =
-                await dbCtx
-                    .GuildColors.FirstOrDefaultAsync(x => x.Id == id, ct)
-                    .ConfigureAwait(false)
+            row = await dbCtx
+                .GuildColors.FirstOrDefaultAsync(x => x.Id == id, ct)
+                .ConfigureAwait(false)
                 ?? throw new ArgumentException($"There is no colour {id}.");
             row.Color = color;
         }

@@ -476,24 +476,23 @@ public sealed class SourcePluginTests : IDisposable
     /// <summary>The line of <see cref="Plugin"/>'s start body.</summary>
     private const int START_LINE = 13;
 
-    private static string Plugin(string start = "", string version = "1.0.0") =>
-        $$"""
-            using System;
-            using System.Threading;
-            using System.Threading.Tasks;
-            using Microsoft.Extensions.DependencyInjection;
-            using Turbo.Contracts.Plugins;
-            using Turbo.Contracts.Plugins.Exports;
+    private static string Plugin(string start = "", string version = "1.0.0") => $$"""
+        using System;
+        using System.Threading;
+        using System.Threading.Tasks;
+        using Microsoft.Extensions.DependencyInjection;
+        using Turbo.Contracts.Plugins;
+        using Turbo.Contracts.Plugins.Exports;
 
-            public sealed class SamplePlugin : ITurboPlugin
-            {
-                public string Key => "sample";
-                public string Version => "{{version}}";
-                public void ConfigureServices(IServiceCollection services, PluginManifest manifest) { }
-                public Task StartAsync(IServiceProvider services, CancellationToken ct) { {{start}} return Task.CompletedTask; }
-                public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
-                public Task BindExportsAsync(IExportBinder binder, IServiceProvider services) => Task.CompletedTask;
-                public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-            }
-            """;
+        public sealed class SamplePlugin : ITurboPlugin
+        {
+            public string Key => "sample";
+            public string Version => "{{version}}";
+            public void ConfigureServices(IServiceCollection services, PluginManifest manifest) { }
+            public Task StartAsync(IServiceProvider services, CancellationToken ct) { {{start}} return Task.CompletedTask; }
+            public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
+            public Task BindExportsAsync(IExportBinder binder, IServiceProvider services) => Task.CompletedTask;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+        """;
 }

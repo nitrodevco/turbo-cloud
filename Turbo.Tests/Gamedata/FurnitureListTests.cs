@@ -285,9 +285,7 @@ public sealed class FurnitureListTests : IDisposable
 
         // Chosen definitions take a chosen logic; a logic the server lacks, or one for every
         // definition, is refused.
-        (await _furniture.SetLogicAsync([4], "gate", STAFF, Ct))!
-            .ChangeCount.Should()
-            .Be(1);
+        (await _furniture.SetLogicAsync([4], "gate", STAFF, Ct))!.ChangeCount.Should().Be(1);
         (await LogicsAsync())["chair"].Should().Be("gate");
         await _furniture
             .Invoking(x => x.SetLogicAsync([4], "no_such_logic", STAFF, Ct))

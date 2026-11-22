@@ -61,44 +61,35 @@ internal sealed class PluginEndpoints(
         group.MapGet("/", ListAsync);
         group.MapPost("/rescan", RescanAsync);
         group.MapPost("/install", InstallAsync);
-        group.MapGet(
-            "/job",
-            () => sources.Job is { } job ? Results.Ok(PluginJobView.From(job)) : Results.NoContent()
+        group.MapGet("/job", () =>
+            sources.Job is { } job ? Results.Ok(PluginJobView.From(job)) : Results.NoContent()
         );
         group.MapPost("/job/cancel", CancelJobAsync);
         group.MapPost("/sources", AddSourceAsync);
-        group.MapPost(
-            "/sources/check",
-            (HttpContext http, CancellationToken ct) => CheckAsync(null, http, ct)
+        group.MapPost("/sources/check", (HttpContext http, CancellationToken ct) =>
+            CheckAsync(null, http, ct)
         );
         group.MapPut("/sources/{id}", EditSourceAsync);
         group.MapDelete("/sources/{id}", RemoveSourceAsync);
-        group.MapPost(
-            "/sources/{id}/check",
-            (string id, HttpContext http, CancellationToken ct) => CheckAsync(id, http, ct)
+        group.MapPost("/sources/{id}/check", (string id, HttpContext http, CancellationToken ct) =>
+            CheckAsync(id, http, ct)
         );
         group.MapPost("/sources/{id}/update", UpdateAsync);
         group.MapPost("/{key}/rollback", RollbackAsync);
         group.MapGet("/{key}/uninstall", PlanUninstallAsync);
         group.MapPost("/{key}/uninstall", UninstallAsync);
         group.MapGet("/{key}/export", ExportAsync);
-        group.MapGet(
-            "/{key}/contributions",
-            (string key) =>
-                plugins.ContributionsOf(key) is { } contributions
-                    ? Results.Ok(PluginContributionsView.From(contributions))
-                    : AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
+        group.MapGet("/{key}/contributions", (string key) =>
+            plugins.ContributionsOf(key) is { } contributions
+                ? Results.Ok(PluginContributionsView.From(contributions))
+                : AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
         );
         group.MapPost("/{key}/reload", ReloadAsync);
-        group.MapPost(
-            "/{key}/enable",
-            (string key, HttpContext http, CancellationToken ct) =>
-                SetEnabledAsync(key, true, http, ct)
+        group.MapPost("/{key}/enable", (string key, HttpContext http, CancellationToken ct) =>
+            SetEnabledAsync(key, true, http, ct)
         );
-        group.MapPost(
-            "/{key}/disable",
-            (string key, HttpContext http, CancellationToken ct) =>
-                SetEnabledAsync(key, false, http, ct)
+        group.MapPost("/{key}/disable", (string key, HttpContext http, CancellationToken ct) =>
+            SetEnabledAsync(key, false, http, ct)
         );
     }
 
@@ -250,19 +241,13 @@ internal sealed class PluginEndpoints(
     }
 
     private Task<IResult> RescanAsync(HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            "rescan",
-            ct,
-            async () => await plugins.RescanAsync(CancellationToken.None).ConfigureAwait(false)
+        ManageAsync(http, "rescan", ct, async () =>
+            await plugins.RescanAsync(CancellationToken.None).ConfigureAwait(false)
         );
 
     private Task<IResult> ReloadAsync(string key, HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            $"reload {key}",
-            ct,
-            () => plugins.ReloadAsync(key, CancellationToken.None)
+        ManageAsync(http, $"reload {key}", ct, () =>
+            plugins.ReloadAsync(key, CancellationToken.None)
         );
 
     private Task<IResult> SetEnabledAsync(
@@ -271,11 +256,8 @@ internal sealed class PluginEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            $"{(enabled ? "enable" : "disable")} {key}",
-            ct,
-            () => plugins.SetEnabledAsync(key, enabled, CancellationToken.None)
+        ManageAsync(http, $"{(enabled ? "enable" : "disable")} {key}", ct, () =>
+            plugins.SetEnabledAsync(key, enabled, CancellationToken.None)
         );
 
     private async Task<IResult> InstallAsync(HttpContext http, CancellationToken ct)

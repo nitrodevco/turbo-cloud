@@ -77,12 +77,8 @@ public sealed class WiredDoorTests
 
         (await WalkRequestAsync(3, 3)).Should().BeFalse("state 0 blocks the door's tile");
 
-        await WalkToAsync(
-            avatar,
-            5,
-            3,
-            onEachStep: () =>
-                (avatar.X, avatar.Y).Should().NotBe((3, 3), "a walk across a shut door goes round")
+        await WalkToAsync(avatar, 5, 3, onEachStep: () =>
+            (avatar.X, avatar.Y).Should().NotBe((3, 3), "a walk across a shut door goes round")
         );
         (avatar.X, avatar.Y).Should().Be((5, 3));
 

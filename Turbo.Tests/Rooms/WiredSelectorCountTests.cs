@@ -75,7 +75,9 @@ public sealed class WiredSelectorCountTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         (await RunAsync(count)).Should().Be(2);
     }

@@ -115,11 +115,9 @@ internal sealed partial class ThemeLibrary(HabLibrary hab)
     /// <summary>Every row of the element description, in order.</summary>
     public List<ThemeElementRow> ElementRows()
     {
-        var text =
-            Text("habbo_element_description_xml")
+        var text = Text("habbo_element_description_xml")
             ?? throw new FormatException("The library has no habbo_element_description_xml.");
-        var root =
-            ThemeXml.Parse(text)
+        var root = ThemeXml.Parse(text)
             ?? throw new FormatException(
                 "The library's habbo_element_description_xml has no elements."
             );

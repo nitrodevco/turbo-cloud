@@ -504,10 +504,10 @@ public sealed class WiredOfficialLabReplayTests
             var name = sent[1..];
 
             return wired
-                    .GetAllVariables()
-                    .Select(v => v.GetVarSnapshot())
-                    .FirstOrDefault(v => v.VariableName == name)
-                    ?.VariableId.ToString()
+                .GetAllVariables()
+                .Select(v => v.GetVarSnapshot())
+                .FirstOrDefault(v => v.VariableName == name)
+                ?.VariableId.ToString()
                 ?? "0";
         }
 

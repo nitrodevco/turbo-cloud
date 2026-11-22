@@ -34,11 +34,10 @@ internal static class ServerSettingsConfiguration
         {
             // The database's settings are themselves never overridden ([StartupSetting]), so the
             // connection read now is the one for good.
-            var connection =
-                configuration
-                    .GetSection(DatabaseConfig.SECTION_NAME)
-                    .Get<DatabaseConfig>()
-                    ?.ConnectionString
+            var connection = configuration
+                .GetSection(DatabaseConfig.SECTION_NAME)
+                .Get<DatabaseConfig>()
+                ?.ConnectionString
                 ?? string.Empty;
 
             load = () => Read(connection);

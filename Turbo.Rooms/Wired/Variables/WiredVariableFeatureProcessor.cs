@@ -33,10 +33,8 @@ internal class WiredVariableFeatureProcessor(IRoomWiredVariablesProvider wiredVa
 
             sp.Contributes(PluginContributionKinds.WIRED_VARIABLE, concrete.Name);
             batch.Add(
-                _wiredVariablesProvider.RegisterVariable(
-                    sp,
-                    (sp, ctx) =>
-                        (IWiredVariable)ActivatorUtilities.CreateInstance(sp, concrete, ctx)
+                _wiredVariablesProvider.RegisterVariable(sp, (sp, ctx) =>
+                    (IWiredVariable)ActivatorUtilities.CreateInstance(sp, concrete, ctx)
                 )
             );
         }

@@ -96,7 +96,9 @@ public sealed class WiredGroupMemberConditionTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         // No group: "Current group".
         (
             await _room.SaveAsync<UpdateConditionMessage>(
@@ -120,7 +122,9 @@ public sealed class WiredGroupMemberConditionTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent

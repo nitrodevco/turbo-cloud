@@ -296,7 +296,9 @@ public sealed class WiredChaseFleeTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         return box;
     }

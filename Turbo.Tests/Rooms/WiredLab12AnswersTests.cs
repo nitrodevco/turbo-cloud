@@ -49,9 +49,7 @@ public sealed class WiredLab12AnswersTests
         await BuildFurniToFurniAsync();
 
         // The first firing puts it on the block; every later one finds it there already.
-        (await ClickAsync())
-            .Should()
-            .Be(1);
+        (await ClickAsync()).Should().Be(1);
         (mover.X, mover.Y).Should().Be((5, 5));
 
         var updatesBefore = _room.Harness.Fakes.SentToRoom<ObjectUpdateMessageComposer>().Count();
@@ -109,7 +107,9 @@ public sealed class WiredLab12AnswersTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         _room.AddBox<WiredActionFurniToFurni>(ACTION, 0, 0, "wf_act_furni_to_furni");
         (
             await _room.SaveAsync<UpdateActionMessage>(
@@ -123,7 +123,9 @@ public sealed class WiredLab12AnswersTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent
             {

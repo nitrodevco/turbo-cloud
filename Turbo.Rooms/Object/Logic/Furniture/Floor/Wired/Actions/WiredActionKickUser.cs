@@ -70,16 +70,10 @@ public class WiredActionKickUser(
 
             await AvatarModule.SetAvatarEffectAsync(player.ObjectId, KICK_EFFECT_ID, ct);
 
-            WiredSystem.RunAfter(
-                KICK_DELAY_MS,
-                token =>
-                    AvatarModule.TryGetPlayer(player.PlayerId, out var current) && current == player
-                        ? ModerationModule.KickPlayerBySystemAsync(
-                            player.PlayerId,
-                            string.Empty,
-                            token
-                        )
-                        : Task.FromResult(false)
+            WiredSystem.RunAfter(KICK_DELAY_MS, token =>
+                AvatarModule.TryGetPlayer(player.PlayerId, out var current) && current == player
+                    ? ModerationModule.KickPlayerBySystemAsync(player.PlayerId, string.Empty, token)
+                    : Task.FromResult(false)
             );
 
             kicked = true;

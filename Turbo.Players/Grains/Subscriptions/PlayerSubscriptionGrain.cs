@@ -374,8 +374,7 @@ internal sealed partial class PlayerSubscriptionGrain : Grain, IPlayerSubscripti
         var unlimited = grant is not null;
         var now = DateTime.UtcNow;
         var entity = _state.SubscriptionsByType.GetValueOrDefault(subscriptionType);
-        var row =
-            entity
+        var row = entity
             ?? new PlayerSubscriptionEntity
             {
                 PlayerEntityId = PlayerId.Value,
@@ -384,8 +383,7 @@ internal sealed partial class PlayerSubscriptionGrain : Grain, IPlayerSubscripti
 
         if (unlimited)
         {
-            var until =
-                grant!.Until
+            var until = grant!.Until
                 ?? (
                     subscriptionType == SubscriptionType.BuildersClub
                         ? now.AddHours(_subscriptionConfig.PermanentBuildersClubDisplayHours)

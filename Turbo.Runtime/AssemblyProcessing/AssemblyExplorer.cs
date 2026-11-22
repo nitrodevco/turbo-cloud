@@ -90,8 +90,7 @@ public static class AssemblyExplorer
         string ifaceMethodName
     )
     {
-        var ifaceMethod =
-            closedIface.GetMethod(ifaceMethodName)
+        var ifaceMethod = closedIface.GetMethod(ifaceMethodName)
             ?? throw new MissingMethodException(closedIface.FullName, ifaceMethodName);
 
         var map = concrete.GetInterfaceMap(closedIface);
@@ -102,11 +101,10 @@ public static class AssemblyExplorer
                 return map.TargetMethods[i];
         }
 
-        var m =
-            concrete.GetMethod(
-                ifaceMethodName,
-                ifaceMethod.GetParameters().Select(p => p.ParameterType).ToArray()
-            ) ?? throw new MissingMethodException(concrete.FullName, ifaceMethodName);
+        var m = concrete.GetMethod(
+            ifaceMethodName,
+            ifaceMethod.GetParameters().Select(p => p.ParameterType).ToArray()
+        ) ?? throw new MissingMethodException(concrete.FullName, ifaceMethodName);
 
         return m;
     }

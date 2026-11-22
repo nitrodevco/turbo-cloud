@@ -73,7 +73,9 @@ public sealed class WiredExecutionLimitAddonTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (await _room.SaveAsync<UpdateAddonMessage>(2, intParams: [executions, windowPulses]))
             .Should()
             .BeTrue();
@@ -92,7 +94,9 @@ public sealed class WiredExecutionLimitAddonTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent

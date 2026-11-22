@@ -47,15 +47,11 @@ public sealed class AdminCatalogGeneratorTests : IDisposable
             new CapturingLogger<ICatalogEditService>()
         );
 
-        _catalog.AddDefinition(
-            30,
-            "pura_chair",
-            set: x => (x.FurniLine, x.ClientCategory) = ("pura", "chair")
+        _catalog.AddDefinition(30, "pura_chair", set: x =>
+            (x.FurniLine, x.ClientCategory) = ("pura", "chair")
         );
-        _catalog.AddDefinition(
-            31,
-            "pura_table",
-            set: x => (x.FurniLine, x.ClientCategory) = ("pura", "table")
+        _catalog.AddDefinition(31, "pura_table", set: x =>
+            (x.FurniLine, x.ClientCategory) = ("pura", "table")
         );
         _catalog.AddDefinition(32, "iced_chair", set: x => x.FurniLine = "iced");
         _catalog.AddDefinition(33, "iced_sofa*1", set: x => x.FurniLine = "iced_dark");
@@ -254,10 +250,8 @@ public sealed class AdminCatalogGeneratorTests : IDisposable
     public async Task ALineOverThreePagesOrMore_IsAFolderOfItsOwn()
     {
         for (var i = 0; i < 50; i++)
-            _catalog.AddDefinition(
-                200 + i,
-                $"plasto_chair_{i:D2}",
-                set: x => x.FurniLine = "plasto"
+            _catalog.AddDefinition(200 + i, $"plasto_chair_{i:D2}", set: x =>
+                x.FurniLine = "plasto"
             );
 
         var plan = (await Builder.PlanCatalogAsync(Request() with { MaxPerPage = 20 }, Ct)).Value!;

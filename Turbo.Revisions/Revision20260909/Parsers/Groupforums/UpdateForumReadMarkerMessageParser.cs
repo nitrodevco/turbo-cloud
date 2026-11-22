@@ -17,15 +17,12 @@ internal class UpdateForumReadMarkerMessageParser : IParser
         {
             Markers =
             [
-                .. packet.PopList(
-                    BYTES_PER_MARKER,
-                    static p => new GuildForumReadMarkerSnapshot
-                    {
-                        GroupId = p.PopInt(),
-                        LastReadMessageId = p.PopInt(),
-                        MarkAll = p.PopBoolean(),
-                    }
-                ),
+                .. packet.PopList(BYTES_PER_MARKER, static p => new GuildForumReadMarkerSnapshot
+                {
+                    GroupId = p.PopInt(),
+                    LastReadMessageId = p.PopInt(),
+                    MarkAll = p.PopBoolean(),
+                }),
             ],
         };
 }

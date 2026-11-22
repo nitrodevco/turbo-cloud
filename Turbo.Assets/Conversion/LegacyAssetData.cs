@@ -47,34 +47,23 @@ internal static class LegacyAssetData
         Set(data, "aliases", ListOf(legacy["aliases"], "name", numeric: false));
         Set(data, "animations", ListOf(legacy["animations"], "name", numeric: false));
         Set(data, "palettes", ListOf(legacy["palettes"], "id"));
-        Set(
-            data,
-            "visualizations",
-            Map(
-                ListOf(legacy["visualizations"]),
-                v =>
-                {
-                    Set(v, "layers", ListOf(v["layers"], "id"));
-                    Set(
-                        v,
-                        "colors",
-                        Map(
-                            ListOf(v["colors"], "id"),
-                            c => Set(c, "layers", ListOf(c["layers"], "id"))
-                        )
-                    );
-                    Set(
-                        v,
-                        "directions",
-                        Map(
-                            ListOf(v["directions"], "id"),
-                            d => Set(d, "layers", ListOf(d["layers"], "id"))
-                        )
-                    );
-                    Set(v, "animations", Map(ListOf(v["animations"], "id"), MapAnimation));
-                }
-            )
-        );
+        Set(data, "visualizations", Map(ListOf(legacy["visualizations"]), v =>
+            {
+                Set(v, "layers", ListOf(v["layers"], "id"));
+                Set(
+                    v,
+                    "colors",
+                    Map(ListOf(v["colors"], "id"), c => Set(c, "layers", ListOf(c["layers"], "id")))
+                );
+                Set(
+                    v,
+                    "directions",
+                    Map(ListOf(v["directions"], "id"), d =>
+                        Set(d, "layers", ListOf(d["layers"], "id"))
+                    )
+                );
+                Set(v, "animations", Map(ListOf(v["animations"], "id"), MapAnimation));
+            }));
 
         return new Converted(
             Clean(data),
@@ -124,25 +113,20 @@ internal static class LegacyAssetData
         Set(
             animation,
             "layers",
-            Map(
-                ListOf(animation["layers"], "id"),
-                layer =>
-                    Set(
-                        layer,
-                        "frameSequences",
-                        Map(
-                            ListOf(layer["frameSequences"]),
-                            sequence =>
-                                Set(
-                                    sequence,
-                                    "frames",
-                                    Map(
-                                        ListOf(sequence["frames"]),
-                                        frame => Set(frame, "offsets", ListOf(frame["offsets"]))
-                                    )
-                                )
+            Map(ListOf(animation["layers"], "id"), layer =>
+                Set(
+                    layer,
+                    "frameSequences",
+                    Map(ListOf(layer["frameSequences"]), sequence =>
+                        Set(
+                            sequence,
+                            "frames",
+                            Map(ListOf(sequence["frames"]), frame =>
+                                Set(frame, "offsets", ListOf(frame["offsets"]))
+                            )
                         )
                     )
+                )
             )
         );
 

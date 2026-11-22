@@ -112,7 +112,9 @@ public sealed class WiredUserLabAnswersTests
                     [WiredPlayerSourceType.TriggeredUser],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         condition.Evaluate(TriggeredBy(USER)).Should().Be(holds);
     }
@@ -155,7 +157,9 @@ public sealed class WiredUserLabAnswersTests
                     [WiredPlayerSourceType.TriggeredUser],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         condition.Evaluate(TriggeredBy(USER)).Should().Be(holds);
     }
@@ -179,7 +183,9 @@ public sealed class WiredUserLabAnswersTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         (await box.ExecuteAsync(Triggered(USER), Ct)).Should().BeFalse();
         await box.ExecuteAsync(Triggered(USER), Ct);
@@ -302,7 +308,9 @@ public sealed class WiredUserLabAnswersTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = Triggered(USER);
         (await box.ExecuteAsync(ctx, Ct)).Should().BeFalse();
@@ -399,7 +407,9 @@ public sealed class WiredUserLabAnswersTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         return box;
     }
@@ -418,7 +428,9 @@ public sealed class WiredUserLabAnswersTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         return box;
     }
@@ -442,7 +454,9 @@ public sealed class WiredUserLabAnswersTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         return box;
     }
@@ -466,7 +480,9 @@ public sealed class WiredUserLabAnswersTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         return box;
     }

@@ -43,10 +43,11 @@ namespace Turbo.Database.Migrations
                     },
                     constraints: table =>
                     {
-                        table.PrimaryKey(
-                            "PK_builders_club_furniture",
-                            x => new { x.room_id, x.room_object_id }
-                        );
+                        table.PrimaryKey("PK_builders_club_furniture", x => new
+                        {
+                            x.room_id,
+                            x.room_object_id,
+                        });
                         table.ForeignKey(
                             name: "FK_builders_club_furniture_furniture_definitions_definition_id",
                             column: x => x.definition_id,

@@ -120,7 +120,9 @@ public sealed class WiredFurniStateMatrixTests
                 ],
                 definitionSpecifics: [QUANTIFIER_ALL]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         condition.Evaluate(Context()).Should().Be(passes);
     }
@@ -160,7 +162,9 @@ public sealed class WiredFurniStateMatrixTests
                 ],
                 definitionSpecifics: [quantifier]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         condition.Evaluate(Context()).Should().Be(passes);
     }
@@ -192,7 +196,9 @@ public sealed class WiredFurniStateMatrixTests
                 ],
                 definitionSpecifics: [QUANTIFIER_ALL]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = Context();
         ctx.Selected.SelectedFurniIds.Add(LAMP_A);
@@ -237,7 +243,9 @@ public sealed class WiredFurniStateMatrixTests
                 ],
                 definitionSpecifics: [quantifier]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = Context();
         ctx.Selected.SelectedAvatarIds.Add(on.ObjectId);
@@ -282,7 +290,9 @@ public sealed class WiredFurniStateMatrixTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         condition.Evaluate(Context()).Should().Be(passes);
     }
@@ -311,7 +321,9 @@ public sealed class WiredFurniStateMatrixTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
 
@@ -344,7 +356,9 @@ public sealed class WiredFurniStateMatrixTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
 
@@ -374,7 +388,9 @@ public sealed class WiredFurniStateMatrixTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
 
@@ -401,7 +417,9 @@ public sealed class WiredFurniStateMatrixTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         for (var i = 0; i < 40; i++)
         {
@@ -470,7 +488,9 @@ public sealed class WiredFurniStateMatrixTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         var selected = new[] { copies[1].ObjectId.Value, LAMP_A, copies[0].ObjectId.Value, LAMP_B };
         var ctx = new WiredExecutionContext(_room.Harness.Room)
         {
@@ -523,7 +543,9 @@ public sealed class WiredFurniStateMatrixTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         box.GetSnapshot().IntParams.Should().Equal(storedUser, storedFurni);
     }
@@ -557,7 +579,9 @@ public sealed class WiredFurniStateMatrixTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 EFFECT,
@@ -569,7 +593,9 @@ public sealed class WiredFurniStateMatrixTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var wired = _room.Harness.Module<RoomWiredSystem>();
         var now = 10_000L;
@@ -624,11 +650,8 @@ public sealed class WiredFurniStateMatrixTests
         const int AVATAR = 5;
         const int OPEN = 1;
 
-        var gate = _room.AddFloorItem(
-            GATE,
-            3,
-            3,
-            createLogic: (stuffData, ctx) => new FurnitureGateLogic(stuffData, ctx)
+        var gate = _room.AddFloorItem(GATE, 3, 3, createLogic: (stuffData, ctx) =>
+            new FurnitureGateLogic(stuffData, ctx)
         );
 
         await gate.Logic.SetStateAsync(OPEN);
@@ -646,7 +669,9 @@ public sealed class WiredFurniStateMatrixTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
 
@@ -754,7 +779,9 @@ public sealed class WiredFurniStateMatrixTests
                     : null,
                 definitionSpecifics: [quantifier]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         condition.Evaluate(Context()).Should().Be(passes);
     }

@@ -22,10 +22,11 @@ namespace Turbo.Database.Migrations
                     },
                     constraints: table =>
                     {
-                        table.PrimaryKey(
-                            "PK_wallet_credit_receipts",
-                            x => new { x.PlayerId, x.Reference }
-                        );
+                        table.PrimaryKey("PK_wallet_credit_receipts", x => new
+                        {
+                            x.PlayerId,
+                            x.Reference,
+                        });
                     }
                 )
                 .Annotation("MySql:CharSet", "utf8mb4");

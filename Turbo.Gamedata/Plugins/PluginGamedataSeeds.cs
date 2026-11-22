@@ -381,10 +381,8 @@ internal sealed class PluginGamedataSeeds(
 
         try
         {
-            properties = ThemeStyles.Read(
-                pluginKey,
-                folder,
-                key => host?.GetService<IHotelDataPlugin>()?.FolderOf(key)
+            properties = ThemeStyles.Read(pluginKey, folder, key =>
+                host?.GetService<IHotelDataPlugin>()?.FolderOf(key)
             );
         }
         catch (ArgumentException ex)
@@ -413,10 +411,8 @@ internal sealed class PluginGamedataSeeds(
 
             try
             {
-                var client = ThemeStyles.ClientValue(
-                    property,
-                    value,
-                    path => modules.AddressOf(pluginKey, wwwroot, path)
+                var client = ThemeStyles.ClientValue(property, value, path =>
+                    modules.AddressOf(pluginKey, wwwroot, path)
                 );
 
                 styles[ThemeStyles.EntryOf(pluginKey, property.Name)] = client;

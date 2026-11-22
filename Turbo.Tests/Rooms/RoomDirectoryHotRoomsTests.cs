@@ -50,9 +50,7 @@ public sealed class RoomDirectoryHotRoomsTests
         _time.Advance(TimeSpan.FromSeconds(2));
 
         // The first entries left the window; only player 13's is still counted.
-        (await VisitorsAsync())
-            .Should()
-            .Equal((1, 0), (2, 1));
+        (await VisitorsAsync()).Should().Equal((1, 0), (2, 1));
     }
 
     [Fact]

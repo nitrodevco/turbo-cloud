@@ -311,38 +311,37 @@ public sealed class PluginIsolationTests : IDisposable
     }
 
     /// <summary>A plugin with a permission node <c>&lt;key&gt;.use</c> and the classes given.</summary>
-    private static string Plugin(string key, string classes) =>
-        $$"""
-            using System;
-            using System.Collections.Generic;
-            using System.Threading;
-            using System.Threading.Tasks;
-            using Microsoft.Extensions.DependencyInjection;
-            using Turbo.Contracts.Plugins;
-            using Turbo.Contracts.Plugins.Exports;
-            using Turbo.Primitives.Commands;
-            using Turbo.Primitives.Players.Permissions;
+    private static string Plugin(string key, string classes) => $$"""
+        using System;
+        using System.Collections.Generic;
+        using System.Threading;
+        using System.Threading.Tasks;
+        using Microsoft.Extensions.DependencyInjection;
+        using Turbo.Contracts.Plugins;
+        using Turbo.Contracts.Plugins.Exports;
+        using Turbo.Primitives.Commands;
+        using Turbo.Primitives.Players.Permissions;
 
-            public sealed class ThePlugin : ITurboPlugin
-            {
-                public string Key => "{{key}}";
-                public string Version => "1.0.0";
-                public void ConfigureServices(IServiceCollection services, PluginManifest manifest) { }
-                public Task StartAsync(IServiceProvider services, CancellationToken ct) => Task.CompletedTask;
-                public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
-                public Task BindExportsAsync(IExportBinder binder, IServiceProvider services) => Task.CompletedTask;
-                public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-            }
+        public sealed class ThePlugin : ITurboPlugin
+        {
+            public string Key => "{{key}}";
+            public string Version => "1.0.0";
+            public void ConfigureServices(IServiceCollection services, PluginManifest manifest) { }
+            public Task StartAsync(IServiceProvider services, CancellationToken ct) => Task.CompletedTask;
+            public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
+            public Task BindExportsAsync(IExportBinder binder, IServiceProvider services) => Task.CompletedTask;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
 
-            public sealed class TheNodes : IPermissionNodeSource
-            {
-                public string? Prefix => "{{key}}";
-                public IEnumerable<PermissionNodeDefinition> Nodes => [new("{{key}}.use", "Use it")];
-                public IEnumerable<PermissionMetaDefinition> MetaKeys => [];
-            }
+        public sealed class TheNodes : IPermissionNodeSource
+        {
+            public string? Prefix => "{{key}}";
+            public IEnumerable<PermissionNodeDefinition> Nodes => [new("{{key}}.use", "Use it")];
+            public IEnumerable<PermissionMetaDefinition> MetaKeys => [];
+        }
 
-            {{classes}}
-            """;
+        {{classes}}
+        """;
 
     private const string NODES = "";
 

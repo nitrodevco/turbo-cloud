@@ -105,7 +105,9 @@ public sealed class WiredSaysKeywordHideConditionsTests
                     [WiredPlayerSourceType.TriggeredUser],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent

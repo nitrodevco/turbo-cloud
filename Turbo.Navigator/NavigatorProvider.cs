@@ -594,21 +594,18 @@ public sealed class NavigatorProvider : INavigatorProvider, IDisposable
         bool expiresWithSearches = false
     )
     {
-        var loadTask = _cache.GetOrCreate(
-            key,
-            entry =>
-            {
-                entry.Size = 1;
-                entry.AbsoluteExpirationRelativeToNow = ttl;
+        var loadTask = _cache.GetOrCreate(key, entry =>
+        {
+            entry.Size = 1;
+            entry.AbsoluteExpirationRelativeToNow = ttl;
 
-                // Taken before the load starts, so a change published while it runs still
-                // expires the entry.
-                if (expiresWithSearches)
-                    entry.AddExpirationToken(new CancellationChangeToken(_searchGeneration.Token));
+            // Taken before the load starts, so a change published while it runs still
+            // expires the entry.
+            if (expiresWithSearches)
+                entry.AddExpirationToken(new CancellationChangeToken(_searchGeneration.Token));
 
-                return load(CancellationToken.None);
-            }
-        )!;
+            return load(CancellationToken.None);
+        })!;
 
         try
         {

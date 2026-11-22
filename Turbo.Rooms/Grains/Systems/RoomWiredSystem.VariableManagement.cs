@@ -145,8 +145,7 @@ public sealed partial class RoomWiredSystem
                 {
                     EntityType = (int)holder.Type,
                     EntityId = holder.ApiId,
-                    EntityName =
-                        NameHere(holder.Type, holder.ApiId)
+                    EntityName = NameHere(holder.Type, holder.ApiId)
                         ?? absentNames.GetValueOrDefault(new PlayerId(holder.ApiId))
                         ?? string.Empty,
                     Value = StoredValue(stringId, holder.Value, holder.Created, holder.Updated),

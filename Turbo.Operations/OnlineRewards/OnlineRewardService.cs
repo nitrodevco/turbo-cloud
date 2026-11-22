@@ -87,8 +87,7 @@ public sealed class OnlineRewardService(
         }
 
         private async ValueTask<RoomPointerSnapshot> RoomAsync(CancellationToken ct) =>
-            _room ??=
-                await grainFactory.GetPlayerPresenceGrain(playerId).GetActiveRoomAsync(ct)
+            _room ??= await grainFactory.GetPlayerPresenceGrain(playerId).GetActiveRoomAsync(ct)
                 ?? new RoomPointerSnapshot { RoomId = -1, ActiveSinceUtc = default };
     }
 

@@ -9,8 +9,7 @@
     <!-- Enforce critical Orleans serialization diagnostics for contributor safety. -->
     <WarningsAsErrors>$(WarningsAsErrors);ORLEANS0012;ORLEANS0013</WarningsAsErrors>
     <WarningsAsErrors Condition="'$(TurboAIPolicyPhase)' == '2'"
-      >$(WarningsAsErrors);$(TurboAIWarningsAsErrors)</WarningsAsErrors
-    >
+      >$(WarningsAsErrors);$(TurboAIWarningsAsErrors)</WarningsAsErrors>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <EnableOrleansContractsAnalyzer>true</EnableOrleansContractsAnalyzer>

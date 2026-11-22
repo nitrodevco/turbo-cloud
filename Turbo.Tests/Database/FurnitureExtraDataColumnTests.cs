@@ -24,10 +24,8 @@ public sealed class FurnitureExtraDataColumnTests
     private static TurboDbContext OfflineContext() =>
         new(
             new DbContextOptionsBuilder<TurboDbContext>()
-                .UseMySql(
-                    UNREACHABLE,
-                    new MySqlServerVersion(new Version(8, 4, 0)),
-                    mysql => mysql.MigrationsAssembly("Turbo.Database")
+                .UseMySql(UNREACHABLE, new MySqlServerVersion(new Version(8, 4, 0)), mysql =>
+                    mysql.MigrationsAssembly("Turbo.Database")
                 )
                 .Options
         );

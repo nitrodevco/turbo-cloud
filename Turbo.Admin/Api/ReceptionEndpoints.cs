@@ -41,10 +41,8 @@ internal sealed class ReceptionEndpoints(
             .RequirePermission(PermissionNodes.Admin.GAMEDATA_VIEW, NO_ACCESS)
             .RequirePermissionToChange(PermissionNodes.Gamedata.MANAGE, NO_MANAGE);
 
-        group.MapGet(
-            "/articles",
-            async (CancellationToken ct) =>
-                Results.Ok(new { articles = await articles.ListAsync(ct).ConfigureAwait(false) })
+        group.MapGet("/articles", async (CancellationToken ct) =>
+            Results.Ok(new { articles = await articles.ListAsync(ct).ConfigureAwait(false) })
         );
         group.MapPost(
             "/articles",
@@ -54,17 +52,13 @@ internal sealed class ReceptionEndpoints(
         group.MapPut("/articles/{id:int}", SaveArticleAsync);
         group.MapDelete("/articles/{id:int}", DeleteArticleAsync);
         group.MapPut("/articles/order", ReorderArticlesAsync);
-        group.MapGet(
-            "/goals",
-            async (CancellationToken ct) =>
-                Results.Ok(new { goals = await goals.ListAsync(ct).ConfigureAwait(false) })
+        group.MapGet("/goals", async (CancellationToken ct) =>
+            Results.Ok(new { goals = await goals.ListAsync(ct).ConfigureAwait(false) })
         );
-        group.MapGet(
-            "/goals/{id:int}/standing",
-            async (int id, CancellationToken ct) =>
-                await goals.GetStandingAsync(id, ct).ConfigureAwait(false) is { } standing
-                    ? Results.Ok(standing)
-                    : Results.NotFound()
+        group.MapGet("/goals/{id:int}/standing", async (int id, CancellationToken ct) =>
+            await goals.GetStandingAsync(id, ct).ConfigureAwait(false) is { } standing
+                ? Results.Ok(standing)
+                : Results.NotFound()
         );
         group.MapPost(
             "/goals",
@@ -73,17 +67,13 @@ internal sealed class ReceptionEndpoints(
         );
         group.MapPut("/goals/{id:int}", SaveGoalAsync);
         group.MapDelete("/goals/{id:int}", DeleteGoalAsync);
-        group.MapGet(
-            "/bonus-rare",
-            async (CancellationToken ct) =>
-                Results.Ok(new { campaigns = await bonusRare.ListAsync(ct).ConfigureAwait(false) })
+        group.MapGet("/bonus-rare", async (CancellationToken ct) =>
+            Results.Ok(new { campaigns = await bonusRare.ListAsync(ct).ConfigureAwait(false) })
         );
-        group.MapGet(
-            "/bonus-rare/standing",
-            async (string? code, CancellationToken ct) =>
-                Results.Ok(
-                    await bonusRare.GetStandingAsync(code ?? string.Empty, ct).ConfigureAwait(false)
-                )
+        group.MapGet("/bonus-rare/standing", async (string? code, CancellationToken ct) =>
+            Results.Ok(
+                await bonusRare.GetStandingAsync(code ?? string.Empty, ct).ConfigureAwait(false)
+            )
         );
         group.MapPost(
             "/bonus-rare",
@@ -93,10 +83,8 @@ internal sealed class ReceptionEndpoints(
         group.MapPut("/bonus-rare/{id:int}", SaveCampaignAsync);
         group.MapDelete("/bonus-rare/{id:int}", DeleteCampaignAsync);
         group.MapPost("/bonus-rare/purchases", RecordPurchaseAsync);
-        group.MapGet(
-            "/expiring-pages",
-            async (CancellationToken ct) =>
-                Results.Ok(new { pages = await expiringPages.ListAsync(ct).ConfigureAwait(false) })
+        group.MapGet("/expiring-pages", async (CancellationToken ct) =>
+            Results.Ok(new { pages = await expiringPages.ListAsync(ct).ConfigureAwait(false) })
         );
         group.MapPut(
             "/expiring-pages/{pageId:int}",

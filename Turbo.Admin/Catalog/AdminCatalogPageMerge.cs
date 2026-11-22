@@ -92,130 +92,122 @@ public sealed class AdminCatalogPageMerge(
         var kept = plan.Offers.Where(x => x.PageId == keepId).Select(x => x.Id).ToList();
 
         var error = await editor
-            .GroupAsync(
-                who,
-                plan.Label,
-                async () =>
+            .GroupAsync(who, plan.Label, async () =>
+            {
+                // What the kept page sells that another page's offer wins: that offer takes
+                // its place, and it goes, unless something keeps it (a club gift, a limited
+                // series).
+                foreach (var offer in plan.Offers.Where(x => x.PageId == keepId && plan.Loses(x)))
                 {
-                    // What the kept page sells that another page's offer wins: that offer takes
-                    // its place, and it goes, unless something keeps it (a club gift, a limited
-                    // series).
-                    foreach (
-                        var offer in plan.Offers.Where(x => x.PageId == keepId && plan.Loses(x))
-                    )
+                    var winner = plan.Winners[offer.Key];
+
+                    if (moved.Add(winner.Id))
                     {
-                        var winner = plan.Winners[offer.Key];
-
-                        if (moved.Add(winner.Id))
-                        {
-                            var index = kept.IndexOf(offer.Id);
-                            var placed = await editor
-                                .MoveOfferAsync(who, winner.Id, keepId, index, ct)
-                                .ConfigureAwait(false);
-
-                            if (!placed.Saved)
-                                return placed.Error ?? "Not saved.";
-
-                            saved = true;
-                            offersMoved++;
-                            kept.Insert(index, winner.Id);
-                        }
-
-                        var deleted = await editor
-                            .DeleteOfferAsync(who, offer.Id, ct)
+                        var index = kept.IndexOf(offer.Id);
+                        var placed = await editor
+                            .MoveOfferAsync(who, winner.Id, keepId, index, ct)
                             .ConfigureAwait(false);
 
-                        if (deleted.Saved)
-                        {
-                            saved = true;
-                            offersDropped++;
-                            kept.Remove(offer.Id);
-                        }
-                    }
-
-                    foreach (var otherId in plan.Others)
-                    {
-                        foreach (var offer in plan.Offers.Where(x => x.PageId == otherId))
-                        {
-                            if (moved.Contains(offer.Id))
-                                continue;
-
-                            if (plan.Loses(offer))
-                            {
-                                var deleted = await editor
-                                    .DeleteOfferAsync(who, offer.Id, ct)
-                                    .ConfigureAwait(false);
-
-                                if (deleted.Saved)
-                                {
-                                    saved = true;
-                                    offersDropped++;
-
-                                    continue;
-                                }
-                            }
-
-                            var placed = await editor
-                                .MoveOfferAsync(who, offer.Id, keepId, int.MaxValue, ct)
-                                .ConfigureAwait(false);
-
-                            if (!placed.Saved)
-                                return placed.Error ?? "Not saved.";
-
-                            saved = true;
-                            offersMoved++;
-                            moved.Add(offer.Id);
-                        }
-
-                        foreach (var child in plan.ChildrenOf[otherId])
-                        {
-                            var placed = await editor
-                                .MovePageAsync(who, child, keepId, int.MaxValue, ct)
-                                .ConfigureAwait(false);
-
-                            if (!placed.Saved)
-                                return placed.Error ?? "Not saved.";
-
-                            saved = true;
-                            pagesMoved++;
-                        }
-
-                        var gone = await editor
-                            .DeletePageAsync(who, otherId, ct)
-                            .ConfigureAwait(false);
-
-                        if (!gone.Saved)
-                            return gone.Error ?? "Not saved.";
+                        if (!placed.Saved)
+                            return placed.Error ?? "Not saved.";
 
                         saved = true;
+                        offersMoved++;
+                        kept.Insert(index, winner.Id);
                     }
 
-                    if (plan.Display != keep.Display)
+                    var deleted = await editor
+                        .DeleteOfferAsync(who, offer.Id, ct)
+                        .ConfigureAwait(false);
+
+                    if (deleted.Saved)
                     {
-                        var shown = await editor
-                            .UpdatePageAsync(
-                                who,
-                                keepId,
-                                new CatalogPageDraft(
-                                    keep.Localization,
-                                    keep.Name,
-                                    keep.Icon,
-                                    keep.Layout,
-                                    [.. keep.ImageData ?? []],
-                                    [.. keep.TextData ?? []],
-                                    plan.Display
-                                ),
-                                ct
-                            )
+                        saved = true;
+                        offersDropped++;
+                        kept.Remove(offer.Id);
+                    }
+                }
+
+                foreach (var otherId in plan.Others)
+                {
+                    foreach (var offer in plan.Offers.Where(x => x.PageId == otherId))
+                    {
+                        if (moved.Contains(offer.Id))
+                            continue;
+
+                        if (plan.Loses(offer))
+                        {
+                            var deleted = await editor
+                                .DeleteOfferAsync(who, offer.Id, ct)
+                                .ConfigureAwait(false);
+
+                            if (deleted.Saved)
+                            {
+                                saved = true;
+                                offersDropped++;
+
+                                continue;
+                            }
+                        }
+
+                        var placed = await editor
+                            .MoveOfferAsync(who, offer.Id, keepId, int.MaxValue, ct)
                             .ConfigureAwait(false);
 
-                        if (!shown.Saved)
-                            return shown.Error ?? "Not saved.";
+                        if (!placed.Saved)
+                            return placed.Error ?? "Not saved.";
+
+                        saved = true;
+                        offersMoved++;
+                        moved.Add(offer.Id);
                     }
 
-                    return (string?)null;
+                    foreach (var child in plan.ChildrenOf[otherId])
+                    {
+                        var placed = await editor
+                            .MovePageAsync(who, child, keepId, int.MaxValue, ct)
+                            .ConfigureAwait(false);
+
+                        if (!placed.Saved)
+                            return placed.Error ?? "Not saved.";
+
+                        saved = true;
+                        pagesMoved++;
+                    }
+
+                    var gone = await editor.DeletePageAsync(who, otherId, ct).ConfigureAwait(false);
+
+                    if (!gone.Saved)
+                        return gone.Error ?? "Not saved.";
+
+                    saved = true;
                 }
-            )
+
+                if (plan.Display != keep.Display)
+                {
+                    var shown = await editor
+                        .UpdatePageAsync(
+                            who,
+                            keepId,
+                            new CatalogPageDraft(
+                                keep.Localization,
+                                keep.Name,
+                                keep.Icon,
+                                keep.Layout,
+                                [.. keep.ImageData ?? []],
+                                [.. keep.TextData ?? []],
+                                plan.Display
+                            ),
+                            ct
+                        )
+                        .ConfigureAwait(false);
+
+                    if (!shown.Saved)
+                        return shown.Error ?? "Not saved.";
+                }
+
+                return (string?)null;
+            })
             .ConfigureAwait(false);
 
         if (error is not null)

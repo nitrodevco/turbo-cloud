@@ -459,16 +459,14 @@ public sealed class OpenAiCompatibleDriver(IHttpClientFactory http) : IAiDriver
             };
 
     private static string? ReadError(string body) =>
-        DriverHttp.ErrorMessage(
-            body,
-            root =>
-                root.TryGetProperty("error", out var error)
-                    ? error.ValueKind == JsonValueKind.Object
-                        ? error.TryGetProperty("message", out var m)
-                            ? m.GetString()
-                            : null
-                        : error.GetString()
-                    : null
+        DriverHttp.ErrorMessage(body, root =>
+            root.TryGetProperty("error", out var error)
+                ? error.ValueKind == JsonValueKind.Object
+                    ? error.TryGetProperty("message", out var m)
+                        ? m.GetString()
+                        : null
+                    : error.GetString()
+                : null
         );
 
     private static int Int(JsonElement obj, string name) =>

@@ -274,36 +274,35 @@ public sealed class PluginSettingsTests : IDisposable
     private PluginStateType State(string key) =>
         _manager.Snapshot().Single(x => x.Key == key).State;
 
-    private static string Source(string key, string section) =>
-        $$"""
-            using System;
-            using System.Threading;
-            using System.Threading.Tasks;
-            using Microsoft.Extensions.DependencyInjection;
-            using Turbo.Contracts.Plugins;
-            using Turbo.Contracts.Plugins.Exports;
-            using Turbo.Primitives.Settings;
+    private static string Source(string key, string section) => $$"""
+        using System;
+        using System.Threading;
+        using System.Threading.Tasks;
+        using Microsoft.Extensions.DependencyInjection;
+        using Turbo.Contracts.Plugins;
+        using Turbo.Contracts.Plugins.Exports;
+        using Turbo.Primitives.Settings;
 
-            public sealed class SampleConfig
-            {
-                public const string SECTION_NAME = "{{section}}";
+        public sealed class SampleConfig
+        {
+            public const string SECTION_NAME = "{{section}}";
 
-                public string Greeting { get; init; } = "hello";
+            public string Greeting { get; init; } = "hello";
 
-                [SecretSetting]
-                public string WebhookUrl { get; init; } = "";
-            }
+            [SecretSetting]
+            public string WebhookUrl { get; init; } = "";
+        }
 
-            public sealed class SamplePlugin : ITurboPlugin
-            {
-                public string Key => "{{key}}";
-                public string Version => "1.0.0";
-                public void ConfigureServices(IServiceCollection services, PluginManifest manifest) =>
-                    services.AddOptions<SampleConfig>().BindConfiguration(SampleConfig.SECTION_NAME);
-                public Task StartAsync(IServiceProvider services, CancellationToken ct) => Task.CompletedTask;
-                public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
-                public Task BindExportsAsync(IExportBinder binder, IServiceProvider services) => Task.CompletedTask;
-                public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-            }
-            """;
+        public sealed class SamplePlugin : ITurboPlugin
+        {
+            public string Key => "{{key}}";
+            public string Version => "1.0.0";
+            public void ConfigureServices(IServiceCollection services, PluginManifest manifest) =>
+                services.AddOptions<SampleConfig>().BindConfiguration(SampleConfig.SECTION_NAME);
+            public Task StartAsync(IServiceProvider services, CancellationToken ct) => Task.CompletedTask;
+            public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
+            public Task BindExportsAsync(IExportBinder binder, IServiceProvider services) => Task.CompletedTask;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+        """;
 }

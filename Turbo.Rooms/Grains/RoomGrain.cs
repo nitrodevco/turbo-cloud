@@ -300,10 +300,8 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
             );
         }
 
-        await RoomTelemetry.MeasureAsync(
-            RoomTelemetry.HYDRATE,
-            _state.RoomId,
-            () => HydrateRoomStateAsync(ct)
+        await RoomTelemetry.MeasureAsync(RoomTelemetry.HYDRATE, _state.RoomId, () =>
+            HydrateRoomStateAsync(ct)
         );
 
         _state.OwnerAccountLevel = await GetOwnerAccountLevelAsync(ct);
@@ -449,11 +447,9 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
         (context.SourceId is not { } source || source.IsClient())
         && (
             context.InterfaceMethod is not { } method
-            || _runsRaisedWiredByMethod.GetOrAdd(
-                method,
-                static m =>
-                    !m.IsDefined(typeof(AlwaysInterleaveAttribute), true)
-                    && m.ReturnType != typeof(Task<ImmutableArray<IComposer>>)
+            || _runsRaisedWiredByMethod.GetOrAdd(method, static m =>
+                !m.IsDefined(typeof(AlwaysInterleaveAttribute), true)
+                && m.ReturnType != typeof(Task<ImmutableArray<IComposer>>)
             )
         );
 
@@ -574,37 +570,25 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
         // Someone is on the way in: the empty room's count starts over.
         _emptySinceMs = -1;
 
-        await RoomTelemetry.MeasureAsync(
-            RoomTelemetry.LOAD_MAP,
-            _state.RoomId,
-            () => MapModule.EnsureMapBuiltAsync(ct)
+        await RoomTelemetry.MeasureAsync(RoomTelemetry.LOAD_MAP, _state.RoomId, () =>
+            MapModule.EnsureMapBuiltAsync(ct)
         );
-        await RoomTelemetry.MeasureAsync(
-            RoomTelemetry.LOAD_FURNITURE,
-            _state.RoomId,
-            () => FurniModule.EnsureFurniLoadedAsync(ct)
+        await RoomTelemetry.MeasureAsync(RoomTelemetry.LOAD_FURNITURE, _state.RoomId, () =>
+            FurniModule.EnsureFurniLoadedAsync(ct)
         );
-        await RoomTelemetry.MeasureAsync(
-            RoomTelemetry.LOAD_PETS,
-            _state.RoomId,
-            () => PetModule.EnsurePetsLoadedAsync(ct)
+        await RoomTelemetry.MeasureAsync(RoomTelemetry.LOAD_PETS, _state.RoomId, () =>
+            PetModule.EnsurePetsLoadedAsync(ct)
         );
-        await RoomTelemetry.MeasureAsync(
-            RoomTelemetry.LOAD_BOTS,
-            _state.RoomId,
-            () => BotModule.EnsureBotsLoadedAsync(ct)
+        await RoomTelemetry.MeasureAsync(RoomTelemetry.LOAD_BOTS, _state.RoomId, () =>
+            BotModule.EnsureBotsLoadedAsync(ct)
         );
-        await RoomTelemetry.MeasureAsync(
-            RoomTelemetry.LOAD_PERMISSIONS,
-            _state.RoomId,
-            async () =>
-            {
-                await SecurityModule.EnsureRightsLoadedAsync(ct);
-                await ModerationModule.EnsureMutesLoadedAsync(ct);
-                await EntryModule.EnsureBansLoadedAsync(ct);
-                await ModerationModule.EnsureFilterLoadedAsync(ct);
-            }
-        );
+        await RoomTelemetry.MeasureAsync(RoomTelemetry.LOAD_PERMISSIONS, _state.RoomId, async () =>
+        {
+            await SecurityModule.EnsureRightsLoadedAsync(ct);
+            await ModerationModule.EnsureMutesLoadedAsync(ct);
+            await EntryModule.EnsureBansLoadedAsync(ct);
+            await ModerationModule.EnsureFilterLoadedAsync(ct);
+        });
     }
 
     public Task<RoomSnapshot> GetSnapshotAsync(CancellationToken ct) =>
@@ -794,20 +778,18 @@ public sealed partial class RoomGrain : Grain, IRoomGrain, IIncomingGrainCallFil
 
         try
         {
-            var entity =
-                await dbCtx
-                    .Rooms.AsNoTracking()
-                    .SingleOrDefaultAsync(e => e.Id == (int)_state.RoomId.Value, ct)
+            var entity = await dbCtx
+                .Rooms.AsNoTracking()
+                .SingleOrDefaultAsync(e => e.Id == (int)_state.RoomId.Value, ct)
                 ?? throw new TurboException(TurboErrorCodeEnum.RoomNotFound);
 
             _state.Model = _roomModelProvider.GetModelById(entity.RoomModelEntityId);
 
-            var ownerName =
-                await dbCtx
-                    .Players.AsNoTracking()
-                    .Where(x => x.Id == entity.PlayerEntityId)
-                    .Select(x => x.Name)
-                    .FirstOrDefaultAsync(ct)
+            var ownerName = await dbCtx
+                .Players.AsNoTracking()
+                .Where(x => x.Id == entity.PlayerEntityId)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync(ct)
                 ?? string.Empty;
 
             var raterIds = await dbCtx

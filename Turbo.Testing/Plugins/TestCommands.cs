@@ -98,10 +98,8 @@ internal static class TestCommands
             return;
         }
 
-        var bound = descriptor.Binder.Bind(
-            argumentText,
-            scope,
-            node => hotel.Grants(speaker.Fake, node)
+        var bound = descriptor.Binder.Bind(argumentText, scope, node =>
+            hotel.Grants(speaker.Fake, node)
         );
 
         if (bound.RequiredPermission is { } branch && !hotel.Grants(speaker.Fake, branch))
@@ -229,33 +227,26 @@ internal static class TestCommands
     /// <summary>The player's avatar as a command reads it: their id, name, gender, score and nodes.</summary>
     internal static IRoomPlayer Avatar(TestHotel hotel, TestPlayer player)
     {
-        hotel.Sessions.Answer<IRoomPlayer>(
-            "get_PlayerId",
-            call => hotel.PlayerOf(TestPlayer.PlayerOf(call.Key)).Id
+        hotel.Sessions.Answer<IRoomPlayer>("get_PlayerId", call =>
+            hotel.PlayerOf(TestPlayer.PlayerOf(call.Key)).Id
         );
-        hotel.Sessions.Answer<IRoomPlayer>(
-            "get_Name",
-            call => hotel.PlayerOf(TestPlayer.PlayerOf(call.Key)).Name
+        hotel.Sessions.Answer<IRoomPlayer>("get_Name", call =>
+            hotel.PlayerOf(TestPlayer.PlayerOf(call.Key)).Name
         );
-        hotel.Sessions.Answer<IRoomPlayer>(
-            "get_Gender",
-            call => hotel.PlayerOf(TestPlayer.PlayerOf(call.Key)).Fake.Gender
+        hotel.Sessions.Answer<IRoomPlayer>("get_Gender", call =>
+            hotel.PlayerOf(TestPlayer.PlayerOf(call.Key)).Fake.Gender
         );
-        hotel.Sessions.Answer<IRoomPlayer>(
-            "get_Figure",
-            call => hotel.PlayerOf(TestPlayer.PlayerOf(call.Key)).Fake.Figure
+        hotel.Sessions.Answer<IRoomPlayer>("get_Figure", call =>
+            hotel.PlayerOf(TestPlayer.PlayerOf(call.Key)).Fake.Figure
         );
-        hotel.Sessions.Answer<IRoomPlayer>(
-            "get_AchievementScore",
-            call => (int)hotel.PlayerOf(TestPlayer.PlayerOf(call.Key)).Fake.AchievementScore
+        hotel.Sessions.Answer<IRoomPlayer>("get_AchievementScore", call =>
+            (int)hotel.PlayerOf(TestPlayer.PlayerOf(call.Key)).Fake.AchievementScore
         );
-        hotel.Sessions.Answer<IRoomPlayer>(
-            "get_Permissions",
-            call =>
-                ResolvedPermissionsSnapshot.EMPTY with
-                {
-                    Granted = [.. hotel.PlayerOf(TestPlayer.PlayerOf(call.Key)).Fake.Permissions],
-                }
+        hotel.Sessions.Answer<IRoomPlayer>("get_Permissions", call =>
+            ResolvedPermissionsSnapshot.EMPTY with
+            {
+                Granted = [.. hotel.PlayerOf(TestPlayer.PlayerOf(call.Key)).Fake.Permissions],
+            }
         );
 
         return hotel.Sessions.Of<IRoomPlayer>(player.Id.Value);

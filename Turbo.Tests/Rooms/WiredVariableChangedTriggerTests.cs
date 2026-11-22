@@ -349,7 +349,8 @@ public sealed class WiredVariableChangedTriggerTests
         Hits().Should().Be(2);
     }
 
-    private async Task SaveClickAsync(int boxId, int furniId) => (
+    private async Task SaveClickAsync(int boxId, int furniId) =>
+        (
             await _room.SaveAsync<UpdateTriggerMessage>(
                 boxId,
                 stuffIds: [furniId],
@@ -358,7 +359,9 @@ public sealed class WiredVariableChangedTriggerTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
     private async Task FireAsync()
     {
@@ -426,7 +429,9 @@ public sealed class WiredVariableChangedTriggerTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await SaveChangeAsync(2, operation, operand, counterId);
         (
             await _room.SaveAsync<UpdateTriggerMessage>(

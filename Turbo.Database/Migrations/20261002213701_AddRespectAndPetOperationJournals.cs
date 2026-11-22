@@ -48,15 +48,12 @@ namespace Turbo.Database.Migrations
                     },
                     constraints: table =>
                     {
-                        table.PrimaryKey(
-                            "PK_human_respect_participant_receipts",
-                            x => new
-                            {
-                                x.PlayerId,
-                                x.OperationId,
-                                x.Kind,
-                            }
-                        );
+                        table.PrimaryKey("PK_human_respect_participant_receipts", x => new
+                        {
+                            x.PlayerId,
+                            x.OperationId,
+                            x.Kind,
+                        });
                     }
                 )
                 .Annotation("MySql:CharSet", "utf8mb4");

@@ -42,12 +42,8 @@ public sealed class RollerAreaHideTests
     public async Task A_furni_rolled_into_a_hidden_area_is_hidden_and_shown_again_when_rolled_out()
     {
         // Three rollers heading east along y = 3: from x = 1 into the area (x 2..3), inside it, and out.
-        var hider = _room.AddFloorItem(
-            HIDER,
-            7,
-            7,
-            "area_hide",
-            createLogic: (factory, ctx) => new FurnitureAreaHideLogic(factory, ctx)
+        var hider = _room.AddFloorItem(HIDER, 7, 7, "area_hide", createLogic: (factory, ctx) =>
+            new FurnitureAreaHideLogic(factory, ctx)
         );
         AddRoller(ROLLER_IN, 1, 3);
         AddRoller(ROLLER_INSIDE, 2, 3);
@@ -118,12 +114,8 @@ public sealed class RollerAreaHideTests
 
     private void AddRoller(int id, int x, int y)
     {
-        var roller = _room.AddFloorItem(
-            id,
-            x,
-            y,
-            "roller",
-            createLogic: (factory, ctx) => new FurnitureRollerLogic(factory, ctx)
+        var roller = _room.AddFloorItem(id, x, y, "roller", createLogic: (factory, ctx) =>
+            new FurnitureRollerLogic(factory, ctx)
         );
 
         roller.SetRotation(Rotation.East);

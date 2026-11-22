@@ -789,8 +789,8 @@ public sealed class GamedataVariableTests : IAsyncDisposable
                 {
                     Id = ++_seeded,
                     Key = key,
-                    Value =
-                        kept.FirstOrDefault(x => x.Key == key).Value ?? $"\"/gamedata/{file}/0\"",
+                    Value = kept.FirstOrDefault(x => x.Key == key).Value
+                        ?? $"\"/gamedata/{file}/0\"",
                     LinkedFile = file,
                 }
             );

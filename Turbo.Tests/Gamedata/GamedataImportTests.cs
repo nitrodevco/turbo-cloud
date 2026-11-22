@@ -196,9 +196,7 @@ public sealed partial class GamedataImportTests : IDisposable
         var first = await _furniture.PreviewImportAsync(null, Ct);
 
         // Asked again (the panel's tabs, a window focused again) it is the same, not read anew.
-        (await _furniture.PreviewImportAsync(null, Ct))
-            .Should()
-            .BeSameAs(first);
+        (await _furniture.PreviewImportAsync(null, Ct)).Should().BeSameAs(first);
         first!.Release.Id.Should().Be(next);
         first.Updated.Should().Be(1);
 
@@ -218,9 +216,7 @@ public sealed partial class GamedataImportTests : IDisposable
         (await _furniture.PreviewImportAsync(null, Ct))!.Release.Id.Should().Be(third);
 
         // An older release asked for by id is its own preview.
-        (await _furniture.PreviewImportAsync(next, Ct))!
-            .Release.Id.Should()
-            .Be(next);
+        (await _furniture.PreviewImportAsync(next, Ct))!.Release.Id.Should().Be(next);
     }
 
     [Fact]

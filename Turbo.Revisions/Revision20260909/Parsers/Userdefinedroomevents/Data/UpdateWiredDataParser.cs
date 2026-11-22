@@ -21,14 +21,12 @@ internal abstract class UpdateWiredDataParser : IParser
 
         var definitionSpecifics = ParseSpecifics(packet, GetRequiredDefinitionSpecifics());
 
-        var furniSources = packet.PopList<WiredFurniSourceType[]>(
-            bytesPerItem: 4,
-            p => [WiredFurniSourceTypeExtensions.FromProtocolId((WiredSourceType)p.PopInt())]
+        var furniSources = packet.PopList<WiredFurniSourceType[]>(bytesPerItem: 4, p =>
+            [WiredFurniSourceTypeExtensions.FromProtocolId((WiredSourceType)p.PopInt())]
         );
 
-        var userSources = packet.PopList<WiredPlayerSourceType[]>(
-            bytesPerItem: 4,
-            p => [WiredPlayerSourceTypeExtensions.FromProtocolId((WiredSourceType)p.PopInt())]
+        var userSources = packet.PopList<WiredPlayerSourceType[]>(bytesPerItem: 4, p =>
+            [WiredPlayerSourceTypeExtensions.FromProtocolId((WiredSourceType)p.PopInt())]
         );
 
         var variableIds = packet.PopList(bytesPerItem: 2, p => p.PopString());

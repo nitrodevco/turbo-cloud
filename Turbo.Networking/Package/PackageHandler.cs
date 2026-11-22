@@ -34,8 +34,7 @@ public sealed class PackageHandler(
 
         try
         {
-            var revision =
-                _revisionManager.GetRevision(ctx.RevisionId)
+            var revision = _revisionManager.GetRevision(ctx.RevisionId)
                 ?? throw new ArgumentNullException("No revision set");
 
             // Core first; the plugin overlay is only asked about a header the revision lacks.

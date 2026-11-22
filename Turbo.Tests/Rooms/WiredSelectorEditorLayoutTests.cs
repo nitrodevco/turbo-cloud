@@ -56,7 +56,9 @@ public sealed class WiredSelectorEditorLayoutTests
                 ],
                 definitionSpecifics: [false, false]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var set = await selector.SelectAsync(Context(), Ct);
 

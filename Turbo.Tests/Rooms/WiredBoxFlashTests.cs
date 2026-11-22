@@ -67,7 +67,9 @@ public sealed class WiredBoxFlashTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 EFFECT,
@@ -79,7 +81,9 @@ public sealed class WiredBoxFlashTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await StartAsync();
 
         // Nobody on the pad: the condition fails, yet the trigger fired.
@@ -127,7 +131,9 @@ public sealed class WiredBoxFlashTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateAddonMessage>(
                 PLACEHOLDER,
@@ -138,7 +144,9 @@ public sealed class WiredBoxFlashTests
                     [WiredPlayerSourceType.TriggeredUser],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await StartAsync();
 
         // Nobody on the pad: the condition fails and no add-on flashes.
@@ -180,7 +188,9 @@ public sealed class WiredBoxFlashTests
                 ],
                 definitionSpecifics: [filter, false]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await StartAsync();
 
         await ClickAsync();
@@ -266,7 +276,9 @@ public sealed class WiredBoxFlashTests
                 ],
                 variableIds: [furniId.ToString()]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await StartAsync();
 
         var key = new WiredVariableKey(furniId, WiredVariableTargetType.Furni, CLICK_ME);
@@ -302,7 +314,8 @@ public sealed class WiredBoxFlashTests
             .Should()
             .BeTrue();
 
-    private async Task SaveTriggerAsync() => (
+    private async Task SaveTriggerAsync() =>
+        (
             await _room.SaveAsync<UpdateTriggerMessage>(
                 TRIGGER,
                 stuffIds: [CLICK_ME],
@@ -311,7 +324,9 @@ public sealed class WiredBoxFlashTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
     private async Task StartAsync(int x = 0, int y = 0)
     {

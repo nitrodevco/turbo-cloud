@@ -309,13 +309,8 @@ public sealed class WiredRoom
     {
         T? box = null;
 
-        AddFloorItem(
-            id,
-            x,
-            y,
-            logicName,
-            createLogic: (factory, ctx) =>
-                box = ActivatorUtilities.CreateInstance<T>(Harness.Services, Grains, factory, ctx)
+        AddFloorItem(id, x, y, logicName, createLogic: (factory, ctx) =>
+            box = ActivatorUtilities.CreateInstance<T>(Harness.Services, Grains, factory, ctx)
         );
 
         return box!;

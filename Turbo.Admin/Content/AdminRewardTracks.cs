@@ -184,8 +184,7 @@ public sealed class AdminRewardTracks(
         RewardTrackImportRequest request
     )
     {
-        var captured =
-            request.Capture?.Tracks
+        var captured = request.Capture?.Tracks
             ?? throw new ArgumentException("The capture has no RewardTracks tracks.");
         var only = request.Only is { Length: > 0 } ids ? ids.ToHashSet() : null;
         var result = new List<(RewardTrackDefinition, RewardTrackImportChange)>();
@@ -228,10 +227,8 @@ public sealed class AdminRewardTracks(
         RewardTrackDefinition after
     )
     {
-        var (tasksAdded, tasksChanged, tasksRemoved) = Diff(
-            before?.Tasks ?? [],
-            after.Tasks,
-            x => x.Id
+        var (tasksAdded, tasksChanged, tasksRemoved) = Diff(before?.Tasks ?? [], after.Tasks, x =>
+            x.Id
         );
         var (prizesAdded, prizesChanged, prizesRemoved) = Diff(
             before?.Prizes ?? [],

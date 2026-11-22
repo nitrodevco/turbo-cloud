@@ -234,23 +234,19 @@ internal sealed class PluginNoCodeEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            $"style {key} {name} reset{Into(key, target)}",
-            ct,
-            async player =>
-                IntoTheme(key, target)
-                    ? Results.Ok(
-                        PluginStyleView.From(
-                            await SetDefaultAsync(key, name, null, ct).ConfigureAwait(false)
-                        )
+        ManageAsync(http, $"style {key} {name} reset{Into(key, target)}", ct, async player =>
+            IntoTheme(key, target)
+                ? Results.Ok(
+                    PluginStyleView.From(
+                        await SetDefaultAsync(key, name, null, ct).ConfigureAwait(false)
                     )
-                : Hotel.FolderOf(key) is not { } folder
-                    ? AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
-                : await Styles.ResetAsync(key, folder, name, player, ct).ConfigureAwait(false)
-                    is { } style
-                    ? Results.Ok(PluginStyleView.From(style))
-                : AdminResults.Error(StatusCodes.Status404NotFound, NO_STYLE)
+                )
+            : Hotel.FolderOf(key) is not { } folder
+                ? AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
+            : await Styles.ResetAsync(key, folder, name, player, ct).ConfigureAwait(false)
+                is { } style
+                ? Results.Ok(PluginStyleView.From(style))
+            : AdminResults.Error(StatusCodes.Status404NotFound, NO_STYLE)
         );
 
     /// <summary>
@@ -263,79 +259,71 @@ internal sealed class PluginNoCodeEndpoints(
         string? target,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            $"style {key} {name} image{Into(key, target)}",
-            ct,
-            async player =>
+    ) => ManageAsync(http, $"style {key} {name} image{Into(key, target)}", ct, async player =>
+        {
+            if (Hotel.FolderOf(key) is not { } folder)
+                return AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN);
+
+            if (ImageLimit(http) is { } refused)
+                return refused;
+
+            var form = await http.Request.ReadFormAsync(ct).ConfigureAwait(false);
+
+            if (form.Files.GetFile("file") is not { } file)
+                return AdminResults.Error(StatusCodes.Status400BadRequest, "Choose the image.");
+
+            if (file.Length > IMAGE_MAX_BYTES)
+                return AdminResults.Error(
+                    StatusCodes.Status413PayloadTooLarge,
+                    "An image is at most 2 MB."
+                );
+
+            using var memory = new MemoryStream((int)file.Length);
+            var stream = file.OpenReadStream();
+            await using (stream.ConfigureAwait(false))
+                await stream.CopyToAsync(memory, ct).ConfigureAwait(false);
+
+            var hash = Convert.ToHexStringLower(SHA256.HashData(memory.ToArray()))[..12];
+            var safe = new string([.. name.Select(c => char.IsLetterOrDigit(c) ? c : '-')]);
+
+            memory.Position = 0;
+
+            // Into the theme staff work on: its own file, named by its path in its theme.json.
+            if (IntoTheme(key, target))
             {
-                if (Hotel.FolderOf(key) is not { } folder)
-                    return AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN);
-
-                if (ImageLimit(http) is { } refused)
-                    return refused;
-
-                var form = await http.Request.ReadFormAsync(ct).ConfigureAwait(false);
-
-                if (form.Files.GetFile("file") is not { } file)
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, "Choose the image.");
-
-                if (file.Length > IMAGE_MAX_BYTES)
-                    return AdminResults.Error(
-                        StatusCodes.Status413PayloadTooLarge,
-                        "An image is at most 2 MB."
-                    );
-
-                using var memory = new MemoryStream((int)file.Length);
-                var stream = file.OpenReadStream();
-                await using (stream.ConfigureAwait(false))
-                    await stream.CopyToAsync(memory, ct).ConfigureAwait(false);
-
-                var hash = Convert.ToHexStringLower(SHA256.HashData(memory.ToArray()))[..12];
-                var safe = new string([.. name.Select(c => char.IsLetterOrDigit(c) ? c : '-')]);
-
-                memory.Position = 0;
-
-                // Into the theme staff work on: its own file, named by its path in its theme.json.
-                if (IntoTheme(key, target))
-                {
-                    var own = await Hotel
-                        .SaveImageAsync(
-                            key,
-                            $"{safe}-{hash}{Path.GetExtension(file.FileName).ToLowerInvariant()}",
-                            memory,
-                            ct
-                        )
-                        .ConfigureAwait(false);
-
-                    return Results.Ok(
-                        PluginStyleView.From(
-                            await SetDefaultAsync(key, name, own.Path, ct).ConfigureAwait(false)
-                        )
-                    );
-                }
-
-                // Kept in the hotel's own plugin, so it stays when the theme is updated.
-                var image = await Hotel
+                var own = await Hotel
                     .SaveImageAsync(
-                        IHotelDataPlugin.KEY,
-                        $"{key}-{safe}-{hash}{Path.GetExtension(file.FileName).ToLowerInvariant()}",
+                        key,
+                        $"{safe}-{hash}{Path.GetExtension(file.FileName).ToLowerInvariant()}",
                         memory,
                         ct
                     )
                     .ConfigureAwait(false);
-                var url = image.Url ?? $"/gamedata/plugins/{IHotelDataPlugin.KEY}/{image.Path}";
 
                 return Results.Ok(
                     PluginStyleView.From(
-                        await Styles
-                            .SetAsync(key, folder, name, url, player, ct)
-                            .ConfigureAwait(false)
+                        await SetDefaultAsync(key, name, own.Path, ct).ConfigureAwait(false)
                     )
                 );
             }
-        );
+
+            // Kept in the hotel's own plugin, so it stays when the theme is updated.
+            var image = await Hotel
+                .SaveImageAsync(
+                    IHotelDataPlugin.KEY,
+                    $"{key}-{safe}-{hash}{Path.GetExtension(file.FileName).ToLowerInvariant()}",
+                    memory,
+                    ct
+                )
+                .ConfigureAwait(false);
+            var url = image.Url ?? $"/gamedata/plugins/{IHotelDataPlugin.KEY}/{image.Path}";
+
+            return Results.Ok(
+                PluginStyleView.From(
+                    await Styles.SetAsync(key, folder, name, url, player, ct).ConfigureAwait(false)
+                )
+            );
+        });
 
     private async Task<IResult> ImagesAsync(string key, HttpContext http, CancellationToken ct) =>
         hotelService is null
@@ -355,35 +343,30 @@ internal sealed class PluginNoCodeEndpoints(
     /// <c>name</c>), so its patches name it by its path and its styles and variables by its address.
     /// </summary>
     private Task<IResult> UploadImageAsync(string key, HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            $"image {key} upload",
-            ct,
-            async _ =>
-            {
-                if (ImageLimit(http) is { } refused)
-                    return refused;
+        ManageAsync(http, $"image {key} upload", ct, async _ =>
+        {
+            if (ImageLimit(http) is { } refused)
+                return refused;
 
-                var form = await http.Request.ReadFormAsync(ct).ConfigureAwait(false);
+            var form = await http.Request.ReadFormAsync(ct).ConfigureAwait(false);
 
-                if (form.Files.GetFile("file") is not { } file)
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, "Choose the image.");
+            if (form.Files.GetFile("file") is not { } file)
+                return AdminResults.Error(StatusCodes.Status400BadRequest, "Choose the image.");
 
-                if (file.Length > IMAGE_MAX_BYTES)
-                    return AdminResults.Error(
-                        StatusCodes.Status413PayloadTooLarge,
-                        "An image is at most 2 MB."
-                    );
+            if (file.Length > IMAGE_MAX_BYTES)
+                return AdminResults.Error(
+                    StatusCodes.Status413PayloadTooLarge,
+                    "An image is at most 2 MB."
+                );
 
-                var name = form["name"].ToString() is { Length: > 0 } given ? given : file.FileName;
-                var stream = file.OpenReadStream();
+            var name = form["name"].ToString() is { Length: > 0 } given ? given : file.FileName;
+            var stream = file.OpenReadStream();
 
-                await using (stream.ConfigureAwait(false))
-                    return Results.Ok(
-                        await Hotel.SaveImageAsync(key, name, stream, ct).ConfigureAwait(false)
-                    );
-            }
-        );
+            await using (stream.ConfigureAwait(false))
+                return Results.Ok(
+                    await Hotel.SaveImageAsync(key, name, stream, ct).ConfigureAwait(false)
+                );
+        });
 
     private Task<IResult> RemoveImageAsync(
         string key,
@@ -391,14 +374,10 @@ internal sealed class PluginNoCodeEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            $"image {key} {path} removed",
-            ct,
-            async _ =>
-                await Hotel.RemoveImageAsync(key, path, ct).ConfigureAwait(false)
-                    ? Results.NoContent()
-                    : AdminResults.Error(StatusCodes.Status404NotFound, "There is no such image.")
+        ManageAsync(http, $"image {key} {path} removed", ct, async _ =>
+            await Hotel.RemoveImageAsync(key, path, ct).ConfigureAwait(false)
+                ? Results.NoContent()
+                : AdminResults.Error(StatusCodes.Status404NotFound, "There is no such image.")
         );
 
     private async Task<IResult> FontsAsync(string key, HttpContext http, CancellationToken ct) =>
@@ -420,84 +399,70 @@ internal sealed class PluginNoCodeEndpoints(
     /// font style property or a text style names it.
     /// </summary>
     private Task<IResult> UploadFontAsync(string key, HttpContext http, CancellationToken ct) =>
-        ManageAsync(
-            http,
-            $"font {key} upload",
-            ct,
-            async player =>
-            {
-                if (ImageLimit(http) is { } refused)
-                    return refused;
+        ManageAsync(http, $"font {key} upload", ct, async player =>
+        {
+            if (ImageLimit(http) is { } refused)
+                return refused;
 
-                var form = await http.Request.ReadFormAsync(ct).ConfigureAwait(false);
+            var form = await http.Request.ReadFormAsync(ct).ConfigureAwait(false);
 
-                if (form.Files.GetFile("file") is not { } file)
-                    return AdminResults.Error(StatusCodes.Status400BadRequest, "Choose the font.");
+            if (form.Files.GetFile("file") is not { } file)
+                return AdminResults.Error(StatusCodes.Status400BadRequest, "Choose the font.");
 
-                if (file.Length > IMAGE_MAX_BYTES)
-                    return AdminResults.Error(
-                        StatusCodes.Status413PayloadTooLarge,
-                        "A font is at most 2 MB."
-                    );
+            if (file.Length > IMAGE_MAX_BYTES)
+                return AdminResults.Error(
+                    StatusCodes.Status413PayloadTooLarge,
+                    "A font is at most 2 MB."
+                );
 
-                var name = form["name"].ToString() is { Length: > 0 } given ? given : file.FileName;
-                var stream = file.OpenReadStream();
-                PluginFont font;
+            var name = form["name"].ToString() is { Length: > 0 } given ? given : file.FileName;
+            var stream = file.OpenReadStream();
+            PluginFont font;
 
-                await using (stream.ConfigureAwait(false))
-                    font = await Hotel.SaveFontAsync(key, name, stream, ct).ConfigureAwait(false);
+            await using (stream.ConfigureAwait(false))
+                font = await Hotel.SaveFontAsync(key, name, stream, ct).ConfigureAwait(false);
 
-                await Styles
-                    .SetFontAsync(
-                        key,
-                        Hotel.EditableFolderOf(key),
-                        font.Family,
-                        key == IHotelDataPlugin.KEY
-                            ? font.Url ?? $"/gamedata/plugins/{key}/{font.Path}"
-                            : font.Path,
-                        player,
-                        ct
-                    )
-                    .ConfigureAwait(false);
-                await ReloadThemeAsync(key, ct).ConfigureAwait(false);
+            await Styles
+                .SetFontAsync(
+                    key,
+                    Hotel.EditableFolderOf(key),
+                    font.Family,
+                    key == IHotelDataPlugin.KEY
+                        ? font.Url ?? $"/gamedata/plugins/{key}/{font.Path}"
+                        : font.Path,
+                    player,
+                    ct
+                )
+                .ConfigureAwait(false);
+            await ReloadThemeAsync(key, ct).ConfigureAwait(false);
 
-                return Results.Ok(font);
-            }
-        );
+            return Results.Ok(font);
+        });
 
     private Task<IResult> RemoveFontAsync(
         string key,
         string path,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            $"font {key} {path} removed",
-            ct,
-            async player =>
-            {
-                if (!await Hotel.RemoveFontAsync(key, path, ct).ConfigureAwait(false))
-                    return AdminResults.Error(
-                        StatusCodes.Status404NotFound,
-                        "There is no such font."
-                    );
+    ) => ManageAsync(http, $"font {key} {path} removed", ct, async player =>
+        {
+            if (!await Hotel.RemoveFontAsync(key, path, ct).ConfigureAwait(false))
+                return AdminResults.Error(StatusCodes.Status404NotFound, "There is no such font.");
 
-                await Styles
-                    .SetFontAsync(
-                        key,
-                        Hotel.EditableFolderOf(key),
-                        Path.GetFileNameWithoutExtension(path),
-                        null,
-                        player,
-                        ct
-                    )
-                    .ConfigureAwait(false);
-                await ReloadThemeAsync(key, ct).ConfigureAwait(false);
+            await Styles
+                .SetFontAsync(
+                    key,
+                    Hotel.EditableFolderOf(key),
+                    Path.GetFileNameWithoutExtension(path),
+                    null,
+                    player,
+                    ct
+                )
+                .ConfigureAwait(false);
+            await ReloadThemeAsync(key, ct).ConfigureAwait(false);
 
-                return Results.NoContent();
-            }
-        );
+            return Results.NoContent();
+        });
 
     /// <summary>
     /// A skin set: many library bitmaps replaced (or given back) for the hotel in one change, each
@@ -548,27 +513,21 @@ internal sealed class PluginNoCodeEndpoints(
         ThemeTextsInput input,
         HttpContext http,
         CancellationToken ct
-    ) =>
-        ManageAsync(
-            http,
-            $"texts {key} {input.Texts?.Count ?? 0} text(s)",
-            ct,
-            async _ =>
-            {
-                var texts = await Styles
-                    .SetTextsAsync(
-                        key,
-                        Hotel.EditableFolderOf(key),
-                        input.Texts ?? new Dictionary<string, string?>(),
-                        ct
-                    )
-                    .ConfigureAwait(false);
+    ) => ManageAsync(http, $"texts {key} {input.Texts?.Count ?? 0} text(s)", ct, async _ =>
+        {
+            var texts = await Styles
+                .SetTextsAsync(
+                    key,
+                    Hotel.EditableFolderOf(key),
+                    input.Texts ?? new Dictionary<string, string?>(),
+                    ct
+                )
+                .ConfigureAwait(false);
 
-                await ReloadThemeAsync(key, ct).ConfigureAwait(false);
+            await ReloadThemeAsync(key, ct).ConfigureAwait(false);
 
-                return Results.Ok(new ThemeTextsResponse(texts));
-            }
-        );
+            return Results.Ok(new ThemeTextsResponse(texts));
+        });
 
     /// <summary>
     /// A new theme, made in the plugin folder and loaded (<see cref="IThemeAuthoring.CreateAsync"/>):
@@ -686,14 +645,10 @@ internal sealed class PluginNoCodeEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            $"patch {key} {id} removed",
-            ct,
-            async _ =>
-                await Hotel.RemovePatchAsync(key, id, ct).ConfigureAwait(false)
-                    ? Results.NoContent()
-                    : AdminResults.Error(StatusCodes.Status404NotFound, "There is no such patch.")
+        ManageAsync(http, $"patch {key} {id} removed", ct, async _ =>
+            await Hotel.RemovePatchAsync(key, id, ct).ConfigureAwait(false)
+                ? Results.NoContent()
+                : AdminResults.Error(StatusCodes.Status404NotFound, "There is no such patch.")
         );
 
     private async Task<IResult> WindowsAsync(string key, HttpContext http, CancellationToken ct)
@@ -721,12 +676,8 @@ internal sealed class PluginNoCodeEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            $"window {key} {name}",
-            ct,
-            async _ =>
-                Results.Ok(await Hotel.SaveWindowAsync(key, name, file, ct).ConfigureAwait(false))
+        ManageAsync(http, $"window {key} {name}", ct, async _ =>
+            Results.Ok(await Hotel.SaveWindowAsync(key, name, file, ct).ConfigureAwait(false))
         );
 
     private Task<IResult> RemoveWindowAsync(
@@ -735,14 +686,10 @@ internal sealed class PluginNoCodeEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            $"window {key} {name} removed",
-            ct,
-            async _ =>
-                await Hotel.RemoveWindowAsync(key, name, ct).ConfigureAwait(false)
-                    ? Results.NoContent()
-                    : AdminResults.Error(StatusCodes.Status404NotFound, "There is no such window.")
+        ManageAsync(http, $"window {key} {name} removed", ct, async _ =>
+            await Hotel.RemoveWindowAsync(key, name, ct).ConfigureAwait(false)
+                ? Results.NoContent()
+                : AdminResults.Error(StatusCodes.Status404NotFound, "There is no such window.")
         );
 
     private Task<IResult> PackageAsync(
@@ -751,14 +698,10 @@ internal sealed class PluginNoCodeEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ManageAsync(
-            http,
-            $"package {key} as {request.Key} {request.Version}",
-            ct,
-            async _ =>
-                await Hotel.ExportAsync(key, request, ct).ConfigureAwait(false) is { } zip
-                    ? Results.File(zip, "application/zip", $"{request.Key}-{request.Version}.zip")
-                    : AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
+        ManageAsync(http, $"package {key} as {request.Key} {request.Version}", ct, async _ =>
+            await Hotel.ExportAsync(key, request, ct).ConfigureAwait(false) is { } zip
+                ? Results.File(zip, "application/zip", $"{request.Key}-{request.Version}.zip")
+                : AdminResults.Error(StatusCodes.Status404NotFound, NO_PLUGIN)
         );
 
     /// <summary>

@@ -126,7 +126,9 @@ public sealed class WiredVariableOperationIdsTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await SaveChangeAsync(2, (int)WiredVariableOperationType.Set, 13, variableId);
         await SaveChangeAsync(3, operation, operand, variableId);

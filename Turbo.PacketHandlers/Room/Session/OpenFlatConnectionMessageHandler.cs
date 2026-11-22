@@ -33,10 +33,8 @@ public class OpenFlatConnectionMessageHandler(
         CancellationToken ct
     ) =>
         new(
-            RoomTelemetry.MeasureAsync(
-                RoomTelemetry.DIRECT_ENTRY,
-                message.RoomId,
-                () => HandleEntryAsync(message, ctx, ct)
+            RoomTelemetry.MeasureAsync(RoomTelemetry.DIRECT_ENTRY, message.RoomId, () =>
+                HandleEntryAsync(message, ctx, ct)
             )
         );
 

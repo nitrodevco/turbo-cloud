@@ -223,7 +223,9 @@ public sealed class WiredOfficialMovementReplayTests
                         [WiredFurniSourceType.SelectedItems],
                     ]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
 
             // In the capture's order every time: two furni stepping onto one tile in one tick
             // otherwise land in a random order.
@@ -301,7 +303,9 @@ public sealed class WiredOfficialMovementReplayTests
                         ],
                         definitionSpecifics: [0]
                     )
-                ).Should().BeTrue();
+                )
+                    .Should()
+                    .BeTrue();
                 planned.Add((id, move));
             }
 

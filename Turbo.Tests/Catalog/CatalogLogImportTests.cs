@@ -368,9 +368,7 @@ public sealed class CatalogLogImportTests : IDisposable
         builders.Current.PagesById.Values.Should().Contain(x => x.Name == "lodge_extras");
 
         // Neither catalogue's import undoes the other's order, so again there is nothing to do.
-        (await Importer.PlanLogsAsync(request, Ct))
-            .Value!.Changes.Should()
-            .BeFalse();
+        (await Importer.PlanLogsAsync(request, Ct)).Value!.Changes.Should().BeFalse();
     }
 
     [Fact]
@@ -413,9 +411,7 @@ public sealed class CatalogLogImportTests : IDisposable
         var both = await LodgeLogsAsync();
 
         // A catalog emptied, so nothing in it leads to the Builders Club yet.
-        (await _service.ResetAsync(Editor, false, Ct))
-            .Error.Should()
-            .BeNull();
+        (await _service.ResetAsync(Editor, false, Ct)).Error.Should().BeNull();
 
         (await Importer.ApplyLogsAsync(Editor, both with { BuildersClubLog = null }, Ct))
             .Error.Should()
@@ -509,9 +505,7 @@ public sealed class CatalogLogImportTests : IDisposable
         plan.BuildersClub.Warnings.Should().NotContain(x => x.Contains("lists them in each"));
 
         // And applied, what was planned is what is made.
-        (await Importer.ApplyLogsAsync(Editor, request, Ct))
-            .Error.Should()
-            .BeNull();
+        (await Importer.ApplyLogsAsync(Editor, request, Ct)).Error.Should().BeNull();
 
         await using var db = await _hotel.Db.CreateDbContextAsync(Ct);
         (await db.CatalogPages.CountAsync(x => x.Name == "lodge", Ct)).Should().Be(1);

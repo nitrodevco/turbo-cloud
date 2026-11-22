@@ -55,11 +55,10 @@ public sealed record PluginDesignTime(
         Func<string, string?> environment
     )
     {
-        var manifest =
-            folders
-                .Where(f => !string.IsNullOrEmpty(f))
-                .Select(f => FindAbove(f!))
-                .FirstOrDefault(f => f is not null)
+        var manifest = folders
+            .Where(f => !string.IsNullOrEmpty(f))
+            .Select(f => FindAbove(f!))
+            .FirstOrDefault(f => f is not null)
             ?? throw new InvalidOperationException(
                 "No manifest.json in the working folder, the build folder or above them: run dotnet ef in the plugin's folder, where its table prefix is read from."
             );

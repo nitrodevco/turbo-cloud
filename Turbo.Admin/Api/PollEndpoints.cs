@@ -20,35 +20,29 @@ internal sealed class PollEndpoints(ContentAccess access, AdminPollEditor polls)
     {
         var group = ContentAccess.Require(secured.MapGroup("/polls"));
 
-        group.MapGet(
-            "/",
-            async (HttpContext http, CancellationToken ct) =>
+        group.MapGet("/", async (HttpContext http, CancellationToken ct) =>
+            Results.Ok(
+                await polls
+                    .ListAsync(await access.CanManageAsync(http, ct).ConfigureAwait(false), ct)
+                    .ConfigureAwait(false)
+            )
+        );
+        group.MapGet("/{id:int}", async (int id, CancellationToken ct) =>
+            await polls.GetAsync(id, ct).ConfigureAwait(false) is { } poll
+                ? Results.Ok(poll)
+                : AdminResults.Error(StatusCodes.Status404NotFound, NOT_FOUND)
+        );
+        group.MapPost("/", (PollRequest request, HttpContext http, CancellationToken ct) =>
+            ContentAccess.ChangeAsync(async () =>
                 Results.Ok(
-                    await polls
-                        .ListAsync(await access.CanManageAsync(http, ct).ConfigureAwait(false), ct)
-                        .ConfigureAwait(false)
+                    new
+                    {
+                        id = await polls
+                            .SaveAsync(0, request, ContentAccess.Actor(http), ct)
+                            .ConfigureAwait(false),
+                    }
                 )
-        );
-        group.MapGet(
-            "/{id:int}",
-            async (int id, CancellationToken ct) =>
-                await polls.GetAsync(id, ct).ConfigureAwait(false) is { } poll
-                    ? Results.Ok(poll)
-                    : AdminResults.Error(StatusCodes.Status404NotFound, NOT_FOUND)
-        );
-        group.MapPost(
-            "/",
-            (PollRequest request, HttpContext http, CancellationToken ct) =>
-                ContentAccess.ChangeAsync(async () =>
-                    Results.Ok(
-                        new
-                        {
-                            id = await polls
-                                .SaveAsync(0, request, ContentAccess.Actor(http), ct)
-                                .ConfigureAwait(false),
-                        }
-                    )
-                )
+            )
         );
         group.MapPut(
             "/{id:int}",
@@ -64,14 +58,12 @@ internal sealed class PollEndpoints(ContentAccess access, AdminPollEditor polls)
                     )
                 )
         );
-        group.MapDelete(
-            "/{id:int}",
-            (int id, HttpContext http, CancellationToken ct) =>
-                ContentAccess.ChangeAsync(async () =>
-                    await polls.RemoveAsync(id, ContentAccess.Actor(http), ct).ConfigureAwait(false)
-                        ? Results.NoContent()
-                        : AdminResults.Error(StatusCodes.Status404NotFound, NOT_FOUND)
-                )
+        group.MapDelete("/{id:int}", (int id, HttpContext http, CancellationToken ct) =>
+            ContentAccess.ChangeAsync(async () =>
+                await polls.RemoveAsync(id, ContentAccess.Actor(http), ct).ConfigureAwait(false)
+                    ? Results.NoContent()
+                    : AdminResults.Error(StatusCodes.Status404NotFound, NOT_FOUND)
+            )
         );
     }
 }

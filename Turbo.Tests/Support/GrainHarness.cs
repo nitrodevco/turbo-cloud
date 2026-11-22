@@ -149,9 +149,8 @@ public static class GrainHarness
                 );
         }
 
-        fakes.Handlers.TryAdd(
-            "GetService",
-            call => call.Args[0] is Type st && st.IsInterface ? fakes.Create(st) : null
+        fakes.Handlers.TryAdd("GetService", call =>
+            call.Args[0] is Type st && st.IsInterface ? fakes.Create(st) : null
         );
         Attach(grain, fakes, typeName);
         return grain;

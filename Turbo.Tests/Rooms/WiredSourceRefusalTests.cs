@@ -50,7 +50,9 @@ public sealed class WiredSourceRefusalTests
                 [WiredPlayerSourceType.SelectorUsers],
                 [WiredPlayerSourceType.SignalUsers],
             ])
-        ).IsSaved.Should().BeTrue();
+        )
+            .IsSaved.Should()
+            .BeTrue();
 
         Box.GetPlayerSources()
             .Should()
@@ -71,7 +73,9 @@ public sealed class WiredSourceRefusalTests
             await SaveAsync([
                 [WiredPlayerSourceType.TriggeredUser],
             ])
-        ).IsSaved.Should().BeTrue();
+        )
+            .IsSaved.Should()
+            .BeTrue();
 
         Box.GetPlayerSources()
             .Should()

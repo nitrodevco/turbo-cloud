@@ -59,9 +59,8 @@ public static class TeleportFurniture
         public void Dispose()
         {
             if (System.Threading.Interlocked.Exchange(ref _disposed, 1) == 0)
-                ImmutableInterlocked.Update(
-                    ref _pairedLogics,
-                    list => list.Remove(logicName, StringComparer.Ordinal)
+                ImmutableInterlocked.Update(ref _pairedLogics, list =>
+                    list.Remove(logicName, StringComparer.Ordinal)
                 );
         }
     }

@@ -595,12 +595,11 @@ public abstract class FurnitureWiredVariableLogic
     private HashSet<int>? _referrers;
 
     private HashSet<int> Referrers =>
-        _referrers ??=
-            FurnitureExtraDataSections.Read<HashSet<int>>(
-                _ctx.RoomObject.ExtraData,
-                SHARED_REFERRERS_SECTION,
-                Logger
-            ) ?? [];
+        _referrers ??= FurnitureExtraDataSections.Read<HashSet<int>>(
+            _ctx.RoomObject.ExtraData,
+            SHARED_REFERRERS_SECTION,
+            Logger
+        ) ?? [];
 
     /// <summary>
     /// Every value of this shared variable, by holder (player id, or 0 for a global), and

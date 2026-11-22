@@ -32,13 +32,11 @@ public static class AssemblyMemoryLoader
     /// </summary>
     public static LoadedAssembly Empty(string baseDir, string name) =>
         new(
-            EMPTY.GetOrAdd(
-                name,
-                key =>
-                    AssemblyBuilder.DefineDynamicAssembly(
-                        new AssemblyName(key),
-                        AssemblyBuilderAccess.Run
-                    )
+            EMPTY.GetOrAdd(name, key =>
+                AssemblyBuilder.DefineDynamicAssembly(
+                    new AssemblyName(key),
+                    AssemblyBuilderAccess.Run
+                )
             ),
             null,
             baseDir

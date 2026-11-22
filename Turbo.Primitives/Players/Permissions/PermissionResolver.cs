@@ -151,8 +151,7 @@ public static class PermissionResolver
         {
             Node = node,
             IsRegistered = registry.IsCheckable(node),
-            Granted =
-                decision?.Value
+            Granted = decision?.Value
                 ?? (
                     registry.Nodes.TryGetValue(node, out var definition)
                     && definition.GrantedByDefault

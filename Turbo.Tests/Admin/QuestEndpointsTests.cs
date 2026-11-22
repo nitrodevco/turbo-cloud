@@ -179,7 +179,9 @@ public sealed class QuestEndpointsTests : IAsyncDisposable
                     }
                 )
             )
-        ).GetProperty("id").GetInt32();
+        )
+            .GetProperty("id")
+            .GetInt32();
 
         (
             await SendAsync(
@@ -258,7 +260,9 @@ public sealed class QuestEndpointsTests : IAsyncDisposable
                     enabled = true,
                 }
             )
-        ).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        )
+            .StatusCode.Should()
+            .Be(HttpStatusCode.Forbidden);
 
         _holds = node => node != PermissionNodes.Admin.CONTENT_VIEW;
 

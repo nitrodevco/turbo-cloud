@@ -34,9 +34,8 @@ public class GetClubOffersMessageHandler(IGrainFactory grainFactory, ICatalogSer
 
         var now = DateTime.UtcNow;
 
-        var offers = ImmutableArray.CreateRange(
-            _catalogService.GetClubOffers(),
-            offer => offer.ForSubscription(subscription.ExpiresAt, now)
+        var offers = ImmutableArray.CreateRange(_catalogService.GetClubOffers(), offer =>
+            offer.ForSubscription(subscription.ExpiresAt, now)
         );
 
         await ctx.SendComposerAsync(

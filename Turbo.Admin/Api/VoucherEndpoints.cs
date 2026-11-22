@@ -38,33 +38,25 @@ internal sealed class VoucherEndpoints(
             .RequirePermissionToChange(PermissionNodes.Catalog.MANAGE, NO_MANAGE);
 
         group.MapGet("/", SearchAsync);
-        group.MapPost(
-            "/",
-            (VoucherRequest request, HttpContext http, CancellationToken ct) =>
-                SaveAsync(0, request, http, ct)
+        group.MapPost("/", (VoucherRequest request, HttpContext http, CancellationToken ct) =>
+            SaveAsync(0, request, http, ct)
         );
         group.MapPost("/generate", GenerateAsync);
         group.MapPut("/{id:int}", SaveAsync);
-        group.MapDelete(
-            "/{id:int}",
-            (int id, HttpContext http, CancellationToken ct) =>
-                ChangeAsync(async () =>
-                    await vouchers.DeleteAsync(id, ct).ConfigureAwait(false)
-                        ? Results.NoContent()
-                        : Results.NotFound()
-                )
+        group.MapDelete("/{id:int}", (int id, HttpContext http, CancellationToken ct) =>
+            ChangeAsync(async () =>
+                await vouchers.DeleteAsync(id, ct).ConfigureAwait(false)
+                    ? Results.NoContent()
+                    : Results.NotFound()
+            )
         );
-        group.MapGet(
-            "/{id:int}/redemptions",
-            async (int id, CancellationToken ct) =>
-                Results.Ok(
-                    new
-                    {
-                        redemptions = await vouchers
-                            .GetRedemptionsAsync(id, ct)
-                            .ConfigureAwait(false),
-                    }
-                )
+        group.MapGet("/{id:int}/redemptions", async (int id, CancellationToken ct) =>
+            Results.Ok(
+                new
+                {
+                    redemptions = await vouchers.GetRedemptionsAsync(id, ct).ConfigureAwait(false),
+                }
+            )
         );
     }
 

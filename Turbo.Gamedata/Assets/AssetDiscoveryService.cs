@@ -69,8 +69,7 @@ internal sealed class AssetDiscoveryService(
     {
         var domain = gamedataConfig.Value.HabboDomain;
         var variables = await habbo.GetExternalVariablesAsync(domain, ct).ConfigureAwait(false);
-        var revision =
-            HabboReleaseService.RevisionOf(variables)
+        var revision = HabboReleaseService.RevisionOf(variables)
             ?? throw new HttpRequestException(
                 $"habbo.{domain}'s external variables name no client revision."
             );

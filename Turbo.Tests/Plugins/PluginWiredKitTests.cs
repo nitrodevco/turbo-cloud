@@ -177,7 +177,9 @@ public sealed class PluginWiredKitTests : IDisposable
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await StartAsync();
 
         (
@@ -245,12 +247,8 @@ public sealed class PluginWiredKitTests : IDisposable
         int x = 6,
         int y = 6
     ) =>
-        _room.AddFloorItem(
-            id,
-            x,
-            y,
-            key,
-            createLogic: (_, ctx) => _room.Harness.LogicProvider.CreateLogicInstance(key, ctx)
+        _room.AddFloorItem(id, x, y, key, createLogic: (_, ctx) =>
+            _room.Harness.LogicProvider.CreateLogicInstance(key, ctx)
         );
 
     private Task FireAsync(Assembly plugin, int amount, int player) =>

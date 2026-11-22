@@ -68,7 +68,9 @@ public sealed class WiredRightsHolderLabAnswersTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await Wired.ProcessWiredAsync(FIRED_AT, dormant: false, Ct);
 
         (await kick.ExecuteAsync(Triggered(HOLDER), Ct)).Should().BeTrue();
@@ -111,7 +113,9 @@ public sealed class WiredRightsHolderLabAnswersTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         (await freeze.ExecuteAsync(Triggered(HOLDER), Ct)).Should().BeTrue();
         await _room.Harness.Module<RoomWiredSystem>().ProcessWiredAsync(10_000, dormant: false, Ct);

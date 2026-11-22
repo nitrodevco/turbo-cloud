@@ -52,9 +52,8 @@ public class TelemetryHostingTests
         Assert.Equal(ActivityStatusCode.Error, activity.Status);
         Assert.Null(activity.StatusDescription);
         Assert.Equal("InvalidOperationException", activity.GetTagItem("exception.type"));
-        Assert.DoesNotContain(
-            activity.TagObjects,
-            tag => tag.Value?.ToString() == "private message"
+        Assert.DoesNotContain(activity.TagObjects, tag =>
+            tag.Value?.ToString() == "private message"
         );
     }
 

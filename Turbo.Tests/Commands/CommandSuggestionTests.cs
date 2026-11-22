@@ -183,9 +183,7 @@ public class CommandSuggestionTests
     public async Task APlayer_IsSuggestedFromTheDirectory_TheOnesOnlineFirst()
     {
         // Alice is online, so she comes before the directory's own order.
-        (await Suggest("opprobe", 0, "al"))
-            .Should()
-            .Equal("Alice", "Albert", "Alfred");
+        (await Suggest("opprobe", 0, "al")).Should().Equal("Alice", "Albert", "Alfred");
     }
 
     [Fact]

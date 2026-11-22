@@ -160,7 +160,9 @@ public sealed class WiredValidMovesTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await BuildAsync();
 
         await ClickAsync();
@@ -184,7 +186,9 @@ public sealed class WiredValidMovesTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (await _room.SaveAsync<UpdateConditionMessage>(CONDITION, definitionSpecifics: [0]))
             .Should()
             .BeTrue();
@@ -199,7 +203,9 @@ public sealed class WiredValidMovesTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var boxId = FIRST_MOVE;
 
@@ -218,7 +224,9 @@ public sealed class WiredValidMovesTests
                     ],
                     definitionSpecifics: [0]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
 
             boxId++;
         }

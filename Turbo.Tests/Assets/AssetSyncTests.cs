@@ -368,9 +368,7 @@ public sealed class AssetSyncTests : IAsyncDisposable
         );
 
         // The lists read before, though stale, answer without waiting on Habbo.
-        (await ListsSofaAsync())
-            .Should()
-            .BeFalse();
+        (await ListsSofaAsync()).Should().BeFalse();
 
         var deadline = DateTime.UtcNow.AddSeconds(10);
         var relisted = false;

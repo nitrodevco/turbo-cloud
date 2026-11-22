@@ -286,8 +286,8 @@ public sealed class AiFake : IPluginAiHost
         var calls = Responses.SelectMany(r => r.ToolCalls).ToList();
 
         return calls.LastOrDefault(c =>
-                c.Name == name && (arguments is null || arguments(c.Arguments))
-            )
+            c.Name == name && (arguments is null || arguments(c.Arguments))
+        )
             ?? throw new HotelAssertionException(
                 $"No run called {name}{(arguments is null ? "" : " with those arguments")}. Called: {Describe(calls.Select(c => $"{c.Name} {c.Arguments.GetRawText()} ({c.Outcome})"))}."
             );
@@ -309,8 +309,8 @@ public sealed class AiFake : IPluginAiHost
     /// <summary>The last run stopped for <paramref name="reason"/>.</summary>
     public AiResponse AssertStoppedBy(AiStopReason reason)
     {
-        var last =
-            Responses.LastOrDefault() ?? throw new HotelAssertionException("No run has ended.");
+        var last = Responses.LastOrDefault()
+            ?? throw new HotelAssertionException("No run has ended.");
 
         return last.Stop == reason
             ? last
@@ -412,8 +412,7 @@ public sealed class AiFake : IPluginAiHost
 
         private async Task<AiResponse?> DecideAsync(string? id, AiApprovalDecision decision)
         {
-            id ??=
-                Requests.LastOrDefault().Id
+            id ??= Requests.LastOrDefault().Id
                 ?? throw new HotelAssertionException("No approval was asked for.");
             _decided[id] = decision;
 

@@ -73,18 +73,13 @@ public sealed class WiredMoverDoorTileTests
         _room.AddBox<WiredTriggerClickFurni>(TRIGGER, 7, 7, "wf_trg_click_furni");
         _room.AddBox<WiredConditionValidMoves>(CONDITION, 7, 7, "wf_cnd_valid_moves");
         _room.AddBox<WiredActionToggleItemState>(TOGGLE, 7, 7, "wf_act_toggle_state");
-        _room.AddFloorItem(
-            MOVER,
-            7,
-            7,
-            mover,
-            createLogic: (factory, ctx) =>
-                mover switch
-                {
-                    "wf_act_rel_mov" => Box<WiredActionRelativeMove>(factory, ctx),
-                    "wf_act_move_rotate" => Box<WiredActionMoveRotateFurni>(factory, ctx),
-                    _ => Box<WiredActionMoveToDirection>(factory, ctx),
-                }
+        _room.AddFloorItem(MOVER, 7, 7, mover, createLogic: (factory, ctx) =>
+            mover switch
+            {
+                "wf_act_rel_mov" => Box<WiredActionRelativeMove>(factory, ctx),
+                "wf_act_move_rotate" => Box<WiredActionMoveRotateFurni>(factory, ctx),
+                _ => Box<WiredActionMoveToDirection>(factory, ctx),
+            }
         );
 
         (
@@ -96,7 +91,9 @@ public sealed class WiredMoverDoorTileTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (await _room.SaveAsync<UpdateConditionMessage>(CONDITION, definitionSpecifics: [0]))
             .Should()
             .BeTrue();
@@ -119,7 +116,8 @@ public sealed class WiredMoverDoorTileTests
         where T : class, IRoomObjectLogic =>
         ActivatorUtilities.CreateInstance<T>(_room.Harness.Services, _room.Grains, factory, ctx);
 
-    private async Task SaveActionAsync(int boxId, int[] intParams, int furni) => (
+    private async Task SaveActionAsync(int boxId, int[] intParams, int furni) =>
+        (
             await _room.SaveAsync<UpdateActionMessage>(
                 boxId,
                 intParams: intParams,
@@ -130,7 +128,9 @@ public sealed class WiredMoverDoorTileTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
     private async Task ClickAsync()
     {

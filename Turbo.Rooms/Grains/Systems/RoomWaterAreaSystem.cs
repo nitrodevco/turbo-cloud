@@ -175,10 +175,8 @@ public sealed class RoomWaterAreaSystem(RoomGrain roomGrain)
             return;
 
         var footprint = FloorFootprint.Of(item);
-        var mask = WaterAreaMask.Build(
-            footprint.Width,
-            footprint.Length,
-            (x, y) => IsWaterAt(item, x + footprint.X, y + footprint.Y)
+        var mask = WaterAreaMask.Build(footprint.Width, footprint.Length, (x, y) =>
+            IsWaterAt(item, x + footprint.X, y + footprint.Y)
         );
 
         var old = water.GetState();

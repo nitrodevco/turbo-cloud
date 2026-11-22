@@ -67,9 +67,8 @@ internal sealed class CatalogEndpoints(
         group.MapGet("/", TreeAsync);
         group.MapGet("/pages/{id:int}", PageAsync);
         group.MapGet("/furniture", (string? q) => Results.Ok(catalog.SearchFurniture(q)));
-        group.MapGet(
-            "/recolorable-palettes",
-            (string? names) => Results.Ok(RecolorablePalettes(names))
+        group.MapGet("/recolorable-palettes", (string? names) =>
+            Results.Ok(RecolorablePalettes(names))
         );
         group.MapPost("/pages", CreatePageAsync);
         group.MapPut("/pages/{id:int}", UpdatePageAsync);
@@ -114,18 +113,14 @@ internal sealed class CatalogEndpoints(
         group.MapPost("/offers/delete", DeleteOffersAsync);
         group.MapPost("/frontpage", CreateFrontPageAsync);
         group.MapGet("/history", () => Results.Ok(HistoryResponse()));
-        group.MapPost(
-            "/undo",
-            (HttpContext http, CancellationToken ct) => HistoryStepAsync(http, ct, editor.UndoAsync)
+        group.MapPost("/undo", (HttpContext http, CancellationToken ct) =>
+            HistoryStepAsync(http, ct, editor.UndoAsync)
         );
-        group.MapPost(
-            "/redo",
-            (HttpContext http, CancellationToken ct) => HistoryStepAsync(http, ct, editor.RedoAsync)
+        group.MapPost("/redo", (HttpContext http, CancellationToken ct) =>
+            HistoryStepAsync(http, ct, editor.RedoAsync)
         );
-        group.MapPost(
-            "/discard",
-            (HttpContext http, CancellationToken ct) =>
-                HistoryStepAsync(http, ct, editor.DiscardAsync)
+        group.MapPost("/discard", (HttpContext http, CancellationToken ct) =>
+            HistoryStepAsync(http, ct, editor.DiscardAsync)
         );
         group.MapGet("/backups", BackupsAsync);
         group.MapPost("/backups", BackupAsync);
@@ -148,10 +143,8 @@ internal sealed class CatalogEndpoints(
                         .ConfigureAwait(false)
                 )
         );
-        group.MapGet(
-            "/audit/duplicate-pages",
-            async (CancellationToken ct) =>
-                Results.Ok(await audit.GetDuplicatePagesAsync(ct).ConfigureAwait(false))
+        group.MapGet("/audit/duplicate-pages", async (CancellationToken ct) =>
+            Results.Ok(await audit.GetDuplicatePagesAsync(ct).ConfigureAwait(false))
         );
         group
             .MapPost(
@@ -165,10 +158,8 @@ internal sealed class CatalogEndpoints(
             )
             .ViewIsEnough(PREVIEW);
         group.MapPost("/pages/{id:int}/merge", MergeAsync);
-        group.MapGet(
-            "/audit/duplicates",
-            async (CancellationToken ct) =>
-                Results.Ok(await audit.GetDuplicatesAsync(ct).ConfigureAwait(false))
+        group.MapGet("/audit/duplicates", async (CancellationToken ct) =>
+            Results.Ok(await audit.GetDuplicatesAsync(ct).ConfigureAwait(false))
         );
         group.MapPost("/generate/preview", PreviewGenerateAsync).ViewIsEnough(PREVIEW);
         group.MapPost("/generate", GenerateAsync);
@@ -241,13 +232,11 @@ internal sealed class CatalogEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ChangeAsync(
-            http,
-            who =>
-                request.ParentId is not { } parentId
-                    ? Task.FromResult(CatalogEditResult.Refused("Say which page to put it under."))
-                : Draft(request) is { } draft ? editor.CreatePageAsync(who, parentId, draft, ct)
-                : Task.FromResult(UnknownDisplay)
+        ChangeAsync(http, who =>
+            request.ParentId is not { } parentId
+                ? Task.FromResult(CatalogEditResult.Refused("Say which page to put it under."))
+            : Draft(request) is { } draft ? editor.CreatePageAsync(who, parentId, draft, ct)
+            : Task.FromResult(UnknownDisplay)
         );
 
     private Task<IResult> UpdatePageAsync(
@@ -256,12 +245,10 @@ internal sealed class CatalogEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ChangeAsync(
-            http,
-            who =>
-                Draft(request) is { } draft
-                    ? editor.UpdatePageAsync(who, id, draft, ct)
-                    : Task.FromResult(UnknownDisplay)
+        ChangeAsync(http, who =>
+            Draft(request) is { } draft
+                ? editor.UpdatePageAsync(who, id, draft, ct)
+                : Task.FromResult(UnknownDisplay)
         );
 
     private Task<IResult> MovePageAsync(
@@ -270,9 +257,8 @@ internal sealed class CatalogEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ChangeAsync(
-            http,
-            who => editor.MovePageAsync(who, id, request.ParentId, request.Index, ct)
+        ChangeAsync(http, who =>
+            editor.MovePageAsync(who, id, request.ParentId, request.Index, ct)
         );
 
     private Task<IResult> DeletePageAsync(int id, HttpContext http, CancellationToken ct) =>
@@ -283,12 +269,10 @@ internal sealed class CatalogEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ChangeAsync(
-            http,
-            who =>
-                Draft(request) is { } draft
-                    ? editor.CreateOfferAsync(who, draft, ct)
-                    : Task.FromResult(UnknownType)
+        ChangeAsync(http, who =>
+            Draft(request) is { } draft
+                ? editor.CreateOfferAsync(who, draft, ct)
+                : Task.FromResult(UnknownType)
         );
 
     private Task<IResult> UpdateOfferAsync(
@@ -297,12 +281,10 @@ internal sealed class CatalogEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ChangeAsync(
-            http,
-            who =>
-                Draft(request) is { } draft
-                    ? editor.UpdateOfferAsync(who, id, draft, ct)
-                    : Task.FromResult(UnknownType)
+        ChangeAsync(http, who =>
+            Draft(request) is { } draft
+                ? editor.UpdateOfferAsync(who, id, draft, ct)
+                : Task.FromResult(UnknownType)
         );
 
     private Task<IResult> MoveOfferAsync(
@@ -324,12 +306,10 @@ internal sealed class CatalogEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ChangeAsync(
-            http,
-            who =>
-                Draft(request) is { } items
-                    ? editor.SaveFeaturedItemsAsync(who, items, ct)
-                    : Task.FromResult(UnknownFeaturedType)
+        ChangeAsync(http, who =>
+            Draft(request) is { } items
+                ? editor.SaveFeaturedItemsAsync(who, items, ct)
+                : Task.FromResult(UnknownFeaturedType)
         );
 
     private Task<IResult> SaveLimitedAsync(
@@ -338,21 +318,19 @@ internal sealed class CatalogEndpoints(
         HttpContext http,
         CancellationToken ct
     ) =>
-        ChangeAsync(
-            http,
-            who =>
-                editor.SaveLimitedAsync(
-                    who,
-                    id,
-                    new CatalogLimitedDraft(
-                        request.TotalQuantity,
-                        request.RaffleWindowSeconds,
-                        Utc(request.StartsAtUtc),
-                        Utc(request.EndsAtUtc),
-                        request.Active
-                    ),
-                    ct
-                )
+        ChangeAsync(http, who =>
+            editor.SaveLimitedAsync(
+                who,
+                id,
+                new CatalogLimitedDraft(
+                    request.TotalQuantity,
+                    request.RaffleWindowSeconds,
+                    Utc(request.StartsAtUtc),
+                    Utc(request.EndsAtUtc),
+                    request.Active
+                ),
+                ct
+            )
         );
 
     /// <summary>A series taken off an offer; <paramref name="withSales"/> takes its raffle entries and sales too.</summary>

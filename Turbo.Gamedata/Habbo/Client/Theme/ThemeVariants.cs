@@ -211,8 +211,8 @@ internal static partial class ThemeVariants
             if (!style.Success || rect is null)
                 continue;
 
-            sheet ??=
-                variables.GetValueOrDefault(template.Attr("asset") ?? "") ?? template.Attr("asset");
+            sheet ??= variables.GetValueOrDefault(template.Attr("asset") ?? "")
+                ?? template.Attr("asset");
             icons[style.Groups[1].Value] = RectOf(rect);
         }
 

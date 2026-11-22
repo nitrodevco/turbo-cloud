@@ -136,7 +136,9 @@ public sealed class WiredRandomAddonTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (await _room.SaveAsync<UpdateAddonMessage>(2, intParams: unseen ? [] : [avoid, picks]))
             .Should()
             .BeTrue();
@@ -158,7 +160,9 @@ public sealed class WiredRandomAddonTests
                     ],
                     definitionSpecifics: [0]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
         }
 
         await Wired.OnRoomEventAsync(

@@ -287,10 +287,9 @@ public sealed partial class CommunityGoalService(
         }
         else
         {
-            row =
-                await dbCtx
-                    .CommunityGoals.FirstOrDefaultAsync(x => x.Id == goal.Id, ct)
-                    .ConfigureAwait(false)
+            row = await dbCtx
+                .CommunityGoals.FirstOrDefaultAsync(x => x.Id == goal.Id, ct)
+                .ConfigureAwait(false)
                 ?? throw new ArgumentException(
                     $"There is no community goal {goal.Id}.",
                     nameof(goal)

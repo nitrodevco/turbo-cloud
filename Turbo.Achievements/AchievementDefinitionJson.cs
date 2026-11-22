@@ -17,8 +17,7 @@ public static class AchievementDefinitionJson
     public static AchievementDefinition Read(string json)
     {
         using var document = JsonDocument.Parse(json);
-        var definition =
-            document.RootElement.Deserialize<AchievementDefinition>()
+        var definition = document.RootElement.Deserialize<AchievementDefinition>()
             ?? throw new InvalidOperationException("Empty achievement definition.");
 
         return Upgrade(definition, document.RootElement);

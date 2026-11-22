@@ -48,10 +48,8 @@ public sealed class GuildForumTerminalPurchaseTests : IDisposable
             _catalog.Fakes.Create<IGrainFactory>(),
             new CapturingLogger<ICatalogEditService>()
         );
-        _catalog.AddDefinition(
-            TERMINAL,
-            "guild_forum",
-            set: x => x.Logic = GuildFurnitureLogicNames.FORUM
+        _catalog.AddDefinition(TERMINAL, "guild_forum", set: x =>
+            x.Logic = GuildFurnitureLogicNames.FORUM
         );
         _catalog.Fakes.Handlers["GetMemberRankAsync"] = _ =>
             Task.FromResult<GuildMemberRank?>(GuildMemberRank.Owner);

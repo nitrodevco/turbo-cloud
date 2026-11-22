@@ -92,8 +92,8 @@ public sealed class WiredMovePlan
 
         // A turn in place lands where the layout put it (WiredGhostLayout.Move), which the map
         // measured from the anchor tile alone would not.
-        var landing =
-            z ?? (from.X == x && from.Y == y && from.Rotation != rot ? Where(item).Z : null);
+        var landing = z
+            ?? (from.X == x && from.Y == y && from.Rotation != rot ? Where(item).Z : null);
 
         _steps.Add(ctx => ctx.TryMoveFloorItemAsync(item, x, y, landing, rot));
 

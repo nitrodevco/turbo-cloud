@@ -78,9 +78,8 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<AdminSearchQueries>();
         services.AddSingleton<AdminNotificationQueries>();
         services.AddSingleton<ClientAssets>();
-        services.AddHttpClient(
-            ClientWindows.HTTP_CLIENT,
-            http => http.Timeout = TimeSpan.FromSeconds(30)
+        services.AddHttpClient(ClientWindows.HTTP_CLIENT, http =>
+            http.Timeout = TimeSpan.FromSeconds(30)
         );
         services.AddSingleton<ClientWindows>();
         services.AddSingleton<AdminBrokenAssets>();

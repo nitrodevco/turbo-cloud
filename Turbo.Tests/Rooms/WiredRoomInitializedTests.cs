@@ -77,7 +77,9 @@ public sealed class WiredRoomInitializedTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await SaveToggleAsync(4);
         await StackChangedAsync(1, 0);
         await _room
@@ -114,7 +116,8 @@ public sealed class WiredRoomInitializedTests
         return lamp;
     }
 
-    private async Task SaveToggleAsync(int id) => (
+    private async Task SaveToggleAsync(int id) =>
+        (
             await _room.SaveAsync<UpdateActionMessage>(
                 id,
                 intParams: [0],
@@ -125,7 +128,9 @@ public sealed class WiredRoomInitializedTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
     private Task StackChangedAsync(int x, int y) =>
         Wired.OnRoomEventAsync(

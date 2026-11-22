@@ -472,8 +472,7 @@ public sealed class StarterRoomService(
         )
         {
             using var stream = assembly.GetManifestResourceStream(resource)!;
-            var template =
-                JsonSerializer.Deserialize<StarterRoom>(stream, JSON_OPTIONS)
+            var template = JsonSerializer.Deserialize<StarterRoom>(stream, JSON_OPTIONS)
                 ?? throw new InvalidDataException($"Starter room {resource} is empty.");
 
             templates[template.Type] = template;

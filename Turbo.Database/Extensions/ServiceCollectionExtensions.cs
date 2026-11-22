@@ -41,17 +41,14 @@ public static class ServiceCollectionExtensions
         !string.IsNullOrWhiteSpace(config.ServerVersion)
             ? ServerVersion.Parse(config.ServerVersion)
             : SERVER_VERSIONS
-                .GetOrAdd(
-                    config.ConnectionString,
-                    static key => new Lazy<ServerVersion>(() =>
-                        ServerVersion.AutoDetect(
-                            new MySqlConnectionStringBuilder(key)
-                            {
-                                Database = string.Empty,
-                            }.ConnectionString
-                        )
+                .GetOrAdd(config.ConnectionString, static key => new Lazy<ServerVersion>(() =>
+                    ServerVersion.AutoDetect(
+                        new MySqlConnectionStringBuilder(key)
+                        {
+                            Database = string.Empty,
+                        }.ConnectionString
                     )
-                )
+                ))
                 .Value;
 
     public static IServiceCollection AddTurboDatabaseContext(

@@ -125,15 +125,12 @@ public sealed class WiredMovementAddonsTests
     public async Task A_curve_of_0_is_no_curve()
     {
         _room.Enter(USER, 7, 7);
-        await BuildAsync(
-            withCarry: false,
-            addon: async box =>
-            {
-                _room.AddBox<WiredAddonJumpStrength>(box, 0, 0, "wf_xtra_mov_curve");
+        await BuildAsync(withCarry: false, addon: async box =>
+        {
+            _room.AddBox<WiredAddonJumpStrength>(box, 0, 0, "wf_xtra_mov_curve");
 
-                return await _room.SaveAsync<UpdateAddonMessage>(box, intParams: [0, 0, -20]);
-            }
-        );
+            return await _room.SaveAsync<UpdateAddonMessage>(box, intParams: [0, 0, -20]);
+        });
 
         var before = _room.Harness.Fakes.SentToRoom<WiredMovementsMessageComposer>().Count();
 
@@ -182,7 +179,9 @@ public sealed class WiredMovementAddonsTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         _room.AddBox<WiredActionMoveRotateFurni>(2, 0, 0, "wf_act_move_rotate");
         (
@@ -196,7 +195,9 @@ public sealed class WiredMovementAddonsTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         (await addon(3)).Should().BeTrue();
 
@@ -212,7 +213,9 @@ public sealed class WiredMovementAddonsTests
                         [WiredPlayerSourceType.AllRoomUsers],
                     ]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
         }
 
         await Wired.OnRoomEventAsync(

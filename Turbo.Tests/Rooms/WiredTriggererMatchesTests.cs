@@ -79,7 +79,9 @@ public sealed class WiredTriggererMatchesTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredProcessingContext(_room.Harness.Room)
         {

@@ -167,10 +167,9 @@ public sealed partial class VoucherService(
         }
         else
         {
-            row =
-                await dbCtx
-                    .Vouchers.FirstOrDefaultAsync(x => x.Id == voucher.Id, ct)
-                    .ConfigureAwait(false)
+            row = await dbCtx
+                .Vouchers.FirstOrDefaultAsync(x => x.Id == voucher.Id, ct)
+                .ConfigureAwait(false)
                 ?? throw new ArgumentException(
                     $"There is no voucher {voucher.Id}.",
                     nameof(voucher)
@@ -419,19 +418,17 @@ public sealed partial class VoucherService(
         }
 
         if (voucher.Credits > 0)
-            await TryAsync(
-                    "credits",
-                    async () =>
-                        await wallet
-                            .CreditAsync(
-                                CurrencyKind.Credits,
-                                voucher.Credits,
-                                Reference(voucher, "credits"),
-                                cause,
-                                ct
-                            )
-                            .ConfigureAwait(false)
-                            is not WalletCreditResult.Rejected
+            await TryAsync("credits", async () =>
+                    await wallet
+                        .CreditAsync(
+                            CurrencyKind.Credits,
+                            voucher.Credits,
+                            Reference(voucher, "credits"),
+                            cause,
+                            ct
+                        )
+                        .ConfigureAwait(false)
+                        is not WalletCreditResult.Rejected
                 )
                 .ConfigureAwait(false);
 
@@ -440,40 +437,35 @@ public sealed partial class VoucherService(
             && voucher.CurrencyTypeId is { } typeId
             && currencies.GetCurrencyType(typeId) is { } currency
         )
-            await TryAsync(
-                    currency.Name,
-                    async () =>
-                        await wallet
-                            .CreditAsync(
-                                new CurrencyKind
-                                {
-                                    CurrencyType = currency.CurrencyType,
-                                    ActivityPointType = currency.ActivityPointType,
-                                },
-                                voucher.CurrencyAmount,
-                                Reference(voucher, "currency"),
-                                cause.StartingAt(1),
-                                ct
-                            )
-                            .ConfigureAwait(false)
-                            is not WalletCreditResult.Rejected
+            await TryAsync(currency.Name, async () =>
+                    await wallet
+                        .CreditAsync(
+                            new CurrencyKind
+                            {
+                                CurrencyType = currency.CurrencyType,
+                                ActivityPointType = currency.ActivityPointType,
+                            },
+                            voucher.CurrencyAmount,
+                            Reference(voucher, "currency"),
+                            cause.StartingAt(1),
+                            ct
+                        )
+                        .ConfigureAwait(false)
+                        is not WalletCreditResult.Rejected
                 )
                 .ConfigureAwait(false);
 
         if (voucher.BadgeCode is { Length: > 0 } badgeCode)
-            await TryAsync(
-                    "badge",
-                    async () =>
-                    {
-                        // A badge the player has already is theirs either way.
-                        await grainFactory
-                            .GetPlayerBadgeGrain(player)
-                            .GiveBadgeAsync(badgeCode, ct)
-                            .ConfigureAwait(false);
+            await TryAsync("badge", async () =>
+                {
+                    // A badge the player has already is theirs either way.
+                    await grainFactory
+                        .GetPlayerBadgeGrain(player)
+                        .GiveBadgeAsync(badgeCode, ct)
+                        .ConfigureAwait(false);
 
-                        return true;
-                    }
-                )
+                    return true;
+                })
                 .ConfigureAwait(false);
 
         var productName = string.Empty;
@@ -488,13 +480,11 @@ public sealed partial class VoucherService(
                 // The credits and the currency took seqs 0 and 1.
                 var furniCause = cause.StartingAt(2 + i);
 
-                await TryAsync(
-                        "furniture",
-                        async () =>
-                            await inventory
-                                .GrantFurnitureAsync(definitionId, null, furniCause, ct)
-                                .ConfigureAwait(false)
-                                is not null
+                await TryAsync("furniture", async () =>
+                        await inventory
+                            .GrantFurnitureAsync(definitionId, null, furniCause, ct)
+                            .ConfigureAwait(false)
+                            is not null
                     )
                     .ConfigureAwait(false);
             }

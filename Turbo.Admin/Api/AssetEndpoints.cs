@@ -58,26 +58,20 @@ internal sealed class AssetEndpoints(
         );
         group.MapGet("/bundles/{kind}/{name}", DetailAsync);
         group.MapGet("/bundles/{kind}/{name}/file", FileAsync);
-        group.MapGet(
-            "/effect-icons",
-            async (CancellationToken ct) =>
-                Results.Ok(
-                    EffectIconsResponse.From(
-                        await bundles.GetEffectIconsAsync(ct).ConfigureAwait(false)
-                    )
+        group.MapGet("/effect-icons", async (CancellationToken ct) =>
+            Results.Ok(
+                EffectIconsResponse.From(
+                    await bundles.GetEffectIconsAsync(ct).ConfigureAwait(false)
                 )
+            )
         );
         group.MapPost("/bundles", UploadAsync);
         group.MapPost("/upload", UploadFileAsync);
         group.MapGet("/pending", (bool? relist, CancellationToken ct) => PendingAsync(relist, ct));
         group.MapDelete("/bundles/{kind}/{name}", DeleteAsync);
         group.MapPost("/sync", SyncAsync);
-        group.MapGet(
-            "/job",
-            () =>
-                jobs.Current is { } job
-                    ? Results.Ok(AssetJobResponse.From(job))
-                    : Results.NoContent()
+        group.MapGet("/job", () =>
+            jobs.Current is { } job ? Results.Ok(AssetJobResponse.From(job)) : Results.NoContent()
         );
         group.MapPost("/job/cancel", CancelAsync);
         group.MapGet("/checks", ChecksAsync);
@@ -143,37 +137,30 @@ internal sealed class AssetEndpoints(
     }
 
     private Task<IResult> UploadAsync(HttpContext http, CancellationToken ct) =>
-        WithFileAsync(
-            http,
-            ct,
-            (form, file, data) =>
-            {
-                if (!AssetContractNames.TryParseKind(form["kind"], out var kind))
-                    return Task.FromResult(
-                        AdminResults.Error(StatusCodes.Status400BadRequest, BAD_KIND)
-                    );
-
-                return RefusedAsync(
-                    http,
-                    file.FileName,
-                    async () =>
-                        Results.Ok(
-                            AssetBundleResponse.From(
-                                await bundles
-                                    .UploadAsync(
-                                        kind,
-                                        form["name"].FirstOrDefault(),
-                                        file.FileName,
-                                        data,
-                                        AdminIdentity.Of(http).PlayerId,
-                                        ct
-                                    )
-                                    .ConfigureAwait(false)
-                            )
-                        )
+        WithFileAsync(http, ct, (form, file, data) =>
+        {
+            if (!AssetContractNames.TryParseKind(form["kind"], out var kind))
+                return Task.FromResult(
+                    AdminResults.Error(StatusCodes.Status400BadRequest, BAD_KIND)
                 );
-            }
-        );
+
+            return RefusedAsync(http, file.FileName, async () =>
+                Results.Ok(
+                    AssetBundleResponse.From(
+                        await bundles
+                            .UploadAsync(
+                                kind,
+                                form["name"].FirstOrDefault(),
+                                file.FileName,
+                                data,
+                                AdminIdentity.Of(http).PlayerId,
+                                ct
+                            )
+                            .ConfigureAwait(false)
+                    )
+                )
+            );
+        });
 
     /// <summary>
     /// Any file, found by its content: a library kept as the kind of bundle it is, a gamedata file
@@ -181,28 +168,22 @@ internal sealed class AssetEndpoints(
     /// a file it could not take.
     /// </summary>
     private Task<IResult> UploadFileAsync(HttpContext http, CancellationToken ct) =>
-        WithFileAsync(
-            http,
-            ct,
-            (form, file, data) =>
-                RefusedAsync(
-                    http,
-                    file.FileName,
-                    async () =>
-                        Results.Ok(
-                            AssetUploadResponse.From(
-                                await bundles
-                                    .UploadFileAsync(
-                                        form["name"].FirstOrDefault(),
-                                        file.FileName,
-                                        data,
-                                        AdminIdentity.Of(http).PlayerId,
-                                        ct
-                                    )
-                                    .ConfigureAwait(false)
+        WithFileAsync(http, ct, (form, file, data) =>
+            RefusedAsync(http, file.FileName, async () =>
+                Results.Ok(
+                    AssetUploadResponse.From(
+                        await bundles
+                            .UploadFileAsync(
+                                form["name"].FirstOrDefault(),
+                                file.FileName,
+                                data,
+                                AdminIdentity.Of(http).PlayerId,
+                                ct
                             )
-                        )
+                            .ConfigureAwait(false)
+                    )
                 )
+            )
         );
 
     private async Task<IResult> PendingAsync(bool? relist, CancellationToken ct)

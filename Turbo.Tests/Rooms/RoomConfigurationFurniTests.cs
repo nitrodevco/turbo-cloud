@@ -152,12 +152,8 @@ public sealed class RoomConfigurationFurniTests
         // Official client capture 2026-10-22: on = ObjectDataUpdate, one ObjectRemoveMultiple
         // {ids, picker -1, byInvisibleFurniManager} of the area's furni, AreaHide, then the area's
         // tiles -1 in a HeightMapUpdate; off = ObjectDataUpdate, one Objects, AreaHide, heights.
-        var hider = _room.AddFloorItem(
-            HIDER,
-            7,
-            7,
-            "area_hide",
-            createLogic: (factory, ctx) => new FurnitureAreaHideLogic(factory, ctx)
+        var hider = _room.AddFloorItem(HIDER, 7, 7, "area_hide", createLogic: (factory, ctx) =>
+            new FurnitureAreaHideLogic(factory, ctx)
         );
         _room.AddFloorItem(INSIDE, 2, 2);
         _room.AddFloorItem(INSIDE_TOO, 3, 3);
@@ -214,12 +210,8 @@ public sealed class RoomConfigurationFurniTests
     [Fact]
     public async Task A_furni_wired_moves_into_a_hidden_area_is_hidden_and_shown_again_when_moved_out()
     {
-        var hider = _room.AddFloorItem(
-            HIDER,
-            7,
-            7,
-            "area_hide",
-            createLogic: (factory, ctx) => new FurnitureAreaHideLogic(factory, ctx)
+        var hider = _room.AddFloorItem(HIDER, 7, 7, "area_hide", createLogic: (factory, ctx) =>
+            new FurnitureAreaHideLogic(factory, ctx)
         );
         _room.AddFloorItem(INSIDE, 2, 2);
 
@@ -316,12 +308,8 @@ public sealed class RoomConfigurationFurniTests
             "invisible_furni_control",
             createLogic: (factory, ctx) => new FurnitureInvisibleFurniControlLogic(factory, ctx)
         );
-        var hider = _room.AddFloorItem(
-            HIDER,
-            7,
-            7,
-            "area_hide",
-            createLogic: (factory, ctx) => new FurnitureAreaHideLogic(factory, ctx)
+        var hider = _room.AddFloorItem(HIDER, 7, 7, "area_hide", createLogic: (factory, ctx) =>
+            new FurnitureAreaHideLogic(factory, ctx)
         );
         _room.AddFloorItem(INSIDE, 6, 6, className: "room_invisible_block");
         (await SetAreaAsync(hider, invisible)).Should().BeTrue();
@@ -373,12 +361,8 @@ public sealed class RoomConfigurationFurniTests
             "invisible_furni_control",
             createLogic: (factory, ctx) => new FurnitureInvisibleFurniControlLogic(factory, ctx)
         );
-        var hider = _room.AddFloorItem(
-            HIDER,
-            7,
-            7,
-            "area_hide",
-            createLogic: (factory, ctx) => new FurnitureAreaHideLogic(factory, ctx)
+        var hider = _room.AddFloorItem(HIDER, 7, 7, "area_hide", createLogic: (factory, ctx) =>
+            new FurnitureAreaHideLogic(factory, ctx)
         );
         await SetAreaAsync(hider, invisible: false);
         await hider.Logic.OnUseAsync(Owner, 0, Ct);
@@ -435,12 +419,8 @@ public sealed class RoomConfigurationFurniTests
         // Official client capture 2026-10-22T23-04-14-MoveObject: into the area = ObjectRemove
         // {picker -1, byInvisibleFurniManager} then ObjectUpdate (2/2); out of it = ObjectAdd
         // then ObjectUpdate (3/3).
-        var hider = _room.AddFloorItem(
-            HIDER,
-            7,
-            7,
-            "area_hide",
-            createLogic: (factory, ctx) => new FurnitureAreaHideLogic(factory, ctx)
+        var hider = _room.AddFloorItem(HIDER, 7, 7, "area_hide", createLogic: (factory, ctx) =>
+            new FurnitureAreaHideLogic(factory, ctx)
         );
         _room.AddFloorItem(OUTSIDE, 5, 5);
         await SetAreaAsync(hider, invisible: false);

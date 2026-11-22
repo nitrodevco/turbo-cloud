@@ -40,7 +40,9 @@ public sealed class WiredPickedUpPicksTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         box.GetSnapshot().StuffIds.Should().Equal(CHAIR, BLOCK);
 
         (

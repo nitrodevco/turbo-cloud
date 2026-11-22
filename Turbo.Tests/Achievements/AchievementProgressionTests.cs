@@ -186,9 +186,8 @@ public sealed class AchievementProgressionTests : IDisposable
         await NewGrain().ProcessAsync(Ct);
         await NewGrain().ProcessAsync(Ct);
 
-        Assert.DoesNotContain(
-            _fakes.Log.Calls,
-            x => x.Method == nameof(IPlayerWalletGrain.CreditAchievementAsync)
+        Assert.DoesNotContain(_fakes.Log.Calls, x =>
+            x.Method == nameof(IPlayerWalletGrain.CreditAchievementAsync)
         );
         Assert.Equal(
             [
@@ -283,18 +282,15 @@ public sealed class AchievementProgressionTests : IDisposable
         var heard = observer.Heard.OrderBy(x => x.Level).ToList();
         Assert.Equal([1, 2, 3], heard.Select(x => x.Level));
         Assert.Equal(["ACH_Test1", "ACH_Test2", "ACH_Test3"], heard.Select(x => x.BadgeCode));
-        Assert.All(
-            heard,
-            x =>
-            {
-                Assert.Equal(1, x.PlayerId.Value);
-                Assert.Equal(100000, x.AchievementId);
-                Assert.Equal("test-100000", x.Key);
-                Assert.Equal("identity", x.Category);
-                Assert.Equal(1, x.Revision);
-                Assert.Equal(10, x.Score);
-            }
-        );
+        Assert.All(heard, x =>
+        {
+            Assert.Equal(1, x.PlayerId.Value);
+            Assert.Equal(100000, x.AchievementId);
+            Assert.Equal("test-100000", x.Key);
+            Assert.Equal("identity", x.Category);
+            Assert.Equal(1, x.Revision);
+            Assert.Equal(10, x.Score);
+        });
     }
 
     [Fact]

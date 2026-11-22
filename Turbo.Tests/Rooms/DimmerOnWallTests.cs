@@ -112,7 +112,9 @@ public sealed class DimmerOnWallTests
                 },
                 Ct
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (await _room.Room.InteractWithItemAsync(ctx, DIMMER, new ToggleDimmerInteraction(), Ct))
             .Should()
             .BeTrue();

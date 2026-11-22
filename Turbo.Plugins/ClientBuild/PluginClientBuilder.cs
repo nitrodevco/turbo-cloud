@@ -55,8 +55,7 @@ internal sealed class PluginClientBuilder(
     /// <summary>Each shared library and its file under the SDK folder's <c>shared/</c>.</summary>
     private static readonly string[] SHARED = ["react", "zustand"];
 
-    private readonly string _esbuild =
-        esbuild
+    private readonly string _esbuild = esbuild
         ?? Path.Combine(
             AppContext.BaseDirectory,
             "esbuild",

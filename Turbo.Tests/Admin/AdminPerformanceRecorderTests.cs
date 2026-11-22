@@ -55,10 +55,8 @@ public sealed class AdminPerformanceRecorderTests : IDisposable
 
         await RoomTelemetry.MeasureAsync(stage, new RoomId(10), () => Task.Delay(30, Ct));
         await RoomTelemetry.MeasureAsync(stage, new RoomId(10), () => Task.CompletedTask);
-        await RoomTelemetry.MeasureAsync(
-            RoomTelemetry.DIRECT_ENTRY,
-            new RoomId(10),
-            () => Task.Delay(20, Ct)
+        await RoomTelemetry.MeasureAsync(RoomTelemetry.DIRECT_ENTRY, new RoomId(10), () =>
+            Task.Delay(20, Ct)
         );
 
         _time.Advance(TimeSpan.FromSeconds(10));

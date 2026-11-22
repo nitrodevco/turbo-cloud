@@ -100,7 +100,9 @@ public sealed class WiredNumberBlockCounterTutorialTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 2,
@@ -112,7 +114,9 @@ public sealed class WiredNumberBlockCounterTutorialTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateTriggerMessage>(
                 3,
@@ -123,7 +127,9 @@ public sealed class WiredNumberBlockCounterTutorialTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateSelectorMessage>(
                 4,
@@ -134,7 +140,9 @@ public sealed class WiredNumberBlockCounterTutorialTests
                 ],
                 definitionSpecifics: [false, false]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateSelectorMessage>(
                 5,
@@ -146,7 +154,9 @@ public sealed class WiredNumberBlockCounterTutorialTests
                 ],
                 definitionSpecifics: [true, false]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 6,
@@ -157,7 +167,9 @@ public sealed class WiredNumberBlockCounterTutorialTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         foreach (var y in new[] { 0, 5 })
             await Wired.OnRoomEventAsync(

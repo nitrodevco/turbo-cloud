@@ -50,8 +50,7 @@ internal sealed partial class ChatStyleService
         CancellationToken ct
     )
     {
-        var release =
-            await client.OpenFollowedAsync(ct).ConfigureAwait(false)
+        var release = await client.OpenFollowedAsync(ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException(
                 "No release of Habbo's HTML client is downloaded: check the client on the Updates tab first."
             );
@@ -91,8 +90,7 @@ internal sealed partial class ChatStyleService
         CancellationToken ct
     )
     {
-        var data =
-            release.Read(CLIENT_LIBRARY)
+        var data = release.Read(CLIENT_LIBRARY)
             ?? throw new InvalidOperationException(
                 $"Habbo's HTML client {release.Version} has no {CLIENT_LIBRARY}."
             );
@@ -252,8 +250,7 @@ internal sealed partial class ChatStyleService
     /// <summary>The client's chat styles, in <c>chatstyles_xml</c> order, and the library's other bitmaps.</summary>
     private static ReadBundleResult ReadClient(HabLibrary hab)
     {
-        var xml =
-            hab.GetXml("chatstyles_xml")
+        var xml = hab.GetXml("chatstyles_xml")
             ?? throw new ArgumentException("The chat library has no chatstyles_xml.");
         var styles = new List<ImportedStyle>();
 

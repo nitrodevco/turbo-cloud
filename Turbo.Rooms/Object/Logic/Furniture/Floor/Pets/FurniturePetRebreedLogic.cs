@@ -21,13 +21,12 @@ public class FurniturePetRebreedLogic(IStuffDataFactory stuffDataFactory, IRoomF
 
     protected override string? Prepare()
     {
-        _band =
-            FurnitureExtraDataSections.Read<PetRebreedData>(
-                _ctx.RoomObject.ExtraData,
-                _ctx.Definition.ExtraData,
-                PetRebreedData.SECTION,
-                Logger
-            ) ?? new PetRebreedData();
+        _band = FurnitureExtraDataSections.Read<PetRebreedData>(
+            _ctx.RoomObject.ExtraData,
+            _ctx.Definition.ExtraData,
+            PetRebreedData.SECTION,
+            Logger
+        ) ?? new PetRebreedData();
 
         return null;
     }

@@ -138,9 +138,7 @@ public sealed class WiredCarryUsersTests
             );
         // The seat stands on the floor and seats at its full height (1.00): drawn there, not
         // at the floor under it.
-        ((double)moves[0].SourceZ)
-            .Should()
-            .Be(1.0);
+        ((double)moves[0].SourceZ).Should().Be(1.0);
         ((double)moves[0].TargetZ).Should().Be(1.0);
         AssertSaidWithWfWhileSliding(updates);
         updates.Should().OnlyContain(x => x.Update.Status.Contains("sit"));
@@ -184,7 +182,9 @@ public sealed class WiredCarryUsersTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         (await effect(2)).Should().BeTrue();
 
@@ -198,7 +198,9 @@ public sealed class WiredCarryUsersTests
                     [WiredPlayerSourceType.AllRoomUsers],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         _room.AddBox<WiredAddonAnimationTime>(4, 0, 0, "wf_xtra_anim_time");
         var animationTimeSaved = await _room.SaveAsync<UpdateAddonMessage>(

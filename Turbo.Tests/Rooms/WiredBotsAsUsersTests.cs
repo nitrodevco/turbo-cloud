@@ -224,7 +224,9 @@ public sealed class WiredBotsAsUsersTests
                     [WiredPlayerSourceType.TriggeredUser],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 9,
@@ -236,7 +238,9 @@ public sealed class WiredBotsAsUsersTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await StartAsync();
 
         await Bots.TalkAsync(frank, "hi", false, null, false, Ct);
@@ -374,7 +378,9 @@ public sealed class WiredBotsAsUsersTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent
             {
@@ -418,7 +424,9 @@ public sealed class WiredBotsAsUsersTests
                     : null,
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         return box;
     }
@@ -443,7 +451,9 @@ public sealed class WiredBotsAsUsersTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await StartAsync();
 
         return trigger;

@@ -273,9 +273,8 @@ public sealed class OnlineRewardServiceTests : IDisposable
         await using var dbCtx = await _db.CreateDbContextAsync(Ct);
         (await dbCtx.PlayerOnlineRewards.SingleAsync(Ct))
             .Should()
-            .BeEquivalentTo(
-                new { Day = DateOnly.FromDateTime(nextDay), Amount = 5 },
-                o => o.ExcludingMissingMembers()
+            .BeEquivalentTo(new { Day = DateOnly.FromDateTime(nextDay), Amount = 5 }, o =>
+                o.ExcludingMissingMembers()
             );
     }
 

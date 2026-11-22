@@ -61,17 +61,11 @@ internal sealed partial class ContentEndpoints(
         group.MapGet("/achievements/{id:int}", GetAchievement);
         group.MapPost("/achievements/check", CheckAchievementAsync);
         group.MapPut("/achievements/{id:int}", PublishAchievementAsync);
-        group.MapGet(
-            "/badges",
-            async (string? q, CancellationToken ct) =>
-                Results.Ok(new { badges = await badges.SearchAsync(q, ct).ConfigureAwait(false) })
+        group.MapGet("/badges", async (string? q, CancellationToken ct) =>
+            Results.Ok(new { badges = await badges.SearchAsync(q, ct).ConfigureAwait(false) })
         );
-        group.MapGet(
-            "/badges/{code}/holders",
-            async (string code, CancellationToken ct) =>
-                Results.Ok(
-                    new { holders = await badges.HoldersAsync(code, ct).ConfigureAwait(false) }
-                )
+        group.MapGet("/badges/{code}/holders", async (string code, CancellationToken ct) =>
+            Results.Ok(new { holders = await badges.HoldersAsync(code, ct).ConfigureAwait(false) })
         );
         group.MapPut("/badges/{code}/rarity", SetRarityAsync);
         // What :givebadge and :takebadge do in the hotel, so their nodes as well as content.manage.
@@ -88,17 +82,13 @@ internal sealed partial class ContentEndpoints(
                     await groups.SearchAsync(q, page ?? 0, sort, dir, ct).ConfigureAwait(false)
                 )
         );
-        group.MapGet(
-            "/groups/editor",
-            async (CancellationToken ct) =>
-                Results.Ok(await groups.GetEditorAsync(ct).ConfigureAwait(false))
+        group.MapGet("/groups/editor", async (CancellationToken ct) =>
+            Results.Ok(await groups.GetEditorAsync(ct).ConfigureAwait(false))
         );
-        group.MapGet(
-            "/groups/{id:int}",
-            async (int id, CancellationToken ct) =>
-                await groups.GetAsync(id, ct).ConfigureAwait(false) is { } detail
-                    ? Results.Ok(detail)
-                    : Results.NotFound()
+        group.MapGet("/groups/{id:int}", async (int id, CancellationToken ct) =>
+            await groups.GetAsync(id, ct).ConfigureAwait(false) is { } detail
+                ? Results.Ok(detail)
+                : Results.NotFound()
         );
         group.MapPut(
             "/groups/{id:int}",
@@ -174,10 +164,8 @@ internal sealed partial class ContentEndpoints(
                     Saved(await groups.SaveColorAsync(id, request, ct).ConfigureAwait(false))
                 )
         );
-        group.MapGet(
-            "/currencies",
-            async (CancellationToken ct) =>
-                Results.Ok(await currencies.ListAsync(ct).ConfigureAwait(false))
+        group.MapGet("/currencies", async (CancellationToken ct) =>
+            Results.Ok(await currencies.ListAsync(ct).ConfigureAwait(false))
         );
         group.MapPost(
             "/currencies",
@@ -201,21 +189,17 @@ internal sealed partial class ContentEndpoints(
                     )
                 )
         );
-        group.MapDelete(
-            "/currencies/{id:int}",
-            (int id, HttpContext http, CancellationToken ct) =>
-                ContentAccess.ChangeAsync(async () =>
-                    Removed(
-                        await currencies
-                            .DeleteAsync(id, ContentAccess.Actor(http), ct)
-                            .ConfigureAwait(false)
-                    )
+        group.MapDelete("/currencies/{id:int}", (int id, HttpContext http, CancellationToken ct) =>
+            ContentAccess.ChangeAsync(async () =>
+                Removed(
+                    await currencies
+                        .DeleteAsync(id, ContentAccess.Actor(http), ct)
+                        .ConfigureAwait(false)
                 )
+            )
         );
-        group.MapGet(
-            "/pets",
-            async (CancellationToken ct) =>
-                Results.Ok(await pets.GetPetsAsync(ct).ConfigureAwait(false))
+        group.MapGet("/pets", async (CancellationToken ct) =>
+            Results.Ok(await pets.GetPetsAsync(ct).ConfigureAwait(false))
         );
         group.MapPost(
             "/pets/breeds",
@@ -245,12 +229,10 @@ internal sealed partial class ContentEndpoints(
                     Saved(await pets.SaveSpeechAsync(id, request, ct).ConfigureAwait(false))
                 )
         );
-        group.MapDelete(
-            "/pets/speech/{id:int}",
-            (int id, HttpContext http, CancellationToken ct) =>
-                ContentAccess.ChangeAsync(async () =>
-                    Removed(await pets.DeleteSpeechAsync(id, ct).ConfigureAwait(false))
-                )
+        group.MapDelete("/pets/speech/{id:int}", (int id, HttpContext http, CancellationToken ct) =>
+            ContentAccess.ChangeAsync(async () =>
+                Removed(await pets.DeleteSpeechAsync(id, ct).ConfigureAwait(false))
+            )
         );
         group.MapGet("/chat-styles", ListChatStylesAsync);
         group.MapGet(
@@ -282,16 +264,14 @@ internal sealed partial class ContentEndpoints(
                     )
                 )
         );
-        group.MapDelete(
-            "/chat-styles/{id:int}",
-            (int id, HttpContext http, CancellationToken ct) =>
-                ContentAccess.ChangeAsync(async () =>
-                    Removed(
-                        await chatStyles
-                            .DeleteAsync(id, AdminIdentity.Of(http).PlayerId, ct)
-                            .ConfigureAwait(false)
-                    )
+        group.MapDelete("/chat-styles/{id:int}", (int id, HttpContext http, CancellationToken ct) =>
+            ContentAccess.ChangeAsync(async () =>
+                Removed(
+                    await chatStyles
+                        .DeleteAsync(id, AdminIdentity.Of(http).PlayerId, ct)
+                        .ConfigureAwait(false)
                 )
+            )
         );
         group.MapPost("/chat-styles/import", ImportChatStylesAsync);
         group.MapPost(
@@ -313,10 +293,8 @@ internal sealed partial class ContentEndpoints(
                     }
                 })
         );
-        group.MapGet(
-            "/navigator",
-            async (CancellationToken ct) =>
-                Results.Ok(await navigator.GetAsync(ct).ConfigureAwait(false))
+        group.MapGet("/navigator", async (CancellationToken ct) =>
+            Results.Ok(await navigator.GetAsync(ct).ConfigureAwait(false))
         );
         group.MapPost(
             "/navigator/categories",

@@ -51,7 +51,9 @@ public sealed class WiredSecondaryFurniSourcesTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
 
@@ -81,7 +83,9 @@ public sealed class WiredSecondaryFurniSourcesTests
                     [WiredPlayerSourceType.SelectorUsers],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var processing = new WiredProcessingContext(_room.Harness.Room)
         {

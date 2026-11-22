@@ -81,7 +81,9 @@ public sealed class MultiHeightBlockTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         _room.Map.UpdateHeightForAvatar(user);
         user.Z.ToInt().Should().Be(100);
@@ -128,7 +130,9 @@ public sealed class MultiHeightBlockTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         async Task<List<RoomObjectId>> ToggleAsync()
         {
@@ -217,7 +221,9 @@ public sealed class MultiHeightBlockTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 EFFECT,
@@ -229,7 +235,9 @@ public sealed class MultiHeightBlockTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await _room
             .Harness.Module<RoomWiredSystem>()
             .OnRoomEventAsync(

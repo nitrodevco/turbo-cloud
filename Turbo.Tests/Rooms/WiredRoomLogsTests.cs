@@ -164,7 +164,9 @@ public sealed class WiredRoomLogsTests
                     [WiredPlayerSourceType.TriggeredUser],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await SaveLogAsync("D U=$(u)", delay: 4);
 
         await _room.FloorItem(CLICK_ME).Logic.OnClickAsync(_room.ContextFor(6), 0, Ct);
@@ -193,7 +195,9 @@ public sealed class WiredRoomLogsTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await SaveLogAsync(text);
     }

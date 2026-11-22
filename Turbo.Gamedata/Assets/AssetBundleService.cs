@@ -149,7 +149,11 @@ internal sealed class AssetBundleService(
                     })
                     .ToListAsync(ct)
                     .ConfigureAwait(false)
-            ).Where(x => !usage.IsUsed(x.Kind, x.Name, x.Ids)).OrderBy(x => x.Kind).ThenBy(x => x.Name, StringComparer.Ordinal).ToList();
+            )
+                .Where(x => !usage.IsUsed(x.Kind, x.Name, x.Ids))
+                .OrderBy(x => x.Kind)
+                .ThenBy(x => x.Name, StringComparer.Ordinal)
+                .ToList();
             var ids = unused.Skip(skip).Take(pageSize).Select(x => x.Id).ToList();
             var byId = (
                 await dbCtx

@@ -59,17 +59,13 @@ public sealed class AiRateLimitTests
         var clock = new ManualTimeProvider();
         var fakes = new Fakes();
         var activations = new ConcurrentDictionary<string, AiRateLimitGrain>();
-        fakes.Handlers["GetGrain"] = call =>
-            activations.GetOrAdd(
-                (string)call.Args[0]!,
-                _ =>
-                {
-                    var grain = GrainHarness.Create<AiRateLimitGrain>(fakes);
-                    GrainHarness.Replace<TimeProvider>(grain, clock);
+        fakes.Handlers["GetGrain"] = call => activations.GetOrAdd((string)call.Args[0]!, _ =>
+            {
+                var grain = GrainHarness.Create<AiRateLimitGrain>(fakes);
+                GrainHarness.Replace<TimeProvider>(grain, clock);
 
-                    return grain;
-                }
-            );
+                return grain;
+            });
         var one = new ClusterAiRateLimits(fakes.Create<IGrainFactory>());
         var two = new ClusterAiRateLimits(fakes.Create<IGrainFactory>());
 

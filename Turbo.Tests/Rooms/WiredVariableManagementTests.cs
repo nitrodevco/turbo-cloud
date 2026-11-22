@@ -257,9 +257,7 @@ public sealed class WiredVariableManagementTests
         packet.End.Should().BeTrue();
 
         // Somebody who holds nothing permanent here and is not here is nobody to the window.
-        (await Wired.GetEntityPermanentVariablesAsync(USER, 999, Ct))
-            .Should()
-            .BeNull();
+        (await Wired.GetEntityPermanentVariablesAsync(USER, 999, Ct)).Should().BeNull();
     }
 
     [Fact]
@@ -316,9 +314,7 @@ public sealed class WiredVariableManagementTests
 
         (await Values(BOB)).Should().Equal((level.ToString(), 3));
         // An edit needs a value already held.
-        (await ChangeAsync(coins, WiredVariableMenuOperationType.SetValue, 1))
-            .Should()
-            .BeFalse();
+        (await ChangeAsync(coins, WiredVariableMenuOperationType.SetValue, 1)).Should().BeFalse();
     }
 
     [Fact]

@@ -83,19 +83,15 @@ public sealed class McpToolTester
     {
         var held = new HashSet<string>(nodes, StringComparer.Ordinal);
 
-        return new McpTestCaller(
-            _all,
-            new McpCaller(player),
-            node => held.Contains(node) || held.Contains("*")
+        return new McpTestCaller(_all, new McpCaller(player), node =>
+            held.Contains(node) || held.Contains("*")
         );
     }
 
     /// <summary>A fake hotel's player, holding its <see cref="FakePlayer.Permissions"/> as they are at each call.</summary>
     public McpTestCaller As(FakePlayer player) =>
-        new(
-            _all,
-            new McpCaller(player.Id),
-            node => player.Permissions.Contains(node) || player.Permissions.Contains("*")
+        new(_all, new McpCaller(player.Id), node =>
+            player.Permissions.Contains(node) || player.Permissions.Contains("*")
         );
 
     /// <summary>

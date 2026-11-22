@@ -249,10 +249,8 @@ public class FurnitureJukeboxLogic(IStuffDataFactory stuffDataFactory, IRoomFloo
             _position = position;
             _startedAtMs = NowMs();
 
-            TimerSystem.Schedule(
-                _ctx.ObjectId,
-                length,
-                token => PlayAsync((_position + 1) % _disks.Length, token)
+            TimerSystem.Schedule(_ctx.ObjectId, length, token =>
+                PlayAsync((_position + 1) % _disks.Length, token)
             );
 
             await _roomGrain.SendComposerToRoomAsync(ComposeNowPlaying(), ct);

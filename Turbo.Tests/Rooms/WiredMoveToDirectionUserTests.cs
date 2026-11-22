@@ -179,7 +179,9 @@ public sealed class WiredMoveToDirectionUserTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         _turn = turn;
         _blockOnUsers = blockOnUsers;
         (await SaveMoverAsync()).Should().BeTrue();
@@ -195,7 +197,9 @@ public sealed class WiredMoveToDirectionUserTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent

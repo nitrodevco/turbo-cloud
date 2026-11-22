@@ -302,29 +302,25 @@ public sealed class RoomPetTickSystem(RoomGrain roomGrain) : RoomGrainComponent(
         // timer is the pet's own, so a command or a pickup in between stops it (see IsLeadingIn).
         pet.MarkDirty();
 
-        TimerSystem.Schedule(
-            pet.ObjectId,
-            Config.SetOffLeadInMs / 2,
-            turnCt =>
+        TimerSystem.Schedule(pet.ObjectId, Config.SetOffLeadInMs / 2, turnCt =>
+        {
+            if (IsLeadingIn(pet) && (pet.X != item.X || pet.Y != item.Y))
             {
-                if (IsLeadingIn(pet) && (pet.X != item.X || pet.Y != item.Y))
-                {
-                    pet.SetRotation(RotationExtensions.FromPoints(pet.X, pet.Y, item.X, item.Y));
-                    pet.MarkDirty();
-                }
-
-                TimerSystem.Schedule(
-                    pet.ObjectId,
-                    Config.SetOffLeadInMs - Config.SetOffLeadInMs / 2,
-                    setOffCt =>
-                        IsLeadingIn(pet) && FurniModule.TryGetItem(item.ObjectId, out _)
-                            ? SetOffAsync(pet, item, setOffCt)
-                            : Task.CompletedTask
-                );
-
-                return Task.CompletedTask;
+                pet.SetRotation(RotationExtensions.FromPoints(pet.X, pet.Y, item.X, item.Y));
+                pet.MarkDirty();
             }
-        );
+
+            TimerSystem.Schedule(
+                pet.ObjectId,
+                Config.SetOffLeadInMs - Config.SetOffLeadInMs / 2,
+                setOffCt =>
+                    IsLeadingIn(pet) && FurniModule.TryGetItem(item.ObjectId, out _)
+                        ? SetOffAsync(pet, item, setOffCt)
+                        : Task.CompletedTask
+            );
+
+            return Task.CompletedTask;
+        });
 
         return true;
     }

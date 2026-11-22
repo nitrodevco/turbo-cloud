@@ -138,12 +138,8 @@ public sealed class WiredTickStateBatchTests
         _room.AddFloorItem(CLICK_ME, 7, 4);
         var counter = (FurnitureCounterClockLogic)
             _room
-                .AddFloorItem(
-                    COUNTER,
-                    3,
-                    3,
-                    "wf_game_upcounter",
-                    createLogic: (factory, ctx) => new FurnitureCounterClockLogic(factory, ctx)
+                .AddFloorItem(COUNTER, 3, 3, "wf_game_upcounter", createLogic: (factory, ctx) =>
+                    new FurnitureCounterClockLogic(factory, ctx)
                 )
                 .Logic;
         // Running, as in the capture: a reset does nothing to a counter never started.
@@ -160,7 +156,9 @@ public sealed class WiredTickStateBatchTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 EFFECT_A,
@@ -172,7 +170,9 @@ public sealed class WiredTickStateBatchTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent
             {
@@ -218,7 +218,9 @@ public sealed class WiredTickStateBatchTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await SaveToggleAsync(EFFECT_A, PAD_A);
         await SaveToggleAsync(EFFECT_B, PAD_B);
         await Wired.OnRoomEventAsync(
@@ -238,7 +240,8 @@ public sealed class WiredTickStateBatchTests
             .FloorItem(CLICK_ME)
             .Logic.OnClickAsync(ActionContext.CreateForPlayer((PlayerId)105, (RoomId)1), 0, Ct);
 
-    private async Task SaveToggleAsync(int effect, int pad) => (
+    private async Task SaveToggleAsync(int effect, int pad) =>
+        (
             await _room.SaveAsync<UpdateActionMessage>(
                 effect,
                 intParams: [0],
@@ -249,7 +252,9 @@ public sealed class WiredTickStateBatchTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
     private async Task<List<IComposer>> TickAsync()
     {

@@ -338,7 +338,9 @@ public sealed class WiredSetHighlightTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
     }
 
     /// <summary>"User clicks User" and the highlight: the clicker is the triggering user.</summary>

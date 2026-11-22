@@ -28,8 +28,8 @@ public sealed class AchievementSync(
     AchievementBadgeAssets? badgeAssets = null
 )
 {
-    private readonly AchievementBadgeAssets _badgeAssets =
-        badgeAssets ?? new AchievementBadgeAssets(config);
+    private readonly AchievementBadgeAssets _badgeAssets = badgeAssets
+        ?? new AchievementBadgeAssets(config);
 
     /// <summary>A dry run is never recorded, so every validation-only import can share one id.</summary>
     private const string VALIDATION_OPERATION = "sync-check";

@@ -176,7 +176,9 @@ public sealed class OneWayDoorTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         for (var run = 0; run < 4; run++)
         {

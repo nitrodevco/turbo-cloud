@@ -493,11 +493,10 @@ internal static class CatalogEditJournal
                     var parameter = command.CreateParameter();
 
                     parameter.ParameterName = $"@p{parameters.Count}";
-                    parameter.Value =
-                        ToProvider(
-                            columns[c].Property,
-                            chunk[r].Values.GetValueOrDefault(columns[c].Property.Name)
-                        ) ?? DBNull.Value;
+                    parameter.Value = ToProvider(
+                        columns[c].Property,
+                        chunk[r].Values.GetValueOrDefault(columns[c].Property.Name)
+                    ) ?? DBNull.Value;
                     parameters.Add(parameter);
                     text.Append(c == 0 ? string.Empty : ", ").Append(parameter.ParameterName);
                 }

@@ -128,9 +128,8 @@ public class WiredActionTeleportTo(
         {
             await AvatarModule.StopWalkingAsync(avatar, ct);
 
-            WiredSystem.RunAfter(
-                config.TeleportFastDelayMs,
-                token => ArriveAsync(avatar, tileIdx, token)
+            WiredSystem.RunAfter(config.TeleportFastDelayMs, token =>
+                ArriveAsync(avatar, tileIdx, token)
             );
         }
         else
@@ -146,19 +145,15 @@ public class WiredActionTeleportTo(
             var now = WiredSystem.DeferredNowMs;
             var landsAt = AvatarCycleAfter(now + config.TeleportDelayMs - tickMs);
 
-            WiredSystem.RunAfter(
-                (int)(landsAt - 2 * tickMs - now),
-                token =>
-                {
-                    if (IsInRoom(avatar))
-                        avatar.MarkDirty();
+            WiredSystem.RunAfter((int)(landsAt - 2 * tickMs - now), token =>
+            {
+                if (IsInRoom(avatar))
+                    avatar.MarkDirty();
 
-                    return Task.CompletedTask;
-                }
-            );
-            WiredSystem.RunAfter(
-                (int)(landsAt - tickMs - now),
-                token => ArriveAsync(avatar, tileIdx, token)
+                return Task.CompletedTask;
+            });
+            WiredSystem.RunAfter((int)(landsAt - tickMs - now), token =>
+                ArriveAsync(avatar, tileIdx, token)
             );
 
             effectMs = (int)(landsAt + config.TeleportEffectMs - config.TeleportDelayMs - now);
@@ -169,16 +164,14 @@ public class WiredActionTeleportTo(
         // Teleport To: AvatarEffect 4 at the fire, 218 again 3.4 s later, still frozen; with it on,
         // thawed on landing and AvatarEffect 0 at the same point, 1/1 each).
         if (effectId > 0)
-            WiredSystem.RunAfter(
-                effectMs,
-                token =>
-                    IsInRoom(avatar) && avatar.EffectId == effectId
-                        ? AvatarModule.SetAvatarEffectAsync(
-                            avatar.ObjectId,
-                            avatar.IsFrozen ? worn : 0,
-                            token
-                        )
-                        : Task.FromResult(false)
+            WiredSystem.RunAfter(effectMs, token =>
+                IsInRoom(avatar) && avatar.EffectId == effectId
+                    ? AvatarModule.SetAvatarEffectAsync(
+                        avatar.ObjectId,
+                        avatar.IsFrozen ? worn : 0,
+                        token
+                    )
+                    : Task.FromResult(false)
             );
 
         return true;

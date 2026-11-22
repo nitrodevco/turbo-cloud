@@ -105,8 +105,7 @@ public sealed class ClientTelemetryRecorder(
             return;
 
         var now = Now();
-        var device =
-            SessionOf(session, now)?.Device
+        var device = SessionOf(session, now)?.Device
             ?? (ClientUserAgents.UNKNOWN, ClientUserAgents.UNKNOWN, ClientUserAgents.UNKNOWN);
 
         Enqueue(

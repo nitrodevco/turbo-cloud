@@ -135,19 +135,13 @@ public sealed class EffectFurniTests
         AddArea(FURNI, 2, 3);
         AddArea(FURNI + 1, 3, 3);
 
-        await WalkToAsync(
-            avatar,
-            4,
-            3,
-            onEachStep: () =>
-            {
-                var x =
-                    avatar.NextTileId >= 0 ? _room.Map.GetTileXY(avatar.NextTileId).x : avatar.X;
+        await WalkToAsync(avatar, 4, 3, onEachStep: () =>
+        {
+            var x = avatar.NextTileId >= 0 ? _room.Map.GetTileXY(avatar.NextTileId).x : avatar.X;
 
-                if (x is 2 or 3)
-                    avatar.EffectId.Should().Be(30, $"standing on the water at x {x}");
-            }
-        );
+            if (x is 2 or 3)
+                avatar.EffectId.Should().Be(30, $"standing on the water at x {x}");
+        });
 
         (avatar.X, avatar.Y).Should().Be((4, 3));
         avatar.EffectId.Should().Be(0);

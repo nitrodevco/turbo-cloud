@@ -56,7 +56,9 @@ public sealed class WiredOfficialSourcesTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         talk.GetPlayerSources().Single().Should().Equal(WiredPlayerSourceType.TriggeredUser);
     }
 

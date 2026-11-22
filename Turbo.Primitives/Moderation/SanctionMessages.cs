@@ -31,8 +31,7 @@ public static class SanctionMessages
     {
         var permanent = ban.ExpiresAtUtc is null;
         var key = permanent ? BAN_MESSAGE_PERMANENT : BAN_MESSAGE;
-        var text =
-            await texts.GetTextAsync(key, ct).ConfigureAwait(false)
+        var text = await texts.GetTextAsync(key, ct).ConfigureAwait(false)
             ?? (permanent ? DEFAULT_BAN_MESSAGE_PERMANENT : DEFAULT_BAN_MESSAGE);
 
         return text.Replace("%0%", ban.Reason, StringComparison.Ordinal)

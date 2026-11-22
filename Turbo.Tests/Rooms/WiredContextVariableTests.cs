@@ -116,7 +116,9 @@ public sealed class WiredContextVariableTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 2,
@@ -143,7 +145,9 @@ public sealed class WiredContextVariableTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateTriggerMessage>(
                 4,
@@ -153,7 +157,9 @@ public sealed class WiredContextVariableTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         // Set the global to the context variable's value.
         (
             await _room.SaveAsync<UpdateActionMessage>(

@@ -91,8 +91,7 @@ internal sealed class PlayerQuestGrain : Grain, IPlayerQuestGrain
         var open = (await CurrentQuestsAsync(ct)).Where(x => x.Id != 0).ToList();
         var easyCount = open.Count(x => x.Easy);
         var pool = open.Where(x => x.Easy == easy).ToList() is { Count: > 0 } asked ? asked : open;
-        var quest =
-            open.FirstOrDefault(x => x.Accepted)
+        var quest = open.FirstOrDefault(x => x.Accepted)
             ?? (pool.Count > 0 ? pool[(int)((uint)index % (uint)pool.Count)] : null);
 
         await _grainFactory.SendComposerToPlayerAsync(

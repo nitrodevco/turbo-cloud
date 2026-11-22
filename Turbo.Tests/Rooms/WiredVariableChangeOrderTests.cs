@@ -205,7 +205,9 @@ public sealed class WiredVariableChangeOrderTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await SaveChangeAsync(2, WiredVariableOperationType.Set, 3, variableId);
 

@@ -64,10 +64,8 @@ public sealed class MySqlMigrationTests : IAsyncLifetime
             : new MySqlConnectionStringBuilder(SERVER!) { Database = database }.ConnectionString;
 
         var options = new DbContextOptionsBuilder<TurboDbContext>()
-            .UseMySql(
-                connectionString,
-                ServerVersion.AutoDetect(SERVER!),
-                mysql => mysql.MigrationsAssembly("Turbo.Database")
+            .UseMySql(connectionString, ServerVersion.AutoDetect(SERVER!), mysql =>
+                mysql.MigrationsAssembly("Turbo.Database")
             )
             .Options;
 

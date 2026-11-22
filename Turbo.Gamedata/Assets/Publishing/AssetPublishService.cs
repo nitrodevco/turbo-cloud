@@ -378,12 +378,11 @@ internal sealed class AssetPublishService(
             var dbCtx = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
             await using var dbCtxScope = dbCtx.ConfigureAwait(false);
 
-            var hash =
-                await dbCtx
-                    .AssetPublishedFiles.Where(x => x.TargetEntityId == targetId && x.Path == path)
-                    .Select(x => x.Hash)
-                    .FirstOrDefaultAsync(ct)
-                    .ConfigureAwait(false)
+            var hash = await dbCtx
+                .AssetPublishedFiles.Where(x => x.TargetEntityId == targetId && x.Path == path)
+                .Select(x => x.Hash)
+                .FirstOrDefaultAsync(ct)
+                .ConfigureAwait(false)
                 ?? "";
             var reader = ReaderOf(target);
 

@@ -91,7 +91,9 @@ public sealed class WiredGiveVariableTests
                 ],
                 variableIds: [mark.GetVarSnapshot().VariableId.ToString()]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
 

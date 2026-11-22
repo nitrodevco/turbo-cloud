@@ -35,10 +35,8 @@ public class FurniturePetToyLogic(IStuffDataFactory stuffDataFactory, IRoomFloor
 
         await SetLegacyDataAsync(PLAYED_WITH);
 
-        TimerSystem.Schedule(
-            _ctx.ObjectId,
-            config.ToyPlayDurationMs,
-            _ => SetLegacyDataAsync(string.Empty)
+        TimerSystem.Schedule(_ctx.ObjectId, config.ToyPlayDurationMs, _ =>
+            SetLegacyDataAsync(string.Empty)
         );
 
         await PetModule.SayVocalAsync(pet, "PLAYING", ct);

@@ -85,12 +85,8 @@ public sealed class HighscoreBoardTests
         var alice = Player(room, 5, "alice");
         var bob = Player(room, 6, "bob");
         var board = (FurnitureHighscoreLogic)
-            room.AddFloorItem(
-                40,
-                7,
-                7,
-                "highscore_perteam*1",
-                createLogic: (factory, ctx) => new FurnitureHighscoreLogic(factory, ctx)
+            room.AddFloorItem(40, 7, 7, "highscore_perteam*1", createLogic: (factory, ctx) =>
+                new FurnitureHighscoreLogic(factory, ctx)
             ).Logic;
         var game = room.Harness.Module<RoomGameSystem>();
 

@@ -70,9 +70,8 @@ internal sealed partial class PlayerPermissionGrain
                     )
                 );
 
-                return (
-                    result,
-                    () => _state.MembershipsByGroupId[(group.Id, temporary)] = row.ToSnapshot()
+                return (result, () =>
+                    _state.MembershipsByGroupId[(group.Id, temporary)] = row.ToSnapshot()
                 );
             },
             ct
@@ -118,9 +117,8 @@ internal sealed partial class PlayerPermissionGrain
                     )
                 );
 
-                return (
-                    PermissionChangeResultType.Changed,
-                    () => _state.MembershipsByGroupId.Remove((group.Id, temporary))
+                return (PermissionChangeResultType.Changed, () =>
+                    _state.MembershipsByGroupId.Remove((group.Id, temporary))
                 );
             },
             ct
@@ -221,9 +219,8 @@ internal sealed partial class PlayerPermissionGrain
                         Audit(PermissionAuditActionType.NodeUnset, node, actor, null, row.ExpiresAt)
                     );
 
-                    return (
-                        PermissionChangeResultType.Changed,
-                        () => _state.NodesByNode.Remove((node, temporary))
+                    return (PermissionChangeResultType.Changed, () =>
+                        _state.NodesByNode.Remove((node, temporary))
                     );
                 },
                 ct,
@@ -314,9 +311,8 @@ internal sealed partial class PlayerPermissionGrain
                         Audit(PermissionAuditActionType.MetaUnset, key, actor, null, row.ExpiresAt)
                     );
 
-                    return (
-                        PermissionChangeResultType.Changed,
-                        () => _state.MetaByKey.Remove((key, temporary))
+                    return (PermissionChangeResultType.Changed, () =>
+                        _state.MetaByKey.Remove((key, temporary))
                     );
                 },
                 ct

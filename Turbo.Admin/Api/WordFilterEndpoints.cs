@@ -32,9 +32,8 @@ internal sealed class WordFilterEndpoints(IGrainFactory grainFactory, AdminWordF
         group.MapPost("/", AddAsync);
         group.MapDelete("/{id:int}", RemoveAsync);
         group
-            .MapPost(
-                "/test",
-                (WordFilterTestRequest request) => Results.Ok(words.Test(request.Text))
+            .MapPost("/test", (WordFilterTestRequest request) =>
+                Results.Ok(words.Test(request.Text))
             )
             .ViewIsEnough("Trying a line on the filter changes nothing.");
     }

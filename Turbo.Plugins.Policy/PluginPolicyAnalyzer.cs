@@ -104,8 +104,8 @@ public sealed class PluginPolicyAnalyzer : DiagnosticAnalyzer
         }
 
         var info = context.SemanticModel.GetSymbolInfo(node, context.CancellationToken);
-        var symbol =
-            info.Symbol ?? (info.CandidateSymbols.Length > 0 ? info.CandidateSymbols[0] : null);
+        var symbol = info.Symbol
+            ?? (info.CandidateSymbols.Length > 0 ? info.CandidateSymbols[0] : null);
 
         if (symbol is null || Banned(symbol) is not { } banned)
             return;

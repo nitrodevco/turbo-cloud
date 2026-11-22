@@ -30,12 +30,8 @@ public sealed class WiredControlClockTests
     {
         var clock = (FurnitureCounterClockLogic)
             _room
-                .AddFloorItem(
-                    CLOCK,
-                    3,
-                    3,
-                    "wf_game_upcounter",
-                    createLogic: (factory, ctx) => new FurnitureCounterClockLogic(factory, ctx)
+                .AddFloorItem(CLOCK, 3, 3, "wf_game_upcounter", createLogic: (factory, ctx) =>
+                    new FurnitureCounterClockLogic(factory, ctx)
                 )
                 .Logic;
 
@@ -63,12 +59,8 @@ public sealed class WiredControlClockTests
     {
         var clock = (FurnitureCounterClockLogic)
             _room
-                .AddFloorItem(
-                    CLOCK,
-                    3,
-                    3,
-                    "wf_upcounter",
-                    createLogic: (factory, ctx) => new FurnitureCounterClockLogic(factory, ctx)
+                .AddFloorItem(CLOCK, 3, 3, "wf_upcounter", createLogic: (factory, ctx) =>
+                    new FurnitureCounterClockLogic(factory, ctx)
                 )
                 .Logic;
         var heard = new List<RoomEvent>();
@@ -96,12 +88,8 @@ public sealed class WiredControlClockTests
     {
         var clock = (FurnitureCounterClockLogic)
             _room
-                .AddFloorItem(
-                    CLOCK,
-                    3,
-                    3,
-                    "wf_game_upcounter",
-                    createLogic: (factory, ctx) => new FurnitureCounterClockLogic(factory, ctx)
+                .AddFloorItem(CLOCK, 3, 3, "wf_game_upcounter", createLogic: (factory, ctx) =>
+                    new FurnitureCounterClockLogic(factory, ctx)
                 )
                 .Logic;
         var timers = _room.Harness.Module<RoomTimerSystem>();
@@ -127,12 +115,8 @@ public sealed class WiredControlClockTests
     {
         var clock = (FurnitureCounterClockLogic)
             _room
-                .AddFloorItem(
-                    CLOCK,
-                    3,
-                    3,
-                    "wf_game_upcounter",
-                    createLogic: (factory, ctx) => new FurnitureCounterClockLogic(factory, ctx)
+                .AddFloorItem(CLOCK, 3, 3, "wf_game_upcounter", createLogic: (factory, ctx) =>
+                    new FurnitureCounterClockLogic(factory, ctx)
                 )
                 .Logic;
         var timers = _room.Harness.Module<RoomTimerSystem>();
@@ -168,12 +152,8 @@ public sealed class WiredControlClockTests
     {
         var clock = (FurnitureCounterClockLogic)
             _room
-                .AddFloorItem(
-                    CLOCK,
-                    3,
-                    3,
-                    "wf_game_upcounter",
-                    createLogic: (factory, ctx) => new FurnitureCounterClockLogic(factory, ctx)
+                .AddFloorItem(CLOCK, 3, 3, "wf_game_upcounter", createLogic: (factory, ctx) =>
+                    new FurnitureCounterClockLogic(factory, ctx)
                 )
                 .Logic;
         var timers = _room.Harness.Module<RoomTimerSystem>();

@@ -102,9 +102,7 @@ public sealed class CatalogOfferOrderTests : IDisposable
             );
 
         // Past the end is the end.
-        (await _service.MoveOfferAsync(Editor, SOLD, FURNITURE, 99, Ct))
-            .Saved.Should()
-            .BeTrue();
+        (await _service.MoveOfferAsync(Editor, SOLD, FURNITURE, 99, Ct)).Saved.Should().BeTrue();
         (await EditorOrderAsync(FURNITURE))
             .Should()
             .Equal(IN_DIAMONDS, HIDDEN_OFFER, IN_DUCKETS, IN_CREDITS_ROW, SOLD);

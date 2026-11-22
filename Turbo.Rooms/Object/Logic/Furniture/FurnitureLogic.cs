@@ -92,15 +92,13 @@ public abstract class FurnitureLogic<TObject, TSelf, TContext>
     /// </summary>
     public virtual bool HasUse() =>
         _ctx.RoomObject.Definition.TotalStates > 1
-        || _ownUse.GetOrAdd(
-            GetType(),
-            type =>
-                type.GetMethod(
-                    nameof(OnUseAsync),
-                    [typeof(ActionContext), typeof(int), typeof(CancellationToken)]
-                )?.DeclaringType
-                    is not { IsGenericType: true } declaring
-                || declaring.GetGenericTypeDefinition() != typeof(FurnitureLogic<,,>)
+        || _ownUse.GetOrAdd(GetType(), type =>
+            type.GetMethod(
+                nameof(OnUseAsync),
+                [typeof(ActionContext), typeof(int), typeof(CancellationToken)]
+            )?.DeclaringType
+                is not { IsGenericType: true } declaring
+            || declaring.GetGenericTypeDefinition() != typeof(FurnitureLogic<,,>)
         );
 
     public virtual bool CanChangeState() => true;

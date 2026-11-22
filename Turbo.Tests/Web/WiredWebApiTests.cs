@@ -783,9 +783,7 @@ public sealed class WiredWebApiTests : IAsyncDisposable
                 .Be((403, "wired.variables.key_invalid"));
 
         // The room's own allowance is untouched by them.
-        (await limited.SendAsync(HttpMethod.Get, PATH, read: read))
-            .Status.Should()
-            .Be(200);
+        (await limited.SendAsync(HttpMethod.Get, PATH, read: read)).Status.Should().Be(200);
         (await limited.SendAsync(HttpMethod.Get, PATH, read: read)).Status.Should().Be(200);
         (await limited.RetryAfterAsync(PATH, read)).Should().Be((429, true));
 
@@ -1049,9 +1047,7 @@ public sealed class WiredWebApiTests : IAsyncDisposable
         room["uniqueId"]!.GetValue<string>().Should().Be("1");
 
         // Invisible rooms are not public; a hidden owner is not named.
-        (await SendAsync(HttpMethod.Get, "/api/public/rooms/2"))
-            .Should()
-            .Be((404, "not-found"));
+        (await SendAsync(HttpMethod.Get, "/api/public/rooms/2")).Should().Be((404, "not-found"));
 
         var shy = (await RawAsync(HttpMethod.Get, "/api/public/rooms/3", null, null, null)).Item2!;
 

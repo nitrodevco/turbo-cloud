@@ -234,8 +234,7 @@ internal static class ThemeStyles
     /// <summary>The base theme's <c>theme.json</c>, shipped in this assembly.</summary>
     private static JsonNode BaseTheme()
     {
-        using var stream =
-            typeof(ThemeStyles).Assembly.GetManifestResourceStream(BASE_RESOURCE)
+        using var stream = typeof(ThemeStyles).Assembly.GetManifestResourceStream(BASE_RESOURCE)
             ?? throw new InvalidOperationException($"{BASE_RESOURCE} is not in the build.");
 
         return JsonNode.Parse(stream, documentOptions: READ)!;

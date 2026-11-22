@@ -327,12 +327,8 @@ public sealed class PetBreedingNestTests
     private FurniturePetBreedingNestLogic AddNest() =>
         (FurniturePetBreedingNestLogic)
             _room
-                .AddFloorItem(
-                    NEST,
-                    6,
-                    6,
-                    "pet_breeding_nest",
-                    createLogic: (factory, ctx) => new FurniturePetBreedingNestLogic(factory, ctx)
+                .AddFloorItem(NEST, 6, 6, "pet_breeding_nest", createLogic: (factory, ctx) =>
+                    new FurniturePetBreedingNestLogic(factory, ctx)
                 )
                 .Logic;
 

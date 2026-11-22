@@ -12,8 +12,9 @@ public static class HostApplicationBuilderExtensions
 {
     public static HostApplicationBuilder AddOrleans(this HostApplicationBuilder builder)
     {
-        var orleansConfig =
-            builder.Configuration.GetSection(OrleansConfig.SECTION_NAME).Get<OrleansConfig>()
+        var orleansConfig = builder
+            .Configuration.GetSection(OrleansConfig.SECTION_NAME)
+            .Get<OrleansConfig>()
             ?? new OrleansConfig();
 
         builder.UseOrleans(
@@ -26,10 +27,9 @@ public static class HostApplicationBuilderExtensions
                             orleansConfig.GrainCollectionAgeMinutes
                         );
                     });
-                    var telemetryConfig =
-                        builder
-                            .Configuration.GetSection(TelemetryConfig.SECTION_NAME)
-                            .Get<TelemetryConfig>()
+                    var telemetryConfig = builder
+                        .Configuration.GetSection(TelemetryConfig.SECTION_NAME)
+                        .Get<TelemetryConfig>()
                         ?? new TelemetryConfig();
                     if (telemetryConfig.Enabled)
                     {
@@ -50,28 +50,24 @@ public static class HostApplicationBuilderExtensions
                         .AddMemoryGrainStorage(OrleansStorageNames.PUB_SUB_STORE)
                         .AddMemoryGrainStorage(OrleansStorageNames.PLAYER_STORE)
                         .AddMemoryGrainStorage(OrleansStorageNames.ROOM_STORE)
-                        .AddMemoryStreams(
-                            OrleansStreamProviders.DEFAULT_STREAM_PROVIDER,
-                            streams => ConfigureStreamCache(streams, orleansConfig)
+                        .AddMemoryStreams(OrleansStreamProviders.DEFAULT_STREAM_PROVIDER, streams =>
+                            ConfigureStreamCache(streams, orleansConfig)
                         )
-                        .AddMemoryStreams(
-                            OrleansStreamProviders.ROOM_STREAM_PROVIDER,
-                            streams =>
-                            {
-                                ConfigureStreamCache(streams, orleansConfig);
-                                streams.ConfigurePullingAgent(ob =>
-                                    ob.Configure(options =>
-                                    {
-                                        // Memory streams are pull-based; the default 100ms poll
-                                        // adds up to 100ms of jitter to every room packet, which
-                                        // is visible in the avatar walk cadence.
-                                        options.GetQueueMsgsTimerPeriod = TimeSpan.FromMilliseconds(
-                                            orleansConfig.RoomStreamPollMs
-                                        );
-                                    })
-                                );
-                            }
-                        );
+                        .AddMemoryStreams(OrleansStreamProviders.ROOM_STREAM_PROVIDER, streams =>
+                        {
+                            ConfigureStreamCache(streams, orleansConfig);
+                            streams.ConfigurePullingAgent(ob =>
+                                ob.Configure(options =>
+                                {
+                                    // Memory streams are pull-based; the default 100ms poll
+                                    // adds up to 100ms of jitter to every room packet, which
+                                    // is visible in the avatar walk cadence.
+                                    options.GetQueueMsgsTimerPeriod = TimeSpan.FromMilliseconds(
+                                        orleansConfig.RoomStreamPollMs
+                                    );
+                                })
+                            );
+                        });
                 }
             )
         );

@@ -57,7 +57,9 @@ public sealed class WiredUnreleasedBoxesTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 2,
@@ -68,7 +70,9 @@ public sealed class WiredUnreleasedBoxesTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await RebuildAsync(0, 0);
 
@@ -203,7 +207,9 @@ public sealed class WiredUnreleasedBoxesTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredProcessingContext(_room.Harness.Room)
         {

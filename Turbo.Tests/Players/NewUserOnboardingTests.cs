@@ -441,9 +441,7 @@ public sealed class NewUserOnboardingTests : IDisposable
 
         (await starterRooms.HasTypeAsync("77", Ct)).Should().BeTrue();
         // The built-in room 10 is offered only while the hotel offers none of its own.
-        (await starterRooms.HasTypeAsync("10", Ct))
-            .Should()
-            .BeFalse();
+        (await starterRooms.HasTypeAsync("10", Ct)).Should().BeFalse();
     }
 
     [Fact]

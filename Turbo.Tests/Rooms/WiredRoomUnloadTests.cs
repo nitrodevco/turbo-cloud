@@ -201,7 +201,9 @@ public sealed class WiredRoomUnloadTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await SaveToggleAsync(EFFECT, PAD);
         (
             await Room.SaveAsync<UpdateTriggerMessage>(
@@ -399,7 +401,8 @@ public sealed class WiredRoomUnloadTests
         await SaveToggleAsync(EFFECT, PAD);
     }
 
-    private async Task SaveToggleAsync(int effectId, int padId) => (
+    private async Task SaveToggleAsync(int effectId, int padId) =>
+        (
             await Room.SaveAsync<UpdateActionMessage>(
                 effectId,
                 intParams: [0],
@@ -410,7 +413,9 @@ public sealed class WiredRoomUnloadTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
     /// <summary>
     /// The owner leaves, the empty room unloads, and they come back <paramref name="awayMs"/>

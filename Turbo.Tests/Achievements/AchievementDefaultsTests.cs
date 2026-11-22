@@ -45,9 +45,8 @@ public class AchievementDefaultsTests
         {
             var prefix = expectedPrefixes[definition.Key];
             Assert.NotEmpty(definition.Levels);
-            Assert.All(
-                definition.Levels.Select((level, index) => (level, index)),
-                item => Assert.Equal($"{prefix}{item.index + 1}", item.level.BadgeCode)
+            Assert.All(definition.Levels.Select((level, index) => (level, index)), item =>
+                Assert.Equal($"{prefix}{item.index + 1}", item.level.BadgeCode)
             );
 
             var requirements = definition.Levels.Select(x => x.Requirement).ToArray();
@@ -101,23 +100,18 @@ public class AchievementDefaultsTests
                     .Select(x => x.GetProperty("requiredScore").GetInt32()),
                 definition.Levels.Select(x => x.Requirement)
             );
-            Assert.All(
-                definition.Levels,
-                x =>
-                {
-                    Assert.Equal(10, x.Score);
-                }
-            );
+            Assert.All(definition.Levels, x =>
+            {
+                Assert.Equal(10, x.Score);
+            });
         }
         Assert.Equal(
             "ARCHIVED",
             published["BasicClub"].GetProperty("achievement").GetProperty("state").GetString()
         );
-        Assert.DoesNotContain(
-            AchievementDefaults.Definitions,
-            x =>
-                x.Accrues(DateTime.UtcNow)
-                && x.Levels[0].BadgeCode.StartsWith("ACH_BasicClub", StringComparison.Ordinal)
+        Assert.DoesNotContain(AchievementDefaults.Definitions, x =>
+            x.Accrues(DateTime.UtcNow)
+            && x.Levels[0].BadgeCode.StartsWith("ACH_BasicClub", StringComparison.Ordinal)
         );
         var membership = AchievementDefaults.Definitions.Single(x => x.Key == "hc-duration");
         Assert.Equal(0, membership.Levels[0].Requirement);

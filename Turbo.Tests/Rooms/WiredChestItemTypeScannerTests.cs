@@ -115,12 +115,8 @@ public sealed class WiredChestItemTypeScannerTests
     {
         var chest = (FurnitureWiredChestLogic)
             _room
-                .AddFloorItem(
-                    CHEST,
-                    5,
-                    5,
-                    "wired_chest_furni",
-                    createLogic: (factory, ctx) => new FurnitureWiredFurniChestLogic(factory, ctx)
+                .AddFloorItem(CHEST, 5, 5, "wired_chest_furni", createLogic: (factory, ctx) =>
+                    new FurnitureWiredFurniChestLogic(factory, ctx)
                 )
                 .Logic;
 
@@ -166,7 +162,9 @@ public sealed class WiredChestItemTypeScannerTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateAddonMessage>(
                 2,
@@ -180,7 +178,9 @@ public sealed class WiredChestItemTypeScannerTests
                 ],
                 variableIds: [contextId]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         // Set the global to the context variable's value.
         (
             await _room.SaveAsync<UpdateActionMessage>(

@@ -45,17 +45,14 @@ public class RoomTelemetryTests
             ],
             packets.Select(packet => (int)packet.Header)
         );
-        var direct = Assert.Single(
-            activities,
-            activity => activity.OperationName == RoomTelemetry.DIRECT_ENTRY
+        var direct = Assert.Single(activities, activity =>
+            activity.OperationName == RoomTelemetry.DIRECT_ENTRY
         );
-        Assert.DoesNotContain(
-            activities,
-            activity => activity.OperationName == RoomTelemetry.ACTIVATE
+        Assert.DoesNotContain(activities, activity =>
+            activity.OperationName == RoomTelemetry.ACTIVATE
         );
-        var access = Assert.Single(
-            activities,
-            activity => activity.OperationName == RoomTelemetry.ACCESS
+        var access = Assert.Single(activities, activity =>
+            activity.OperationName == RoomTelemetry.ACCESS
         );
         Assert.Equal(direct.TraceId, access.TraceId);
         Assert.Equal(direct.SpanId, access.ParentSpanId);
@@ -126,10 +123,8 @@ public class RoomTelemetryTests
         meterListener.Start();
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            RoomTelemetry.MeasureAsync(
-                "test.failure",
-                (RoomId)987654,
-                () => Task.FromException(new InvalidOperationException("secret password"))
+            RoomTelemetry.MeasureAsync("test.failure", (RoomId)987654, () =>
+                Task.FromException(new InvalidOperationException("secret password"))
             )
         );
 
@@ -137,9 +132,8 @@ public class RoomTelemetryTests
         var activity = Assert.Single(activities);
         Assert.Equal("error", activity.GetTagItem("operation.outcome"));
         Assert.Equal(typeof(InvalidOperationException).FullName, activity.GetTagItem("error.type"));
-        Assert.DoesNotContain(
-            activity.TagObjects,
-            tag => tag.Value?.ToString()?.Contains("secret password") == true
+        Assert.DoesNotContain(activity.TagObjects, tag =>
+            tag.Value?.ToString()?.Contains("secret password") == true
         );
         var measurement = Assert.Single(measurements);
         Assert.Equal(

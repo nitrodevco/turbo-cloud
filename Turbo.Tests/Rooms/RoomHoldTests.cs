@@ -161,12 +161,8 @@ public sealed class RoomHoldTests
 
     private void AddRoller(int id, int x, int y, Rotation rotation) =>
         _room
-            .AddFloorItem(
-                id,
-                x,
-                y,
-                "roller",
-                createLogic: (factory, ctx) => new FurnitureRollerLogic(factory, ctx)
+            .AddFloorItem(id, x, y, "roller", createLogic: (factory, ctx) =>
+                new FurnitureRollerLogic(factory, ctx)
             )
             .SetRotation(rotation);
 

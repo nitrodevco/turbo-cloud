@@ -40,8 +40,7 @@ public sealed class RgbaImage
     /// <summary>A PNG, JPEG or GIF, decoded to unpremultiplied RGBA.</summary>
     public static RgbaImage Decode(byte[] data)
     {
-        using var codec =
-            SKCodec.Create(new SKMemoryStream(data))
+        using var codec = SKCodec.Create(new SKMemoryStream(data))
             ?? throw new AssetFormatException(
                 "An image is not a PNG, JPEG or GIF this reader can decode."
             );
@@ -134,8 +133,7 @@ public sealed class RgbaImage
         try
         {
             using var pixmap = new SKPixmap(info, handle.AddrOfPinnedObject(), info.RowBytes);
-            using var data =
-                pixmap.Encode(SKEncodedImageFormat.Png, 100)
+            using var data = pixmap.Encode(SKEncodedImageFormat.Png, 100)
                 ?? throw new InvalidOperationException("Skia could not encode the sheet as PNG.");
 
             return data.ToArray();

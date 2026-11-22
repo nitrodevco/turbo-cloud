@@ -32,11 +32,10 @@ internal static partial class PluginHelpers
 
         try
         {
-            var manifest =
-                JsonSerializer.Deserialize<PluginManifest>(
-                    File.ReadAllText(path),
-                    _jsonSerializerOptions
-                ) ?? throw new PluginManifestException(PluginManifestErrorType.Unreadable, path);
+            var manifest = JsonSerializer.Deserialize<PluginManifest>(
+                File.ReadAllText(path),
+                _jsonSerializerOptions
+            ) ?? throw new PluginManifestException(PluginManifestErrorType.Unreadable, path);
 
             if (string.IsNullOrWhiteSpace(manifest.Name))
                 throw new PluginManifestException(

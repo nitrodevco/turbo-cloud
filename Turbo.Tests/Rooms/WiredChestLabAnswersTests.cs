@@ -98,7 +98,9 @@ public sealed class WiredChestLabAnswersTests
                 definitionSpecifics: [quantifier],
                 variableIds: ["n"]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         condition.GetQuantifierType().Should().Be((byte)WiredQuantifierType.Furni);
         condition.Evaluate(Context()).Should().Be(passes);
@@ -119,12 +121,8 @@ public sealed class WiredChestLabAnswersTests
     )
     {
         _room.AddFloorItem(LAMP, 3, 3);
-        _room.AddFloorItem(
-            CHEST,
-            4,
-            4,
-            "wired_chest_furni",
-            createLogic: (factory, ctx) => new FurnitureWiredFurniChestLogic(factory, ctx)
+        _room.AddFloorItem(CHEST, 4, 4, "wired_chest_furni", createLogic: (factory, ctx) =>
+            new FurnitureWiredFurniChestLogic(factory, ctx)
         );
         var condition = _room.AddBox<WiredConditionChestHasItemTypes>(
             BOX,
@@ -152,7 +150,9 @@ public sealed class WiredChestLabAnswersTests
                 definitionSpecifics: [ALL],
                 variableIds: ["n"]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         condition.Evaluate(Context()).Should().Be(passes);
     }
@@ -243,12 +243,8 @@ public sealed class WiredChestLabAnswersTests
     public async Task A_started_contract_transaction_fails_with_8_and_fires_transaction_failed()
     {
         AddChest(locked: false, coins: 0);
-        _room.AddFloorItem(
-            CONTRACT,
-            5,
-            5,
-            "wired_contract_payment",
-            createLogic: (factory, ctx) => new FurnitureWiredPaymentContractLogic(factory, ctx)
+        _room.AddFloorItem(CONTRACT, 5, 5, "wired_contract_payment", createLogic: (factory, ctx) =>
+            new FurnitureWiredPaymentContractLogic(factory, ctx)
         );
         var box = await AddInitiateTransactionAsync([CHEST], [CONTRACT]);
         _room.Harness.Fakes.Handlers["GetTradeStandingAsync"] = _ =>
@@ -318,12 +314,8 @@ public sealed class WiredChestLabAnswersTests
     )
     {
         AddChest(locked: false, coins: CHEST_COINS);
-        _room.AddFloorItem(
-            CONTRACT,
-            5,
-            5,
-            "wired_contract_reward",
-            createLogic: (factory, ctx) => new FurnitureWiredRewardContractLogic(factory, ctx)
+        _room.AddFloorItem(CONTRACT, 5, 5, "wired_contract_reward", createLogic: (factory, ctx) =>
+            new FurnitureWiredRewardContractLogic(factory, ctx)
         );
         var box = await AddInitiateTransactionAsync(
             chestPicked ? [CHEST] : [],
@@ -498,7 +490,9 @@ public sealed class WiredChestLabAnswersTests
                 definitionSpecifics: [0],
                 variableIds: ["n"]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         return box;
     }
@@ -534,7 +528,9 @@ public sealed class WiredChestLabAnswersTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         return box;
     }

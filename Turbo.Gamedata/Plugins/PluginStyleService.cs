@@ -80,14 +80,11 @@ internal sealed partial class PluginStyleService(
         CancellationToken ct
     )
     {
-        var property =
-            Find(pluginKey, folder, name)
+        var property = Find(pluginKey, folder, name)
             ?? throw new ArgumentException($"The theme has no style {name}.", nameof(name));
         // A path is one of the plugin's served files (an image on its Theme tab), at its address by hash.
-        var client = ThemeStyles.ClientValue(
-            property,
-            value.Trim(),
-            path => host?.GetService<IClientModuleDirectory>()?.AddressOf(pluginKey, path)
+        var client = ThemeStyles.ClientValue(property, value.Trim(), path =>
+            host?.GetService<IClientModuleDirectory>()?.AddressOf(pluginKey, path)
         );
 
         var styles = await HotelAsync(ExternalVariablesFile.TEMPLATE_STYLES, ct)
@@ -376,8 +373,7 @@ internal sealed partial class PluginStyleService(
         CancellationToken ct
     )
     {
-        var property =
-            Find(pluginKey, folder, name)
+        var property = Find(pluginKey, folder, name)
             ?? throw new ArgumentException($"The theme has no style {name}.", nameof(name));
 
         if (value is not null)
@@ -580,10 +576,8 @@ internal sealed partial class PluginStyleService(
     }
 
     private ImmutableArray<ThemeStyleProperty> Read(string pluginKey, string folder) =>
-        ThemeStyles.Read(
-            pluginKey,
-            folder,
-            key => host?.GetService<IHotelDataPlugin>()?.FolderOf(key)
+        ThemeStyles.Read(pluginKey, folder, key =>
+            host?.GetService<IHotelDataPlugin>()?.FolderOf(key)
         );
 
     private ThemeStyleProperty? Find(string pluginKey, string folder, string name) =>

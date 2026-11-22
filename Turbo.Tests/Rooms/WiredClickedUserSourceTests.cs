@@ -84,7 +84,9 @@ public sealed class WiredClickedUserSourceTests
                 ],
                 variableIds: [_mark.GetVarSnapshot().VariableId.ToString()]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         give.GetPlayerSources().First().Should().Equal(source);
         await StartAsync(0, 0);
 

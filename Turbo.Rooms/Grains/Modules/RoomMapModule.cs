@@ -340,8 +340,8 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
     )
     {
         Altitude nextHeight = State.Model?.BaseHeights[id] ?? 0.0;
-        var nextFlags =
-            State.Model?.BaseFlags[id] ?? (RoomTileFlags.Disabled | RoomTileFlags.Closed);
+        var nextFlags = State.Model?.BaseFlags[id]
+            ?? (RoomTileFlags.Disabled | RoomTileFlags.Closed);
 
         IRoomFloorItem? nextHighestItem = null;
         IRoomFloorItem? stackHelper = null;
@@ -497,8 +497,7 @@ public sealed partial class RoomMapModule(RoomGrain roomGrain)
             for (int id = 0; id < size; id++)
             {
                 var height = State.Model?.BaseHeights[id] ?? Altitude.Zero;
-                var flags =
-                    State.Model?.BaseFlags[id]
+                var flags = State.Model?.BaseFlags[id]
                     ?? (RoomTileFlags.Disabled | RoomTileFlags.Closed | RoomTileFlags.StackBlocked);
 
                 tileHeights[id] = height;

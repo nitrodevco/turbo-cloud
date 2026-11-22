@@ -155,10 +155,9 @@ public sealed partial class AdminCurrencyEditor(
         }
         else
         {
-            row =
-                await dbCtx
-                    .CurrencyTypes.FirstOrDefaultAsync(x => x.Id == id, ct)
-                    .ConfigureAwait(false)
+            row = await dbCtx
+                .CurrencyTypes.FirstOrDefaultAsync(x => x.Id == id, ct)
+                .ConfigureAwait(false)
                 ?? throw new ArgumentException($"There is no currency {id}.");
 
             if (

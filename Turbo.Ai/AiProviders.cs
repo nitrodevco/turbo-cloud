@@ -120,8 +120,7 @@ public sealed class AiProviders(
             var driver = _drivers[provider.Driver];
             var model =
                 i == 0 && !string.IsNullOrWhiteSpace(step.Model) ? step.Model : provider.Model;
-            var timeout =
-                step.Timeout
+            var timeout = step.Timeout
                 ?? TimeSpan.FromSeconds(
                     provider.TimeoutSeconds > 0 ? provider.TimeoutSeconds : current.TimeoutSeconds
                 );

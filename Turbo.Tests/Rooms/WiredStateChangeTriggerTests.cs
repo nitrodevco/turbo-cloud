@@ -46,7 +46,9 @@ public sealed class WiredStateChangeTriggerTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         // A change away from the saved state first, so a change "to 0" is a real change.
         await lamp.Logic.SetStateAsync(1, false);

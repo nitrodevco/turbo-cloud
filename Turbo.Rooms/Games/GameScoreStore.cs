@@ -60,8 +60,8 @@ public sealed class GameScoreStore(
         await using var db = await dbCtxFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         return await db
-                .GamePlayerResults.MaxAsync(row => (int?)row.GameId, ct)
-                .ConfigureAwait(false)
+            .GamePlayerResults.MaxAsync(row => (int?)row.GameId, ct)
+            .ConfigureAwait(false)
             ?? 0;
     }
 

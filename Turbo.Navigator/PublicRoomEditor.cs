@@ -150,10 +150,9 @@ public sealed class PublicRoomEditor(
         }
         else
         {
-            row =
-                await dbCtx
-                    .NavigatorPublicCategories.FirstOrDefaultAsync(x => x.Id == id, ct)
-                    .ConfigureAwait(false)
+            row = await dbCtx
+                .NavigatorPublicCategories.FirstOrDefaultAsync(x => x.Id == id, ct)
+                .ConfigureAwait(false)
                 ?? throw new ArgumentException($"There is no public category {id}.");
         }
 
@@ -258,8 +257,7 @@ public sealed class PublicRoomEditor(
         await ManualCategoryAsync(dbCtx, toCategoryId, ct).ConfigureAwait(false);
 
         var from = await RoomsOfAsync(dbCtx, fromCategoryId, ct).ConfigureAwait(false);
-        var row =
-            from.FirstOrDefault(x => x.RoomEntityId == roomId.Value)
+        var row = from.FirstOrDefault(x => x.RoomEntityId == roomId.Value)
             ?? throw new ArgumentException(
                 $"Room {roomId.Value} is not in public category {fromCategoryId}."
             );
@@ -341,12 +339,11 @@ public sealed class PublicRoomEditor(
         CancellationToken ct
     )
     {
-        var kind =
-            await dbCtx
-                .NavigatorPublicCategories.Where(x => x.Id == categoryId)
-                .Select(x => (NavigatorPublicCategoryKind?)x.Kind)
-                .FirstOrDefaultAsync(ct)
-                .ConfigureAwait(false)
+        var kind = await dbCtx
+            .NavigatorPublicCategories.Where(x => x.Id == categoryId)
+            .Select(x => (NavigatorPublicCategoryKind?)x.Kind)
+            .FirstOrDefaultAsync(ct)
+            .ConfigureAwait(false)
             ?? throw new ArgumentException($"There is no public category {categoryId}.");
 
         if (kind == NavigatorPublicCategoryKind.StaffPicks)

@@ -223,72 +223,56 @@ public sealed partial class AdminCatalogBuilder(
         // it builds onto included.
         if (string.IsNullOrEmpty(newTitle))
             return await editor
-                .GroupAsync(
-                    editorId,
-                    $"built the page {page.Localization} ({plan.Builder})",
-                    () =>
-                        ApplyPlanAsync(
-                            editorId,
-                            pageId,
-                            request,
-                            plan,
-                            page,
-                            wanted,
-                            childDisplay,
-                            ct
-                        )
+                .GroupAsync(editorId, $"built the page {page.Localization} ({plan.Builder})", () =>
+                    ApplyPlanAsync(editorId, pageId, request, plan, page, wanted, childDisplay, ct)
                 )
                 .ConfigureAwait(false);
 
         return await editor
-            .GroupAsync(
-                editorId,
-                $"built a new page {newTitle} ({plan.Builder})",
-                async () =>
-                {
-                    var created = await editor
-                        .CreatePageAsync(
-                            editorId,
-                            pageId,
-                            new CatalogPageDraft(
-                                newTitle,
-                                null,
-                                request.NewPageIcon ?? page.Icon,
-                                // The pet builder's pages carry the pet layout; the page over them tells of pets.
-                                plan.Builder == CatalogPageBuilders.PETS
-                                    ? PETS_INFO_LAYOUT
-                                    : plan.Layout,
-                                [],
-                                [],
-                                childDisplay
-                            ),
-                            ct
-                        )
-                        .ConfigureAwait(false);
+            .GroupAsync(editorId, $"built a new page {newTitle} ({plan.Builder})", async () =>
+            {
+                var created = await editor
+                    .CreatePageAsync(
+                        editorId,
+                        pageId,
+                        new CatalogPageDraft(
+                            newTitle,
+                            null,
+                            request.NewPageIcon ?? page.Icon,
+                            // The pet builder's pages carry the pet layout; the page over them tells of pets.
+                            plan.Builder == CatalogPageBuilders.PETS
+                                ? PETS_INFO_LAYOUT
+                                : plan.Layout,
+                            [],
+                            [],
+                            childDisplay
+                        ),
+                        ct
+                    )
+                    .ConfigureAwait(false);
 
-                    if (!created.Saved)
-                        return CatalogBuildOutcome<CatalogBuildResponse>.Refused(
-                            created.Error ?? "The new page was not made."
-                        );
+                if (!created.Saved)
+                    return CatalogBuildOutcome<CatalogBuildResponse>.Refused(
+                        created.Error ?? "The new page was not made."
+                    );
 
-                    var target = await PageAsync(created.Id, ct).ConfigureAwait(false);
+                var target = await PageAsync(created.Id, ct).ConfigureAwait(false);
 
-                    return await ApplyPlanAsync(
-                            editorId,
-                            created.Id,
-                            request with
-                            {
-                                SetLayout = false,
-                            },
-                            plan,
-                            target!,
-                            wanted,
-                            childDisplay,
-                            ct
-                        )
-                        .ConfigureAwait(false);
-                }
-            )
+                return await ApplyPlanAsync(
+                        editorId,
+                        created.Id,
+                        request with
+                        {
+                            SetLayout = false,
+                        },
+                        plan,
+                        target!,
+                        wanted,
+                        childDisplay,
+                        ct
+                    )
+                    .ConfigureAwait(false);
+            })
             .ConfigureAwait(false);
     }
 
@@ -602,8 +586,8 @@ public sealed partial class AdminCatalogBuilder(
             var key = $"pet:{Number(type)}";
             var productName = names.GetValueOrDefault(codes[i]);
             var text = texts.GetValueOrDefault(PET_TYPE_TEXT_PREFIX + Number(type));
-            var pageTitle =
-                FirstNamed(text, WithoutStarterFood(productName)) ?? $"Pet {Number(type)}";
+            var pageTitle = FirstNamed(text, WithoutStarterFood(productName))
+                ?? $"Pet {Number(type)}";
 
             plan.Items.Add(
                 new PlanItem(
@@ -1086,7 +1070,10 @@ public sealed partial class AdminCatalogBuilder(
                 })
                 .ToListAsync(ct)
                 .ConfigureAwait(false)
-        ).OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Id).ToList();
+        )
+            .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Id)
+            .ToList();
         var codes = list.Where(x => !string.IsNullOrWhiteSpace(x.Code))
             .Select(x => SONG_PRODUCT_PREFIX + x.Code!.Trim())
             .ToList();

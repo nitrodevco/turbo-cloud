@@ -458,9 +458,7 @@ public sealed class ChatStyleServiceTests : IDisposable
         await ReleaseAsync(newer: false);
 
         // A release whose chat the hotel hasn't taken: its styles are taken, once.
-        (await _styles.FollowClientAsync(STAFF, Ct))!
-            .Updated.Should()
-            .Be(2);
+        (await _styles.FollowClientAsync(STAFF, Ct))!.Updated.Should().Be(2);
         (await _styles.FollowClientAsync(STAFF, Ct)).Should().BeNull();
         (await Styles("off").FollowClientAsync(STAFF, Ct)).Should().BeNull();
 

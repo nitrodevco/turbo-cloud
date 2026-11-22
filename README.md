@@ -154,7 +154,7 @@ If you see `Unable to connect to any of the specified MySQL hosts`, or `Cannot u
 
 ### Quality check failures
 1. Run `dotnet tool restore`.
-2. Run `dotnet csharpier .`.
+2. Run `dotnet csharpier format .`.
 3. Run `dotnet format style`.
 4. Run `dotnet format analyzers`.
 5. Re-run `dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudQualityGate`.

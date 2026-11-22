@@ -56,7 +56,9 @@ public sealed class WiredUserBoxMeasuredTests
                     [WiredPlayerSourceType.UserByName],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         condition.Evaluate(TriggeredBy(PLAYER)).Should().Be(holds);
     }
@@ -85,7 +87,9 @@ public sealed class WiredUserBoxMeasuredTests
                     [WiredPlayerSourceType.TriggeredUser],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         condition.Evaluate(TriggeredBy(PLAYER)).Should().Be(holds);
     }
@@ -136,7 +140,9 @@ public sealed class WiredUserBoxMeasuredTests
                 },
                 Ct
             )
-        ).Should().Be(fires);
+        )
+            .Should()
+            .Be(fires);
     }
 
     private WiredProcessingContext TriggeredBy(int objectId)

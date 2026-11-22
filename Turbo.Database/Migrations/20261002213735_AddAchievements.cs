@@ -90,10 +90,11 @@ namespace Turbo.Database.Migrations
                     },
                     constraints: table =>
                     {
-                        table.PrimaryKey(
-                            "PK_achievement_definitions",
-                            x => new { x.AchievementId, x.Revision }
-                        );
+                        table.PrimaryKey("PK_achievement_definitions", x => new
+                        {
+                            x.AchievementId,
+                            x.Revision,
+                        });
                     }
                 )
                 .Annotation("MySql:CharSet", "utf8mb4");
@@ -111,15 +112,12 @@ namespace Turbo.Database.Migrations
                     },
                     constraints: table =>
                     {
-                        table.PrimaryKey(
-                            "PK_achievement_distinct_values",
-                            x => new
-                            {
-                                x.PlayerId,
-                                x.AchievementId,
-                                x.Value,
-                            }
-                        );
+                        table.PrimaryKey("PK_achievement_distinct_values", x => new
+                        {
+                            x.PlayerId,
+                            x.AchievementId,
+                            x.Value,
+                        });
                     }
                 )
                 .Annotation("MySql:CharSet", "utf8mb4");
@@ -206,10 +204,11 @@ namespace Turbo.Database.Migrations
                     },
                     constraints: table =>
                     {
-                        table.PrimaryKey(
-                            "PK_achievement_progress",
-                            x => new { x.PlayerId, x.AchievementId }
-                        );
+                        table.PrimaryKey("PK_achievement_progress", x => new
+                        {
+                            x.PlayerId,
+                            x.AchievementId,
+                        });
                     }
                 )
                 .Annotation("MySql:CharSet", "utf8mb4");
@@ -255,10 +254,11 @@ namespace Turbo.Database.Migrations
                     },
                     constraints: table =>
                     {
-                        table.PrimaryKey(
-                            "PK_achievement_wallet_receipts",
-                            x => new { x.PlayerId, x.AwardKey }
-                        );
+                        table.PrimaryKey("PK_achievement_wallet_receipts", x => new
+                        {
+                            x.PlayerId,
+                            x.AwardKey,
+                        });
                     }
                 )
                 .Annotation("MySql:CharSet", "utf8mb4");

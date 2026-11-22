@@ -117,7 +117,9 @@ public sealed class WiredGamesTimeLabTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await SaveToggleAsync();
         await StackChangedAsync();
 
@@ -580,7 +582,9 @@ public sealed class WiredGamesTimeLabTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent
             {
@@ -694,7 +698,9 @@ public sealed class WiredGamesTimeLabTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await clock.AdjustAsync(WiredOperatorType.Set, 12_010, Ct);
 
         condition.Evaluate(Context()).Should().Be(passes);
@@ -742,7 +748,9 @@ public sealed class WiredGamesTimeLabTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent
             {
@@ -794,12 +802,8 @@ public sealed class WiredGamesTimeLabTests
     private FurnitureCounterClockLogic AddClock() =>
         (FurnitureCounterClockLogic)
             _room
-                .AddFloorItem(
-                    CLOCK,
-                    3,
-                    3,
-                    "wf_upcounter",
-                    createLogic: (factory, ctx) => new FurnitureCounterClockLogic(factory, ctx)
+                .AddFloorItem(CLOCK, 3, 3, "wf_upcounter", createLogic: (factory, ctx) =>
+                    new FurnitureCounterClockLogic(factory, ctx)
                 )
                 .Logic;
 
@@ -825,12 +829,8 @@ public sealed class WiredGamesTimeLabTests
         _room.AddFloorItem(CLICK_ME, 7, 4);
         var counter = (FurnitureCounterClockLogic)
             _room
-                .AddFloorItem(
-                    CLOCK,
-                    3,
-                    3,
-                    "wf_game_upcounter1",
-                    createLogic: (factory, ctx) => new FurnitureGameCounterLogic(factory, ctx)
+                .AddFloorItem(CLOCK, 3, 3, "wf_game_upcounter1", createLogic: (factory, ctx) =>
+                    new FurnitureGameCounterLogic(factory, ctx)
                 )
                 .Logic;
         _room.AddBox<WiredTriggerClickFurni>(TRIGGER, 0, 0, "wf_trg_click_furni");
@@ -845,7 +845,9 @@ public sealed class WiredGamesTimeLabTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 BOX,
@@ -856,7 +858,9 @@ public sealed class WiredGamesTimeLabTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await StackChangedAsync();
         await TickAsync(1);
 
@@ -885,7 +889,8 @@ public sealed class WiredGamesTimeLabTests
     }
 
     // EFFECT toggles PAD.
-    private async Task SaveToggleAsync() => (
+    private async Task SaveToggleAsync() =>
+        (
             await _room.SaveAsync<UpdateActionMessage>(
                 EFFECT,
                 intParams: [0],
@@ -896,7 +901,9 @@ public sealed class WiredGamesTimeLabTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
     private Task StackChangedAsync() =>
         Wired.OnRoomEventAsync(

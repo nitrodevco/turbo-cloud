@@ -156,10 +156,9 @@ public class FurniturePetPackageLogic(IStuffDataFactory stuffDataFactory, IRoomF
             TypeId = contents.TypeId,
             PaletteId = contents.PaletteId,
             Color = contents.Color.ToUpperInvariant(),
-            BreedId =
-                _roomGrain
-                    ._petBreedProvider.TryGetPalette(contents.TypeId, contents.PaletteId)
-                    ?.BreedId
+            BreedId = _roomGrain
+                ._petBreedProvider.TryGetPalette(contents.TypeId, contents.PaletteId)
+                ?.BreedId
                 ?? contents.PaletteId,
             CustomParts = [],
         };

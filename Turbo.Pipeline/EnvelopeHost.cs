@@ -52,28 +52,17 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
 
         var resolutionProvider =
             sp == _host ? _host : new CompositeServiceProvider(sp, _hostForPlugins);
-        var b = AddTo(
-            envType,
-            x =>
-                x.Handlers = x.Handlers.Add(
-                    new HandlerReg<TContext>(
-                        handlerType,
-                        sp,
-                        resolutionProvider,
-                        activator,
-                        invoker
-                    )
-                )
+        var b = AddTo(envType, x =>
+            x.Handlers = x.Handlers.Add(
+                new HandlerReg<TContext>(handlerType, sp, resolutionProvider, activator, invoker)
+            )
         );
 
         return new ActionDisposable(() =>
-            RemoveFrom(
-                envType,
-                b,
-                x =>
-                    x.Handlers = x.Handlers.RemoveAll(h =>
-                        h.Activator == activator && h.Invoker == invoker
-                    )
+            RemoveFrom(envType, b, x =>
+                x.Handlers = x.Handlers.RemoveAll(h =>
+                    h.Activator == activator && h.Invoker == invoker
+                )
             )
         );
     }
@@ -89,29 +78,24 @@ public class EnvelopeHost<TEnvelope, TMeta, TContext>(
     {
         ArgumentNullException.ThrowIfNull(envType);
 
-        var b = AddTo(
-            envType,
-            x =>
-                x.Behaviors = x.Behaviors.Add(
-                    new BehaviorReg<TContext>(
-                        behaviorType,
-                        sp,
-                        sp == _host ? _host : new CompositeServiceProvider(_hostForPlugins, sp),
-                        order,
-                        activator,
-                        invoker
-                    )
+        var b = AddTo(envType, x =>
+            x.Behaviors = x.Behaviors.Add(
+                new BehaviorReg<TContext>(
+                    behaviorType,
+                    sp,
+                    sp == _host ? _host : new CompositeServiceProvider(_hostForPlugins, sp),
+                    order,
+                    activator,
+                    invoker
                 )
+            )
         );
 
         return new ActionDisposable(() =>
-            RemoveFrom(
-                envType,
-                b,
-                x =>
-                    x.Behaviors = x.Behaviors.RemoveAll(r =>
-                        r.Activator == activator && r.Invoker == invoker && r.Order == order
-                    )
+            RemoveFrom(envType, b, x =>
+                x.Behaviors = x.Behaviors.RemoveAll(r =>
+                    r.Activator == activator && r.Invoker == invoker && r.Order == order
+                )
             )
         );
     }

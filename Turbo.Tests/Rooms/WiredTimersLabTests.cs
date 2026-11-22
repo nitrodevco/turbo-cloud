@@ -214,18 +214,12 @@ public sealed class WiredTimersLabTests
         string? extraData = null
     ) =>
         (FurnitureGameCounter1Logic)
-            room.AddFloorItem(
-                id,
-                3,
-                3,
-                "wf_game_upcounter1",
-                createLogic: (factory, ctx) =>
-                {
-                    ctx.RoomObject.SetExtraData(extraData);
+            room.AddFloorItem(id, 3, 3, "wf_game_upcounter1", createLogic: (factory, ctx) =>
+            {
+                ctx.RoomObject.SetExtraData(extraData);
 
-                    return new FurnitureGameCounter1Logic(factory, ctx);
-                }
-            ).Logic;
+                return new FurnitureGameCounter1Logic(factory, ctx);
+            }).Logic;
 
     /// <summary>Runs the room's clocks for <paramref name="halfSeconds"/> half seconds.</summary>
     private static async Task CountAsync(WiredRoom room, int halfSeconds)

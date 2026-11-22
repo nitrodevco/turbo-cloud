@@ -29,9 +29,7 @@ public sealed class FurnitureIconTests
         var icon = FurnitureIcon.Draw(Mirrored(), "sign")!;
 
         // Layer a at -1,0; layer b mirrored at x 1 spans 1 - 2 = -1 .. 1, drawn over it.
-        (icon.Width, icon.Height)
-            .Should()
-            .Be((2, 1));
+        (icon.Width, icon.Height).Should().Be((2, 1));
         Pixel(icon, 0, 0).Should().Be(0x0000FFFF);
         Pixel(icon, 1, 0).Should().Be(0xFF0000FF);
 
@@ -112,8 +110,8 @@ public sealed class FurnitureIconTests
                 (frame, i) =>
                 {
                     var entry = $$$"""
-                    "{{{frame}}}":{"frame":{"x":{{{at}}},"y":0,"w":{{{widths[i]}}},"h":1}}
-                    """;
+                        "{{{frame}}}":{"frame":{"x":{{{at}}},"y":0,"w":{{{widths[i]}}},"h":1}}
+                        """;
 
                     at += widths[i];
 

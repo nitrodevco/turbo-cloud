@@ -1128,14 +1128,11 @@ public sealed class AchievementCatalogContractTests : IDisposable
         var dictionary = texts ?? new Dictionary<string, string>();
         HotelTextFakes.Use(_fakes, key => dictionary.GetValueOrDefault(key));
         // No currency unless a test gives one; the out argument must still be written.
-        _fakes.Handlers.TryAdd(
-            nameof(ICurrencyTypeProvider.TryGetCurrencyTypeId),
-            call =>
-            {
-                call.Args[1] = 0;
-                return false;
-            }
-        );
+        _fakes.Handlers.TryAdd(nameof(ICurrencyTypeProvider.TryGetCurrencyTypeId), call =>
+        {
+            call.Args[1] = 0;
+            return false;
+        });
         return new AchievementCatalog(
             _db,
             _fakes.Create<ICurrencyTypeProvider>(),

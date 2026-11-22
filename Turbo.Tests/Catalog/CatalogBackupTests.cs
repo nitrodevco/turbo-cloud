@@ -136,9 +136,7 @@ public sealed class CatalogBackupTests : IDisposable
         _catalog.Rows().Should().Be(edited);
 
         // And what was replaced can be rolled back to, after a publish too.
-        (await _service.RedoAsync(Editor, Ct))
-            .Saved.Should()
-            .BeTrue();
+        (await _service.RedoAsync(Editor, Ct)).Saved.Should().BeTrue();
         await _service.PublishAsync(Editor, Ct);
         (await _service.RollbackAsync(Editor, backups[0].Id, Ct)).Error.Should().BeNull();
         _catalog.Rows().Should().Be(edited);
@@ -389,9 +387,7 @@ public sealed class CatalogBackupTests : IDisposable
         }
 
         // The catalog comes back; the series and what it sold do not.
-        (await _service.UndoAsync(Editor, Ct))
-            .Error.Should()
-            .BeNull();
+        (await _service.UndoAsync(Editor, Ct)).Error.Should().BeNull();
         _catalog.Rows().Should().Be(before);
 
         await using (var db = await _catalog.Db.CreateDbContextAsync(Ct))

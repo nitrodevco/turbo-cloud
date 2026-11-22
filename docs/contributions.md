@@ -52,7 +52,7 @@ sh scripts/bootstrap.sh            # or: pwsh -File scripts/bootstrap.ps1
 - `pre-commit` runs the fast check: `dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudFastCheck`.
 - `pre-push` runs the full gate: `dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudQualityGate`.
 
-If the gate fails on formatting, `dotnet tool restore` then `dotnet csharpier .` fixes it. The
+If the gate fails on formatting, `dotnet tool restore` then `dotnet csharpier format .` fixes it. The
 architecture rules (handlers that only orchestrate, no database calls from a handler, the three
 ways to send a composer) are in [`AGENTS.md`](../AGENTS.md) and [`CONTEXT.md`](../CONTEXT.md),
 with a sample of each shape in [Code Patterns](patterns/README.md).

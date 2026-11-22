@@ -18,17 +18,15 @@ internal sealed class QuestEndpoints(ContentAccess access, AdminQuestEditor ques
     {
         var group = ContentAccess.Require(secured.MapGroup("/quests"));
 
-        group.MapGet(
-            "/daily-tasks",
-            async (HttpContext http, CancellationToken ct) =>
-                Results.Ok(
-                    await quests
-                        .ListDailyTasksAsync(
-                            await access.CanManageAsync(http, ct).ConfigureAwait(false),
-                            ct
-                        )
-                        .ConfigureAwait(false)
-                )
+        group.MapGet("/daily-tasks", async (HttpContext http, CancellationToken ct) =>
+            Results.Ok(
+                await quests
+                    .ListDailyTasksAsync(
+                        await access.CanManageAsync(http, ct).ConfigureAwait(false),
+                        ct
+                    )
+                    .ConfigureAwait(false)
+            )
         );
         group.MapPost(
             "/daily-tasks",
@@ -52,29 +50,25 @@ internal sealed class QuestEndpoints(ContentAccess access, AdminQuestEditor ques
                     )
                 )
         );
-        group.MapDelete(
-            "/daily-tasks/{id:int}",
-            (int id, HttpContext http, CancellationToken ct) =>
-                ContentAccess.ChangeAsync(async () =>
-                    Removed(
-                        await quests
-                            .RemoveDailyTaskAsync(id, ContentAccess.Actor(http), ct)
-                            .ConfigureAwait(false)
-                    )
-                )
-        );
-
-        group.MapGet(
-            "/",
-            async (HttpContext http, CancellationToken ct) =>
-                Results.Ok(
+        group.MapDelete("/daily-tasks/{id:int}", (int id, HttpContext http, CancellationToken ct) =>
+            ContentAccess.ChangeAsync(async () =>
+                Removed(
                     await quests
-                        .ListQuestsAsync(
-                            await access.CanManageAsync(http, ct).ConfigureAwait(false),
-                            ct
-                        )
+                        .RemoveDailyTaskAsync(id, ContentAccess.Actor(http), ct)
                         .ConfigureAwait(false)
                 )
+            )
+        );
+
+        group.MapGet("/", async (HttpContext http, CancellationToken ct) =>
+            Results.Ok(
+                await quests
+                    .ListQuestsAsync(
+                        await access.CanManageAsync(http, ct).ConfigureAwait(false),
+                        ct
+                    )
+                    .ConfigureAwait(false)
+            )
         );
         group.MapPost(
             "/campaigns",
@@ -98,27 +92,23 @@ internal sealed class QuestEndpoints(ContentAccess access, AdminQuestEditor ques
                     )
                 )
         );
-        group.MapDelete(
-            "/campaigns/{id:int}",
-            (int id, HttpContext http, CancellationToken ct) =>
-                ContentAccess.ChangeAsync(async () =>
-                    Removed(
-                        await quests
-                            .RemoveCampaignAsync(id, ContentAccess.Actor(http), ct)
-                            .ConfigureAwait(false)
-                    )
+        group.MapDelete("/campaigns/{id:int}", (int id, HttpContext http, CancellationToken ct) =>
+            ContentAccess.ChangeAsync(async () =>
+                Removed(
+                    await quests
+                        .RemoveCampaignAsync(id, ContentAccess.Actor(http), ct)
+                        .ConfigureAwait(false)
                 )
+            )
         );
-        group.MapPost(
-            "/quests",
-            (QuestRequest request, HttpContext http, CancellationToken ct) =>
-                ContentAccess.ChangeAsync(async () =>
-                    Saved(
-                        await quests
-                            .SaveQuestAsync(0, request, ContentAccess.Actor(http), ct)
-                            .ConfigureAwait(false)
-                    )
+        group.MapPost("/quests", (QuestRequest request, HttpContext http, CancellationToken ct) =>
+            ContentAccess.ChangeAsync(async () =>
+                Saved(
+                    await quests
+                        .SaveQuestAsync(0, request, ContentAccess.Actor(http), ct)
+                        .ConfigureAwait(false)
                 )
+            )
         );
         group.MapPut(
             "/quests/{id:int}",
@@ -131,16 +121,14 @@ internal sealed class QuestEndpoints(ContentAccess access, AdminQuestEditor ques
                     )
                 )
         );
-        group.MapDelete(
-            "/quests/{id:int}",
-            (int id, HttpContext http, CancellationToken ct) =>
-                ContentAccess.ChangeAsync(async () =>
-                    Removed(
-                        await quests
-                            .RemoveQuestAsync(id, ContentAccess.Actor(http), ct)
-                            .ConfigureAwait(false)
-                    )
+        group.MapDelete("/quests/{id:int}", (int id, HttpContext http, CancellationToken ct) =>
+            ContentAccess.ChangeAsync(async () =>
+                Removed(
+                    await quests
+                        .RemoveQuestAsync(id, ContentAccess.Actor(http), ct)
+                        .ConfigureAwait(false)
                 )
+            )
         );
     }
 

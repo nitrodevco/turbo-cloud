@@ -103,7 +103,9 @@ public sealed class WiredLab12LeftoverAnswersTests
                         [WiredFurniSourceType.SelectedItems],
                     ]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 2,
@@ -115,7 +117,9 @@ public sealed class WiredLab12LeftoverAnswersTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await StartAsync();
 
         await ClickAsync();
@@ -150,7 +154,9 @@ public sealed class WiredLab12LeftoverAnswersTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         // The top's id is the lower one, so a pick listed by id names it first.
         (
             await _room.SaveAsync<UpdateActionMessage>(

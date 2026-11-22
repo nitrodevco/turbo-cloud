@@ -517,11 +517,8 @@ public sealed partial class FurnitureCustody(
 
                     movements.Record(
                         dbCtx,
-                        Created(
-                            cause,
-                            [presentRow, contentRow],
-                            row =>
-                                row == presentRow ? Inventory(owner) : Holder(owner, presentRow.Id)
+                        Created(cause, [presentRow, contentRow], row =>
+                            row == presentRow ? Inventory(owner) : Holder(owner, presentRow.Id)
                         )
                     );
 

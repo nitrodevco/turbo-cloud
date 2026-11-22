@@ -258,7 +258,9 @@ public sealed class WiredMovementsPacketTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         _room.AddBox<WiredAddonCarryUsers>(2, 0, 0, "wf_xtra_mov_carry_users");
         (
@@ -270,7 +272,9 @@ public sealed class WiredMovementsPacketTests
                     [WiredPlayerSourceType.AllRoomUsers],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         if (inOrder)
             _room.AddBox<WiredAddonExecuteInOrder>(3, 0, 0, "wf_xtra_exec_in_order");
@@ -291,7 +295,9 @@ public sealed class WiredMovementsPacketTests
                     ],
                     definitionSpecifics: [0]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
 
             box++;
         }

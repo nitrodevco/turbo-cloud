@@ -332,10 +332,9 @@ public sealed class HabbiconTests : IDisposable
 
     private static string OfficialShopData()
     {
-        using var stream =
-            typeof(HabbiconTests).Assembly.GetManifestResourceStream(
-                "Catalog.Fixtures.hhus-habbicon-shop-data-2026-10-17.hex"
-            ) ?? throw new InvalidOperationException("The official HabbiconShopData is missing.");
+        using var stream = typeof(HabbiconTests).Assembly.GetManifestResourceStream(
+            "Catalog.Fixtures.hhus-habbicon-shop-data-2026-10-17.hex"
+        ) ?? throw new InvalidOperationException("The official HabbiconShopData is missing.");
         using var reader = new StreamReader(stream);
 
         return reader.ReadToEnd().Trim();

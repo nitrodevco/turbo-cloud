@@ -797,8 +797,7 @@ internal sealed class GamedataVariableService(
     /// </summary>
     private string CheckSetting(string path)
     {
-        var setting =
-            settings.Get(path)
+        var setting = settings.Get(path)
             ?? throw new ArgumentException($"There is no setting {path.Trim()}.", nameof(path));
 
         if (setting.Secret)

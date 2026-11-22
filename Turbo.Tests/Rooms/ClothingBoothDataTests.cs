@@ -30,12 +30,8 @@ public sealed class ClothingBoothDataTests
     public ClothingBoothDataTests()
     {
         // The harness gives every definition two states, as the booth furni has.
-        _booth = _room.AddFloorItem(
-            BOOTH,
-            3,
-            3,
-            "clothing_change",
-            createLogic: (factory, ctx) => new FurnitureClothingChangeLogic(factory, ctx)
+        _booth = _room.AddFloorItem(BOOTH, 3, 3, "clothing_change", createLogic: (factory, ctx) =>
+            new FurnitureClothingChangeLogic(factory, ctx)
         );
     }
 

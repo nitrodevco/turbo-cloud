@@ -141,7 +141,9 @@ public sealed class WiredMoveSitterTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var box = 2;
 
@@ -160,7 +162,9 @@ public sealed class WiredMoveSitterTests
                     ],
                     definitionSpecifics: [0]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
 
             box++;
         }

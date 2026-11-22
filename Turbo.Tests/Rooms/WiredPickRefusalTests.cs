@@ -319,15 +319,10 @@ public sealed class WiredPickRefusalTests
         {
             var chest = (FurnitureWiredChestLogic)
                 _room
-                    .AddFloorItem(
-                        id,
-                        5,
-                        id - 8,
-                        logic,
-                        createLogic: (factory, ctx) =>
-                            id == COIN_CHEST
-                                ? new FurnitureWiredCoinsChestLogic(factory, ctx)
-                                : new FurnitureWiredFurniChestLogic(factory, ctx)
+                    .AddFloorItem(id, 5, id - 8, logic, createLogic: (factory, ctx) =>
+                        id == COIN_CHEST
+                            ? new FurnitureWiredCoinsChestLogic(factory, ctx)
+                            : new FurnitureWiredFurniChestLogic(factory, ctx)
                     )
                     .Logic;
 
@@ -345,12 +340,8 @@ public sealed class WiredPickRefusalTests
 
     private void AddContract()
     {
-        _room.AddFloorItem(
-            CONTRACT,
-            4,
-            6,
-            "wired_contract_payment",
-            createLogic: (factory, ctx) => new FurnitureWiredPaymentContractLogic(factory, ctx)
+        _room.AddFloorItem(CONTRACT, 4, 6, "wired_contract_payment", createLogic: (factory, ctx) =>
+            new FurnitureWiredPaymentContractLogic(factory, ctx)
         );
         _room.AddBox<WiredAddonCustomContract>(CUSTOM_CONTRACT, 5, 6, "wf_xtra_custom_contract");
     }

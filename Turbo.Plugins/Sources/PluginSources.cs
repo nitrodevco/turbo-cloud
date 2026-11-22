@@ -108,24 +108,21 @@ internal sealed class PluginSources(
             "" => null,
             _ => secrets.Seal(input.Token.Trim()),
         };
-        var edited = Save(
-            id,
-            x =>
-                x with
-                {
-                    Follow = FollowOf(input.Follow),
-                    Tag =
-                        FollowOf(input.Follow) == PluginSourceFollow.TAG ? input.Tag?.Trim() : null,
-                    Folder = Blank(input.Folder),
-                    Token = token,
-                    AutoUpdate = input.AutoUpdate,
-                    // What GitHub offers depends on what is followed: check again.
-                    LatestTag = null,
-                    LatestUrl = null,
-                    LatestPublishedAtUtc = null,
-                    CheckedAtUtc = null,
-                    Error = null,
-                }
+        var edited = Save(id, x =>
+            x with
+            {
+                Follow = FollowOf(input.Follow),
+                Tag = FollowOf(input.Follow) == PluginSourceFollow.TAG ? input.Tag?.Trim() : null,
+                Folder = Blank(input.Folder),
+                Token = token,
+                AutoUpdate = input.AutoUpdate,
+                // What GitHub offers depends on what is followed: check again.
+                LatestTag = null,
+                LatestUrl = null,
+                LatestPublishedAtUtc = null,
+                CheckedAtUtc = null,
+                Error = null,
+            }
         );
 
         return edited is null
@@ -284,17 +281,15 @@ internal sealed class PluginSources(
                 .GetReleaseAsync(source.Repository, TagOf(source), TokenOf(source), ct)
                 .ConfigureAwait(false);
 
-            return Save(
-                id,
-                x =>
-                    x with
-                    {
-                        LatestTag = release.Tag,
-                        LatestUrl = release.HtmlUrl,
-                        LatestPublishedAtUtc = release.PublishedAtUtc,
-                        CheckedAtUtc = time.GetUtcNow().UtcDateTime,
-                        Error = null,
-                    }
+            return Save(id, x =>
+                x with
+                {
+                    LatestTag = release.Tag,
+                    LatestUrl = release.HtmlUrl,
+                    LatestPublishedAtUtc = release.PublishedAtUtc,
+                    CheckedAtUtc = time.GetUtcNow().UtcDateTime,
+                    Error = null,
+                }
             );
         }
         catch (Exception ex)
@@ -305,18 +300,14 @@ internal sealed class PluginSources(
                 || (ex is OperationCanceledException && !ct.IsCancellationRequested)
             )
         {
-            return Save(
-                id,
-                x =>
-                    x with
-                    {
-                        CheckedAtUtc = time.GetUtcNow().UtcDateTime,
-                        Error = ex
-                            is System.Net.Http.HttpRequestException
-                                or OperationCanceledException
-                            ? $"GitHub could not be reached: {ex.Message}"
-                            : ex.Message,
-                    }
+            return Save(id, x =>
+                x with
+                {
+                    CheckedAtUtc = time.GetUtcNow().UtcDateTime,
+                    Error = ex is System.Net.Http.HttpRequestException or OperationCanceledException
+                        ? $"GitHub could not be reached: {ex.Message}"
+                        : ex.Message,
+                }
             );
         }
     }
@@ -393,25 +384,26 @@ internal sealed class PluginSources(
         }
         catch (GitHubException ex)
         {
-            Save(
-                id,
-                x => x with { Error = ex.Message, CheckedAtUtc = time.GetUtcNow().UtcDateTime }
+            Save(id, x =>
+                x with
+                {
+                    Error = ex.Message,
+                    CheckedAtUtc = time.GetUtcNow().UtcDateTime,
+                }
             );
 
             throw;
         }
 
-        Save(
-            id,
-            x =>
-                x with
-                {
-                    LatestTag = release.Tag,
-                    LatestUrl = release.HtmlUrl,
-                    LatestPublishedAtUtc = release.PublishedAtUtc,
-                    CheckedAtUtc = time.GetUtcNow().UtcDateTime,
-                    Error = null,
-                }
+        Save(id, x =>
+            x with
+            {
+                LatestTag = release.Tag,
+                LatestUrl = release.HtmlUrl,
+                LatestPublishedAtUtc = release.PublishedAtUtc,
+                CheckedAtUtc = time.GetUtcNow().UtcDateTime,
+                Error = null,
+            }
         );
 
         // A plugin is installed as its sources at the release's tag, which the server compiles:
@@ -436,17 +428,15 @@ internal sealed class PluginSources(
             throw new PluginJobFailure(result.Message);
         }
 
-        Save(
-            id,
-            x =>
-                x with
-                {
-                    Key = result.Plugin?.Key ?? x.Key,
-                    InstalledTag = release.Tag,
-                    InstalledVersion = result.Plugin?.Version,
-                    SkipTag = null,
-                    Error = null,
-                }
+        Save(id, x =>
+            x with
+            {
+                Key = result.Plugin?.Key ?? x.Key,
+                InstalledTag = release.Tag,
+                InstalledVersion = result.Plugin?.Version,
+                SkipTag = null,
+                Error = null,
+            }
         );
 
         logger.LogWarning(

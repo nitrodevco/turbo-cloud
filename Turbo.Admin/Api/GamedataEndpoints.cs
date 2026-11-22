@@ -70,46 +70,34 @@ internal sealed class GamedataEndpoints(
 
         group.MapGet("/", StatusAsync);
         group.MapPost("/habbo/check", CheckAsync);
-        group.MapGet(
-            "/habbo/client",
-            async (CancellationToken ct) =>
-                Results.Ok(await client.GetStatusAsync(ct).ConfigureAwait(false))
+        group.MapGet("/habbo/client", async (CancellationToken ct) =>
+            Results.Ok(await client.GetStatusAsync(ct).ConfigureAwait(false))
         );
-        group.MapPost(
-            "/habbo/client/check",
-            async (HttpContext http, CancellationToken ct) =>
-                Results.Ok(await client.CheckAsync(wait: false, ct).ConfigureAwait(false))
+        group.MapPost("/habbo/client/check", async (HttpContext http, CancellationToken ct) =>
+            Results.Ok(await client.CheckAsync(wait: false, ct).ConfigureAwait(false))
         );
-        group.MapGet(
-            "/habbo/client/build",
-            async (CancellationToken ct) =>
-                Results.Ok(await clientBuilds.GetAsync(ct).ConfigureAwait(false))
+        group.MapGet("/habbo/client/build", async (CancellationToken ct) =>
+            Results.Ok(await clientBuilds.GetAsync(ct).ConfigureAwait(false))
         );
-        group.MapPost(
-            "/habbo/client/build",
-            (HttpContext http, CancellationToken ct) =>
+        group.MapPost("/habbo/client/build", (HttpContext http, CancellationToken ct) =>
+        {
+            try
             {
-                try
-                {
-                    return Task.FromResult(
-                        Results.Ok(
-                            AssetJobResponse.From(
-                                assetSync.StartClientBuild(
-                                    AdminIdentity.Of(http).PlayerId,
-                                    force: true
-                                )
-                            )
+                return Task.FromResult(
+                    Results.Ok(
+                        AssetJobResponse.From(
+                            assetSync.StartClientBuild(AdminIdentity.Of(http).PlayerId, force: true)
                         )
-                    );
-                }
-                catch (InvalidOperationException ex)
-                {
-                    return Task.FromResult(
-                        AdminResults.Error(StatusCodes.Status409Conflict, ex.Message)
-                    );
-                }
+                    )
+                );
             }
-        );
+            catch (InvalidOperationException ex)
+            {
+                return Task.FromResult(
+                    AdminResults.Error(StatusCodes.Status409Conflict, ex.Message)
+                );
+            }
+        });
         group.MapDelete(
             "/habbo/client/releases/{version}",
             async (string version, HttpContext http, CancellationToken ct) =>
@@ -130,20 +118,16 @@ internal sealed class GamedataEndpoints(
                 FurnitureListAsync(q, type, tag, page, ct)
         );
         group.MapGet("/furniture/logics", () => Results.Ok(logics.LogicTypes));
-        group.MapGet(
-            "/hand-items",
-            async (CancellationToken ct) =>
-                Results.Ok(await handItems.GetAsync(ct).ConfigureAwait(false))
+        group.MapGet("/hand-items", async (CancellationToken ct) =>
+            Results.Ok(await handItems.GetAsync(ct).ConfigureAwait(false))
         );
-        group.MapGet(
-            "/hand-items/{id:int}/preview",
-            async (int id, CancellationToken ct) =>
-                await handItems.GetPreviewAsync(id, ct).ConfigureAwait(false) is { } image
-                    ? Results.File(image, "image/png")
-                    : AdminResults.Error(
-                        StatusCodes.Status404NotFound,
-                        "No hand-item preview is available."
-                    )
+        group.MapGet("/hand-items/{id:int}/preview", async (int id, CancellationToken ct) =>
+            await handItems.GetPreviewAsync(id, ct).ConfigureAwait(false) is { } image
+                ? Results.File(image, "image/png")
+                : AdminResults.Error(
+                    StatusCodes.Status404NotFound,
+                    "No hand-item preview is available."
+                )
         );
         group.MapGet("/furniture/draft/{bundle}", DraftAsync);
         group.MapPost("/furniture", CreateDefinitionsAsync);
@@ -152,43 +136,33 @@ internal sealed class GamedataEndpoints(
         group.MapGet("/furniture/habbo-values", HabboValuesPreviewAsync);
         group.MapPost("/furniture/habbo-values", TakeHabboValuesAsync);
         group.MapPost("/furniture/logic", SetLogicAsync);
-        group.MapGet(
-            "/furniture/vending-repair",
-            async (int? page, CancellationToken ct) =>
-                Results.Ok(
-                    await furniture.PreviewVendingRepairAsync(page ?? 0, ct).ConfigureAwait(false)
-                )
+        group.MapGet("/furniture/vending-repair", async (int? page, CancellationToken ct) =>
+            Results.Ok(
+                await furniture.PreviewVendingRepairAsync(page ?? 0, ct).ConfigureAwait(false)
+            )
         );
         group.MapPost("/furniture/vending-repair", RepairVendingAsync);
         group.MapPost("/files/{file}/build", RebuildAsync);
         group.MapPut("/files/{file}/key", SetFileKeyAsync);
         group.MapGet("/texts/import", TextPreviewAsync);
         group.MapPost("/texts/import/{versionId:int}", TextImportAsync);
-        group.MapGet(
-            "/texts",
-            (string? q, int? page, string? plugin, CancellationToken ct) =>
-                TextSearchAsync(q, page, plugin, ct)
+        group.MapGet("/texts", (string? q, int? page, string? plugin, CancellationToken ct) =>
+            TextSearchAsync(q, page, plugin, ct)
         );
         group.MapPut("/texts", SaveTextAsync);
         group.MapDelete("/texts", DeleteTextAsync);
         group
-            .MapPost(
-                "/texts/habbo",
-                async (HotelViewTextsRequest request, CancellationToken ct) =>
-                    Results.Ok(
-                        await hotelView
-                            .GetHabboTextsAsync(request.Keys ?? [], ct)
-                            .ConfigureAwait(false)
-                    )
+            .MapPost("/texts/habbo", async (HotelViewTextsRequest request, CancellationToken ct) =>
+                Results.Ok(
+                    await hotelView.GetHabboTextsAsync(request.Keys ?? [], ct).ConfigureAwait(false)
+                )
             )
             .ViewIsEnough("It reads Habbo's texts of the keys named, and changes nothing.");
-        group.MapGet(
-            "/variables",
-            (string? q, int? page, CancellationToken ct) => VariableSearchAsync(q, page, ct)
+        group.MapGet("/variables", (string? q, int? page, CancellationToken ct) =>
+            VariableSearchAsync(q, page, ct)
         );
-        group.MapGet(
-            "/variables/habbo",
-            (string? prefix, CancellationToken ct) => HabboVariablesAsync(prefix, ct)
+        group.MapGet("/variables/habbo", (string? prefix, CancellationToken ct) =>
+            HabboVariablesAsync(prefix, ct)
         );
         group.MapGet("/variables/habbo/update", HabboVariableUpdateAsync);
         group.MapPost("/variables/habbo/update/{versionId:int}", TakeHabboVariablesAsync);
@@ -212,9 +186,8 @@ internal sealed class GamedataEndpoints(
         group.MapPut("/hotel-view", SaveHotelViewAsync);
         group.MapGet("/products/import", ProductPreviewAsync);
         group.MapPost("/products/import/{versionId:int}", ProductImportAsync);
-        group.MapGet(
-            "/products",
-            (string? q, int? page, CancellationToken ct) => ProductSearchAsync(q, page, ct)
+        group.MapGet("/products", (string? q, int? page, CancellationToken ct) =>
+            ProductSearchAsync(q, page, ct)
         );
         group.MapPut("/products", SaveProductAsync);
         group.MapDelete("/products", DeleteProductAsync);
@@ -249,10 +222,8 @@ internal sealed class GamedataEndpoints(
                 PermissionNodes.Admin.GAMEDATA_VIEW
             )
             .MapGet("/", ProductLookupAsync);
-        group.MapGet(
-            "/history",
-            (int? page, GamedataRecordType[]? type, CancellationToken ct) =>
-                HistoryAsync(page, type, ct)
+        group.MapGet("/history", (int? page, GamedataRecordType[]? type, CancellationToken ct) =>
+            HistoryAsync(page, type, ct)
         );
         group.MapGet("/history/{id:int}", ChangesAsync);
         group.MapPost("/history/{id:int}/rollback", RollbackAsync);

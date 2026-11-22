@@ -250,7 +250,9 @@ public sealed class WiredVariablePointerTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         // Give the context variable the furni id of the box to point at (or set it, ungiven).
         (
             await _room.SaveAsync<UpdateActionMessage>(
@@ -288,7 +290,9 @@ public sealed class WiredVariablePointerTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateTriggerMessage>(
                 4,
@@ -298,7 +302,9 @@ public sealed class WiredVariablePointerTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         // Set the pointer to 42, or gems to the pointer's value.
         (
             await _room.SaveAsync<UpdateActionMessage>(

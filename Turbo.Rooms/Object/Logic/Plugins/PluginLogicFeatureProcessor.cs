@@ -105,15 +105,12 @@ internal sealed class PluginLogicFeatureProcessor(IRoomObjectLogicProvider logic
             detail
         );
 
-        return logics.RegisterLogic(
-            key,
-            sp,
-            (services, ctx) =>
-                ctx is IRoomFloorItemContext floor
-                    ? create(services, floor)
-                    : throw new InvalidOperationException(
-                        $"{type.Name} ({key}) is floor furni logic; a wall furni has that logic."
-                    )
+        return logics.RegisterLogic(key, sp, (services, ctx) =>
+            ctx is IRoomFloorItemContext floor
+                ? create(services, floor)
+                : throw new InvalidOperationException(
+                    $"{type.Name} ({key}) is floor furni logic; a wall furni has that logic."
+                )
         );
     }
 

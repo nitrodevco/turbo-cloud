@@ -24,13 +24,11 @@ internal sealed class ClientWindowEndpoints(ClientWindows windows)
             .MapGroup("/client/windows")
             .RequirePermission(PermissionNodes.Admin.PLUGINS_VIEW, NO_ACCESS);
 
-        group.MapGet(
-            "/index",
-            (bool? fresh, CancellationToken ct) => FileAsync(ClientWindows.INDEX, fresh, ct)
+        group.MapGet("/index", (bool? fresh, CancellationToken ct) =>
+            FileAsync(ClientWindows.INDEX, fresh, ct)
         );
-        group.MapGet(
-            "/skins",
-            (bool? fresh, CancellationToken ct) => FileAsync(ClientWindows.SKINS, fresh, ct)
+        group.MapGet("/skins", (bool? fresh, CancellationToken ct) =>
+            FileAsync(ClientWindows.SKINS, fresh, ct)
         );
     }
 

@@ -1493,10 +1493,8 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
             return Task.CompletedTask;
 
         if (handItemId > 0)
-            TimerSystem.Schedule(
-                avatar.ObjectId,
-                RoomConfig.HandItemExpireMs,
-                _ => SetHandItemAsync(avatar, 0, CancellationToken.None)
+            TimerSystem.Schedule(avatar.ObjectId, RoomConfig.HandItemExpireMs, _ =>
+                SetHandItemAsync(avatar, 0, CancellationToken.None)
             );
         else
             TimerSystem.Cancel(avatar.ObjectId);

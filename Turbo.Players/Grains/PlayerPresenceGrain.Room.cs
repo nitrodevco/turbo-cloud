@@ -106,20 +106,14 @@ internal sealed partial class PlayerPresenceGrain
 
         var stream = GetRoomStream(roomId);
 
-        var subscribe = RoomTelemetry.MeasureAsync(
-            RoomTelemetry.SUBSCRIBE,
-            roomId,
-            async () =>
-            {
-                await PurgeStaleSubscriptionsAsync(stream, roomId);
-                return await stream.SubscribeAsync(this);
-            }
-        );
+        var subscribe = RoomTelemetry.MeasureAsync(RoomTelemetry.SUBSCRIBE, roomId, async () =>
+        {
+            await PurgeStaleSubscriptionsAsync(stream, roomId);
+            return await stream.SubscribeAsync(this);
+        });
 
-        var summary = RoomTelemetry.MeasureAsync(
-            RoomTelemetry.PLAYER_SUMMARY,
-            roomId,
-            () => _grainFactory.GetPlayerGrain(_state.PlayerId).GetSummaryAsync(ct)
+        var summary = RoomTelemetry.MeasureAsync(RoomTelemetry.PLAYER_SUMMARY, roomId, () =>
+            _grainFactory.GetPlayerGrain(_state.PlayerId).GetSummaryAsync(ct)
         );
 
         await Task.WhenAll(visit, directory, subscribe, summary);
@@ -133,18 +127,15 @@ internal sealed partial class PlayerPresenceGrain
         _state.PendingEntryRoomId = -1;
         _state.PendingEntry = RoomEntrySnapshot.Default;
 
-        var entryTail = await RoomTelemetry.MeasureAsync(
-            RoomTelemetry.AVATAR,
-            roomId,
-            () =>
-                _grainFactory
-                    .GetRoomGrain(roomId)
-                    .CreateAvatarFromPlayerAsync(
-                        ActionContext.CreateForPlayer(_state.PlayerId, roomId),
-                        playerSnapshot,
-                        entry,
-                        ct
-                    )
+        var entryTail = await RoomTelemetry.MeasureAsync(RoomTelemetry.AVATAR, roomId, () =>
+            _grainFactory
+                .GetRoomGrain(roomId)
+                .CreateAvatarFromPlayerAsync(
+                    ActionContext.CreateForPlayer(_state.PlayerId, roomId),
+                    playerSnapshot,
+                    entry,
+                    ct
+                )
         );
 
         // Queued the moment the room answers, ahead of anything the room stream brings next

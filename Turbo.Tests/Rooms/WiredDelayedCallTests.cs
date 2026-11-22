@@ -110,7 +110,9 @@ public sealed class WiredDelayedCallTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await CallerStackAsync(signal, delayPulses: 4);
         await StartAsync();
 
@@ -143,7 +145,9 @@ public sealed class WiredDelayedCallTests
                         [WiredFurniSourceType.SelectedItems],
                     ]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
         }
         else
         {
@@ -157,7 +161,9 @@ public sealed class WiredDelayedCallTests
                         [WiredFurniSourceType.SelectedItems],
                     ]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
         }
 
         if (!selectsArea)
@@ -182,7 +188,9 @@ public sealed class WiredDelayedCallTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         if (signal)
         {
@@ -203,7 +211,9 @@ public sealed class WiredDelayedCallTests
                     ],
                     definitionSpecifics: [delayPulses]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
 
             return;
         }
@@ -219,7 +229,9 @@ public sealed class WiredDelayedCallTests
                 ],
                 definitionSpecifics: [delayPulses]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
     }
 
     private async Task StartAsync()

@@ -50,8 +50,8 @@ public static class AchievementReducerEngine
                     throw new InvalidOperationException(
                         "Elapsed facts require valid durable interval and session identities."
                     );
-                var intervals =
-                    JsonSerializer.Deserialize<List<long[]>>(progress.IntervalsJson) ?? [];
+                var intervals = JsonSerializer.Deserialize<List<long[]>>(progress.IntervalsJson)
+                    ?? [];
                 intervals.Add([start.Ticks, end.Ticks]);
                 var merged = new List<long[]>();
                 foreach (var interval in intervals.OrderBy(x => x[0]))

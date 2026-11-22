@@ -1152,9 +1152,8 @@ public sealed partial class AdminCatalogBuilder
                     var (line, items) = lines[0];
 
                     entries.Add(
-                        (
-                            Humanize(line),
-                            parent => FurniPages(parent, $"line:{line}", Humanize(line), items)
+                        (Humanize(line), parent =>
+                            FurniPages(parent, $"line:{line}", Humanize(line), items)
                         )
                     );
 
@@ -1163,26 +1162,21 @@ public sealed partial class AdminCatalogBuilder
 
                 var title = Humanize(family);
 
-                entries.Add(
-                    (
-                        title,
-                        parent =>
-                        {
-                            var folder = parent.Child(
-                                $"family:{family}",
-                                title,
-                                FamilyIcons.GetValueOrDefault(
-                                    family,
-                                    IconOf([.. lines.SelectMany(x => x.Items)])
-                                ),
-                                DEFAULT_LAYOUT
-                            );
+                entries.Add((title, parent =>
+                    {
+                        var folder = parent.Child(
+                            $"family:{family}",
+                            title,
+                            FamilyIcons.GetValueOrDefault(
+                                family,
+                                IconOf([.. lines.SelectMany(x => x.Items)])
+                            ),
+                            DEFAULT_LAYOUT
+                        );
 
-                            foreach (var (line, items) in lines)
-                                FurniPages(folder, $"line:{line}", Humanize(line), items);
-                        }
-                    )
-                );
+                        foreach (var (line, items) in lines)
+                            FurniPages(folder, $"line:{line}", Humanize(line), items);
+                    }));
             }
 
             foreach (var theme in Themes.Append(OtherLines))

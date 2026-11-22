@@ -154,11 +154,8 @@ public sealed class WiredNoTriggererTests
     [Fact]
     public async Task Join_team_on_a_click_joins_the_clicker_action_9_R3()
     {
-        await BuildStackAsync(
-            0,
-            0,
-            periodic: false,
-            then: id => AddEffectAsync("wf_act_join_team", id)
+        await BuildStackAsync(0, 0, periodic: false, then: id =>
+            AddEffectAsync("wf_act_join_team", id)
         );
         await StartAsync();
 
@@ -443,7 +440,9 @@ public sealed class WiredNoTriggererTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().Be(WiredSaveResult.Saved, logic);
+        )
+            .Should()
+            .Be(WiredSaveResult.Saved, logic);
     }
 
     private Func<int, Task> AnimationTime(int ms) =>
@@ -500,7 +499,9 @@ public sealed class WiredNoTriggererTests
                         [WiredPlayerSourceType.AllRoomUsers],
                     ]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
         };
 
     private Func<int, Task> Projectile(int curve) =>
@@ -524,7 +525,9 @@ public sealed class WiredNoTriggererTests
                         [WiredPlayerSourceType.TriggeredUser],
                     ]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
         };
 
     private Func<int, Task> Curve(int strength) =>
@@ -549,7 +552,9 @@ public sealed class WiredNoTriggererTests
                         [WiredPlayerSourceType.AllRoomUsers],
                     ]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
         };
 
     /// <summary>
@@ -580,7 +585,9 @@ public sealed class WiredNoTriggererTests
                         [WiredFurniSourceType.SelectedItems],
                     ]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
         }
 
         var boxId = _nextBoxId++;
@@ -622,7 +629,9 @@ public sealed class WiredNoTriggererTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         _room.AddBox<WiredActionMoveRotateFurni>(2, 0, 0, "wf_act_move_rotate");
         (
@@ -636,7 +645,9 @@ public sealed class WiredNoTriggererTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await lower(3);
         await upper(4);

@@ -256,17 +256,13 @@ public sealed class CatalogEditHistoryTests : IDisposable
     {
         var before = Snapshot();
 
-        await _service.GroupAsync(
-            Editor,
-            "filled the chairs",
-            async () =>
-            {
-                await _service.CreateOfferAsync(Editor, ChairOffer(CHILD, 1), Ct);
-                await _service.CreateOfferAsync(Editor, ChairOffer(CHILD, 2), Ct);
+        await _service.GroupAsync(Editor, "filled the chairs", async () =>
+        {
+            await _service.CreateOfferAsync(Editor, ChairOffer(CHILD, 1), Ct);
+            await _service.CreateOfferAsync(Editor, ChairOffer(CHILD, 2), Ct);
 
-                return 0;
-            }
-        );
+            return 0;
+        });
 
         _service
             .History.Undo.Should()

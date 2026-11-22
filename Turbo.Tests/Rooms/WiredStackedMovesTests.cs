@@ -227,7 +227,9 @@ public sealed class WiredStackedMovesTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await StackChangedAsync();
     }
 
@@ -246,7 +248,9 @@ public sealed class WiredStackedMovesTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await StackChangedAsync();
     }
 
@@ -265,7 +269,9 @@ public sealed class WiredStackedMovesTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         if (keepAltitude is { } keep)
         {
@@ -284,7 +290,9 @@ public sealed class WiredStackedMovesTests
                         [WiredPlayerSourceType.AllRoomUsers],
                     ]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
         }
 
         await StackChangedAsync();
@@ -303,7 +311,9 @@ public sealed class WiredStackedMovesTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
     }
 
     private async Task StackChangedAsync()

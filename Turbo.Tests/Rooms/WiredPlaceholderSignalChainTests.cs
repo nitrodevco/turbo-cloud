@@ -81,7 +81,9 @@ public sealed class WiredPlaceholderSignalChainTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await PlaceholderAsync(2, "old", rankId);
         (
             await _room.SaveAsync<UpdateActionMessage>(
@@ -99,7 +101,9 @@ public sealed class WiredPlaceholderSignalChainTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 4,
@@ -119,7 +123,9 @@ public sealed class WiredPlaceholderSignalChainTests
                 ],
                 variableIds: [rankId.ToString()]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         // B: on the antenna, the log, once A has promoted the user.
         _room.AddBox<WiredTriggerReceiveSignal>(5, 0, 4, "wf_trg_recv_signal");
@@ -133,7 +139,9 @@ public sealed class WiredPlaceholderSignalChainTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 7,
@@ -251,7 +259,9 @@ public sealed class WiredPlaceholderSignalChainTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateAddonMessage>(
                 6,
@@ -263,7 +273,9 @@ public sealed class WiredPlaceholderSignalChainTests
                 ],
                 variableIds: [rankId.ToString()]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 7,

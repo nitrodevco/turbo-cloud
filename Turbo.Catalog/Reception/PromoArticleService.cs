@@ -98,10 +98,9 @@ public sealed class PromoArticleService(
         }
         else
         {
-            row =
-                await dbCtx
-                    .PromoArticles.FirstOrDefaultAsync(x => x.Id == article.Id, ct)
-                    .ConfigureAwait(false)
+            row = await dbCtx
+                .PromoArticles.FirstOrDefaultAsync(x => x.Id == article.Id, ct)
+                .ConfigureAwait(false)
                 ?? throw new ArgumentException(
                     $"There is no promo article {article.Id}.",
                     nameof(article)

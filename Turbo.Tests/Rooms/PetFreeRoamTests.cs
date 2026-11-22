@@ -128,12 +128,8 @@ public sealed class PetFreeRoamTests
     public async Task A_free_horse_goes_to_a_toy_on_its_own_and_kicks_it_while_the_toy_shows_it()
     {
         NoDrinkWanted();
-        var toy = _room.AddFloorItem(
-            TOY,
-            5,
-            5,
-            "pet_toy",
-            createLogic: (factory, ctx) => new FurniturePetToyLogic(factory, ctx)
+        var toy = _room.AddFloorItem(TOY, 5, 5, "pet_toy", createLogic: (factory, ctx) =>
+            new FurniturePetToyLogic(factory, ctx)
         );
         await PlaceFreeAsync();
 

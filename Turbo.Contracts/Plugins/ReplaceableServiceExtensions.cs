@@ -87,8 +87,8 @@ internal sealed class ReplaceableServices(
 {
     private readonly ImmutableHashSet<Type> _contracts = [.. contracts.Select(x => x.Contract)];
     private readonly ConcurrentDictionary<Type, IServiceSlotEntries> _replaced = new();
-    private readonly ILogger _logger =
-        (ILogger?)logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+    private readonly ILogger _logger = (ILogger?)logger
+        ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
 
     public bool IsReplaceable(Type contract) => _contracts.Contains(contract);
 
@@ -108,11 +108,9 @@ internal sealed class ReplaceableServices(
                 nameof(implementation)
             );
 
-        var slot = _replaced.GetOrAdd(
-            contract,
-            type =>
-                (IServiceSlotEntries)
-                    services.GetRequiredService(typeof(IServiceSlot<>).MakeGenericType(type))
+        var slot = _replaced.GetOrAdd(contract, type =>
+            (IServiceSlotEntries)
+                services.GetRequiredService(typeof(IServiceSlot<>).MakeGenericType(type))
         );
 
         return slot.Push(owner, implementation, _logger);

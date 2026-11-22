@@ -293,8 +293,7 @@ public sealed class AdminPollEditor(
 
         foreach (var question in request.Questions)
         {
-            var row =
-                existing.FirstOrDefault(x => x.Id == question.Id)
+            var row = existing.FirstOrDefault(x => x.Id == question.Id)
                 ?? db.RoomPollQuestions.Add(
                     new()
                     {

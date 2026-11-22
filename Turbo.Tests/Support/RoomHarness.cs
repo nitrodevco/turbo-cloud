@@ -299,8 +299,7 @@ public sealed class RoomHarness
 
     public static void SetField(object target, string name, object? value)
     {
-        var f =
-            target.GetType().GetField(name, All)
+        var f = target.GetType().GetField(name, All)
             ?? throw new InvalidOperationException($"No field {name} on {target.GetType()}");
         f.SetValue(target, value);
     }

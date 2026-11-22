@@ -488,8 +488,8 @@ public static partial class FurnitureIcon
     /// <summary><c>SizeData.getValidDirection(0)</c>: direction 0, else the one whose angle is nearest it.</summary>
     private static JsonObject? IconDirection(JsonObject visualization)
     {
-        var directions =
-            (visualization["directions"] as JsonArray)?.OfType<JsonObject>().ToList() ?? [];
+        var directions = (visualization["directions"] as JsonArray)?.OfType<JsonObject>().ToList()
+            ?? [];
 
         if (directions.FirstOrDefault(x => Int(x["id"]) == 0) is { } straight)
             return straight;

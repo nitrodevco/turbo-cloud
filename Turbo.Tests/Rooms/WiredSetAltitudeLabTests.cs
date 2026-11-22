@@ -93,7 +93,9 @@ public sealed class WiredSetAltitudeLabTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await BuildAsync(200, SET);
 
         for (var i = 0; i < 12; i++)
@@ -155,7 +157,9 @@ public sealed class WiredSetAltitudeLabTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 2,
@@ -166,7 +170,9 @@ public sealed class WiredSetAltitudeLabTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent

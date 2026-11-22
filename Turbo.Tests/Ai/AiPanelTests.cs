@@ -45,11 +45,8 @@ public sealed class AiPanelTests : IDisposable
 
     public AiPanelTests()
     {
-        _settings = new SettingsHarness(
-            _db,
-            APP_SETTINGS,
-            (services, config) =>
-                services.Configure<AiConfig>(config.GetSection(AiConfig.SECTION_NAME))
+        _settings = new SettingsHarness(_db, APP_SETTINGS, (services, config) =>
+            services.Configure<AiConfig>(config.GetSection(AiConfig.SECTION_NAME))
         );
 
         var monitor = new LiveMonitor(() => _settings.Live<AiConfig>());

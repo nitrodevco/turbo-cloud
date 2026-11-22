@@ -412,8 +412,9 @@ internal sealed partial class HabboClientService(
 
             await using (zip.ConfigureAwait(false))
             {
-                var entry =
-                    zip.Entries.FirstOrDefault(x => x.FullName.Replace('\\', '/') == AIR_SWF)
+                var entry = zip.Entries.FirstOrDefault(x =>
+                    x.FullName.Replace('\\', '/') == AIR_SWF
+                )
                     ?? throw new InvalidDataException(
                         $"Habbo's AIR client {version} has no {AIR_SWF}."
                     );
@@ -474,51 +475,47 @@ internal sealed partial class HabboClientService(
     }
 
     private Task StartDownloadAsync(string environment, string version, string url) =>
-        _downloading.GetOrAdd(
-            version,
-            v =>
-                Task.Run(async () =>
+        _downloading.GetOrAdd(version, v =>
+            Task.Run(async () =>
+            {
+                try
                 {
-                    try
+                    await DownloadAsync(v, url, CancellationToken.None).ConfigureAwait(false);
+                    _downloadErrors.TryRemove(v, out _);
+                    await AdoptAsync(environment, v, CancellationToken.None).ConfigureAwait(false);
+
+                    // Any other environment on the same release has it too.
+                    foreach (var (name, _) in ENVIRONMENTS)
                     {
-                        await DownloadAsync(v, url, CancellationToken.None).ConfigureAwait(false);
-                        _downloadErrors.TryRemove(v, out _);
-                        await AdoptAsync(environment, v, CancellationToken.None)
-                            .ConfigureAwait(false);
+                        var state = (
+                            await ReadEnvironmentsAsync(CancellationToken.None)
+                                .ConfigureAwait(false)
+                        ).GetValueOrDefault(name);
 
-                        // Any other environment on the same release has it too.
-                        foreach (var (name, _) in ENVIRONMENTS)
-                        {
-                            var state = (
-                                await ReadEnvironmentsAsync(CancellationToken.None)
-                                    .ConfigureAwait(false)
-                            ).GetValueOrDefault(name);
-
-                            if (name != environment && state?.LiveVersion == v)
-                                await AdoptAsync(name, v, CancellationToken.None)
-                                    .ConfigureAwait(false);
-                        }
-
-                        await PruneAsync(CancellationToken.None).ConfigureAwait(false);
-                        ReleaseDownloaded?.Invoke(v);
+                        if (name != environment && state?.LiveVersion == v)
+                            await AdoptAsync(name, v, CancellationToken.None).ConfigureAwait(false);
                     }
-                    catch (Exception ex)
-                    {
-                        _downloadErrors[v] = ex.Message;
-                        logger.LogWarning(
-                            ex,
-                            "Habbo client release {Version} could not be downloaded from {Url}",
-                            v,
-                            url
-                        );
 
-                        throw;
-                    }
-                    finally
-                    {
-                        _downloading.TryRemove(v, out _);
-                    }
-                })
+                    await PruneAsync(CancellationToken.None).ConfigureAwait(false);
+                    ReleaseDownloaded?.Invoke(v);
+                }
+                catch (Exception ex)
+                {
+                    _downloadErrors[v] = ex.Message;
+                    logger.LogWarning(
+                        ex,
+                        "Habbo client release {Version} could not be downloaded from {Url}",
+                        v,
+                        url
+                    );
+
+                    throw;
+                }
+                finally
+                {
+                    _downloading.TryRemove(v, out _);
+                }
+            })
         );
 
     /// <summary>Downloads and checks a release into a folder of its own, beside its place until it is whole.</summary>
@@ -564,9 +561,9 @@ internal sealed partial class HabboClientService(
 
                 await using (zip.ConfigureAwait(false))
                 {
-                    var entry =
-                        zip.Entries.FirstOrDefault(x => x.FullName.Replace('\\', '/') == ZIP_ASAR)
-                        ?? throw new InvalidDataException($"The release's zip has no {ZIP_ASAR}.");
+                    var entry = zip.Entries.FirstOrDefault(x =>
+                        x.FullName.Replace('\\', '/') == ZIP_ASAR
+                    ) ?? throw new InvalidDataException($"The release's zip has no {ZIP_ASAR}.");
 
                     await entry.ExtractToFileAsync(asarPath, ct).ConfigureAwait(false);
                 }
@@ -757,8 +754,7 @@ internal sealed partial class HabboClientService(
         out string? releaseId
     )
     {
-        var text =
-            asar.ReadText(root + MANIFEST)
+        var text = asar.ReadText(root + MANIFEST)
             ?? throw new InvalidDataException($"The release has no {MANIFEST}.");
         var manifest =
             JsonNode.Parse(text) as JsonObject
@@ -769,13 +765,11 @@ internal sealed partial class HabboClientService(
 
         foreach (var entry in (manifest["files"] as JsonArray ?? []).OfType<JsonObject>())
         {
-            var path =
-                entry["path"]?.GetValue<string>()
+            var path = entry["path"]?.GetValue<string>()
                 ?? throw new InvalidDataException($"{MANIFEST} lists a file with no path.");
             var size = entry["size"]?.GetValue<long>() ?? -1;
             var sha256 = entry["sha256"]?.GetValue<string>() ?? "";
-            var data =
-                asar.Read(root + path)
+            var data = asar.Read(root + path)
                 ?? throw new InvalidDataException($"The release lacks {path}.");
 
             if (
@@ -928,9 +922,9 @@ internal sealed partial class HabboClientService(
         try
         {
             return JsonSerializer.Deserialize<Dictionary<string, EnvironmentState>>(
-                    await File.ReadAllTextAsync(path, ct).ConfigureAwait(false),
-                    JSON
-                ) ?? new(StringComparer.Ordinal);
+                await File.ReadAllTextAsync(path, ct).ConfigureAwait(false),
+                JSON
+            ) ?? new(StringComparer.Ordinal);
         }
         catch (JsonException)
         {

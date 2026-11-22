@@ -46,15 +46,11 @@ public static class RoomTelemetry
     public static Task MeasureAsync(string stage, RoomId roomId, Func<Task> action) =>
         !SOURCE.HasListeners() && !DURATION.Enabled
             ? action()
-            : MeasureCoreAsync(
-                stage,
-                roomId,
-                async () =>
-                {
-                    await action().ConfigureAwait(false);
-                    return true;
-                }
-            );
+            : MeasureCoreAsync(stage, roomId, async () =>
+            {
+                await action().ConfigureAwait(false);
+                return true;
+            });
 
     public static Task<T> MeasureAsync<T>(string stage, RoomId roomId, Func<Task<T>> action) =>
         !SOURCE.HasListeners() && !DURATION.Enabled

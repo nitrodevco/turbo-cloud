@@ -116,11 +116,8 @@ public sealed class AssetJobShutdownTests
         var jobs = host.Services.GetRequiredService<IAssetJobs>();
         host.Services.GetRequiredService<IHostApplicationLifetime>().StopApplication();
         var start = () =>
-            jobs.Start(
-                AssetJobKind.Sync,
-                "fixture",
-                PlayerId.Parse(1),
-                (_, _) => Task.FromResult("done")
+            jobs.Start(AssetJobKind.Sync, "fixture", PlayerId.Parse(1), (_, _) =>
+                Task.FromResult("done")
             );
         start.Should().Throw<InvalidOperationException>().WithMessage("*stopping*");
         jobs.Current.Should().BeNull();
@@ -141,21 +138,16 @@ public sealed class AssetJobShutdownTests
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var canceled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        jobs.Start(
-            AssetJobKind.Sync,
-            "fixture",
-            PlayerId.Parse(1),
-            async (_, token) =>
-            {
-                using var registration = token.Register(() => canceled.TrySetResult());
-                entered.TrySetResult();
+        jobs.Start(AssetJobKind.Sync, "fixture", PlayerId.Parse(1), async (_, token) =>
+        {
+            using var registration = token.Register(() => canceled.TrySetResult());
+            entered.TrySetResult();
 #pragma warning disable VSTHRD003 // The test owns the release signal and completes it in finally.
-                await release.Task.WaitAsync(Ct);
+            await release.Task.WaitAsync(Ct);
 #pragma warning restore VSTHRD003
-                token.ThrowIfCancellationRequested();
-                return "done";
-            }
-        );
+            token.ThrowIfCancellationRequested();
+            return "done";
+        });
         try
         {
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(10), Ct);

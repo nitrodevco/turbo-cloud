@@ -52,15 +52,13 @@ internal sealed class AssetPublishEndpoints(
         group.MapPost("/{id:int}/publish", PublishAsync);
         group.MapPost("/{id:int}/forget-host-key", ForgetHostKeyAsync);
         group.MapGet("/{id:int}/history", HistoryAsync);
-        group.MapGet(
-            "/{id:int}/pending",
-            (int id, string? q, int? page, CancellationToken ct) => PendingAsync(id, q, page, ct)
+        group.MapGet("/{id:int}/pending", (int id, string? q, int? page, CancellationToken ct) =>
+            PendingAsync(id, q, page, ct)
         );
         // Comparing reads the target with its stored credentials, as testing it does.
         group
-            .MapGet(
-                "/{id:int}/compare",
-                (int id, string? path, CancellationToken ct) => CompareAsync(id, path, ct)
+            .MapGet("/{id:int}/compare", (int id, string? path, CancellationToken ct) =>
+                CompareAsync(id, path, ct)
             )
             .RequirePermission(PermissionNodes.Gamedata.MANAGE, NO_COMPARE);
         group

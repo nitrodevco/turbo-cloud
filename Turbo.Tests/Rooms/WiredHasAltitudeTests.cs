@@ -117,7 +117,9 @@ public sealed class WiredHasAltitudeTests
                 ],
                 definitionSpecifics: [quantifier]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         return condition;
     }

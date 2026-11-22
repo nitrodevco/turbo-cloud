@@ -355,8 +355,7 @@ public sealed class McpToolDefinition
                 schema["description"] = typeDescription.Description;
         }
 
-        var attributes =
-            ctx.PropertyInfo?.AssociatedParameter?.AttributeProvider
+        var attributes = ctx.PropertyInfo?.AssociatedParameter?.AttributeProvider
             ?? ctx.PropertyInfo?.AttributeProvider;
 
         if (attributes is null)

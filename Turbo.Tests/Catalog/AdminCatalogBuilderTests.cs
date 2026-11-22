@@ -430,33 +430,21 @@ public sealed class AdminCatalogBuilderTests : IDisposable
     [Fact]
     public async Task PetCustomization_IsTheItemsForAPetType()
     {
-        _catalog.AddDefinition(
-            200,
-            "horse_dye_2",
-            set: x =>
-            {
-                x.FurniCategory = FurnitureCategory.PetShampoo;
-                x.CustomParams = "15 Gold";
-            }
-        );
-        _catalog.AddDefinition(
-            201,
-            "dog_saddle",
-            set: x =>
-            {
-                x.FurniCategory = FurnitureCategory.PetSaddle;
-                x.CustomParams = "0 1";
-            }
-        );
-        _catalog.AddDefinition(
-            202,
-            "horse_dye_1",
-            set: x =>
-            {
-                x.FurniCategory = FurnitureCategory.PetShampoo;
-                x.CustomParams = "15 Red";
-            }
-        );
+        _catalog.AddDefinition(200, "horse_dye_2", set: x =>
+        {
+            x.FurniCategory = FurnitureCategory.PetShampoo;
+            x.CustomParams = "15 Gold";
+        });
+        _catalog.AddDefinition(201, "dog_saddle", set: x =>
+        {
+            x.FurniCategory = FurnitureCategory.PetSaddle;
+            x.CustomParams = "0 1";
+        });
+        _catalog.AddDefinition(202, "horse_dye_1", set: x =>
+        {
+            x.FurniCategory = FurnitureCategory.PetShampoo;
+            x.CustomParams = "15 Red";
+        });
 
         var all = await PreviewAsync(Request(CatalogPageBuilders.PET_CUSTOMIZATION));
         all.Layout.Should().Be("petcustomization");
@@ -766,26 +754,16 @@ public sealed class AdminCatalogBuilderTests : IDisposable
     [Fact]
     public async Task AFurniLine_SkipsTheItemsThatNeedAPattern()
     {
-        _catalog.AddDefinition(
-            200,
-            "wallpaper",
-            ProductType.Wall,
-            x =>
-            {
-                x.FurniCategory = FurnitureCategory.WallPaper;
-                x.FurniLine = "basic";
-            }
-        );
-        _catalog.AddDefinition(
-            201,
-            "poster",
-            ProductType.Wall,
-            x =>
-            {
-                x.FurniCategory = FurnitureCategory.Poster;
-                x.FurniLine = "basic";
-            }
-        );
+        _catalog.AddDefinition(200, "wallpaper", ProductType.Wall, x =>
+        {
+            x.FurniCategory = FurnitureCategory.WallPaper;
+            x.FurniLine = "basic";
+        });
+        _catalog.AddDefinition(201, "poster", ProductType.Wall, x =>
+        {
+            x.FurniCategory = FurnitureCategory.Poster;
+            x.FurniLine = "basic";
+        });
         _catalog.AddDefinition(202, "basic_chair", set: x => x.FurniLine = "basic");
 
         var plan = await PreviewAsync(Request(CatalogPageBuilders.FURNI_LINE, line: "basic"));
@@ -817,16 +795,11 @@ public sealed class AdminCatalogBuilderTests : IDisposable
             }
         );
 
-    private void SongDisk(int id = 200) =>
-        _catalog.AddDefinition(
-            id,
-            "song_disk",
-            set: x =>
-            {
-                x.FurniCategory = FurnitureCategory.TraxSong;
-                x.Logic = SongDisks.LOGIC;
-            }
-        );
+    private void SongDisk(int id = 200) => _catalog.AddDefinition(id, "song_disk", set: x =>
+        {
+            x.FurniCategory = FurnitureCategory.TraxSong;
+            x.Logic = SongDisks.LOGIC;
+        });
 
     [Fact]
     public async Task SongDiscs_AreADiskOfEachOfficialSong_ByName()

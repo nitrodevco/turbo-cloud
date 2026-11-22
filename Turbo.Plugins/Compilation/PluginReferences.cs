@@ -91,8 +91,7 @@ internal static class PluginReferences
     private static string HostAssembly(string name)
     {
         var file = name + ".dll";
-        var path =
-            TrustedAssemblies.GetValueOrDefault(file)
+        var path = TrustedAssemblies.GetValueOrDefault(file)
             ?? Path.Combine(AppContext.BaseDirectory, file);
 
         return File.Exists(path)

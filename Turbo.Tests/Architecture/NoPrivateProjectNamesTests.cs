@@ -84,12 +84,10 @@ public sealed partial class NoPrivateProjectNamesTests
                 continue;
 
             var word = text.Substring(match.Index, match.Length).ToLowerInvariant();
-            var hit = seen.GetOrAdd(
-                word,
-                w =>
-                    PRIVATE_NAMES.Contains(
-                        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(w)))
-                    )
+            var hit = seen.GetOrAdd(word, w =>
+                PRIVATE_NAMES.Contains(
+                    Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(w)))
+                )
             );
 
             if (hit)

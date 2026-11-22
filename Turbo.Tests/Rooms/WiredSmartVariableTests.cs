@@ -82,12 +82,8 @@ public sealed class WiredSmartVariableTests
     {
         var clock = (FurnitureCounterClockLogic)
             _room
-                .AddFloorItem(
-                    CLOCK,
-                    2,
-                    2,
-                    "wf_upcounter",
-                    createLogic: (stuffData, ctx) => new FurnitureCounterClockLogic(stuffData, ctx)
+                .AddFloorItem(CLOCK, 2, 2, "wf_upcounter", createLogic: (stuffData, ctx) =>
+                    new FurnitureCounterClockLogic(stuffData, ctx)
                 )
                 .Logic;
         var variable = new FurnitureClockPulseCountVariable(_room.Harness.Room);
@@ -116,13 +112,8 @@ public sealed class WiredSmartVariableTests
     {
         var toner = (FurnitureBackgroundTonerLogic)
             _room
-                .AddFloorItem(
-                    32,
-                    3,
-                    3,
-                    "background_toner",
-                    createLogic: (stuffData, ctx) =>
-                        new FurnitureBackgroundTonerLogic(stuffData, ctx)
+                .AddFloorItem(32, 3, 3, "background_toner", createLogic: (stuffData, ctx) =>
+                    new FurnitureBackgroundTonerLogic(stuffData, ctx)
                 )
                 .Logic;
         var hue = new FurnitureBackgroundColorHueVariable(_room.Harness.Room);
@@ -143,12 +134,8 @@ public sealed class WiredSmartVariableTests
     {
         var hider = (FurnitureAreaHideLogic)
             _room
-                .AddFloorItem(
-                    33,
-                    4,
-                    4,
-                    "area_hide",
-                    createLogic: (stuffData, ctx) => new FurnitureAreaHideLogic(stuffData, ctx)
+                .AddFloorItem(33, 4, 4, "area_hide", createLogic: (stuffData, ctx) =>
+                    new FurnitureAreaHideLogic(stuffData, ctx)
                 )
                 .Logic;
         var ctx = _room.Harness.Fakes.Create<IWiredExecutionContext>();

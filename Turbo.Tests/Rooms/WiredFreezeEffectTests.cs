@@ -78,7 +78,9 @@ public sealed class WiredFreezeEffectTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 4,
@@ -88,7 +90,9 @@ public sealed class WiredFreezeEffectTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await RebuildAsync(1, 0);
         _room.Avatars[5].SetEffect(worn);
 
@@ -120,7 +124,9 @@ public sealed class WiredFreezeEffectTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 2,
@@ -131,7 +137,9 @@ public sealed class WiredFreezeEffectTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await RebuildAsync(0, 0);
     }

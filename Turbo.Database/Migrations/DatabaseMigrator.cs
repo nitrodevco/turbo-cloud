@@ -131,8 +131,7 @@ public sealed class DatabaseMigrator(
             );
 
         var lockWait = TimeSpan.FromSeconds(Math.Max(1, config.MigrationLockSeconds));
-        var connectionString =
-            db.Database.GetConnectionString()
+        var connectionString = db.Database.GetConnectionString()
             ?? throw new MigrationException(
                 $"Database {label} has no connection string (Turbo:Database:ConnectionString)."
             );

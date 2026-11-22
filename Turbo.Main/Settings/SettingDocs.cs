@@ -87,8 +87,7 @@ internal static partial class SettingDocs
 
                     break;
                 case XElement { Name.LocalName: "see" or "paramref" or "typeparamref" } reference:
-                    var name =
-                        (string?)reference.Attribute("cref")
+                    var name = (string?)reference.Attribute("cref")
                         ?? (string?)reference.Attribute("langword")
                         ?? (string?)reference.Attribute("name")
                         ?? reference.Value;

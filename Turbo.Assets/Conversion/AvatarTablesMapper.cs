@@ -34,33 +34,24 @@ public static class AvatarTablesMapper
                 ["y"] = Text(camera, "y"),
                 ["z"] = Text(camera, "z"),
             },
-            ["canvases"] = Array(
-                root.Elements("canvas"),
-                canvas => new JsonObject
+            ["canvases"] = Array(root.Elements("canvas"), canvas => new JsonObject
+            {
+                ["scale"] = Str(canvas, "scale"),
+                ["geometries"] = Array(canvas.Elements("geometry"), geometry => new JsonObject
                 {
-                    ["scale"] = Str(canvas, "scale"),
-                    ["geometries"] = Array(
-                        canvas.Elements("geometry"),
-                        geometry => new JsonObject
-                        {
-                            ["id"] = Str(geometry, "id"),
-                            ["width"] = Num(geometry, "width"),
-                            ["height"] = Num(geometry, "height"),
-                            ["dx"] = Num(geometry, "dx"),
-                            ["dy"] = Num(geometry, "dy"),
-                        }
-                    ),
-                }
-            ),
+                    ["id"] = Str(geometry, "id"),
+                    ["width"] = Num(geometry, "width"),
+                    ["height"] = Num(geometry, "height"),
+                    ["dx"] = Num(geometry, "dx"),
+                    ["dy"] = Num(geometry, "dy"),
+                }),
+            }),
             ["avatarSets"] = Array(root.Elements("avatarset"), AvatarSet),
-            ["types"] = Array(
-                root.Elements("type"),
-                type => new JsonObject
-                {
-                    ["id"] = Str(type, "id"),
-                    ["bodyParts"] = Array(type.Elements("bodypart"), BodyPart),
-                }
-            ),
+            ["types"] = Array(root.Elements("type"), type => new JsonObject
+            {
+                ["id"] = Str(type, "id"),
+                ["bodyParts"] = Array(type.Elements("bodypart"), BodyPart),
+            }),
         };
     }
 
@@ -70,30 +61,24 @@ public static class AvatarTablesMapper
 
         return new JsonObject
         {
-            ["partSet"] = Array(
-                root.Elements("partSet").Take(1).Elements("part"),
-                part =>
-                {
-                    var output = new JsonObject { ["setType"] = Str(part, "set-type") };
+            ["partSet"] = Array(root.Elements("partSet").Take(1).Elements("part"), part =>
+            {
+                var output = new JsonObject { ["setType"] = Str(part, "set-type") };
 
-                    Optional(output, "swim", part, "swim");
-                    Optional(output, "flippedSetType", part, "flipped-set-type");
-                    Optional(output, "removeSetType", part, "remove-set-type");
+                Optional(output, "swim", part, "swim");
+                Optional(output, "flippedSetType", part, "flipped-set-type");
+                Optional(output, "removeSetType", part, "remove-set-type");
 
-                    return output;
-                }
-            ),
-            ["activePartSets"] = Array(
-                root.Elements("activePartSet"),
-                set => new JsonObject
+                return output;
+            }),
+            ["activePartSets"] = Array(root.Elements("activePartSet"), set => new JsonObject
+            {
+                ["id"] = Str(set, "id"),
+                ["activeParts"] = Array(set.Elements("activePart"), part => new JsonObject
                 {
-                    ["id"] = Str(set, "id"),
-                    ["activeParts"] = Array(
-                        set.Elements("activePart"),
-                        part => new JsonObject { ["setType"] = Str(part, "set-type") }
-                    ),
-                }
-            ),
+                    ["setType"] = Str(part, "set-type"),
+                }),
+            }),
         };
     }
 
@@ -105,24 +90,18 @@ public static class AvatarTablesMapper
         {
             ["name"] = Str(root, "name"),
             ["desc"] = Str(root, "desc"),
-            ["frames"] = Array(
-                root.Elements("frame"),
-                frame => new JsonObject
+            ["frames"] = Array(root.Elements("frame"), frame => new JsonObject
+            {
+                ["bodyparts"] = Array(frame.Elements("bodypart"), part => new JsonObject
                 {
-                    ["bodyparts"] = Array(
-                        frame.Elements("bodypart"),
-                        part => new JsonObject
-                        {
-                            ["id"] = Str(part, "id"),
-                            ["action"] = Str(part, "action"),
-                            ["frame"] = Num(part, "frame"),
-                            ["dx"] = Num(part, "dx"),
-                            ["dy"] = Num(part, "dy"),
-                            ["dd"] = Num(part, "dd"),
-                        }
-                    ),
-                }
-            ),
+                    ["id"] = Str(part, "id"),
+                    ["action"] = Str(part, "action"),
+                    ["frame"] = Num(part, "frame"),
+                    ["dx"] = Num(part, "dx"),
+                    ["dy"] = Num(part, "dy"),
+                    ["dd"] = Num(part, "dd"),
+                }),
+            }),
         };
     }
 
@@ -130,87 +109,72 @@ public static class AvatarTablesMapper
         new()
         {
             ["action"] = action,
-            ["offsets"] = Array(
-                Root(xml, "offsets").Elements("offset"),
-                offset => new JsonObject
-                {
-                    ["size"] = Str(offset, "size"),
-                    ["direction"] = Num(offset, "direction"),
-                    ["x"] = Num(offset, "x"),
-                    ["y"] = Num(offset, "y"),
-                    ["z"] = Num(offset, "z"),
-                }
-            ),
+            ["offsets"] = Array(Root(xml, "offsets").Elements("offset"), offset => new JsonObject
+            {
+                ["size"] = Str(offset, "size"),
+                ["direction"] = Num(offset, "direction"),
+                ["x"] = Num(offset, "x"),
+                ["y"] = Num(offset, "y"),
+                ["z"] = Num(offset, "z"),
+            }),
         };
 
     /// <summary><c>HabboAvatarAnimation</c> as nitro-renderer's <c>IAssetAvatarAnimation[]</c>.</summary>
     public static JsonArray Animations(string xml) =>
-        Array(
-            Root(xml, null).Descendants("action"),
-            action =>
+        Array(Root(xml, null).Descendants("action"), action =>
+        {
+            var output = new JsonObject
             {
-                var output = new JsonObject
+                ["id"] = Str(action, "id"),
+                ["parts"] = Array(action.Descendants("part"), part => new JsonObject
                 {
-                    ["id"] = Str(action, "id"),
-                    ["parts"] = Array(
-                        action.Descendants("part"),
-                        part => new JsonObject
+                    ["setType"] = Str(part, "set-type"),
+                    ["frames"] = Array(part.Descendants("frame"), frame =>
+                    {
+                        var mapped = new JsonObject
                         {
-                            ["setType"] = Str(part, "set-type"),
-                            ["frames"] = Array(
-                                part.Descendants("frame"),
-                                frame =>
-                                {
-                                    var mapped = new JsonObject
+                            ["number"] = Num(frame, "number"),
+                            ["assetPartDefinition"] = Str(frame, "assetpartdefinition"),
+                        };
+
+                        Repeats(mapped, frame);
+
+                        return mapped;
+                    }),
+                }),
+            };
+
+            if (action.Descendants("offsets").FirstOrDefault() is { } offsets)
+                output["offsets"] = new JsonObject
+                {
+                    ["frames"] = Array(offsets.Elements("frame"), frame =>
+                    {
+                        var mapped = new JsonObject { ["id"] = Num(frame, "id") };
+
+                        Repeats(mapped, frame);
+                        mapped["directions"] = Array(
+                            frame.Descendants("direction"),
+                            direction => new JsonObject
+                            {
+                                ["id"] = Num(direction, "id"),
+                                ["bodyParts"] = Array(
+                                    direction.Descendants("bodypart"),
+                                    part => new JsonObject
                                     {
-                                        ["number"] = Num(frame, "number"),
-                                        ["assetPartDefinition"] = Str(frame, "assetpartdefinition"),
-                                    };
+                                        ["id"] = Str(part, "id"),
+                                        ["dx"] = Num(part, "dx"),
+                                        ["dy"] = Num(part, "dy"),
+                                    }
+                                ),
+                            }
+                        );
 
-                                    Repeats(mapped, frame);
-
-                                    return mapped;
-                                }
-                            ),
-                        }
-                    ),
+                        return mapped;
+                    }),
                 };
 
-                if (action.Descendants("offsets").FirstOrDefault() is { } offsets)
-                    output["offsets"] = new JsonObject
-                    {
-                        ["frames"] = Array(
-                            offsets.Elements("frame"),
-                            frame =>
-                            {
-                                var mapped = new JsonObject { ["id"] = Num(frame, "id") };
-
-                                Repeats(mapped, frame);
-                                mapped["directions"] = Array(
-                                    frame.Descendants("direction"),
-                                    direction => new JsonObject
-                                    {
-                                        ["id"] = Num(direction, "id"),
-                                        ["bodyParts"] = Array(
-                                            direction.Descendants("bodypart"),
-                                            part => new JsonObject
-                                            {
-                                                ["id"] = Str(part, "id"),
-                                                ["dx"] = Num(part, "dx"),
-                                                ["dy"] = Num(part, "dy"),
-                                            }
-                                        ),
-                                    }
-                                );
-
-                                return mapped;
-                            }
-                        ),
-                    };
-
-                return output;
-            }
-        );
+            return output;
+        });
 
     /// <summary>
     /// Habbo's <c>HabboAvatarActions.xml</c> (the gordon folder's, which the client downloads) as
@@ -226,67 +190,58 @@ public static class AvatarTablesMapper
         if (actions.Count == 0)
             return output;
 
-        output["actions"] = Array(
-            actions,
-            action =>
-            {
-                var mapped = new JsonObject();
+        output["actions"] = Array(actions, action =>
+        {
+            var mapped = new JsonObject();
 
-                if (!action.HasAttributes)
-                    return mapped;
-
-                Optional(mapped, "id", action, "id");
-                Optional(mapped, "state", action, "state");
-
-                if (Attr(action, "precedence") is { } precedence)
-                    mapped["precedence"] = JsValues.Int(precedence);
-
-                Flag(mapped, "main", action, "main", "1");
-                Flag(mapped, "isDefault", action, "isdefault", "1");
-                Flag(mapped, "animation", action, "animation", "1");
-                Flag(mapped, "startFromFrameZero", action, "startfromframezero", "true");
-                Flag(mapped, "preventHeadTurn", action, "preventheadturn", "true");
-                Optional(mapped, "geometryType", action, "geometrytype");
-                Optional(mapped, "activePartSet", action, "activepartset");
-                Optional(mapped, "assetPartDefinition", action, "assetpartdefinition");
-                Optional(mapped, "lay", action, "lay");
-                Prevents(mapped, action);
-
-                if (action.Elements("type").Any())
-                    mapped["types"] = Array(
-                        action.Elements("type"),
-                        type =>
-                        {
-                            var mappedType = new JsonObject();
-
-                            if (Attr(type, "id") is { } id)
-                                mappedType["id"] = JsValues.Int(id);
-
-                            Flag(mappedType, "animated", type, "animated", "true");
-                            Flag(mappedType, "preventHeadTurn", type, "preventheadturn", "true");
-                            Prevents(mappedType, type);
-
-                            return mappedType;
-                        }
-                    );
-
-                if (action.Elements("param").Any())
-                    mapped["params"] = Array(
-                        action.Elements("param"),
-                        param =>
-                        {
-                            var mappedParam = new JsonObject();
-
-                            Optional(mappedParam, "id", param, "id");
-                            Optional(mappedParam, "value", param, "value");
-
-                            return mappedParam;
-                        }
-                    );
-
+            if (!action.HasAttributes)
                 return mapped;
-            }
-        );
+
+            Optional(mapped, "id", action, "id");
+            Optional(mapped, "state", action, "state");
+
+            if (Attr(action, "precedence") is { } precedence)
+                mapped["precedence"] = JsValues.Int(precedence);
+
+            Flag(mapped, "main", action, "main", "1");
+            Flag(mapped, "isDefault", action, "isdefault", "1");
+            Flag(mapped, "animation", action, "animation", "1");
+            Flag(mapped, "startFromFrameZero", action, "startfromframezero", "true");
+            Flag(mapped, "preventHeadTurn", action, "preventheadturn", "true");
+            Optional(mapped, "geometryType", action, "geometrytype");
+            Optional(mapped, "activePartSet", action, "activepartset");
+            Optional(mapped, "assetPartDefinition", action, "assetpartdefinition");
+            Optional(mapped, "lay", action, "lay");
+            Prevents(mapped, action);
+
+            if (action.Elements("type").Any())
+                mapped["types"] = Array(action.Elements("type"), type =>
+                {
+                    var mappedType = new JsonObject();
+
+                    if (Attr(type, "id") is { } id)
+                        mappedType["id"] = JsValues.Int(id);
+
+                    Flag(mappedType, "animated", type, "animated", "true");
+                    Flag(mappedType, "preventHeadTurn", type, "preventheadturn", "true");
+                    Prevents(mappedType, type);
+
+                    return mappedType;
+                });
+
+            if (action.Elements("param").Any())
+                mapped["params"] = Array(action.Elements("param"), param =>
+                {
+                    var mappedParam = new JsonObject();
+
+                    Optional(mappedParam, "id", param, "id");
+                    Optional(mappedParam, "value", param, "value");
+
+                    return mappedParam;
+                });
+
+            return mapped;
+        });
 
         return output;
 
@@ -316,10 +271,10 @@ public static class AvatarTablesMapper
             output["avatarSets"] = Array(node.Elements("avatarset"), AvatarSet);
 
         if (node.Elements("bodypart").Any())
-            output["bodyParts"] = Array(
-                node.Elements("bodypart"),
-                part => new JsonObject { ["id"] = Str(part, "id") }
-            );
+            output["bodyParts"] = Array(node.Elements("bodypart"), part => new JsonObject
+            {
+                ["id"] = Str(part, "id"),
+            });
 
         return output;
     }
@@ -338,21 +293,18 @@ public static class AvatarTablesMapper
         Optional(output, "orderBefore", part, "order-before");
 
         if (part.Elements("item").Any())
-            output["items"] = Array(
-                part.Elements("item"),
-                item => new JsonObject
-                {
-                    ["id"] = Str(item, "id"),
-                    ["x"] = Num(item, "x"),
-                    ["y"] = Num(item, "y"),
-                    ["z"] = Num(item, "z"),
-                    ["radius"] = Num(item, "radius"),
-                    ["nx"] = Num(item, "nx"),
-                    ["ny"] = Num(item, "ny"),
-                    ["nz"] = Num(item, "nz"),
-                    ["double"] = Attr(item, "double") == "1",
-                }
-            );
+            output["items"] = Array(part.Elements("item"), item => new JsonObject
+            {
+                ["id"] = Str(item, "id"),
+                ["x"] = Num(item, "x"),
+                ["y"] = Num(item, "y"),
+                ["z"] = Num(item, "z"),
+                ["radius"] = Num(item, "radius"),
+                ["nx"] = Num(item, "nx"),
+                ["ny"] = Num(item, "ny"),
+                ["nz"] = Num(item, "nz"),
+                ["double"] = Attr(item, "double") == "1",
+            });
 
         return output;
     }

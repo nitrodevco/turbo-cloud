@@ -175,7 +175,9 @@ public sealed class WiredSelectorFilterSeedTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
     }
 
     private async Task AddUsersByTypeAsync(bool filter, bool invert, int kinds = 1)
@@ -209,7 +211,9 @@ public sealed class WiredSelectorFilterSeedTests
                 ],
                 definitionSpecifics: [filter, false]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
     }
 
     private async Task AddFurniByTypeAsync(bool filter)
@@ -228,7 +232,9 @@ public sealed class WiredSelectorFilterSeedTests
                 ],
                 definitionSpecifics: [filter, false]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
     }
 
     /// <summary>Input Source Quantity: the selector picked exactly 0 furni.</summary>
@@ -250,7 +256,9 @@ public sealed class WiredSelectorFilterSeedTests
                     [WiredPlayerSourceType.SelectorUsers],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
     }
 
     private async Task AddTeleportAsync()
@@ -273,7 +281,9 @@ public sealed class WiredSelectorFilterSeedTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
     }
 
     /// <summary>The stack forms, a user clicks the furni, and a few wired ticks run it through.</summary>

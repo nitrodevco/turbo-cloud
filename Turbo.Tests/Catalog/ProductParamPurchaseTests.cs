@@ -40,25 +40,16 @@ public sealed class ProductParamPurchaseTests : IDisposable
 
     public ProductParamPurchaseTests()
     {
-        _catalog.AddDefinition(
-            BADGE_DISPLAY,
-            "badge_display",
-            set: x => x.Logic = BadgeDisplayData.LOGIC_NAME
+        _catalog.AddDefinition(BADGE_DISPLAY, "badge_display", set: x =>
+            x.Logic = BadgeDisplayData.LOGIC_NAME
         );
-        _catalog.AddDefinition(
-            WALLPAPER,
-            "wallpaper",
-            ProductType.Wall,
-            x =>
-            {
-                x.Logic = "default_wall";
-                x.FurniCategory = FurnitureCategory.WallPaper;
-            }
-        );
-        _catalog.AddDefinition(
-            SONG_DISK,
-            "song_disk",
-            set: x => x.FurniCategory = FurnitureCategory.TraxSong
+        _catalog.AddDefinition(WALLPAPER, "wallpaper", ProductType.Wall, x =>
+        {
+            x.Logic = "default_wall";
+            x.FurniCategory = FurnitureCategory.WallPaper;
+        });
+        _catalog.AddDefinition(SONG_DISK, "song_disk", set: x =>
+            x.FurniCategory = FurnitureCategory.TraxSong
         );
 
         AddOffer(DISPLAY_OFFER, BADGE_DISPLAY, ProductType.Floor, null);

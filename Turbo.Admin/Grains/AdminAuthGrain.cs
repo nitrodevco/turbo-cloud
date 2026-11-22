@@ -159,10 +159,7 @@ internal sealed class AdminAuthGrain(
             _sessions.Remove(hash);
 
         // The clock's time, not the column's: what was handed out is what is read back.
-        var session = ToSnapshot(row) with
-        {
-            CreatedAtUtc = now,
-        };
+        var session = ToSnapshot(row) with { CreatedAtUtc = now };
 
         _sessions[row.TokenHash] = session;
 

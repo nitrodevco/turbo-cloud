@@ -184,7 +184,9 @@ public sealed class WiredBotTileMoverTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         (await effect()).Should().BeTrue();
 

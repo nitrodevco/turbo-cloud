@@ -67,8 +67,8 @@ internal sealed class HotelApprovals(
                 nameof(request)
             );
 
-        var requester =
-            request.Requester ?? throw new ArgumentException("An approval says who asked.");
+        var requester = request.Requester
+            ?? throw new ArgumentException("An approval says who asked.");
 
         if (requester.OnBehalfOf is null && string.IsNullOrWhiteSpace(requester.Name))
             throw new ArgumentException(
@@ -443,13 +443,14 @@ internal sealed class HotelApprovals(
     {
         try
         {
-            var arguments =
-                approval.Arguments.Deserialize(handler.ArgumentsType, ApprovalJson.Options)
-                ?? throw new JsonException("The arguments are empty.");
+            var arguments = approval.Arguments.Deserialize(
+                handler.ArgumentsType,
+                ApprovalJson.Options
+            ) ?? throw new JsonException("The arguments are empty.");
 
             return await handler
-                    .ExecuteAsync(arguments, approval, CancellationToken.None)
-                    .ConfigureAwait(false)
+                .ExecuteAsync(arguments, approval, CancellationToken.None)
+                .ConfigureAwait(false)
                 ?? ApprovalResult.Done();
         }
         catch (JsonException ex)

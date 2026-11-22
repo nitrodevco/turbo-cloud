@@ -15,8 +15,9 @@ public static class TelemetryHostingExtensions
 {
     public static HostApplicationBuilder AddTurboTelemetry(this HostApplicationBuilder builder)
     {
-        var config =
-            builder.Configuration.GetSection(TelemetryConfig.SECTION_NAME).Get<TelemetryConfig>()
+        var config = builder
+            .Configuration.GetSection(TelemetryConfig.SECTION_NAME)
+            .Get<TelemetryConfig>()
             ?? new TelemetryConfig();
 
         if (!config.Enabled)

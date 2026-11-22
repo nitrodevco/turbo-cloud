@@ -27,9 +27,8 @@ public sealed class WebModule : IHostPluginModule
         services.Configure<WebConfig>(builder.Configuration.GetSection(WebConfig.SECTION_NAME));
 
         services.TryAddSingleton(TimeProvider.System);
-        services.AddHttpClient<DiscordOAuthClient>(
-            DiscordOAuthClient.HTTP_CLIENT,
-            http => http.Timeout = TimeSpan.FromSeconds(15)
+        services.AddHttpClient<DiscordOAuthClient>(DiscordOAuthClient.HTTP_CLIENT, http =>
+            http.Timeout = TimeSpan.FromSeconds(15)
         );
         services.AddSingleton<WebAccounts>();
         services.AddSingleton<WebSessions>();

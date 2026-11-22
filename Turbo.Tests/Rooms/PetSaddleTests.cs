@@ -182,9 +182,7 @@ public sealed class PetSaddleTests
         };
 
         // What the room hands back to the inventory is what it is placed with next time.
-        (await Pets.PickupPetAsync(Owner, PET, Ct))
-            .Should()
-            .BeTrue();
+        (await Pets.PickupPetAsync(Owner, PET, Ct)).Should().BeTrue();
         returned!.SaddleDefinitionId.Should().Be(SADDLE2_DEFINITION);
         _horse = returned;
         await PlaceAsync();
@@ -197,12 +195,8 @@ public sealed class PetSaddleTests
     [Fact]
     public async Task A_rider_rolled_on_a_roller_stays_on_the_horse()
     {
-        var roller = _room.AddFloorItem(
-            ROLLER,
-            4,
-            4,
-            "roller",
-            createLogic: (factory, ctx) => new FurnitureRollerLogic(factory, ctx)
+        var roller = _room.AddFloorItem(ROLLER, 4, 4, "roller", createLogic: (factory, ctx) =>
+            new FurnitureRollerLogic(factory, ctx)
         );
         roller.SetRotation(Rotation.East);
         _room.Harness.State.IsFurniLoaded = true;
@@ -324,12 +318,8 @@ public sealed class PetSaddleTests
                     : HotelTexts.Empty
             );
         await PlaceAsync();
-        _room.AddFloorItem(
-            ROLLER,
-            4,
-            4,
-            "pet_drink",
-            createLogic: (factory, ctx) => new FurniturePetDrinkLogic(factory, ctx)
+        _room.AddFloorItem(ROLLER, 4, 4, "pet_drink", createLogic: (factory, ctx) =>
+            new FurniturePetDrinkLogic(factory, ctx)
         );
 
         _room.Harness.Fakes.Handlers["ApplyPetNutritionOperationAsync"] = _ =>

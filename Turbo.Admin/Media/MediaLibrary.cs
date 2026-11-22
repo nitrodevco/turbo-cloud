@@ -533,7 +533,9 @@ public sealed class MediaLibrary(
                 })
                 .ToListAsync(ct)
                 .ConfigureAwait(false)
-        ).GroupBy(x => (x.Kind, x.Name)).ToDictionary(x => x.Key, x => x.First());
+        )
+            .GroupBy(x => (x.Kind, x.Name))
+            .ToDictionary(x => x.Key, x => x.First());
 
         foreach (var (kind, prefix) in StoreKinds)
         {
@@ -1168,8 +1170,8 @@ public sealed class MediaLibrary(
             await using var streamScope = stream.ConfigureAwait(false);
 
             return await JsonSerializer
-                    .DeserializeAsync<Dictionary<string, string[]>>(stream, cancellationToken: ct)
-                    .ConfigureAwait(false)
+                .DeserializeAsync<Dictionary<string, string[]>>(stream, cancellationToken: ct)
+                .ConfigureAwait(false)
                 ?? [];
         }
         catch (Exception ex) when (ex is IOException or JsonException)

@@ -34,7 +34,9 @@ public sealed class WiredMoveRotateStoredParamsTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         box.GetSnapshot().IntParams.Should().Equal(5, 1, 0);
     }

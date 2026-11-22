@@ -181,7 +181,9 @@ public sealed class WiredConditionEvaluationTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         // One user in the room: 1-50 holds, 5-50 does not.
         foreach (var (id, min) in new[] { (HOLDS, 1), (FAILS, 5), (FAILS_TOO, 5) })
@@ -200,7 +202,9 @@ public sealed class WiredConditionEvaluationTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         await Wired.OnRoomEventAsync(
             new RoomWiredStackChangedEvent

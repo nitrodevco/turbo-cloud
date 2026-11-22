@@ -243,10 +243,9 @@ public sealed class GamePolicies(ILogger<GamePolicies> logger) : IGamePolicies
         {
             try
             {
-                decision =
-                    await ((IRoomArrivalPolicy)entry.Policy)
-                        .DecideAsync(request, decision, ct)
-                        .ConfigureAwait(false)
+                decision = await ((IRoomArrivalPolicy)entry.Policy)
+                    .DecideAsync(request, decision, ct)
+                    .ConfigureAwait(false)
                     ?? decision;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

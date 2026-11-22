@@ -54,8 +54,8 @@ public static partial class AssetDataMapper
         if (Parse(library.GetXml("animation")) is { Name.LocalName: "animation" } animation)
             output["animations"] = new JsonArray(MapEffectAnimation(animation));
 
-        var assets =
-            Parse(library.GetXml($"{type}_assets")) ?? Parse(library.GetXml($"{type}_room_assets"));
+        var assets = Parse(library.GetXml($"{type}_assets"))
+            ?? Parse(library.GetXml($"{type}_room_assets"));
 
         if (assets is not null)
             MapAssets(assets, output);
@@ -154,74 +154,50 @@ public static partial class AssetDataMapper
         if (Attr(animation, "resetOnToggle") is { } reset)
             output["resetOnToggle"] = reset == "true";
 
-        SetList(
-            output,
-            "directions",
-            animation,
-            "direction",
-            x =>
-            {
-                var item = new JsonObject();
+        SetList(output, "directions", animation, "direction", x =>
+        {
+            var item = new JsonObject();
 
-                SetInt(item, "offset", x, "offset");
+            SetInt(item, "offset", x, "offset");
 
-                return item;
-            }
-        );
+            return item;
+        });
         SetList(output, "shadows", animation, "shadow", x => Ids(x));
-        SetList(
-            output,
-            "adds",
-            animation,
-            "add",
-            x =>
-            {
-                var item = new JsonObject();
+        SetList(output, "adds", animation, "add", x =>
+        {
+            var item = new JsonObject();
 
-                SetText(item, "id", x, "id");
-                SetText(item, "align", x, "align");
-                SetText(item, "blend", x, "blend");
-                SetInt(item, "ink", x, "ink");
-                SetText(item, "base", x, "base");
+            SetText(item, "id", x, "id");
+            SetText(item, "align", x, "align");
+            SetText(item, "blend", x, "blend");
+            SetInt(item, "ink", x, "ink");
+            SetText(item, "base", x, "base");
 
-                return item;
-            }
-        );
+            return item;
+        });
         SetList(output, "removes", animation, "remove", x => Ids(x));
         SetList(output, "sprites", animation, "sprite", MapEffectSprite);
         SetList(output, "frames", animation, "frame", MapEffectFrame);
-        SetList(
-            output,
-            "avatars",
-            animation,
-            "avatar",
-            x =>
-            {
-                var item = new JsonObject();
+        SetList(output, "avatars", animation, "avatar", x =>
+        {
+            var item = new JsonObject();
 
-                SetText(item, "background", x, "background");
-                SetText(item, "foreground", x, "foreground");
-                SetInt(item, "ink", x, "ink");
+            SetText(item, "background", x, "background");
+            SetText(item, "foreground", x, "foreground");
+            SetInt(item, "ink", x, "ink");
 
-                return item;
-            }
-        );
-        SetList(
-            output,
-            "overrides",
-            animation,
-            "override",
-            x =>
-            {
-                var item = new JsonObject();
+            return item;
+        });
+        SetList(output, "overrides", animation, "override", x =>
+        {
+            var item = new JsonObject();
 
-                SetText(item, "name", x, "name");
-                SetText(item, "override", x, "override");
-                SetList(item, "frames", x, "frame", MapEffectFrame);
+            SetText(item, "name", x, "name");
+            SetText(item, "override", x, "override");
+            SetList(item, "frames", x, "frame", MapEffectFrame);
 
-                return item;
-            }
-        );
+            return item;
+        });
 
         return output;
     }
@@ -235,23 +211,17 @@ public static partial class AssetDataMapper
         SetText(output, "member", sprite, "member");
         SetInt(output, "ink", sprite, "ink");
         SetInt(output, "staticY", sprite, "staticY");
-        SetList(
-            output,
-            "directionList",
-            sprite,
-            "direction",
-            x =>
-            {
-                var item = new JsonObject();
+        SetList(output, "directionList", sprite, "direction", x =>
+        {
+            var item = new JsonObject();
 
-                SetInt(item, "id", x, "id");
-                SetInt(item, "dx", x, "dx");
-                SetInt(item, "dy", x, "dy");
-                SetInt(item, "dz", x, "dz");
+            SetInt(item, "id", x, "id");
+            SetInt(item, "dx", x, "dx");
+            SetInt(item, "dy", x, "dy");
+            SetInt(item, "dz", x, "dz");
 
-                return item;
-            }
-        );
+            return item;
+        });
 
         return output;
     }
@@ -279,21 +249,15 @@ public static partial class AssetDataMapper
         SetInt(output, "dy", part, "dy");
         SetInt(output, "dz", part, "dz");
         SetInt(output, "dd", part, "dd");
-        SetList(
-            output,
-            "items",
-            part,
-            "item",
-            x =>
-            {
-                var item = new JsonObject();
+        SetList(output, "items", part, "item", x =>
+        {
+            var item = new JsonObject();
 
-                SetText(item, "id", x, "id");
-                SetText(item, "base", x, "base");
+            SetText(item, "id", x, "id");
+            SetText(item, "base", x, "base");
 
-                return item;
-            }
-        );
+            return item;
+        });
 
         return output;
     }
@@ -565,8 +529,8 @@ public static partial class AssetDataMapper
                         e["simulation"] = s;
                     }
 
-                    var particles =
-                        emitter.Element("particles")?.Elements("particle").ToList() ?? [];
+                    var particles = emitter.Element("particles")?.Elements("particle").ToList()
+                        ?? [];
 
                     if (particles.Count > 0)
                     {

@@ -215,13 +215,9 @@ public sealed partial class RoomGrain
         );
 
     public Task<bool> SetAvatarEffectAsync(ActionContext ctx, int effectId, CancellationToken ct) =>
-        RunLoggedAsync(
-            ctx,
-            "wear effect",
-            effectId,
-            async () =>
-                AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
-                && await AvatarModule.SetAvatarEffectAsync(avatar.ObjectId, effectId, ct)
+        RunLoggedAsync(ctx, "wear effect", effectId, async () =>
+            AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
+            && await AvatarModule.SetAvatarEffectAsync(avatar.ObjectId, effectId, ct)
         );
 
     public Task<bool> SetPlayerEffectAsync(
@@ -230,18 +226,14 @@ public sealed partial class RoomGrain
         ImmutableArray<int> ownedEffectIds,
         CancellationToken ct
     ) =>
-        RunLoggedAsync(
-            ctx,
-            "wear own effect",
-            effectId,
-            async () =>
-                AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
-                && await AvatarModule.SetPlayerEffectAsync(
-                    avatar.ObjectId,
-                    effectId,
-                    ownedEffectIds,
-                    ct
-                )
+        RunLoggedAsync(ctx, "wear own effect", effectId, async () =>
+            AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
+            && await AvatarModule.SetPlayerEffectAsync(
+                avatar.ObjectId,
+                effectId,
+                ownedEffectIds,
+                ct
+            )
         );
 
     public Task<bool> ClearPlayerEffectIfAsync(
@@ -249,13 +241,9 @@ public sealed partial class RoomGrain
         ImmutableArray<int> ownedEffectIds,
         CancellationToken ct
     ) =>
-        RunLoggedAsync(
-            ctx,
-            "take own effect off",
-            ownedEffectIds.Length,
-            async () =>
-                AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
-                && await AvatarModule.ClearPlayerEffectIfAsync(avatar.ObjectId, ownedEffectIds, ct)
+        RunLoggedAsync(ctx, "take own effect off", ownedEffectIds.Length, async () =>
+            AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
+            && await AvatarModule.ClearPlayerEffectIfAsync(avatar.ObjectId, ownedEffectIds, ct)
         );
 
     public Task<bool> SetAvatarExpressionAsync(
@@ -263,33 +251,21 @@ public sealed partial class RoomGrain
         AvatarExpressionType expressionType,
         CancellationToken ct
     ) =>
-        RunLoggedAsync(
-            ctx,
-            "show expression",
-            expressionType,
-            async () =>
-                AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
-                && await AvatarModule.SetAvatarExpressionAsync(avatar.ObjectId, expressionType, ct)
+        RunLoggedAsync(ctx, "show expression", expressionType, async () =>
+            AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
+            && await AvatarModule.SetAvatarExpressionAsync(avatar.ObjectId, expressionType, ct)
         );
 
     public Task<bool> SetAvatarSignAsync(ActionContext ctx, int signType, CancellationToken ct) =>
-        RunLoggedAsync(
-            ctx,
-            "show sign",
-            signType,
-            async () =>
-                AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
-                && await AvatarModule.SetAvatarSignAsync(avatar.ObjectId, signType, ct)
+        RunLoggedAsync(ctx, "show sign", signType, async () =>
+            AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
+            && await AvatarModule.SetAvatarSignAsync(avatar.ObjectId, signType, ct)
         );
 
     public Task<bool> ShowHabbiconAsync(ActionContext ctx, int habbiconId, CancellationToken ct) =>
-        RunLoggedAsync(
-            ctx,
-            "show habbicon",
-            habbiconId,
-            async () =>
-                AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
-                && await AvatarModule.ShowHabbiconAsync(avatar.ObjectId, habbiconId, ct)
+        RunLoggedAsync(ctx, "show habbicon", habbiconId, async () =>
+            AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
+            && await AvatarModule.ShowHabbiconAsync(avatar.ObjectId, habbiconId, ct)
         );
 
     public Task<bool> SetAvatarPostureAsync(
@@ -297,13 +273,9 @@ public sealed partial class RoomGrain
         AvatarPostureType postureType,
         CancellationToken ct
     ) =>
-        RunLoggedAsync(
-            ctx,
-            "take posture",
-            postureType,
-            async () =>
-                AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
-                && await AvatarModule.SetAvatarPostureAsync(avatar.ObjectId, postureType, ct)
+        RunLoggedAsync(ctx, "take posture", postureType, async () =>
+            AvatarModule.TryGetPlayer(ctx.PlayerId, out var avatar)
+            && await AvatarModule.SetAvatarPostureAsync(avatar.ObjectId, postureType, ct)
         );
 
     public Task<bool> PassHandItemAsync(
@@ -311,19 +283,13 @@ public sealed partial class RoomGrain
         PlayerId targetId,
         CancellationToken ct
     ) =>
-        RunLoggedAsync(
-            ctx,
-            "pass a hand item to player",
-            targetId,
-            () => AvatarModule.PassHandItemAsync(ctx, targetId, ct)
+        RunLoggedAsync(ctx, "pass a hand item to player", targetId, () =>
+            AvatarModule.PassHandItemAsync(ctx, targetId, ct)
         );
 
     public Task<bool> DropHandItemAsync(ActionContext ctx, CancellationToken ct) =>
-        RunLoggedAsync(
-            ctx,
-            "drop",
-            "their hand item",
-            () => AvatarModule.DropHandItemAsync(ctx, ct)
+        RunLoggedAsync(ctx, "drop", "their hand item", () =>
+            AvatarModule.DropHandItemAsync(ctx, ct)
         );
 
     /// <summary>
@@ -415,10 +381,7 @@ public sealed partial class RoomGrain
         int targetY,
         CancellationToken ct
     ) =>
-        RunLoggedAsync(
-            ctx,
-            "turn towards",
-            (targetX, targetY),
-            () => AvatarModule.LookToAsync(ctx, targetX, targetY, ct)
+        RunLoggedAsync(ctx, "turn towards", (targetX, targetY), () =>
+            AvatarModule.LookToAsync(ctx, targetX, targetY, ct)
         );
 }

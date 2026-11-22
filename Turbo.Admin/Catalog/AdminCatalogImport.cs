@@ -292,64 +292,60 @@ public sealed class AdminCatalogImport(
 
         var saved = false;
         var error = await editor
-            .GroupAsync(
-                editorId,
-                label,
-                async () =>
+            .GroupAsync(editorId, label, async () =>
+            {
+                for (var i = 0; i < sources.Count; i++)
                 {
-                    for (var i = 0; i < sources.Count; i++)
-                    {
-                        // A later catalogue is planned against what the earlier ones made.
-                        var work =
-                            i == 0
-                                ? works[0]
-                                : await PlanWorkAsync(sources[i], takeOthersOut, ct)
-                                    .ConfigureAwait(false);
-
-                        if (work.Error is { } refused)
-                            return refused;
-
-                        works[i] = work;
-
-                        if (work.HasNew)
-                        {
-                            var built = await editor
-                                .BuildTreeAsync(editorId, label, work.Draft(), ct)
+                    // A later catalogue is planned against what the earlier ones made.
+                    var work =
+                        i == 0
+                            ? works[0]
+                            : await PlanWorkAsync(sources[i], takeOthersOut, ct)
                                 .ConfigureAwait(false);
 
-                            if (!built.Saved)
-                                return built.Error;
+                    if (work.Error is { } refused)
+                        return refused;
 
-                            saved = true;
-                        }
+                    works[i] = work;
 
-                        foreach (var edit in work.Edits)
-                        {
-                            var result = await edit(editorId, ct).ConfigureAwait(false);
-
-                            if (!result.Saved)
-                                return result.Error ?? "Not saved.";
-
-                            saved = true;
-                        }
-
-                        // Made and moved, the rows are put in the capture's order, which only
-                        // the saved catalogue can say now that the new ones have ids.
-                        var ordered = await PlanWorkAsync(sources[i], takeOthersOut, ct)
+                    if (work.HasNew)
+                    {
+                        var built = await editor
+                            .BuildTreeAsync(editorId, label, work.Draft(), ct)
                             .ConfigureAwait(false);
 
-                        foreach (var edit in ordered.Order)
-                        {
-                            var result = await edit(editorId, ct).ConfigureAwait(false);
+                        if (!built.Saved)
+                            return built.Error;
 
-                            if (!result.Saved)
-                                return result.Error ?? "Not saved.";
-                        }
+                        saved = true;
                     }
 
-                    return null;
+                    foreach (var edit in work.Edits)
+                    {
+                        var result = await edit(editorId, ct).ConfigureAwait(false);
+
+                        if (!result.Saved)
+                            return result.Error ?? "Not saved.";
+
+                        saved = true;
+                    }
+
+                    // Made and moved, the rows are put in the capture's order, which only
+                    // the saved catalogue can say now that the new ones have ids.
+                    var ordered = await PlanWorkAsync(sources[i], takeOthersOut, ct)
+                        .ConfigureAwait(false);
+
+                    foreach (var edit in ordered.Order)
+                    {
+                        var result = await edit(editorId, ct).ConfigureAwait(false);
+
+                        if (!result.Saved)
+                            return result.Error ?? "Not saved.";
+                    }
                 }
-            )
+
+                return null;
+            })
             .ConfigureAwait(false);
 
         if (error is not null)
@@ -1039,8 +1035,7 @@ public sealed class AdminCatalogImport(
 
                 if (found is not { } definitionId)
                 {
-                    var item =
-                        className
+                    var item = className
                         ?? $"{(type == ProductType.Floor ? "floor" : "wall")} sprite {product.SpriteId}";
                     missing.Add(item);
 

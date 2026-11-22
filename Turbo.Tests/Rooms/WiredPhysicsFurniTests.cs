@@ -174,7 +174,9 @@ public sealed class WiredPhysicsFurniTests
                         [WiredPlayerSourceType.AllRoomUsers],
                     ]
                 )
-            ).Should().BeTrue();
+            )
+                .Should()
+                .BeTrue();
 
             await addon.MutatePolicyAsync(processing, Ct);
         }

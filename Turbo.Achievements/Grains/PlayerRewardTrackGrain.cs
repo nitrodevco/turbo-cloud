@@ -88,8 +88,9 @@ internal sealed class PlayerRewardTrackGrain : Grain, IPlayerRewardTrackGrain
             foreach (var row in rows)
             {
                 _state.Rows[row.TrackId] = row;
-                _state.Progress[row.TrackId] =
-                    JsonSerializer.Deserialize<RewardTrackProgress>(row.ProgressJson) ?? new();
+                _state.Progress[row.TrackId] = JsonSerializer.Deserialize<RewardTrackProgress>(
+                    row.ProgressJson
+                ) ?? new();
             }
         }
         catch (Exception ex)

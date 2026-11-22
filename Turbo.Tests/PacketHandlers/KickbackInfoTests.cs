@@ -135,9 +135,7 @@ public sealed class KickbackInfoTests : IDisposable
         var reply = await AskAsync();
 
         // Habbo reads 0 and no bonus a minute after a returning member's box starts (2026-10-13).
-        (reply.CurrentHcStreak, reply.CreditRewardForStreakBonus)
-            .Should()
-            .Be((0, 0));
+        (reply.CurrentHcStreak, reply.CreditRewardForStreakBonus).Should().Be((0, 0));
     }
 
     // The breakdown shows the share as "+ 10% as HC Payday Credits" of what was spent

@@ -121,7 +121,9 @@ public sealed class WiredSelectorTests
                 },
                 Ct
             )
-        ).SelectedFurniIds.Should().BeEquivalentTo([10, 11]);
+        )
+            .SelectedFurniIds.Should()
+            .BeEquivalentTo([10, 11]);
     }
 
     [Fact]
@@ -193,7 +195,9 @@ public sealed class WiredSelectorTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         (await SelectAsync(box)).SelectedFurniIds.Should().BeEquivalentTo([10, 11, 13]);
     }
@@ -212,9 +216,7 @@ public sealed class WiredSelectorTests
         var gates = await PlaceGatesAsync(stateMatch: true);
 
         // 10 is the picked one and is open (state 1); 12 is open as well; 11 is closed.
-        (await SelectAsync(gates))
-            .SelectedFurniIds.Should()
-            .BeEquivalentTo([10, 12]);
+        (await SelectAsync(gates)).SelectedFurniIds.Should().BeEquivalentTo([10, 12]);
     }
 
     /// <summary>Three furni of one kind: 10 and 12 open, 11 closed. 10 is the one picked.</summary>
@@ -239,7 +241,9 @@ public sealed class WiredSelectorTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         return box;
     }
@@ -261,7 +265,9 @@ public sealed class WiredSelectorTests
                     [WiredFurniSourceType.SignalItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         (await SelectAsync(box, signal: new WiredSelectionSet([12], [])))
             .SelectedFurniIds.Should()
@@ -285,7 +291,9 @@ public sealed class WiredSelectorTests
                     [WiredFurniSourceType.TriggeredItem],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         (await SelectAsync(box, triggered: new WiredSelectionSet([11], [])))
             .SelectedFurniIds.Should()
@@ -325,7 +333,9 @@ public sealed class WiredSelectorTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         // The room tells the furni an avatar arrived; the furni says so to the room.
         await _room
@@ -374,7 +384,9 @@ public sealed class WiredSelectorTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         // Before, the pet's step threw here and its walk stopped short of the furni.
         await _room

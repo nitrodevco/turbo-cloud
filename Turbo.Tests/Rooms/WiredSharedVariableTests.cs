@@ -164,7 +164,9 @@ public sealed class WiredSharedVariableTests
                 },
                 Ct
             )
-        ).Status.Should().Be(200);
+        )
+            .Status.Should()
+            .Be(200);
         (
             await _other.Harness.Room.HandleWiredWebApiAsync(
                 new WiredWebApiRequest
@@ -176,7 +178,14 @@ public sealed class WiredSharedVariableTests
                 },
                 Ct
             )
-        ).Should().Be(new WiredWebApiResponse(403, """{"error":"wired.variables.operation_not_allowed"}"""));
+        )
+            .Should()
+            .Be(
+                new WiredWebApiResponse(
+                    403,
+                    """{"error":"wired.variables.operation_not_allowed"}"""
+                )
+            );
 
         Read(_coins, Key(_coins, WiredVariableTargetType.Global, 0)).Should().Be(5);
     }
@@ -265,7 +274,9 @@ public sealed class WiredSharedVariableTests
                 },
                 Ct
             )
-        ).ErrorKey.Should().Be("wiredfurni.error.variables.permissions.1");
+        )
+            .ErrorKey.Should()
+            .Be("wiredfurni.error.variables.permissions.1");
     }
 
     [Fact]

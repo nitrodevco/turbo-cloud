@@ -50,18 +50,16 @@ internal sealed class WebApiServer(
         builder.Services.AddRateLimiter(limiter =>
         {
             limiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            limiter.AddPolicy(
-                SIGN_IN_POLICY,
-                http =>
-                    RateLimitPartition.GetFixedWindowLimiter(
-                        http.Connection.RemoteIpAddress?.ToString() ?? string.Empty,
-                        _ => new FixedWindowRateLimiterOptions
-                        {
-                            PermitLimit = options.SignInAttemptsPerMinute,
-                            Window = TimeSpan.FromMinutes(1),
-                            QueueLimit = 0,
-                        }
-                    )
+            limiter.AddPolicy(SIGN_IN_POLICY, http =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    http.Connection.RemoteIpAddress?.ToString() ?? string.Empty,
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = options.SignInAttemptsPerMinute,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                    }
+                )
             );
         });
         builder.Services.AddSingleton(loggerFactory);

@@ -132,9 +132,7 @@ public sealed class ThemeAudienceTests : IDisposable
         );
 
         // Everyone's file: the other themes and the plugin, not the one in development.
-        (await PatchesInFileAsync())
-            .Should()
-            .BeEquivalentTo("blue", "chat");
+        (await PatchesInFileAsync()).Should().BeEquivalentTo("blue", "chat");
 
         var a = await _themes.SessionAsync(A, null, Ct);
 
@@ -233,9 +231,7 @@ public sealed class ThemeAudienceTests : IDisposable
     public async Task The_default_theme_reaches_everyone_and_there_is_one()
     {
         // No default: every Live theme, as before themes had an audience.
-        (await PatchesInFileAsync())
-            .Should()
-            .BeEquivalentTo("night", "blue", "chat");
+        (await PatchesInFileAsync()).Should().BeEquivalentTo("night", "blue", "chat");
 
         var notLive = () =>
             _themes.SetAsync(

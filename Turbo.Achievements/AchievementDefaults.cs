@@ -416,13 +416,9 @@ public static class AchievementDefaults
 
     private static ImmutableDictionary<string, JsonElement> LoadPublishedCatalog()
     {
-        using var stream =
-            typeof(AchievementDefaults).Assembly.GetManifestResourceStream(
-                "Turbo.Achievements.Resources.habbo-achievements-2026-10-02.json"
-            )
-            ?? throw new InvalidOperationException(
-                "The published achievement snapshot is missing."
-            );
+        using var stream = typeof(AchievementDefaults).Assembly.GetManifestResourceStream(
+            "Turbo.Achievements.Resources.habbo-achievements-2026-10-02.json"
+        ) ?? throw new InvalidOperationException("The published achievement snapshot is missing.");
         return (
             JsonSerializer.Deserialize<JsonElement[]>(stream)
             ?? throw new InvalidOperationException("The published achievement snapshot is invalid.")
@@ -507,11 +503,9 @@ public static class AchievementDefaults
         CurrencyReward
     > LoadRecordedRewards()
     {
-        using var stream =
-            typeof(AchievementDefaults).Assembly.GetManifestResourceStream(
-                "Turbo.Achievements.Resources.habbo-achievement-level-rewards-2026-10-17.json"
-            )
-            ?? throw new InvalidOperationException("The recorded achievement rewards are missing.");
+        using var stream = typeof(AchievementDefaults).Assembly.GetManifestResourceStream(
+            "Turbo.Achievements.Resources.habbo-achievement-level-rewards-2026-10-17.json"
+        ) ?? throw new InvalidOperationException("The recorded achievement rewards are missing.");
         return (
             JsonSerializer.Deserialize<JsonElement[]>(stream)
             ?? throw new InvalidOperationException("The recorded achievement rewards are invalid.")

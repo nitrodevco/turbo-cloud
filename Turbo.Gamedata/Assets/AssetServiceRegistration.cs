@@ -24,17 +24,13 @@ internal static class AssetServiceRegistration
 
     internal static IServiceCollection AddCloudflarePurgeClient(this IServiceCollection services)
     {
-        services.AddHttpClient(
-            CloudflarePurge.HTTP_CLIENT,
-            (sp, http) =>
-                http.Timeout = TimeSpan.FromSeconds(
-                    Math.Max(
-                        1,
-                        sp.GetRequiredService<
-                            IOptions<AssetBundleConfig>
-                        >().Value.PublishTimeoutSeconds
-                    )
+        services.AddHttpClient(CloudflarePurge.HTTP_CLIENT, (sp, http) =>
+            http.Timeout = TimeSpan.FromSeconds(
+                Math.Max(
+                    1,
+                    sp.GetRequiredService<IOptions<AssetBundleConfig>>().Value.PublishTimeoutSeconds
                 )
+            )
         );
 
         return services;

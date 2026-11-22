@@ -29,13 +29,12 @@ public class FurnitureVendingMachineLogic : FurnitureServingLogic
     )
         : base(stuffDataFactory, ctx)
     {
-        _data =
-            FurnitureExtraDataSections.Read<VendingMachineData>(
-                ctx.RoomObject.ExtraData,
-                ctx.Definition.ExtraData,
-                VendingMachineData.SECTION,
-                Logger
-            ) ?? new VendingMachineData();
+        _data = FurnitureExtraDataSections.Read<VendingMachineData>(
+            ctx.RoomObject.ExtraData,
+            ctx.Definition.ExtraData,
+            VendingMachineData.SECTION,
+            Logger
+        ) ?? new VendingMachineData();
     }
 
     protected override bool CanServe => !_data.HandItems.IsDefaultOrEmpty;

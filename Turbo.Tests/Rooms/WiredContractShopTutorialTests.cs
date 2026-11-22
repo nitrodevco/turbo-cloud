@@ -34,12 +34,8 @@ public sealed class WiredContractShopTutorialTests
         _room.Enter(PLAYER_INDEX, 1, 1);
         var chest = (FurnitureWiredChestLogic)
             _room
-                .AddFloorItem(
-                    CHEST,
-                    6,
-                    2,
-                    "wired_chest_coins",
-                    createLogic: (factory, ctx) => new FurnitureWiredCoinsChestLogic(factory, ctx)
+                .AddFloorItem(CHEST, 6, 2, "wired_chest_coins", createLogic: (factory, ctx) =>
+                    new FurnitureWiredCoinsChestLogic(factory, ctx)
                 )
                 .Logic;
         await chest.SetMapDataAsync(
@@ -50,12 +46,8 @@ public sealed class WiredContractShopTutorialTests
             },
             refresh: false
         );
-        _room.AddFloorItem(
-            CONTRACT,
-            4,
-            4,
-            "wired_contract_payment",
-            createLogic: (factory, ctx) => new FurnitureWiredPaymentContractLogic(factory, ctx)
+        _room.AddFloorItem(CONTRACT, 4, 4, "wired_contract_payment", createLogic: (factory, ctx) =>
+            new FurnitureWiredPaymentContractLogic(factory, ctx)
         );
         var action = _room.AddBox<WiredActionInitiateTransaction>(
             BOX,
@@ -82,7 +74,9 @@ public sealed class WiredContractShopTutorialTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         var ctx = new WiredExecutionContext(_room.Harness.Room) { CancellationToken = Ct };
 

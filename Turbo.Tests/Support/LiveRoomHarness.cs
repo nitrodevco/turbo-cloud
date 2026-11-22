@@ -124,8 +124,7 @@ public sealed class LiveRoomHarness
         Room._roomOutbound = Fakes.Create<IAsyncStream<RoomOutboundSnapshot>>("room-stream");
 
         var size = width * height;
-        State.Model =
-            model
+        State.Model = model
             ?? new RoomModelSnapshot
             {
                 Id = 1,

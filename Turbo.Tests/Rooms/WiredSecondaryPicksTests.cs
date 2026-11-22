@@ -57,7 +57,9 @@ public sealed class WiredSecondaryPicksTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
 
         box.GetFurniSources()
             .Select(slot => slot.Single())

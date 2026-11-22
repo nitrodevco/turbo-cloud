@@ -198,10 +198,8 @@ internal sealed partial class PluginAdministration(
 
         manager.State.SetDisabled(plugin.Key, false);
 
-        return await RunAsync(
-                plugin.Key,
-                $"Turned {plugin.Name} on.",
-                () => manager.ReloadAsync(plugin.Key, ct)
+        return await RunAsync(plugin.Key, $"Turned {plugin.Name} on.", () =>
+                manager.ReloadAsync(plugin.Key, ct)
             )
             .ConfigureAwait(false);
     }

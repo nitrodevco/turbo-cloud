@@ -66,7 +66,9 @@ public sealed class WiredRecursionLoopTests
                     [WiredFurniSourceType.SelectedItems],
                 ]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         (
             await _room.SaveAsync<UpdateActionMessage>(
                 TOGGLE,
@@ -78,7 +80,9 @@ public sealed class WiredRecursionLoopTests
                 ],
                 definitionSpecifics: [0]
             )
-        ).Should().BeTrue();
+        )
+            .Should()
+            .BeTrue();
         await StartAsync();
 
         await _room.Harness.Room.UseItemByIdAsync(_room.ContextFor(AVATAR), LAMP, param: -1, Ct);

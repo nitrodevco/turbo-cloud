@@ -950,8 +950,7 @@ internal sealed partial class ClientBundleBuilder(
             images.Reference(name);
         }
 
-        var sheet =
-            SpriteSheetPacker.Pack(images, library, trim: false)
+        var sheet = SpriteSheetPacker.Pack(images, library, trim: false)
             ?? throw new FormatException($"The bitmaps of {library} could not be packed.");
 
         return new Dictionary<string, byte[]>(StringComparer.Ordinal)

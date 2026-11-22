@@ -103,16 +103,15 @@ public sealed class TestPlugin
     /// <summary>The plugin's furni logic class for <paramref name="logic"/> (its <c>[FurniLogic]</c> key), built as the room builds it.</summary>
     internal FurniLogic LogicFor(string logic)
     {
-        var type =
-            AssemblyExplorer
-                .FindAssignees(Assembly, typeof(FurniLogic))
-                .FirstOrDefault(t =>
-                    string.Equals(
-                        t.GetCustomAttribute<FurniLogicAttribute>()?.Key,
-                        logic,
-                        StringComparison.OrdinalIgnoreCase
-                    )
+        var type = AssemblyExplorer
+            .FindAssignees(Assembly, typeof(FurniLogic))
+            .FirstOrDefault(t =>
+                string.Equals(
+                    t.GetCustomAttribute<FurniLogicAttribute>()?.Key,
+                    logic,
+                    StringComparison.OrdinalIgnoreCase
                 )
+            )
             ?? throw new HotelAssertionException(
                 $"Plugin {Key} has no [FurniLogic(\"{logic}\")] class."
             );
