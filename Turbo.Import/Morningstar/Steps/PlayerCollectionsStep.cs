@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Database.Entities.Messenger;
 using Turbo.Database.Entities.Players;
-using Turbo.Primitives.Rooms.Enums;
+using Turbo.Import.Morningstar.Formats;
 
 namespace Turbo.Import.Morningstar.Steps;
 
@@ -58,7 +58,7 @@ internal sealed class PlayerCollectionsStep : IImportStep
                         CreatedAt = ctx.Now,
                         PlayerEntityId = player,
                         BadgeCode = code,
-                        SlotId = slot is >= 1 and <= 5 ? slot : 0,
+                        SlotId = slot >= 1 && slot <= ctx.Options.Limits.ActiveBadgesMax ? slot : 0,
                         PlayerEntity = null!,
                     },
                     ct
@@ -103,10 +103,7 @@ internal sealed class PlayerCollectionsStep : IImportStep
                         PlayerEntityId = player,
                         SlotId = slot,
                         Figure = figure,
-                        Gender =
-                            row.Text("gender").Trim().ToUpperInvariant() == "F"
-                                ? AvatarGenderType.Female
-                                : AvatarGenderType.Male,
+                        Gender = Genders.Of(row.Text("gender")),
                     },
                     ct
                 )
@@ -176,22 +173,6 @@ internal sealed class PlayerCollectionsStep : IImportStep
 
     private static async Task ClothingAsync(ImportContext ctx, CancellationToken ct)
     {
-        // catalog_clothing: the figure set ids each clothing item unlocks, comma separated.
-        var sets = new Dictionary<int, List<int>>();
-
-        await foreach (
-            var row in ctx.Source.ReadAsync("catalog_clothing", "id", ct).ConfigureAwait(false)
-        )
-        {
-            var ids = new List<int>();
-
-            foreach (var part in row.Text("setid").Split(',', StringSplitOptions.TrimEntries))
-                if (int.TryParse(part, out var set) && set > 0)
-                    ids.Add(set);
-
-            sets[row.Int("id")] = ids;
-        }
-
         var batch = ctx.Batch<PlayerFigureSetEntity>("player_figure_sets");
         var held = new HashSet<(int, int)>();
 
@@ -204,7 +185,7 @@ internal sealed class PlayerCollectionsStep : IImportStep
             if (!ctx.Players.Contains(player))
                 continue;
 
-            if (!sets.TryGetValue(row.Int("clothing_id"), out var ids))
+            if (!ctx.Clothing.TryGetValue(row.Int("clothing_id"), out var clothing))
             {
                 ctx.Report.Note(
                     "clothing left out: catalog_clothing has no such item",
@@ -214,7 +195,7 @@ internal sealed class PlayerCollectionsStep : IImportStep
                 continue;
             }
 
-            foreach (var set in ids)
+            foreach (var set in clothing.SetIds)
                 if (held.Add((player, set)))
                     await batch
                         .AddAsync(

@@ -9,6 +9,13 @@ public static class ChatStyles
     public const int DEFAULT_STYLE_ID = 0;
 
     /// <summary>
+    /// The bubble a fresh "show message" wired box speaks in: style 202 on the official server
+    /// (defaults [0,202,-1], 6/6 opens, e.g. 2026-10-18T08-26-07-Open-wait), not the editor's
+    /// first style (34).
+    /// </summary>
+    public const int WIRED_MESSAGE_STYLE_ID = 202;
+
+    /// <summary>
     /// Whether the client counts a style id as an NFT bubble, offered only to an owner named in
     /// UserNftChatStyles (<c>RoomChatInputView.isNftChatStyle</c>: 1000 to 9999).
     /// </summary>

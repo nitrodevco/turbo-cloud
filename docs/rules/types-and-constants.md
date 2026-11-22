@@ -20,8 +20,10 @@ a snapshot mapping or a literal.
   namespace `Turbo.Primitives.Furniture.ExtraData`, next to the `FurnitureExtraDataSections`
   reader. It names its section in a `SECTION` constant when it owns one. Sections are read
   through `FurnitureExtraDataSections.Read`, which takes the logger so an unreadable section is
-  logged with its name; do not deserialize a section by hand or keep its name in the logic
-  class. Never put a section record directly under `Turbo.Primitives/Furniture/` or beside the
+  logged with its name, and written through `FurnitureExtraDataSections.ToNode` (camelCase, as
+  the room's extra data writes them); do not deserialize or build a section by hand or keep its
+  name in the logic class. The dimmer read its presets by hand under a private name, and the
+  Morningstar import wrote five sections as hand-built JSON objects. Never put a section record directly under `Turbo.Primitives/Furniture/` or beside the
   logic that reads it. Client-facing key and
   state tables (`PresentData`, `MannequinData`, `DiceStates`) are not section records and stay
   under `Turbo.Primitives/Furniture/`.

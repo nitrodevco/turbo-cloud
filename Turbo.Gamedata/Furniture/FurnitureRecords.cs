@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Rooms.Enums;
 
@@ -13,11 +14,6 @@ namespace Turbo.Gamedata.Furniture;
 /// </summary>
 internal static class FurnitureRecords
 {
-    // The logic the room object provider falls back to (RoomObjectLogicProvider): a new item of
-    // Habbo's behaves as plain furniture until staff give it its own.
-    public const string DEFAULT_FLOOR_LOGIC = "default_floor";
-    public const string DEFAULT_WALL_LOGIC = "default_wall";
-
     // Colour variants are named name*N (wf_link*2); they share their base item's logic.
     private const char COLOUR_VARIANT_MARK = '*';
 
@@ -26,10 +22,6 @@ internal static class FurnitureRecords
     public const string SPRITE_ID_KEY = "id";
     public const string CLASS_NAME_KEY = "classname";
     public const string LOGIC_KEY = "logic";
-
-    /// <summary>Whether it is the plain logic every floor or wall item gets without one of its own.</summary>
-    public static bool IsDefaultLogic(string logic) =>
-        logic is DEFAULT_FLOOR_LOGIC or DEFAULT_WALL_LOGIC;
 
     /// <summary>
     /// The logic a new definition of Habbo's item gets: the one the server registers under its
@@ -45,7 +37,7 @@ internal static class FurnitureRecords
         if (logics.Contains(baseName))
             return baseName;
 
-        return type == ProductType.Wall ? DEFAULT_WALL_LOGIC : DEFAULT_FLOOR_LOGIC;
+        return DefaultFurnitureLogic.For(type);
     }
 
     /// <summary>A definition of one of Habbo's items the hotel does not have, with Habbo's fields.</summary>

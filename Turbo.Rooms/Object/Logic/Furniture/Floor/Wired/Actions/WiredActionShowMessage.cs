@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -27,10 +28,6 @@ public class WiredActionShowMessage(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
 {
-    // A fresh box opens on bubble style 202 on the official server (defaults [0,202,-1], 6/6
-    // opens, e.g. 2026-10-18T08-26-07-Open-wait), not the editor's first style (34).
-    private const int DEFAULT_STYLE_ID = 202;
-
     // The bubble styles it may be saved with: the editor's style list (NOTIFICATION_STYLES,
     // actiontypes/_-21t.as:22, AS3 WIN63-202610201032). Any other style is refused, so a room
     // cannot speak in a bubble its users could not pick.
@@ -75,7 +72,7 @@ public class WiredActionShowMessage(
             new WiredEnumParamRule<WiredChatVisibilityType>(
                 WiredChatVisibilityType.SelectedUsersOnly
             ),
-            new WiredSetParamRule(DEFAULT_STYLE_ID, STYLE_IDS),
+            new WiredSetParamRule(ChatStyles.WIRED_MESSAGE_STYLE_ID, STYLE_IDS),
             new WiredRangeParamRule(-1, 2, -1),
         ];
 
@@ -104,7 +101,7 @@ public class WiredActionShowMessage(
             text = text[..OUTPUT_MAX_LENGTH];
 
         var visibility = GetIntParamOrDefault(0, WiredChatVisibilityType.SelectedUsersOnly);
-        var styleId = GetIntParamOrDefault(1, DEFAULT_STYLE_ID);
+        var styleId = GetIntParamOrDefault(1, ChatStyles.WIRED_MESSAGE_STYLE_ID);
         var width = GetIntParamOrDefault(2, -1);
         var players = GetPlayers(ctx.GetSelection(this));
 

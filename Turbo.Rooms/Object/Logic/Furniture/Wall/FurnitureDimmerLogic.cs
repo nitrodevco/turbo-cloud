@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Outgoing.Room.Furniture;
@@ -19,7 +19,7 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Wall;
 
 /// <summary>
 /// A moodlight. Its legacy data is <c>state,presetId,effectId,#RRGGBB,brightness</c> as the client
-/// renders it; the three presets live in the item's extra data under <see cref="PRESETS_SECTION"/>.
+/// renders it; the three presets live in the item's extra data under <see cref="DimmerPresetSnapshot.SECTION"/>.
 /// Editing needs room rights, which is also when the client offers the editor. Every moodlight
 /// Habbo has hangs on the wall (furnidata <c>wallitemtypes</c>, category <c>dimmer</c>).
 /// </summary>
@@ -27,7 +27,6 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Wall;
 public class FurnitureDimmerLogic(IStuffDataFactory stuffDataFactory, IRoomWallItemContext ctx)
     : FurnitureWallLogic(stuffDataFactory, ctx)
 {
-    private const string PRESETS_SECTION = "dimmer";
     private const int STATE_FIELD = 0;
     private const int PRESET_FIELD = 1;
     private const int EFFECT_FIELD = 2;
@@ -35,8 +34,6 @@ public class FurnitureDimmerLogic(IStuffDataFactory stuffDataFactory, IRoomWallI
     private const int BRIGHTNESS_FIELD = 4;
 
     // Extra data sections are written camel-cased (ExtraDataWriter); read them back the same way.
-    private static readonly JsonSerializerOptions PRESET_JSON = new(JsonSerializerDefaults.Web);
-
     public override FurnitureUsageType GetUsagePolicy() => FurnitureUsageType.Controller;
 
     // The client opens its editor on double-click and switches through ToggleDimmer.
@@ -91,7 +88,7 @@ public class FurnitureDimmerLogic(IStuffDataFactory stuffDataFactory, IRoomWallI
             Brightness = save.Brightness,
         };
 
-        _ctx.RoomObject.ExtraData.UpdateSection(PRESETS_SECTION, presets);
+        _ctx.RoomObject.ExtraData.UpdateSection(DimmerPresetSnapshot.SECTION, presets);
 
         if (save.Apply)
             await SetLegacyDataAsync(Compose(DimmerStates.ON, presets[save.PresetId - 1]));
@@ -170,20 +167,12 @@ public class FurnitureDimmerLogic(IStuffDataFactory stuffDataFactory, IRoomWallI
             })
             .ToArray();
 
-        if (!_ctx.RoomObject.ExtraData.TryGetSection(PRESETS_SECTION, out var element))
-            return presets;
-
-        List<DimmerPresetSnapshot>? stored;
-
-        try
-        {
-            stored = element.Deserialize<List<DimmerPresetSnapshot>>(PRESET_JSON);
-        }
-        catch (JsonException)
-        {
-            // Unreadable presets fall back to defaults; the next save rewrites the section.
-            return presets;
-        }
+        // Unreadable presets are logged and fall back to defaults; the next save rewrites them.
+        var stored = FurnitureExtraDataSections.Read<List<DimmerPresetSnapshot>>(
+            _ctx.RoomObject.ExtraData,
+            DimmerPresetSnapshot.SECTION,
+            Logger
+        );
 
         foreach (var preset in stored ?? [])
         {

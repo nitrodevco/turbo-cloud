@@ -214,14 +214,7 @@ internal sealed partial class InventoryGrain
             {
                 [ExtraDataSectionType.STUFF] = new
                 {
-                    Data = new[]
-                    {
-                        "0",
-                        guildId.ToString(CultureInfo.InvariantCulture),
-                        string.Empty,
-                        string.Empty,
-                        string.Empty,
-                    },
+                    Data = GuildFurnitureData.Compose("0", guildId),
                 },
             }
         );

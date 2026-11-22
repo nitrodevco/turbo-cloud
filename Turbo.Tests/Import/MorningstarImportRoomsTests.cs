@@ -4,6 +4,7 @@ using Turbo.Primitives.Guilds.Forums.Enums;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Rooms.Configuration;
 using Turbo.Tests.Support;
 using Xunit;
 using static Turbo.Tests.Import.MorningstarImportPlayersTests;
@@ -396,6 +397,33 @@ public class MorningstarImportRoomsTests
             100,
             (await db.PlayerSettings.SingleAsync(x => x.PlayerEntityId == 10, ct)).HomeRoomId
         );
+    }
+
+    [Fact]
+    public async Task A_room_keeps_to_the_limits_one_made_here_keeps()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var ms = Hotel();
+        using var target = new SqliteDb();
+        SeedGroups(target);
+        var limits = new RoomConfig();
+
+        // Morningstar allowed more than this hotel's rooms do.
+        ms.Execute(
+            $"UPDATE rooms SET name = '{new string('n', 100)}', description = '{new string('d', 200)}', "
+                + "users_max = 500, tags = 'one;two;three;four;five' WHERE id = 100"
+        );
+
+        await ImportAsync(ms, target);
+
+        await using var db = await target.CreateDbContextAsync(ct);
+
+        var room = await db.Rooms.SingleAsync(x => x.Id == 100, ct);
+
+        Assert.Equal(new string('n', limits.RoomNameMaxLength), room.Name);
+        Assert.Equal(new string('d', limits.RoomDescriptionMaxLength), room.Description);
+        Assert.Equal(limits.MaxPlayersLimit, room.PlayersMax);
+        Assert.Equal(limits.RoomTagsMax, room.Tags!.Split(',').Length);
     }
 
     [Fact]

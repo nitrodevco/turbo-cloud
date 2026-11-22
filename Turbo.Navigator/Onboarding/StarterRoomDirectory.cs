@@ -15,7 +15,6 @@ using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
-using Turbo.Primitives.Settings;
 
 namespace Turbo.Navigator.Onboarding;
 
@@ -31,7 +30,7 @@ public sealed class StarterRoomDirectory(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IGamedataVariableService variables,
     IGamedataTextService texts,
-    IServerSettings settings,
+    IGamedataHost gamedataHost,
     IOptions<OnboardingConfig> config,
     ILogger<IStarterRoomDirectory> logger
 ) : IStarterRoomDirectory
@@ -46,8 +45,6 @@ public sealed class StarterRoomDirectory(
 
     /// <summary>Where the gamedata host serves the pictures, under its public address.</summary>
     public const string PICTURE_ROUTE = "/gamedata/starter-rooms/";
-
-    private const string GAMEDATA_PUBLIC_URL_SETTING = "Turbo:Gamedata:PublicUrl";
 
     public int Capacity => config.Value.MaxStarterRooms;
 
@@ -222,7 +219,7 @@ public sealed class StarterRoomDirectory(
             )
             .ConfigureAwait(false);
 
-        if (PublicUrl() is { } publicUrl)
+        if (gamedataHost.PublicUrl is { } publicUrl)
             await SetVariableAsync(
                     IMAGE_URL_VARIABLE,
                     $"{publicUrl}{PICTURE_ROUTE}%type%.png",
@@ -232,8 +229,7 @@ public sealed class StarterRoomDirectory(
                 .ConfigureAwait(false);
         else
             logger.LogWarning(
-                "Starter room pictures need {Setting} (the gamedata host's public address) to be shown",
-                GAMEDATA_PUBLIC_URL_SETTING
+                "Starter room pictures need the gamedata host's public address (Turbo:Gamedata:PublicUrl) to be shown"
             );
 
         foreach (var room in rooms)
@@ -249,24 +245,4 @@ public sealed class StarterRoomDirectory(
 
     private Task SetVariableAsync(string key, string value, PlayerId by, CancellationToken ct) =>
         variables.SaveAsync(key, JsonSerializer.Serialize(value), by, ct);
-
-    /// <summary>The gamedata host's public address, without a trailing slash; null when it has none.</summary>
-    private string? PublicUrl()
-    {
-        var json = settings.GetValue(GAMEDATA_PUBLIC_URL_SETTING);
-
-        if (string.IsNullOrWhiteSpace(json))
-            return null;
-
-        try
-        {
-            var url = JsonSerializer.Deserialize<string>(json);
-
-            return string.IsNullOrWhiteSpace(url) ? null : url.TrimEnd('/');
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
 }

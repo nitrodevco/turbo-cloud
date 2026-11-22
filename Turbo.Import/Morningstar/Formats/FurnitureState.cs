@@ -3,8 +3,14 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.Json.Nodes;
+using Turbo.Database.Furniture;
+using Turbo.Import.Source;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.ExtraData;
+using Turbo.Primitives.Guilds;
+using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Primitives.Texts;
 
 namespace Turbo.Import.Morningstar.Formats;
@@ -37,6 +43,9 @@ internal sealed record ItemState
     public Func<int, string?> NameOf { get; init; } = _ => null;
 
     public DateTime Now { get; init; }
+
+    /// <summary>The target's limits: a present's box and ribbon must be ones it wraps in.</summary>
+    public required ImportLimits Limits { get; init; }
 }
 
 /// <summary>
@@ -57,18 +66,22 @@ internal static class FurnitureState
 
         switch (def.Logic)
         {
-            case "teleport":
+            case TeleportFurniture.LOGIC_NAME:
                 data = "0";
 
                 if (item.Partner > 0)
-                    sections["room_linker"] = new JsonObject { ["ItemId"] = item.Partner };
+                    sections[RoomLinkerData.SECTION] = FurnitureExtraDataSections.ToNode(
+                        new RoomLinkerData { ItemId = item.Partner }
+                    );
 
                 break;
             case "dimmer":
                 data = Dimmer(raw);
 
                 if (Presets(item.RoomMoodlight) is { Count: > 0 } presets)
-                    sections["dimmer"] = presets;
+                    sections[DimmerPresetSnapshot.SECTION] = FurnitureExtraDataSections.ToNode(
+                        presets
+                    );
 
                 break;
             case "stickie":
@@ -81,7 +94,7 @@ internal static class FurnitureState
                 );
                 break;
             }
-            case "trophy":
+            case TrophyData.LOGIC_NAME:
             {
                 var parts = raw.Split('\t');
 
@@ -95,7 +108,7 @@ internal static class FurnitureState
                         : raw;
                 break;
             }
-            case "badge_display":
+            case BadgeDisplayData.LOGIC_NAME:
             {
                 // Morningstar: owner, date, badge. Turbo: state, badge, owner, date.
                 var parts = raw.Split('\t');
@@ -114,11 +127,9 @@ internal static class FurnitureState
 
                 data = new JsonObject
                 {
-                    [MannequinData.GENDER] =
-                        parts.Length > 0
-                        && parts[0].Trim().Equals("f", StringComparison.OrdinalIgnoreCase)
-                            ? "F"
-                            : "M",
+                    [MannequinData.GENDER] = Genders
+                        .Of(parts.Length > 0 ? parts[0] : null)
+                        .ToLegacyString(),
                     [MannequinData.FIGURE] =
                         parts.Length > 1 ? MannequinData.ExtractClothing(parts[1]) : string.Empty,
                     [MannequinData.OUTFIT_NAME] =
@@ -160,26 +171,27 @@ internal static class FurnitureState
                         : Strings([FriendFurniData.UNLOCKED, "", "", "", "", ""]);
                 break;
             }
-            case "present":
-                data = Present(raw, item.PresentProduct, out var box, out var ribbon);
-                sections["gift"] = new JsonObject { ["BoxType"] = box, ["RibbonType"] = ribbon };
+            case PresentData.LOGIC_NAME:
+                data = Present(raw, item, out var box, out var ribbon);
+                sections[PresentStorage.SECTION] = FurnitureExtraDataSections.ToNode(
+                    new PresentStorage { BoxType = box, RibbonType = ribbon }
+                );
                 break;
-            case "crackable":
-                sections["stuff"] = new JsonObject
+            case FurnitureBehaviours.CRACKABLE:
+                sections[ExtraDataSectionType.STUFF] = new JsonObject
                 {
                     ["Data"] = "0",
-                    ["Hits"] = Math.Max(0, Int(raw)),
+                    ["Hits"] = Math.Max(0, SourceText.Int(raw)),
                     ["Target"] = 0,
                 };
                 break;
-            case "guild_customized" or "guild_forum":
-                data = Strings([
-                    Int(raw).ToString(CultureInfo.InvariantCulture),
-                    item.GuildId.ToString(CultureInfo.InvariantCulture),
-                    "",
-                    "",
-                    "",
-                ]);
+            case GuildFurnitureLogicNames.CUSTOMIZED or GuildFurnitureLogicNames.FORUM:
+                data = Strings(
+                    GuildFurnitureData.Compose(
+                        SourceText.Int(raw).ToString(CultureInfo.InvariantCulture),
+                        item.GuildId
+                    )
+                );
                 break;
             case "song_disk":
             {
@@ -201,16 +213,15 @@ internal static class FurnitureState
                 // now\tbase, in seconds; an older single number is the base.
                 var parts = raw.Split('\t');
 
-                data = Math.Max(0, Int(parts.Length > 1 ? parts[1] : parts[0]))
+                data = Math.Max(0, SourceText.Int(parts.Length > 1 ? parts[1] : parts[0]))
                     .ToString(CultureInfo.InvariantCulture);
                 break;
             }
             case "monsterplant_seed":
-                if (Int(raw) > 0)
-                    sections["monsterplant_seed"] = new JsonObject
-                    {
-                        ["MinRarityLevel"] = Int(raw),
-                    };
+                if (SourceText.Int(raw) > 0)
+                    sections[MonsterplantSeedData.SECTION] = FurnitureExtraDataSections.ToNode(
+                        new MonsterplantSeedData { MinRarityLevel = SourceText.Int(raw) }
+                    );
 
                 break;
             case "rentable_space":
@@ -225,17 +236,19 @@ internal static class FurnitureState
                     && ends > new DateTimeOffset(item.Now).ToUnixTimeSeconds()
                     && item.NameOf(renter) is { } name
                 )
-                    sections["rentable_space"] = new JsonObject
-                    {
-                        ["RenterId"] = renter,
-                        ["RenterName"] = name,
-                        ["ExpiresAt"] = ends,
-                    };
+                    sections[RentableSpaceData.SECTION] = FurnitureExtraDataSections.ToNode(
+                        new RentableSpaceData
+                        {
+                            RenterId = renter,
+                            RenterName = name,
+                            ExpiresAt = ends,
+                        }
+                    );
 
                 break;
             }
             case "dice":
-                data = Int(raw) < 0 ? "0" : State(raw);
+                data = SourceText.Int(raw) < 0 ? "0" : State(raw);
                 break;
             default:
                 if (def.Logic.StartsWith("wf_", StringComparison.Ordinal) && def.Logic != "wf_link")
@@ -255,7 +268,7 @@ internal static class FurnitureState
         }
 
         if (data is not null)
-            sections["stuff"] = new JsonObject { ["Data"] = data };
+            sections[ExtraDataSectionType.STUFF] = new JsonObject { ["Data"] = data };
 
         Limited(sections, item.LimitedData);
 
@@ -270,14 +283,14 @@ internal static class FurnitureState
     {
         var parts = limited.Split(':');
 
-        if (parts.Length != 2 || Int(parts[0]) <= 0 || Int(parts[1]) <= 0)
+        if (parts.Length != 2 || SourceText.Int(parts[0]) <= 0 || SourceText.Int(parts[1]) <= 0)
             return;
 
-        if (sections["stuff"] is not JsonObject stuff)
-            sections["stuff"] = stuff = new JsonObject { ["Data"] = "0" };
+        if (sections[ExtraDataSectionType.STUFF] is not JsonObject stuff)
+            sections[ExtraDataSectionType.STUFF] = stuff = new JsonObject { ["Data"] = "0" };
 
-        stuff["UniqueNumber"] = Int(parts[1]);
-        stuff["UniqueSeries"] = Int(parts[0]);
+        stuff["UniqueNumber"] = SourceText.Int(parts[1]);
+        stuff["UniqueSeries"] = SourceText.Int(parts[0]);
     }
 
     /// <summary>A plain state: a whole number, else 0 (Morningstar reads empty as 0 too).</summary>
@@ -304,12 +317,12 @@ internal static class FurnitureState
             : $"{DimmerStates.OFF},1,{DimmerStates.EFFECT_ROOM},{DimmerStates.DEFAULT_COLOR},{DimmerStates.MAX_BRIGHTNESS}";
 
     /// <summary>The three presets Morningstar keeps on the room, as Turbo's dimmer section.</summary>
-    private static JsonArray? Presets(string? moodlight)
+    private static List<DimmerPresetSnapshot>? Presets(string? moodlight)
     {
         if (string.IsNullOrWhiteSpace(moodlight))
             return null;
 
-        var presets = new JsonArray();
+        var presets = new List<DimmerPresetSnapshot>();
         var id = 1;
 
         foreach (var entry in moodlight.Split(';', StringSplitOptions.RemoveEmptyEntries))
@@ -321,12 +334,12 @@ internal static class FurnitureState
                 continue;
 
             presets.Add(
-                new JsonObject
+                new DimmerPresetSnapshot
                 {
-                    ["id"] = id++,
-                    ["type"] = preset.Type,
-                    ["color"] = preset.Color,
-                    ["brightness"] = preset.Brightness,
+                    Id = id++,
+                    Type = preset.Type,
+                    Color = preset.Color,
+                    Brightness = preset.Brightness,
                 }
             );
         }
@@ -346,13 +359,17 @@ internal static class FurnitureState
         var color = parts[3].Trim().ToUpperInvariant();
 
         return (
-            Int(parts[0]) == DimmerStates.ON,
-            Math.Clamp(Int(parts[1]), 1, DimmerStates.PRESET_COUNT),
-            Int(parts[2]) == DimmerStates.EFFECT_BACKGROUND
+            SourceText.Int(parts[0]) == DimmerStates.ON,
+            Math.Clamp(SourceText.Int(parts[1]), 1, DimmerStates.PRESET_COUNT),
+            SourceText.Int(parts[2]) == DimmerStates.EFFECT_BACKGROUND
                 ? DimmerStates.EFFECT_BACKGROUND
                 : DimmerStates.EFFECT_ROOM,
             DimmerStates.IsValidColor(color) ? color : DimmerStates.DEFAULT_COLOR,
-            Math.Clamp(Int(parts[4]), DimmerStates.MIN_BRIGHTNESS, DimmerStates.MAX_BRIGHTNESS)
+            Math.Clamp(
+                SourceText.Int(parts[4]),
+                DimmerStates.MIN_BRIGHTNESS,
+                DimmerStates.MAX_BRIGHTNESS
+            )
         );
     }
 
@@ -392,27 +409,27 @@ internal static class FurnitureState
     /// A present's card. Morningstar: <c>N\tid1..idN\tcolour\tribbon\tshowSender\tmessage\tname\tlook</c>;
     /// its colour and ribbon are the client's box and ribbon, as Turbo's are.
     /// </summary>
-    private static JsonObject Present(string raw, string? product, out int box, out int ribbon)
+    private static JsonObject Present(string raw, ItemState item, out int box, out int ribbon)
     {
         var parts = raw.Split('\t');
-        var count = parts.Length > 0 ? Math.Max(0, Int(parts[0])) : 0;
+        var count = parts.Length > 0 ? Math.Max(0, SourceText.Int(parts[0])) : 0;
         var at = 1 + count;
 
         string Part(int i) => at + i < parts.Length ? parts[at + i] : string.Empty;
 
-        box = Int(Part(0));
-        ribbon = Int(Part(1));
+        box = SourceText.Int(Part(0));
+        ribbon = SourceText.Int(Part(1));
 
-        if (box is < 0 or > 8 or 7)
+        if (!item.Limits.GiftBoxTypes.Contains(box))
             box = 0;
 
-        if (ribbon is < 0 or > 10)
+        if (!item.Limits.GiftRibbonTypes.Contains(ribbon))
             ribbon = 0;
 
         var card = new JsonObject
         {
             [PresentData.MESSAGE] = Part(3),
-            [PresentData.PRODUCT_CODE] = product ?? string.Empty,
+            [PresentData.PRODUCT_CODE] = item.PresentProduct ?? string.Empty,
             [PresentData.EXTRA_PARAM] = string.Empty,
         };
 
@@ -463,14 +480,4 @@ internal static class FurnitureState
 
     private static JsonArray Numbers(IEnumerable<int> values) =>
         [.. values.Select(x => (JsonNode)x)];
-
-    private static int Int(string? value) =>
-        int.TryParse(
-            value?.Trim(),
-            NumberStyles.Integer,
-            CultureInfo.InvariantCulture,
-            out var parsed
-        )
-            ? parsed
-            : 0;
 }

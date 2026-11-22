@@ -63,6 +63,12 @@ internal sealed class ImportContext(
     /// <summary>Every Morningstar <c>items_base</c> row, by id.</summary>
     public Dictionary<int, BaseItem> BaseItems { get; } = [];
 
+    /// <summary>
+    /// Every <c>catalog_clothing</c> row, by id: the figure sets a clothing furni (by its name)
+    /// or a player's purchase (by the id) unlocks.
+    /// </summary>
+    public Dictionary<int, ClothingItem> Clothing { get; } = [];
+
     /// <summary>Each player's name, for the furni that show one (a rentable space's renter).</summary>
     public Dictionary<int, string> PlayerNames { get; } = [];
 
@@ -114,6 +120,9 @@ internal sealed class ImportContext(
     /// <summary>The Morningstar id of credits in <see cref="CurrencyTypes"/>.</summary>
     public const int CREDITS = -1;
 }
+
+/// <summary>A <c>catalog_clothing</c> row: a clothing item's name and the figure sets it unlocks.</summary>
+internal sealed record ClothingItem(string Name, IReadOnlyList<int> SetIds);
 
 /// <summary>A Turbo furniture definition as an import needs it.</summary>
 internal sealed record DefinitionRef(

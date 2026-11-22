@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Database.Entities.Messenger;
 using Turbo.Database.Entities.Room;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Import.Morningstar.Steps;
 
@@ -44,7 +45,10 @@ internal sealed class ChatlogsStep : IImportStep
                         RoomEntityId = roomId,
                         PlayerEntityId = from,
                         TargetPlayerEntityId = ctx.Players.Contains(to) ? to : null,
-                        Message = Cut(message, RoomChatlogEntity.MESSAGE_MAX_LENGTH),
+                        Message = ClientText.Truncate(
+                            message,
+                            RoomChatlogEntity.MESSAGE_MAX_LENGTH
+                        ),
                         RoomEntity = null!,
                         PlayerEntity = null!,
                     },
@@ -84,7 +88,10 @@ internal sealed class ChatlogsStep : IImportStep
                         CreatedAt = at,
                         SenderPlayerEntityId = from,
                         ReceiverPlayerEntityId = to,
-                        Message = Cut(message, 512),
+                        Message = ClientText.Truncate(
+                            message,
+                            ctx.Options.Limits.MessengerMessageMaxLength
+                        ),
                         Timestamp = at,
                         Delivered = true,
                         SenderPlayerEntity = null!,
@@ -97,7 +104,4 @@ internal sealed class ChatlogsStep : IImportStep
 
         await messages.FlushAsync(ct).ConfigureAwait(false);
     }
-
-    private static string Cut(string value, int length) =>
-        value.Length > length ? value[..length] : value;
 }

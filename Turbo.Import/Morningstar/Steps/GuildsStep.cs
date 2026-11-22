@@ -8,6 +8,7 @@ using Turbo.Import.Source;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Forums.Enums;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Import.Morningstar.Steps;
 
@@ -86,15 +87,15 @@ internal sealed class GuildsStep : IImportStep
                     {
                         Id = id,
                         CreatedAt = created,
-                        Name = Cut(
+                        Name = ClientText.Truncate(
                             row.Text("name", $"Group {id}").Trim(),
                             GuildEntity.NAME_MAX_LENGTH
                         ),
-                        Description = Cut(
+                        Description = ClientText.Truncate(
                             row.Text("description").Trim(),
                             GuildEntity.DESCRIPTION_MAX_LENGTH
                         ),
-                        BadgeCode = Cut(
+                        BadgeCode = ClientText.Truncate(
                             row.Text("badge").Trim(),
                             GuildEntity.BADGE_CODE_MAX_LENGTH
                         ),
@@ -245,7 +246,7 @@ internal sealed class GuildsStep : IImportStep
                 CreatedAt = row.UnixTime("created_at") ?? ctx.Now,
                 GuildEntityId = guild,
                 PlayerEntityId = opener,
-                Subject = Cut(
+                Subject = ClientText.Truncate(
                     subject.Length == 0 ? "..." : subject,
                     GuildForumThreadEntity.SUBJECT_MAX_LENGTH
                 ),
@@ -291,7 +292,7 @@ internal sealed class GuildsStep : IImportStep
                     ForumMessageId = forum.MessageCount,
                     ThreadIndex = thread.MessageCount,
                     PlayerEntityId = player,
-                    Text = Cut(text, GuildForumMessageEntity.TEXT_MAX_LENGTH),
+                    Text = ClientText.Truncate(text, GuildForumMessageEntity.TEXT_MAX_LENGTH),
                     State = State(row.Int("state")),
                     ModeratorEntityId = Moderator(ctx, row.Int("admin_id")),
                 }
@@ -352,7 +353,4 @@ internal sealed class GuildsStep : IImportStep
 
     private static int? Moderator(ImportContext ctx, int id) =>
         id > 0 && ctx.Players.Contains(id) ? id : null;
-
-    private static string Cut(string value, int length) =>
-        value.Length > length ? value[..length] : value;
 }

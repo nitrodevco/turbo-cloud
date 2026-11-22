@@ -2,6 +2,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Events.Avatar;
@@ -13,7 +14,7 @@ using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Floor;
 
-[RoomObjectLogic("default_floor")]
+[RoomObjectLogic(DefaultFurnitureLogic.FLOOR)]
 public class FurnitureFloorLogic(IStuffDataFactory stuffDataFactory, IRoomFloorItemContext ctx)
     : FurnitureLogic<IRoomFloorItem, IFurnitureFloorLogic, IRoomFloorItemContext>(
         stuffDataFactory,

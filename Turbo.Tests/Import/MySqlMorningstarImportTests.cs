@@ -8,6 +8,7 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Migrations;
 using Turbo.Import.Morningstar;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Tests.Support;
 using Xunit;
 using static Turbo.Tests.Import.MorningstarImportPlayersTests;
@@ -265,7 +266,13 @@ public sealed class MySqlMorningstarImportTests : IAsyncLifetime
 
         Assert.Equal(
             2,
-            JsonNode.Parse(teleport.ExtraData!)!["room_linker"]!["ItemId"]!.GetValue<int>()
+            FurnitureExtraDataSections
+                .ReadDefinition<RoomLinkerData>(
+                    teleport.ExtraData,
+                    RoomLinkerData.SECTION,
+                    NullLogger.Instance
+                )!
+                .ItemId
         );
 
         var poster = await check.Furnitures.SingleAsync(x => x.Id == 3, Ct);

@@ -67,6 +67,7 @@ public sealed class GamedataModule : IHostPluginModule
             http.DefaultRequestHeaders.UserAgent.ParseAdd(HabboGamedataClient.USER_AGENT);
         });
         services.AddCloudflarePurgeClient();
+        services.AddSingleton<IGamedataHost, GamedataHost>();
         services.AddSingleton<HabboGamedataClient>();
         services.AddSingleton<HabboClientService>();
         services.AddSingleton<IHabboClientService>(sp =>

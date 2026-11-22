@@ -10,7 +10,9 @@ using Turbo.Import.Morningstar.Formats;
 using Turbo.Import.Source;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Rooms;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Import.Morningstar.Steps;
 
@@ -255,13 +257,16 @@ internal sealed class FurnitureStep : IImportStep
             ExtraData = row.Text("extra_data"),
             LimitedData = row.Text("limited_data"),
             GuildId = ctx.GuildRooms.ContainsKey(guild) ? guild : 0,
-            Partner = def.Logic == "teleport" ? partners.GetValueOrDefault(row.Int("id")) : 0,
+            Partner = TeleportFurniture.IsTeleport(def.Logic)
+                ? partners.GetValueOrDefault(row.Int("id"))
+                : 0,
             RoomMoodlight =
                 def.Logic == "dimmer" ? ctx.RoomMoodlights.GetValueOrDefault(room) : null,
             PresentProduct = product,
             NameOf = id => ctx.PlayerNames.GetValueOrDefault(id),
             SongOf = id => ctx.Songs.TryGetValue(id, out var song) ? song : null,
             Now = ctx.Now,
+            Limits = ctx.Options.Limits,
         };
     }
 
@@ -416,7 +421,9 @@ internal sealed class FurnitureStep : IImportStep
                 result = WiredSettings.Translate(
                     box.Definition.SourceInteraction,
                     box.Row.Text("wired_data"),
-                    baseId => ctx.BaseItems.TryGetValue(baseId, out var reward) ? reward.Name : null
+                    baseId =>
+                        ctx.BaseItems.TryGetValue(baseId, out var reward) ? reward.Name : null,
+                    ctx.Options.Limits
                 );
             }
             catch (Exception ex)
@@ -438,7 +445,7 @@ internal sealed class FurnitureStep : IImportStep
                 );
             else
             {
-                sections["wired"] = result.Wired;
+                sections[ExtraDataSectionType.WIRED] = result.Wired;
 
                 if (result.Lost is { } lost)
                     ctx.Report.Note($"wired box copied without {lost}", $"item {box.Entity.Id}");
@@ -446,7 +453,9 @@ internal sealed class FurnitureStep : IImportStep
                 if (
                     Snapshot(result.Snapshot, box.Room!.Value, snapshots) is { Count: > 0 } snapshot
                 )
-                    sections["wired_snapshot"] = snapshot;
+                    sections[WiredFurniSnapshotEntry.SECTION] = FurnitureExtraDataSections.ToNode(
+                        snapshot
+                    );
             }
 
             box.Entity.ExtraData = Json(sections.Count == 0 ? null : sections);
@@ -458,10 +467,11 @@ internal sealed class FurnitureStep : IImportStep
     }
 
     /// <summary>
-    /// Turbo's <c>wired_snapshot</c>: for each remembered furni in the box's room, its state,
-    /// rotation and place as Morningstar remembered them, its height in hundredths and its definition.
+    /// Turbo's wired snapshot: for each remembered furni in the box's room, its state, rotation
+    /// and place as Morningstar remembered them, its height in hundredths as the room reads it
+    /// (<see cref="Altitude.ToInt"/>, which a match compares against) and its definition.
     /// </summary>
-    private static JsonObject? Snapshot(
+    private static Dictionary<int, WiredFurniSnapshotEntry>? Snapshot(
         IReadOnlyList<SnapshotPick> picks,
         int room,
         IReadOnlyDictionary<int, SnapshotTarget> targets
@@ -470,23 +480,21 @@ internal sealed class FurnitureStep : IImportStep
         if (picks.Count == 0)
             return null;
 
-        var snapshot = new JsonObject();
+        var snapshot = new Dictionary<int, WiredFurniSnapshotEntry>();
 
         foreach (var pick in picks)
         {
             if (!targets.TryGetValue(pick.ItemId, out var target) || target.Room != room)
                 continue;
 
-            snapshot[pick.ItemId.ToString(System.Globalization.CultureInfo.InvariantCulture)] =
-                new JsonObject
-                {
-                    ["state"] = int.TryParse(pick.State.Trim(), out var state) ? state : 0,
-                    ["rotation"] = Math.Clamp(pick.Rotation, 0, 7),
-                    ["x"] = pick.X,
-                    ["y"] = pick.Y,
-                    ["z"] = (int)Math.Round(target.Z * 100),
-                    ["definitionId"] = target.DefinitionId,
-                };
+            snapshot[pick.ItemId] = new WiredFurniSnapshotEntry(
+                int.TryParse(pick.State.Trim(), out var state) ? state : 0,
+                Math.Clamp(pick.Rotation, 0, 7),
+                pick.X,
+                pick.Y,
+                Altitude.FromValue(target.Z).ToInt(),
+                target.DefinitionId
+            );
         }
 
         return snapshot;
@@ -606,8 +614,11 @@ internal sealed class FurnitureStep : IImportStep
 
             try
             {
-                var result = WiredSettings.Translate(item.Interaction, row.Text("wired_data"), _ =>
-                    null
+                var result = WiredSettings.Translate(
+                    item.Interaction,
+                    row.Text("wired_data"),
+                    _ => null,
+                    ctx.Options.Limits
                 );
 
                 foreach (var pick in result?.Snapshot ?? [])

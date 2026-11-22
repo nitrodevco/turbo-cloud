@@ -25,28 +25,20 @@ internal class RoomObjectLogicFeatureProcessor(IRoomObjectLogicProvider roomObje
     {
         var batch = new CompositeDisposable();
 
-        foreach (var concrete in AssemblyExplorer.FindAssignees(asm, typeof(IRoomObjectLogic)))
+        foreach (var (concrete, key) in RoomObjectLogics.In(asm))
         {
-            if (concrete is null)
-                continue;
-
-            var attribute = concrete.GetCustomAttribute<RoomObjectLogicAttribute>(false);
-
-            if (attribute is null)
-                continue;
-
             // A key already registered (core's, or another plugin's) is replaced: an override.
-            if (_roomObjectLogicFactory.LogicTypes is { } known && known.Contains(attribute.Key))
+            if (_roomObjectLogicFactory.LogicTypes is { } known && known.Contains(key))
                 sp.Contributes(
                     PluginContributionKinds.OVERRIDE,
-                    attribute.Key,
+                    key,
                     $"furni logic {concrete.Name} replaces the one registered before"
                 );
 
-            sp.Contributes(PluginContributionKinds.FURNI_LOGIC, attribute.Key, concrete.Name);
+            sp.Contributes(PluginContributionKinds.FURNI_LOGIC, key, concrete.Name);
 
             batch.Add(
-                _roomObjectLogicFactory.RegisterLogic(attribute.Key, sp, (sp, ctx) =>
+                _roomObjectLogicFactory.RegisterLogic(key, sp, (sp, ctx) =>
                     (IRoomObjectLogic)ActivatorUtilities.CreateInstance(sp, concrete, ctx)
                 )
             );

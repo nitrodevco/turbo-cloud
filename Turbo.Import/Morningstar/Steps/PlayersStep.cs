@@ -7,10 +7,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Entities.Permissions;
 using Turbo.Database.Entities.Players;
+using Turbo.Import.Morningstar.Formats;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Permissions;
-using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Import.Morningstar.Steps;
 
@@ -26,9 +27,7 @@ namespace Turbo.Import.Morningstar.Steps;
 /// </summary>
 internal sealed class PlayersStep : IImportStep
 {
-    private const string DEFAULT_FIGURE =
-        "hr-115-42.hd-195-19.ch-3030-82.lg-275-1408.fa-1201.ca-1804-64";
-    private const int FIGURE_MAX_LENGTH = 279;
+    // Morningstar's own motto column; Turbo's holds any length.
     private const int MOTTO_MAX_LENGTH = 127;
 
     public string Name => "players";
@@ -86,20 +85,23 @@ internal sealed class PlayersStep : IImportStep
             if (row.Int("home_room") > 0)
                 ctx.UserSettings[id] = settings = settings with { HomeRoom = row.Int("home_room") };
             var created = row.UnixTime("account_created") ?? ctx.Now;
+            var gender = Genders.Of(row.String("gender"));
             var figure = row.Text("look").Trim();
 
             if (figure.Length == 0)
-                figure = DEFAULT_FIGURE;
-            else if (figure.Length > FIGURE_MAX_LENGTH)
+                figure = PlayerFigures.DefaultFor(gender);
+            else if (figure.Length > PlayerFigures.MAX_LENGTH)
             {
-                ctx.Report.Note("player's figure cut to 279 characters", $"user {id}");
-                figure = figure[..FIGURE_MAX_LENGTH];
+                ctx.Report.Note(
+                    $"player's figure cut to {PlayerFigures.MAX_LENGTH} characters",
+                    $"user {id}"
+                );
+                figure = figure[..PlayerFigures.MAX_LENGTH];
             }
 
-            var motto = row.String("motto")?.Trim();
-
-            if (motto is { Length: > MOTTO_MAX_LENGTH })
-                motto = motto[..MOTTO_MAX_LENGTH];
+            var motto = row.String("motto") is { } stored
+                ? ClientText.Truncate(stored, MOTTO_MAX_LENGTH)
+                : null;
 
             await players
                 .AddAsync(
@@ -110,13 +112,16 @@ internal sealed class PlayersStep : IImportStep
                         Name = name,
                         Motto = motto,
                         Figure = figure,
-                        Gender = Gender(row.String("gender")),
+                        Gender = gender,
                         PlayerStatus = PlayerStatusType.Offline,
                         RespectPoints = Math.Max(0, settings.RespectsReceived),
                         RespectsLeft = Math.Max(0, settings.DailyRespects),
                         PetRespectsLeft = Math.Max(0, settings.DailyPetRespects),
                         LastLoginAt = row.UnixTime("last_online") ?? row.UnixTime("last_login"),
-                        OnlineMilliseconds = Math.Max(0L, settings.OnlineSeconds) * 1000L,
+                        OnlineMilliseconds = (long)
+                            TimeSpan
+                                .FromSeconds(Math.Max(0L, settings.OnlineSeconds))
+                                .TotalMilliseconds,
                     },
                     ct
                 )
@@ -224,7 +229,7 @@ internal sealed class PlayersStep : IImportStep
 
         var first = membership?.FirstStarted ?? created;
         var days = membership is { TotalSeconds: > 0 }
-            ? (int)Math.Ceiling(membership.TotalSeconds / 86400d)
+            ? (int)Math.Ceiling(TimeSpan.FromSeconds(membership.TotalSeconds).TotalDays)
             : Math.Max(0, (int)Math.Ceiling((expires.Value - first).TotalDays));
 
         return new PlayerSubscriptionEntity
@@ -356,9 +361,4 @@ internal sealed class PlayersStep : IImportStep
 
         return resolved;
     }
-
-    private static AvatarGenderType Gender(string? value) =>
-        value?.Trim().ToUpperInvariant() is "F" or "FEMALE"
-            ? AvatarGenderType.Female
-            : AvatarGenderType.Male;
 }

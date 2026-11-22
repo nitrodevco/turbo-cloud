@@ -32,8 +32,6 @@ public class WiredTriggerPeriodically(
 
     private int _delayValue = 1;
 
-    // As many units as fit in the int of milliseconds the delay is counted in.
-    private const int MAX_LONG_UNITS = int.MaxValue / 5000;
     private const int MAX_PULSES = int.MaxValue / WiredPulses.MS;
 
     public override List<IWiredParamRule> GetIntParamRules() =>
@@ -47,7 +45,11 @@ public class WiredTriggerPeriodically(
             PeriodicType switch
             {
                 WiredPeriodicTriggerType.Short => new WiredClampParamRule(1, 10, 4),
-                WiredPeriodicTriggerType.Long => new WiredClampParamRule(1, MAX_LONG_UNITS, 10),
+                WiredPeriodicTriggerType.Long => new WiredClampParamRule(
+                    1,
+                    WiredPulses.MAX_LONG_PERIOD_UNITS,
+                    10
+                ),
                 _ => new WiredClampParamRule(1, MAX_PULSES, 1),
             },
         ];
@@ -57,7 +59,11 @@ public class WiredTriggerPeriodically(
         return PeriodicType switch
         {
             WiredPeriodicTriggerType.Short => Math.Clamp(_delayValue, 1, 10) * 50,
-            WiredPeriodicTriggerType.Long => Math.Clamp(_delayValue, 1, MAX_LONG_UNITS) * 5000,
+            WiredPeriodicTriggerType.Long => Math.Clamp(
+                _delayValue,
+                1,
+                WiredPulses.MAX_LONG_PERIOD_UNITS
+            ) * WiredPulses.LONG_PERIOD_UNIT_MS,
             _ => Math.Clamp(_delayValue, 1, MAX_PULSES) * WiredPulses.MS,
         };
     }

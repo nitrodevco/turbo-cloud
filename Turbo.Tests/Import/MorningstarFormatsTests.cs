@@ -15,6 +15,9 @@ public class MorningstarFormatsTests
 {
     private static readonly DateTime NOW = new(2026, 11, 22, 12, 0, 0, DateTimeKind.Utc);
 
+    /// <summary>The limits the host gives an import by default.</summary>
+    private static readonly ImportLimits LIMITS = MorningstarImportPlayersTests.Options().Limits;
+
     private static int[] Ints(JsonObject wired) =>
         [.. wired["IntParams"]!.AsArray().Select(x => x!.GetValue<int>())];
 
@@ -24,7 +27,7 @@ public class MorningstarFormatsTests
     private static int Delay(JsonObject wired) => wired["DefinitionSpecifics"]![0]!.GetValue<int>();
 
     private static WiredResult Wired(string interaction, string data) =>
-        WiredSettings.Translate(interaction, data, id => id == 9 ? "throne" : null)!;
+        WiredSettings.Translate(interaction, data, id => id == 9 ? "throne" : null, LIMITS)!;
 
     [Fact]
     public void Old_form_toggle_keeps_its_delay_and_picks()
@@ -95,7 +98,7 @@ public class MorningstarFormatsTests
     [Fact]
     public void A_hand_item_turbo_would_refuse_drops_the_settings()
     {
-        Assert.Null(WiredSettings.Translate("wf_cnd_has_handitem", "20000", _ => null));
+        Assert.Null(WiredSettings.Translate("wf_cnd_has_handitem", "20000", _ => null, LIMITS));
     }
 
     [Fact]
@@ -131,7 +134,12 @@ public class MorningstarFormatsTests
         FurnitureState
             .Translate(
                 new DefinitionRef(1, "x", logic, ProductType.Floor, category, "default"),
-                new ItemState { ExtraData = extra, Now = NOW }
+                new ItemState
+                {
+                    ExtraData = extra,
+                    Now = NOW,
+                    Limits = LIMITS,
+                }
             )
             ?["stuff"]?["Data"];
 

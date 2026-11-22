@@ -7,10 +7,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Database.Extensions;
+using Turbo.Database.Furniture;
 using Turbo.Import.Morningstar.Formats;
 using Turbo.Import.Source;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Import.Morningstar.Steps;
 
@@ -31,27 +35,19 @@ internal sealed class FurnitureDefinitionsStep : IImportStep
 {
     public const string TABLE = "furniture_definitions";
 
-    private const int CUSTOM_PARAMS_MAX_LENGTH = 512;
-
     public string Name => "furniture definitions";
 
     public async Task RunAsync(ImportContext ctx, CancellationToken ct)
     {
+        // Whole rows: what a definition runs can depend on its classname, category and custom
+        // params, not only its logic column.
         var existing = await ctx
             .Db.FurnitureDefinitions.AsNoTracking()
-            .Select(x => new
-            {
-                x.Id,
-                x.Name,
-                x.Logic,
-                x.ProductType,
-                x.SpriteId,
-                x.FurniCategory,
-            })
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-        // The oldest definition of a classname wins, as in Turbo's own import.
+        // The oldest definition of a classname wins, as in Turbo's own import. Logic here is the
+        // one the definition runs (MorningstarImportOptions.LogicOf).
         var byName =
             new Dictionary<
                 (ProductType, string),
@@ -65,7 +61,7 @@ internal sealed class FurnitureDefinitionsStep : IImportStep
         {
             byName.TryAdd(
                 (def.ProductType, def.Name.ToLowerInvariant()),
-                (def.Id, def.Name, def.Logic, def.FurniCategory)
+                (def.Id, def.Name, LogicOf(ctx, def), def.FurniCategory)
             );
             names.Add(def.Name);
             sprites.Add((def.SpriteId, def.ProductType, def.FurniCategory));
@@ -78,7 +74,6 @@ internal sealed class FurnitureDefinitionsStep : IImportStep
         var bases = await ReadBasesAsync(ctx, ct).ConfigureAwait(false);
         var clothing = await ReadClothingAsync(ctx, ct).ConfigureAwait(false);
         var crackables = await ReadCrackablesAsync(ctx, bases, ct).ConfigureAwait(false);
-        var keys = ctx.Options.LogicKeys;
 
         foreach (var item in bases.Values)
         {
@@ -92,7 +87,7 @@ internal sealed class FurnitureDefinitionsStep : IImportStep
                 ctx.Definitions[item.Id] = new DefinitionRef(
                     match.Id,
                     match.Name,
-                    InteractionLogic.Effective(match.Logic, match.Name, keys),
+                    match.Logic,
                     item.Type,
                     match.Category,
                     item.Interaction
@@ -132,23 +127,28 @@ internal sealed class FurnitureDefinitionsStep : IImportStep
             names.Add(entity.Name);
 
             var id = await ctx.AddSetupAsync(entity, TABLE, ct).ConfigureAwait(false);
+            var logic = LogicOf(ctx, entity);
 
             byName[(item.Type, item.Name.ToLowerInvariant())] = (
                 id,
                 entity.Name,
-                entity.Logic,
+                logic,
                 entity.FurniCategory
             );
             ctx.Definitions[item.Id] = new DefinitionRef(
                 id,
                 entity.Name,
-                InteractionLogic.Effective(entity.Logic, entity.Name, keys),
+                logic,
                 item.Type,
                 entity.FurniCategory,
                 item.Interaction
             );
         }
     }
+
+    /// <summary>The logic the target's rooms run for a definition (its stack height does not matter here).</summary>
+    private static string LogicOf(ImportContext ctx, FurnitureDefinitionEntity definition) =>
+        ctx.Options.LogicOf(definition.ToSnapshot(minimumStackHeight: 0));
 
     private static FurnitureDefinitionEntity Create(
         ImportContext ctx,
@@ -178,9 +178,9 @@ internal sealed class FurnitureDefinitionsStep : IImportStep
         else if (logic == "purchasable_clothing" && clothing.TryGetValue(item.Name, out var sets))
             customParams = sets;
 
-        if (logic == "vending_machine")
+        if (logic == FurnitureBehaviours.VENDING_MACHINE)
         {
-            var handItems = new JsonArray();
+            var handItems = new List<int>();
 
             foreach (
                 var part in row.Text("vending_ids")
@@ -190,17 +190,25 @@ internal sealed class FurnitureDefinitionsStep : IImportStep
                     handItems.Add(handItem);
 
             if (handItems.Count > 0)
-                sections["vending"] = new JsonObject { ["handItems"] = handItems };
+                sections[VendingMachineData.SECTION] = FurnitureExtraDataSections.ToNode(
+                    new VendingMachineData { HandItems = [.. handItems] }
+                );
         }
 
-        if (logic == "crackable" && crackables.TryGetValue(item.Id, out var crackable))
-            sections["crackable"] = crackable;
+        // Written as Turbo's own crackable defaults are: only what differs from the record's.
+        if (
+            logic == FurnitureBehaviours.CRACKABLE
+            && crackables.TryGetValue(item.Id, out var crackable)
+        )
+            sections[CrackableData.SECTION] = crackable;
 
         return new FurnitureDefinitionEntity
         {
             SpriteId = item.Sprite,
             Name = item.Name,
-            PublicName = Cut(row.String("public_name"), 255),
+            PublicName = row.String("public_name") is { } publicName
+                ? ClientText.Truncate(publicName, FurnitureDefinitionEntity.PUBLIC_NAME_MAX_LENGTH)
+                : null,
             ProductType = item.Type,
             FurniCategory = category,
             Logic = logic,
@@ -218,7 +226,12 @@ internal sealed class FurnitureDefinitionsStep : IImportStep
             CanSell = row.Bool("allow_marketplace_sell", true),
             UsagePolicy = FurnitureUsageType.Controller,
             CustomParams =
-                customParams.Length == 0 ? null : Cut(customParams, CUSTOM_PARAMS_MAX_LENGTH),
+                customParams.Length == 0
+                    ? null
+                    : ClientText.Truncate(
+                        customParams,
+                        FurnitureDefinitionEntity.CUSTOM_PARAMS_MAX_LENGTH
+                    ),
             ExtraData = sections.Count == 0 ? null : sections.ToJsonString(),
         };
     }
@@ -251,22 +264,34 @@ internal sealed class FurnitureDefinitionsStep : IImportStep
     }
 
     /// <summary>catalog_clothing by the clothing furni's classname: the figure set ids it unlocks.</summary>
+    /// <summary>
+    /// <c>catalog_clothing</c>, read once for the import (<see cref="ImportContext.Clothing"/>):
+    /// answers each clothing furni's figure sets by name, as Turbo's custom params list them.
+    /// </summary>
     private static async Task<Dictionary<string, string>> ReadClothingAsync(
         ImportContext ctx,
         CancellationToken ct
     )
     {
-        var clothing = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
         await foreach (
             var row in ctx.Source.ReadAsync("catalog_clothing", "id", ct).ConfigureAwait(false)
         )
-            clothing.TryAdd(
-                row.Text("name").Trim(),
-                row.Text("setid").Replace(" ", "", StringComparison.Ordinal)
-            );
+        {
+            var sets = new List<int>();
 
-        return clothing;
+            foreach (var part in row.Text("setid").Split(',', StringSplitOptions.TrimEntries))
+                if (int.TryParse(part, out var set) && set > 0)
+                    sets.Add(set);
+
+            ctx.Clothing[row.Int("id")] = new ClothingItem(row.Text("name").Trim(), sets);
+        }
+
+        var byName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in ctx.Clothing.Values)
+            byName.TryAdd(item.Name, string.Join(',', item.SetIds));
+
+        return byName;
     }
 
     /// <summary>
@@ -340,11 +365,6 @@ internal sealed class FurnitureDefinitionsStep : IImportStep
             "p" => ProductType.Pet,
             _ => ProductType.Floor,
         };
-
-    private static string? Cut(string? value, int length) =>
-        value is null ? null
-        : value.Length > length ? value[..length]
-        : value;
 }
 
 /// <summary>A Morningstar <c>items_base</c> row.</summary>

@@ -10,15 +10,18 @@ namespace Turbo.Database.Entities.Catalog;
 [Table("catalog_pages")]
 public class CatalogPageEntity : TurboEntity
 {
+    public const int LOCALIZATION_MAX_LENGTH = 50;
+    public const int NAME_MAX_LENGTH = 50;
+
     [Column("parent_id")]
     public int? ParentEntityId { get; set; }
 
     [Column("localization")]
-    [MaxLength(50)]
+    [MaxLength(LOCALIZATION_MAX_LENGTH)]
     public required string Localization { get; set; }
 
     [Column("name")]
-    [MaxLength(50)]
+    [MaxLength(NAME_MAX_LENGTH)]
     public string? Name { get; set; }
 
     [Column("icon")]

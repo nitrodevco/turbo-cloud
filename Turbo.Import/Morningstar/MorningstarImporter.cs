@@ -2,12 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Diagnostics;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Turbo.Database.Context;
-using Turbo.Import.Morningstar.Formats;
 using Turbo.Import.Morningstar.Steps;
 using Turbo.Import.Source;
 
@@ -81,12 +79,6 @@ public sealed class MorningstarImporter(
 
         return report;
     }
-
-    /// <summary>
-    /// The furni logic keys the given assemblies register, for <see cref="MorningstarImportOptions.LogicKeys"/>.
-    /// </summary>
-    public static IReadOnlySet<string> LogicKeys(params Assembly[] assemblies) =>
-        InteractionLogic.Registered(assemblies);
 
     /// <summary>In order: each reads what the ones before it copied.</summary>
     private static IEnumerable<IImportStep> Steps() =>

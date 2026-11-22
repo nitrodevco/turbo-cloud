@@ -8,6 +8,7 @@ using Turbo.Database.Entities.Pets;
 using Turbo.Import.Morningstar.Formats;
 using Turbo.Import.Source;
 using Turbo.Primitives.Pets;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Import.Morningstar.Steps;
 
@@ -67,7 +68,10 @@ internal sealed class PetsStep : IImportStep
                 CreatedAt = created,
                 PlayerEntityId = owner,
                 RoomEntityId = inRoom ? room : null,
-                Name = Cut(row.Text("name", "Pet").Trim(), PetEntity.NAME_MAX_LENGTH),
+                Name = ClientText.Truncate(
+                    row.Text("name", "Pet").Trim(),
+                    PetEntity.NAME_MAX_LENGTH
+                ),
                 TypeId = type,
                 PaletteId = palette,
                 BreedId = breed?.BreedId ?? palette,
@@ -199,7 +203,4 @@ internal sealed class PetsStep : IImportStep
 
         return watered > ctx.Now ? ctx.Now : watered;
     }
-
-    private static string Cut(string value, int length) =>
-        value.Length > length ? value[..length] : value;
 }

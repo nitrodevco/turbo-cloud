@@ -464,7 +464,7 @@ public sealed class NewUserOnboardingTests : IDisposable
 
             return Fakes.NotHandled;
         };
-        _fakes.Handlers["GetValue"] = _ => "\"https://gamedata.example\"";
+        _fakes.Handlers["get_PublicUrl"] = _ => "https://gamedata.example";
 
         var directory = Directory(capacity: 3);
 
@@ -756,7 +756,7 @@ public sealed class NewUserOnboardingTests : IDisposable
             _db,
             _fakes.Create<Turbo.Primitives.Gamedata.IGamedataVariableService>(),
             _fakes.Create<Turbo.Primitives.Gamedata.IGamedataTextService>(),
-            _fakes.Create<Turbo.Primitives.Settings.IServerSettings>(),
+            _fakes.Create<Turbo.Primitives.Gamedata.IGamedataHost>(),
             Options.Create(new OnboardingConfig { MaxStarterRooms = capacity }),
             NullLogger<IStarterRoomDirectory>.Instance
         );

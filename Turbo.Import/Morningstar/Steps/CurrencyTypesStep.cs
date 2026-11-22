@@ -18,11 +18,14 @@ internal sealed class CurrencyTypesStep : IImportStep
 {
     public const string TABLE = "currency_types";
 
+    // Morningstar's first seasonal currency.
+    private const int SEASONAL = 101;
+
     private static readonly Dictionary<int, string> NAMES = new()
     {
-        [0] = "duckets",
-        [5] = "diamonds",
-        [101] = "seasonal",
+        [(int)ActivityPointType.Duckets] = "duckets",
+        [(int)ActivityPointType.Diamonds] = "diamonds",
+        [SEASONAL] = "seasonal",
     };
 
     public string Name => "currencies";
@@ -49,8 +52,13 @@ internal sealed class CurrencyTypesStep : IImportStep
                 )
                 .ConfigureAwait(false);
 
-        // Duckets and diamonds every hotel has, held or not; then whatever else players hold.
-        var types = new SortedSet<int> { 0, 5 };
+        // Duckets and diamonds every hotel has, held or not (the SeedCurrencyTypes migration
+        // gives a migrated hotel both); then whatever else players hold.
+        var types = new SortedSet<int>
+        {
+            (int)ActivityPointType.Duckets,
+            (int)ActivityPointType.Diamonds,
+        };
 
         foreach (
             var type in await ctx

@@ -9,6 +9,7 @@ using Turbo.Database.Entities.Catalog;
 using Turbo.Import.Source;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Import.Morningstar.Steps;
 
@@ -191,8 +192,14 @@ internal sealed class CatalogStep : IImportStep
             Id = id,
             CreatedAt = ctx.Now,
             ParentEntityId = parent,
-            Localization = Cut(row.Text("caption").Trim(), 50),
-            Name = Cut(row.Text("caption_save").Trim(), 50) is { Length: > 0 } name ? name : null,
+            Localization = ClientText.Truncate(
+                row.Text("caption"),
+                CatalogPageEntity.LOCALIZATION_MAX_LENGTH
+            ),
+            Name = ClientText.Truncate(row.Text("caption_save"), CatalogPageEntity.NAME_MAX_LENGTH)
+                is { Length: > 0 } name
+                ? name
+                : null,
             Icon = Math.Max(0, row.Int("icon_image")),
             Layout = shape.Client,
             ImageData = [.. shape.Images.Select(x => Field(row, x))],
@@ -398,7 +405,4 @@ internal sealed class CatalogStep : IImportStep
 
     private static async Task<int> NextIdAsync(IQueryable<int> ids, CancellationToken ct) =>
         (await ids.Select(x => (int?)x).MaxAsync(ct).ConfigureAwait(false) ?? 0) + 1;
-
-    private static string Cut(string value, int length) =>
-        value.Length > length ? value[..length] : value;
 }

@@ -12,6 +12,9 @@ namespace Turbo.Database.Entities.Furniture;
 [Index(nameof(SpriteId), nameof(ProductType), nameof(FurniCategory), IsUnique = true)]
 public class FurnitureDefinitionEntity : TurboEntity
 {
+    public const int PUBLIC_NAME_MAX_LENGTH = 255;
+    public const int CUSTOM_PARAMS_MAX_LENGTH = 512;
+
     [Column("sprite_id")]
     public required int SpriteId { get; set; }
 
@@ -114,7 +117,7 @@ public class FurnitureDefinitionEntity : TurboEntity
 
     /// <summary>The name players see (furnidata <c>name</c>); <see cref="Name"/> is its classname.</summary>
     [Column("public_name")]
-    [MaxLength(255)]
+    [MaxLength(PUBLIC_NAME_MAX_LENGTH)]
     public string? PublicName { get; set; }
 
     [Column("description")]
@@ -125,7 +128,7 @@ public class FurnitureDefinitionEntity : TurboEntity
     public string? AdUrl { get; set; }
 
     [Column("custom_params")]
-    [MaxLength(512)]
+    [MaxLength(CUSTOM_PARAMS_MAX_LENGTH)]
     public string? CustomParams { get; set; }
 
     [Column("furni_line")]

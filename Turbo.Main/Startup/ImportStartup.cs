@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -6,12 +7,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
+using Turbo.Catalog.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Migrations;
 using Turbo.Import;
 using Turbo.Import.Morningstar;
+using Turbo.Inventory.Configuration;
+using Turbo.Players.Configuration;
 using Turbo.Rooms;
 using Turbo.Rooms.Configuration;
+using Turbo.Rooms.Object.Logic;
 
 namespace Turbo.Main.Startup;
 
@@ -31,16 +36,70 @@ internal static class ImportStartup
         System.Console.WriteLine(ImportCommandLine.USAGE);
     }
 
-    private static PetRules PetRules(PetConfig pets) =>
-        new()
+    /// <summary>
+    /// What an import is told about this server: the command's choices, and from the host's
+    /// configuration how pets level, the limits what it copies is held to, and which furni logic
+    /// exists and which one a definition runs, as the room decides it
+    /// (<see cref="RoomObjectLogics"/>). Plugins are not loaded for an import, so only core's
+    /// logic counts.
+    /// </summary>
+    internal static MorningstarImportOptions Options(
+        ImportCommandOptions command,
+        IServiceProvider services
+    )
+    {
+        var pets = Config<PetConfig>(services);
+        var rooms = Config<RoomConfig>(services);
+        var wired = Config<WiredConfig>(services);
+        var players = Config<PlayerConfig>(services);
+        var gifts = Config<CatalogConfig>(services).GiftWrapping;
+        var keys = RoomObjectLogics
+            .In(typeof(RoomModule).Assembly)
+            .Select(x => x.Key)
+            .ToHashSet(StringComparer.Ordinal);
+
+        return new()
         {
-            LevelExperience = pets.LevelExperienceThresholds,
-            MaxLevel = pets.MaxLevel,
-            MonsterplantMaxLevel = pets.MonsterplantMaxLevel,
-            MonsterplantGrowthSeconds = pets.MonsterplantGrowthSeconds,
-            MonsterplantWellBeingSeconds = pets.MonsterplantWellBeingSeconds,
-            MonsterplantBabyWellBeingSeconds = pets.MonsterplantBabyWellBeingSeconds,
+            DryRun = command.DryRun,
+            Catalog = command.Catalog,
+            Chatlogs = command.Chatlogs,
+            RankGroups = command.RankGroups,
+            Pets = new PetRules
+            {
+                LevelExperience = pets.LevelExperienceThresholds,
+                MaxLevel = pets.MaxLevel,
+                MonsterplantMaxLevel = pets.MonsterplantMaxLevel,
+                MonsterplantGrowthSeconds = pets.MonsterplantGrowthSeconds,
+                MonsterplantWellBeingSeconds = pets.MonsterplantWellBeingSeconds,
+                MonsterplantBabyWellBeingSeconds = pets.MonsterplantBabyWellBeingSeconds,
+            },
+            Limits = new ImportLimits
+            {
+                RoomNameMaxLength = rooms.RoomNameMaxLength,
+                RoomDescriptionMaxLength = rooms.RoomDescriptionMaxLength,
+                RoomPlayersMax = rooms.MaxPlayersLimit,
+                RoomTagsMax = rooms.RoomTagsMax,
+                RoomTagMaxLength = rooms.RoomTagMaxLength,
+                MessengerMessageMaxLength = players.MessengerMaxMessageLength,
+                WiredSelectedItemsMax = wired.SelectedItemsLimit,
+                WiredActionDelayMaxPulses = wired.ActionDelayMaxPulses,
+                ActiveBadgesMax = Config<InventoryConfig>(services).MaxActiveBadges,
+                GiftBoxTypes = gifts.BoxTypes.ToHashSet(),
+                GiftRibbonTypes = gifts.RibbonTypes.ToHashSet(),
+            },
+            LogicKeys = keys,
+            LogicOf = definition =>
+                RoomObjectLogics.Resolve(
+                    definition.LogicName,
+                    definition,
+                    keys.Contains,
+                    rooms.WaterAreaLogicByDefinition
+                ),
         };
+    }
+
+    private static T Config<T>(IServiceProvider services)
+        where T : class => services.GetRequiredService<IOptions<T>>().Value;
 
     /// <summary>Returns the process exit code.</summary>
     public static async Task<int> RunCommandAsync(
@@ -62,15 +121,7 @@ internal static class ImportStartup
             {
                 var importer = new MorningstarImporter(
                     db,
-                    new MorningstarImportOptions
-                    {
-                        DryRun = options.DryRun,
-                        Catalog = options.Catalog,
-                        Chatlogs = options.Chatlogs,
-                        RankGroups = options.RankGroups,
-                        Pets = PetRules(services.GetRequiredService<IOptions<PetConfig>>().Value),
-                        LogicKeys = MorningstarImporter.LogicKeys(typeof(RoomModule).Assembly),
-                    },
+                    Options(options, services),
                     services.GetRequiredService<ILogger<MorningstarImporter>>(),
                     time
                 );

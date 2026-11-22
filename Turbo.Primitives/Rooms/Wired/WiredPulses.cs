@@ -14,6 +14,12 @@ public static class WiredPulses
 
     public static int FromMs(long ms) => (int)(ms / MS);
 
+    /// <summary>The long periodic trigger's unit (<c>wf_trg_period_long</c>): ten pulses, 5 s.</summary>
+    public const int LONG_PERIOD_UNIT_MS = 5000;
+
+    /// <summary>As many long units as fit in the int of milliseconds a period is counted in.</summary>
+    public const int MAX_LONG_PERIOD_UNITS = int.MaxValue / LONG_PERIOD_UNIT_MS;
+
     /// <summary>
     /// The step of an action's "precise" delay (AS3 <c>ActionDelaySection</c>, mode
     /// <c>delay.mode.precise</c>: 0 to 1200 steps of 0.05 s).

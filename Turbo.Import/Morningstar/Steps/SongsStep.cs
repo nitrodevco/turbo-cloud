@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Sound;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Import.Morningstar.Steps;
 
@@ -30,7 +31,7 @@ internal sealed class SongsStep : IImportStep
         )
         {
             var id = row.Int("id");
-            var code = Cut(row.Text("code").Trim(), SongEntity.CODE_MAX_LENGTH);
+            var code = ClientText.Truncate(row.Text("code").Trim(), SongEntity.CODE_MAX_LENGTH);
 
             if (code.Length > 0 && byCode.TryGetValue(code, out var existing))
             {
@@ -52,8 +53,14 @@ internal sealed class SongsStep : IImportStep
                     new SongEntity
                     {
                         Code = code.Length == 0 ? null : code,
-                        Name = Cut(row.Text("name", $"Song {id}"), SongEntity.NAME_MAX_LENGTH),
-                        Author = Cut(row.Text("author"), SongEntity.AUTHOR_MAX_LENGTH),
+                        Name = ClientText.Truncate(
+                            row.Text("name", $"Song {id}"),
+                            SongEntity.NAME_MAX_LENGTH
+                        ),
+                        Author = ClientText.Truncate(
+                            row.Text("author"),
+                            SongEntity.AUTHOR_MAX_LENGTH
+                        ),
                         Track = track,
                         LengthSeconds = Math.Max(0, row.Int("length")),
                     },
@@ -66,7 +73,4 @@ internal sealed class SongsStep : IImportStep
                 byCode[code] = ctx.Songs[id];
         }
     }
-
-    private static string Cut(string value, int length) =>
-        value.Length > length ? value[..length] : value;
 }

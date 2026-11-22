@@ -1,15 +1,14 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Database.Entities.Permissions;
 using Turbo.Import;
 using Turbo.Import.Morningstar;
-using Turbo.Import.Morningstar.Formats;
+using Turbo.Main.Startup;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Messenger;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Rooms;
-using Turbo.Rooms.Configuration;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -25,21 +24,15 @@ public class MorningstarImportPlayersTests
 
     internal static long Unix(DateTimeOffset time) => time.ToUnixTimeSeconds();
 
+    /// <summary>The options the host gives an import, from the default configuration.</summary>
     internal static MorningstarImportOptions Options(bool dryRun = false) =>
-        new()
-        {
-            DryRun = dryRun,
-            Pets = new PetRules
+        ImportStartup.Options(
+            ImportCommandLine.Parse([ImportCommandLine.COMMAND, ImportCommandLine.MORNINGSTAR]) with
             {
-                LevelExperience = new PetConfig().LevelExperienceThresholds,
-                MaxLevel = new PetConfig().MaxLevel,
-                MonsterplantMaxLevel = new PetConfig().MonsterplantMaxLevel,
-                MonsterplantGrowthSeconds = new PetConfig().MonsterplantGrowthSeconds,
-                MonsterplantWellBeingSeconds = new PetConfig().MonsterplantWellBeingSeconds,
-                MonsterplantBabyWellBeingSeconds = new PetConfig().MonsterplantBabyWellBeingSeconds,
+                DryRun = dryRun,
             },
-            LogicKeys = InteractionLogic.Registered(typeof(RoomModule).Assembly),
-        };
+            new ServiceCollection().AddOptions().BuildServiceProvider()
+        );
 
     internal static async Task<ImportReport> ImportAsync(
         MorningstarDb source,

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Frozen;
 using System.Linq;
 using Turbo.Database.Furniture.Defaults;
+using Turbo.Primitives.Furniture;
 
 namespace Turbo.Database.Furniture;
 
@@ -52,7 +53,7 @@ public static class FurnitureBehaviours
 
     /// <summary>Whether a definition on this logic may take the behaviour: the defaults, or the behaviour's own.</summary>
     public static bool MayTake(string logic, string behaviourLogic) =>
-        logic is "default_floor" or "none" or "" || logic == behaviourLogic;
+        logic is DefaultFurnitureLogic.FLOOR or "none" or "" || logic == behaviourLogic;
 
     public static readonly FrozenDictionary<
         string,

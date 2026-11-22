@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Turbo.Import.Source;
+using Turbo.Primitives.Players;
+using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Wired;
 
 namespace Turbo.Import.Morningstar.Formats;
 
@@ -24,43 +27,28 @@ internal sealed record WiredResult(
 /// its Morningstar interaction; each is written with every int its Turbo twin's rules need, inside
 /// those rules, because one int out of range resets them all when the room loads.
 /// <para>
-/// Units: an action's delay is 500 ms pulses in both. Morningstar keeps a trigger's period in
-/// milliseconds; Turbo in pulses (500 ms) or, for the long ones, 5 s units. Team colours are
-/// Morningstar's enum names; Turbo's numbers are the client's, 1 red to 4 yellow.
+/// Units: an action's delay is pulses (<see cref="WiredPulses"/>) in both. Morningstar keeps a
+/// trigger's period in milliseconds; Turbo in pulses or, for the long ones, 5 s units. Team
+/// colours and directions are Morningstar's enum names, which are Turbo's
+/// <see cref="GameTeamType"/> and <see cref="Rotation"/> (written with underscores).
 /// </para>
 /// </summary>
 internal static class WiredSettings
 {
-    private const int MAX_PICKS = 20;
-    private const int MAX_DELAY_PULSES = 120;
-    private const int DEFAULT_BUBBLE = 202;
-
-    private static readonly string[] TEAMS = ["NONE", "RED", "GREEN", "BLUE", "YELLOW"];
-
-    private static readonly string[] DIRECTIONS =
-    [
-        "NORTH",
-        "NORTH_EAST",
-        "EAST",
-        "SOUTH_EAST",
-        "SOUTH",
-        "SOUTH_WEST",
-        "WEST",
-        "NORTH_WEST",
-    ];
-
     /// <summary>
     /// Turbo's settings for a box, or null for one Turbo has no twin of. <paramref name="classnameOf"/>
-    /// names an <c>items_base</c> id, for a reward box's furni prizes.
+    /// names an <c>items_base</c> id, for a reward box's furni prizes; the box's picks and delay are
+    /// held to the target's <paramref name="limits"/>.
     /// </summary>
     public static WiredResult? Translate(
         string interaction,
         string? wiredData,
-        Func<int, string?> classnameOf
+        Func<int, string?> classnameOf,
+        ImportLimits limits
     )
     {
         var source = MorningstarWired.Parse(wiredData);
-        var box = new Box();
+        var box = new Box(limits);
         string? lost = null;
 
         switch (interaction)
@@ -85,16 +73,16 @@ internal static class WiredSettings
                 break;
             }
             case "wf_trg_periodically":
-                box.Ints(Math.Max(1, source.Number("repeatTime", 10_000) / 500));
+                box.Ints(Math.Max(1, WiredPulses.FromMs(source.Number("repeatTime", 10_000))));
                 break;
             case "wf_trg_period_long":
-                box.Ints(Math.Clamp(source.Number("repeatTime", 100_000) / 5_000, 1, 429_496));
+                box.Ints(LongPeriod(source.Number("repeatTime", 100_000)));
                 break;
             case "wf_trg_at_given_time":
-                box.Ints(Math.Max(0, source.Number("executeTime", 10_000) / 500));
+                box.Ints(Math.Max(0, WiredPulses.FromMs(source.Number("executeTime", 10_000))));
                 break;
             case "wf_trg_at_time_long":
-                box.Ints(Math.Clamp(source.Number("executeTime", 100_000) / 5_000, 1, 429_496));
+                box.Ints(LongPeriod(source.Number("executeTime", 100_000)));
                 break;
             case "wf_trg_bot_reached_stf":
                 box.Text = source.Json?["botName"]?.GetValue<string>()
@@ -124,30 +112,37 @@ internal static class WiredSettings
                 break;
             case "wf_act_reset_timers" or "wf_act_leave_team":
                 box.Action(
-                    source.Json is null ? source.Int(source.Raw) : source.Number("delay", 0)
+                    source.Json is null ? SourceText.Int(source.Raw) : source.Number("delay", 0)
                 );
                 break;
             case "wf_act_join_team":
                 box.Action(source.Delay('\t', 0));
-                box.Ints(Math.Clamp(source.Team("team", '\t', 1), 1, 4), 0);
+                box.Ints(
+                    Math.Clamp(
+                        source.Team("team", '\t', 1),
+                        (int)GameTeamType.Red,
+                        (int)GameTeamType.Yellow
+                    ),
+                    0
+                );
                 break;
             case "wf_act_give_score":
                 box.Action(
                     source.Json is null
-                        ? source.Int(source.Field(';', 2))
+                        ? SourceText.Int(source.Field(';', 2))
                         : source.Number("delay", 0)
                 );
                 box.Ints(
                     Math.Clamp(
                         source.Json is null
-                            ? source.Int(source.Field(';', 0))
+                            ? SourceText.Int(source.Field(';', 0))
                             : source.Number("score", 5),
                         -1000,
                         1000
                     ),
                     Math.Clamp(
                         source.Json is null
-                            ? source.Int(source.Field(';', 1))
+                            ? SourceText.Int(source.Field(';', 1))
                             : source.Number("count", 1),
                         0,
                         10
@@ -157,27 +152,27 @@ internal static class WiredSettings
             case "wf_act_give_score_tm":
                 box.Action(
                     source.Json is null
-                        ? source.Int(source.Field(';', 3))
+                        ? SourceText.Int(source.Field(';', 3))
                         : source.Number("delay", 0)
                 );
                 box.Ints(
                     Math.Clamp(
                         source.Json is null
-                            ? source.Int(source.Field(';', 0))
+                            ? SourceText.Int(source.Field(';', 0))
                             : source.Number("score", 5),
                         -1000,
                         1000
                     ),
                     Math.Clamp(
                         source.Json is null
-                            ? source.Int(source.Field(';', 1))
+                            ? SourceText.Int(source.Field(';', 1))
                             : source.Number("count", 1),
                         0,
                         10
                     ),
                     Math.Clamp(
                         source.Json is null
-                            ? source.Int(source.Field(';', 2))
+                            ? SourceText.Int(source.Field(';', 2))
                             : Team(source.Json["team"]),
                         1,
                         4
@@ -187,11 +182,11 @@ internal static class WiredSettings
             case "wf_act_show_message":
                 box.Action(source.Delay('\t', 0));
                 box.Text = source.Message(1);
-                box.Ints(0, DEFAULT_BUBBLE, -1);
+                box.Ints(0, ChatStyles.WIRED_MESSAGE_STYLE_ID, -1);
                 break;
             case "wf_act_give_effect":
                 box.Action(source.Delay('\t', 0));
-                box.Ints(Math.Clamp(source.Int(source.Message(1)), 0, 10_000), 2, 0);
+                box.Ints(Math.Clamp(SourceText.Int(source.Message(1)), 0, 10_000), 2, 0);
                 break;
             case "wf_act_kick_user":
                 box.Action(source.Delay('\t', 0));
@@ -202,7 +197,7 @@ internal static class WiredSettings
                 box.Ints(
                     Math.Clamp(
                         source.Json is null
-                            ? source.Int(source.Field('\t', 1))
+                            ? SourceText.Int(source.Field('\t', 1))
                             : source.Number("length", 1),
                         0,
                         10
@@ -215,20 +210,20 @@ internal static class WiredSettings
             case "wf_act_move_rotate":
                 box.Action(
                     source.Json is null
-                        ? source.Int(source.Field('\t', 2))
+                        ? SourceText.Int(source.Field('\t', 2))
                         : source.Number("delay", 0)
                 );
                 box.Ints(
                     Math.Clamp(
                         source.Json is null
-                            ? source.Int(source.Field('\t', 0))
+                            ? SourceText.Int(source.Field('\t', 0))
                             : source.Number("direction", 0),
                         0,
                         11
                     ),
                     Math.Clamp(
                         source.Json is null
-                            ? source.Int(source.Field('\t', 1))
+                            ? SourceText.Int(source.Field('\t', 1))
                             : source.Number("rotation", 0),
                         0,
                         3
@@ -241,19 +236,19 @@ internal static class WiredSettings
             {
                 box.Action(
                     source.Json is null
-                        ? source.Int(source.Field('\t', 2))
+                        ? SourceText.Int(source.Field('\t', 2))
                         : source.Number("delay", 0)
                 );
 
                 var direction = source.Json is null
-                    ? source.Int(source.Field('\t', 0))
+                    ? SourceText.Int(source.Field('\t', 0))
                     : source.Number("direction", 0);
 
                 box.Ints(
                     direction is 0 or 2 or 4 or 6 ? direction : 0,
                     Math.Clamp(
                         source.Json is null
-                            ? source.Int(source.Field('\t', 1))
+                            ? SourceText.Int(source.Field('\t', 1))
                             : source.Number("spacing", 1),
                         1,
                         5
@@ -266,22 +261,25 @@ internal static class WiredSettings
             {
                 box.Action(
                     source.Json is null
-                        ? source.Int(source.Field('\t', 0))
+                        ? SourceText.Int(source.Field('\t', 0))
                         : source.Number("delay", 0)
                 );
 
                 var start = source.Json is { } json
                     ? Direction(json["start_direction"])
-                    : source.Int(source.Field('\t', 1));
+                    : SourceText.Int(source.Field('\t', 1));
                 var blocked = source.Json is null
-                    ? source.Int(source.Field('\t', 2))
+                    ? SourceText.Int(source.Field('\t', 2))
                     : source.Number("blocked_action", 0);
 
                 box.Ints(Math.Clamp(start, 0, 7), Math.Clamp(blocked, 0, 6), 1);
                 box.Picks(
                     source.Json?["items"] is JsonArray items
                         ? items.Select(x => x?["item_id"]?.GetValue<int>() ?? 0)
-                        : source.Raw.Split('\t').Skip(4).Select(x => source.Int(x.Split(':')[0]))
+                        : source
+                            .Raw.Split('\t')
+                            .Skip(4)
+                            .Select(x => SourceText.Int(x.Split(':')[0]))
                 );
                 break;
             }
@@ -315,7 +313,7 @@ internal static class WiredSettings
                     var parts = (source.Field('\t', 1) ?? string.Empty).Split(';');
 
                     box.Text = parts[0];
-                    box.Picks(parts.Skip(1).Select(source.Int));
+                    box.Picks(parts.Skip(1).Select(SourceText.Int));
                 }
 
                 break;
@@ -324,7 +322,7 @@ internal static class WiredSettings
                 box.Action(source.Delay('\t', 0));
 
                 var mode = source.Json is null
-                    ? source.Int(source.Field('\t', 1))
+                    ? SourceText.Int(source.Field('\t', 1))
                     : source.Number("mode", 0);
                 var bot = source.Json?["bot_name"]?.GetValue<string>()
                     ?? source.Field('\t', 2)
@@ -342,7 +340,7 @@ internal static class WiredSettings
                 box.Ints(
                     (
                         source.Json is null
-                            ? source.Int(source.Field('\t', 1))
+                            ? SourceText.Int(source.Field('\t', 1))
                             : source.Number("mode", 1)
                     ) == 1
                         ? 1
@@ -357,7 +355,7 @@ internal static class WiredSettings
                 box.Action(source.Delay('\t', 0));
 
                 var handItem = source.Json is null
-                    ? source.Int(source.Field('\t', 1))
+                    ? SourceText.Int(source.Field('\t', 1))
                     : source.Number("item_id", 2);
 
                 // Turbo refuses the whole box for a hand item out of range.
@@ -416,14 +414,14 @@ internal static class WiredSettings
                 box.Ints(
                     Math.Clamp(
                         source.Json is null
-                            ? source.Int(source.Field(':', 0))
+                            ? SourceText.Int(source.Field(':', 0))
                             : source.Number("lowerLimit", 1),
                         0,
                         125
                     ),
                     Math.Clamp(
                         source.Json is null
-                            ? source.Int(source.Field(':', 1))
+                            ? SourceText.Int(source.Field(':', 1))
                             : source.Number("upperLimit", 50),
                         0,
                         125
@@ -435,7 +433,9 @@ internal static class WiredSettings
                 box.Ints(
                     Math.Max(
                         0,
-                        source.Json is null ? source.Int(source.Raw) : source.Number("effectId", 0)
+                        source.Json is null
+                            ? SourceText.Int(source.Raw)
+                            : source.Number("effectId", 0)
                     )
                 );
                 break;
@@ -448,7 +448,7 @@ internal static class WiredSettings
                 box.Condition();
 
                 var handItem = source.Json is null
-                    ? source.Int(source.Raw)
+                    ? SourceText.Int(source.Raw)
                     : source.Number("handItemId", 2);
 
                 if (handItem is < 0 or > 10_000)
@@ -462,7 +462,9 @@ internal static class WiredSettings
                 box.Ints(
                     Math.Max(
                         1,
-                        source.Json is null ? source.Int(source.Raw) : source.Number("cycles", 20)
+                        source.Json is null
+                            ? SourceText.Int(source.Raw)
+                            : source.Number("cycles", 20)
                     )
                 );
                 break;
@@ -470,7 +472,9 @@ internal static class WiredSettings
                 box.Condition();
                 box.Ints(
                     Math.Clamp(
-                        source.Json is null ? source.Int(source.Raw) : source.Number("cycles", 20),
+                        source.Json is null
+                            ? SourceText.Int(source.Raw)
+                            : source.Number("cycles", 20),
                         1,
                         1201
                     )
@@ -496,7 +500,7 @@ internal static class WiredSettings
                     Math.Clamp(
                         source.Json is { } teamJson
                             ? Team(teamJson["teamColor"])
-                            : source.Int(source.Raw),
+                            : SourceText.Int(source.Raw),
                         1,
                         4
                     )
@@ -506,10 +510,10 @@ internal static class WiredSettings
                 box.Condition();
                 box.Ints(
                     source.Json is null
-                        ? source.Int(source.Field('\t', 0))
+                        ? SourceText.Int(source.Field('\t', 0))
                         : source.Number("startDate", 0),
                     source.Json is null
-                        ? source.Int(source.Field('\t', 1))
+                        ? SourceText.Int(source.Field('\t', 1))
                         : source.Number("endDate", 0)
                 );
                 break;
@@ -630,9 +634,9 @@ internal static class WiredSettings
                     new SnapshotPick(
                         id,
                         fields[1],
-                        source.Int(fields[2]),
-                        source.Int(fields[3]),
-                        source.Int(fields[4])
+                        SourceText.Int(fields[2]),
+                        SourceText.Int(fields[3]),
+                        SourceText.Int(fields[4])
                     )
                 );
         }
@@ -641,20 +645,37 @@ internal static class WiredSettings
             parts[2] == "1",
             parts[3] == "1",
             parts[4] == "1",
-            isAction && parts.Length > 5 ? source.Int(parts[5]) : 0,
+            isAction && parts.Length > 5 ? SourceText.Int(parts[5]) : 0,
             picks
         );
     }
 
+    /// <summary>A long trigger's milliseconds as Turbo's 5 s units, within what a box holds.</summary>
+    private static int LongPeriod(int ms) =>
+        Math.Clamp(ms / WiredPulses.LONG_PERIOD_UNIT_MS, 1, WiredPulses.MAX_LONG_PERIOD_UNITS);
+
     private static int Team(JsonNode? node) =>
-        node?.GetValueKind() == JsonValueKind.Number
-            ? node.GetValue<int>()
-            : Math.Max(0, Array.IndexOf(TEAMS, node?.GetValue<string>()?.ToUpperInvariant()));
+        node?.GetValueKind() == JsonValueKind.Number ? node.GetValue<int>()
+        : Named<GameTeamType>(node?.GetValue<string>()) is { } team ? (int)team
+        : 0;
 
     private static int Direction(JsonNode? node) =>
-        node?.GetValueKind() == JsonValueKind.Number
-            ? node.GetValue<int>()
-            : Math.Max(0, Array.IndexOf(DIRECTIONS, node?.GetValue<string>()?.ToUpperInvariant()));
+        node?.GetValueKind() == JsonValueKind.Number ? node.GetValue<int>()
+        : Named<Rotation>(node?.GetValue<string>()?.Replace("_", "", StringComparison.Ordinal))
+            is { } rotation
+                and >= Rotation.North
+            ? (int)rotation
+        : 0;
+
+    /// <summary>The member an enum name names, case aside; a number or an unknown name names none.</summary>
+    private static TEnum? Named<TEnum>(string? name)
+        where TEnum : struct, Enum =>
+        name?.Trim() is { Length: > 0 } trimmed
+        && !char.IsAsciiDigit(trimmed.TrimStart('-').FirstOrDefault())
+        && Enum.TryParse<TEnum>(trimmed, ignoreCase: true, out var value)
+        && Enum.IsDefined(value)
+            ? value
+            : null;
 
     private static IEnumerable<int> Ints(JsonNode? node) =>
         (node as JsonArray ?? []).Select(x =>
@@ -698,22 +719,12 @@ internal static class WiredSettings
             return index < parts.Length ? parts[index] : null;
         }
 
-        public int Int(string? value) =>
-            int.TryParse(
-                value?.Trim(),
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var parsed
-            )
-                ? parsed
-                : 0;
-
         public int Number(string key, int fallback)
         {
             var node = Json?[key];
 
             if (node is null)
-                return Json is null ? Int(Raw) : fallback;
+                return Json is null ? SourceText.Int(Raw) : fallback;
 
             return node.GetValueKind() switch
             {
@@ -725,14 +736,14 @@ internal static class WiredSettings
                 },
                 JsonValueKind.True => 1,
                 JsonValueKind.False => 0,
-                JsonValueKind.String => Int(node.GetValue<string>()),
+                JsonValueKind.String => SourceText.Int(node.GetValue<string>()),
                 _ => fallback,
             };
         }
 
         /// <summary>An action's delay: JSON <c>delay</c>, or the old form's field.</summary>
         public int Delay(char separator, int index) =>
-            Json is null ? Int(Field(separator, index)) : Number("delay", 0);
+            Json is null ? SourceText.Int(Field(separator, index)) : Number("delay", 0);
 
         /// <summary>A message box's text: JSON <c>message</c>, or the old form after the delay.</summary>
         public string Message(int index)
@@ -746,7 +757,7 @@ internal static class WiredSettings
         }
 
         public int Team(string key, char separator, int index) =>
-            Json is null ? Int(Field(separator, index)) : WiredSettings.Team(Json[key]);
+            Json is null ? SourceText.Int(Field(separator, index)) : WiredSettings.Team(Json[key]);
 
         /// <summary>
         /// The picked furni: JSON <c>itemIds</c>, or the old form's list (in field
@@ -769,12 +780,12 @@ internal static class WiredSettings
                     legacyList,
                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
                 )
-                .Select(Int);
+                .Select(SourceText.Int);
         }
     }
 
     /// <summary>The Turbo box being written.</summary>
-    private sealed class Box
+    private sealed class Box(ImportLimits limits)
     {
         private readonly List<int> _ints = [];
         private readonly List<int> _picks = [];
@@ -789,13 +800,13 @@ internal static class WiredSettings
         public void Picks(IEnumerable<int> ids)
         {
             foreach (var id in ids)
-                if (id > 0 && !_picks.Contains(id) && _picks.Count < MAX_PICKS)
+                if (id > 0 && !_picks.Contains(id) && _picks.Count < limits.WiredSelectedItemsMax)
                     _picks.Add(id);
         }
 
-        /// <summary>An action: its delay in pulses, within Turbo's cap.</summary>
+        /// <summary>An action: its delay in pulses, within the target's cap.</summary>
         public void Action(int delay) =>
-            _definitionSpecifics = [Math.Clamp(delay, 0, MAX_DELAY_PULSES)];
+            _definitionSpecifics = [Math.Clamp(delay, 0, limits.WiredActionDelayMaxPulses)];
 
         /// <summary>A condition: quantifier 0, all.</summary>
         public void Condition() => _definitionSpecifics = [0];

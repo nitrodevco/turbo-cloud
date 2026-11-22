@@ -6,6 +6,7 @@ using Turbo.Database.Entities.Bots;
 using Turbo.Import.Morningstar.Formats;
 using Turbo.Primitives.Bots;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Import.Morningstar.Steps;
 
@@ -38,6 +39,12 @@ internal sealed class BotsStep : IImportStep
 
             var room = row.Int("room_id");
             var inRoom = room > 0 && ctx.RoomOwners.ContainsKey(room);
+
+            if (room > 0 && !inRoom)
+                ctx.Report.Note(
+                    "bot put in its owner's inventory: its room was not copied",
+                    $"bot {id} room {room}"
+                );
             var kind = row.Text("type", "generic").Trim().ToLowerInvariant();
 
             if (kind is not ("" or "generic"))
@@ -49,8 +56,7 @@ internal sealed class BotsStep : IImportStep
             var lines = BotChatLines.Split(row.String("chat_lines")).Take(MAX_CHAT_LINES);
             var chat = string.Join('\n', lines);
 
-            if (chat.Length > BotEntity.CHAT_TEXT_MAX_LENGTH)
-                chat = chat[..BotEntity.CHAT_TEXT_MAX_LENGTH];
+            chat = ClientText.Truncate(chat, BotEntity.CHAT_TEXT_MAX_LENGTH);
 
             var figure = row.Text("figure").Trim();
 
@@ -62,13 +68,16 @@ internal sealed class BotsStep : IImportStep
                         CreatedAt = ctx.Now,
                         PlayerEntityId = owner,
                         RoomEntityId = inRoom ? room : null,
-                        Name = Cut(row.Text("name", "Bot").Trim(), BotEntity.NAME_MAX_LENGTH),
-                        Motto = Cut(row.Text("motto").Trim(), BotEntity.MOTTO_MAX_LENGTH),
-                        Figure = Cut(figure, BotEntity.FIGURE_MAX_LENGTH),
-                        Gender =
-                            row.Text("gender").Trim().ToUpperInvariant() == "F"
-                                ? AvatarGenderType.Female
-                                : AvatarGenderType.Male,
+                        Name = ClientText.Truncate(
+                            row.Text("name", "Bot").Trim(),
+                            BotEntity.NAME_MAX_LENGTH
+                        ),
+                        Motto = ClientText.Truncate(
+                            row.Text("motto").Trim(),
+                            BotEntity.MOTTO_MAX_LENGTH
+                        ),
+                        Figure = ClientText.Truncate(figure, BotEntity.FIGURE_MAX_LENGTH),
+                        Gender = Genders.Of(row.Text("gender")),
                         X = inRoom ? row.Int("x") : 0,
                         Y = inRoom ? row.Int("y") : 0,
                         Z = inRoom ? row.Double("z") : 0,
@@ -89,7 +98,4 @@ internal sealed class BotsStep : IImportStep
 
         await batch.FlushAsync(ct).ConfigureAwait(false);
     }
-
-    private static string Cut(string value, int length) =>
-        value.Length > length ? value[..length] : value;
 }

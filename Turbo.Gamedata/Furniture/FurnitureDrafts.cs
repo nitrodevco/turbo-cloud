@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Text.Json.Nodes;
 using Turbo.Assets.Furniture;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 
 namespace Turbo.Gamedata.Furniture;
@@ -85,7 +86,7 @@ internal static class FurnitureDrafts
     {
         var logic = FurnitureRecords.LogicFor(type, className, logics);
 
-        if (!FurnitureRecords.IsDefaultLogic(logic))
+        if (!DefaultFurnitureLogic.IsDefault(logic))
             return logic;
 
         if (clientLogic is { } client)

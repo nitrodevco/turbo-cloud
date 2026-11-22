@@ -171,7 +171,7 @@ internal sealed class TableWriter(TurboDbContext db, bool dryRun)
         }
 
         public string InsertPrefix(IReadOnlyList<Column> columns) =>
-            $"INSERT INTO {_table} ({string.Join(", ", columns.Select(c => Quote(c.Name)))}) VALUES ";
+            $"INSERT INTO {_table} ({string.Join(", ", columns.Select(c => DatabaseDump.Quote(c.Name, _sqlite)))}) VALUES ";
 
         /// <summary>
         /// The columns these rows are written with: every plain column, and each generated one
@@ -197,9 +197,6 @@ internal sealed class TableWriter(TurboDbContext db, bool dryRun)
 
             return columns;
         }
-
-        private string Quote(string name) =>
-            _sqlite ? $"\"{name}\"" : $"`{name.Replace("`", "``", StringComparison.Ordinal)}`";
     }
 
     private sealed class Column(string name, IProperty property)

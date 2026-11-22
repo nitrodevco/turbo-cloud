@@ -76,7 +76,7 @@ seconds, so a hotel of millions of items takes minutes.
 | `users_badges`, `users_wardrobe`, `users_effects`, `users_clothing` | `player_badges`, `player_outfits`, `player_effects`, `player_figure_sets` | An effect keeps its running time and its waiting copies. |
 | `messenger_friendships`, `messenger_friendrequests`, `messenger_categories`, `users_ignored` | `messenger_*` | |
 | `users_saved_searches`, `users_favorite_rooms` | `player_navigator_saved_searches`, `player_favorite_rooms` | |
-| `rooms`, `room_models`, `room_models_custom` | `rooms`, `room_models` | A room's own floor plan becomes `room_<id>`, as Turbo's floor plan editor names one. A model neither hotel has falls back to `model_a`. |
+| `rooms`, `room_models`, `room_models_custom` | `rooms`, `room_models` | A room's own floor plan becomes `room_<id>`, as Turbo's floor plan editor names one. A model neither hotel has falls back to `model_a`. Name, description, tags and visitor limit are held to this hotel's room limits (`Turbo:Rooms`). |
 | `navigator_flatcats` | `navigator_flatcats` | Matched by name; a category the target lacks is added. |
 | `room_rights`, `room_bans` (running), `room_votes`, `room_wordfilter` | `room_rights`, `room_bans`, `room_ratings`, `room_filter_words` | |
 | `guilds`, `guilds_members`, `guilds_forums_*` | `guilds`, `guild_members`, `guild_forum*` | A group's favourite flag is the member's `users_settings.guild_id`. |
@@ -85,7 +85,7 @@ seconds, so a hotel of millions of items takes minutes.
 | `users_pets`, `bots` | `pets`, `bots` | A pet's level is worked out from its experience by Turbo's `Turbo:Pets` rules. |
 | `bans` (running) | `player_sanctions` | An IP, machine or super ban becomes a ban of its account. |
 | `catalog_pages`, `catalog_items` (`--catalog`) | `catalog_*`, `ltd_series` | Each page keeps its images and texts in the order its layout sent them. |
-| `chatlogs_room`, `chatlogs_private` (`--chatlogs`) | `room_chatlogs`, `messenger_messages` | |
+| `chatlogs_room`, `chatlogs_private` (`--chatlogs`) | `room_chatlogs`, `messenger_messages` | A private message is cut to `Turbo:Players:MessengerMaxMessageLength`. |
 
 Where something cannot come across whole it still comes across where it can: furni in a room that
 was not copied goes back to its owner's inventory, furni whose owner was deleted stays in its room
@@ -139,17 +139,26 @@ dimmer `dimmer`, a wired box its own name), its vending items as a `vending` sec
 crackable rewards (`items_crackable`) as a `crackable` section. If its sprite id is taken, it is
 given the next free one.
 
+The logic an item's state is written for is the one its room will run: the definition's logic,
+or what the room makes of it by classname, category or custom params (Turbo's own `bb_counter`
+is plain furniture by its logic and a game timer in a room). The import asks the server's own
+rules (`RoomObjectLogics`), with the logic core registers; plugins are not loaded for an import,
+so a plugin's furni logic is not known to it.
+
 Each item's state is rewritten as its Turbo logic reads it ([Furni Logic](furni-logic.md)):
 trophies, badge displays, post-its, mannequins, background toners, room ads, love locks, group
 furni, music discs and rentable spaces each have their own format in both emulators. A dimmer
 takes its room's presets, which Morningstar keeps on the room and Turbo on the dimmer. A present
-becomes Turbo's present row holding the items it wraps.
+becomes Turbo's present row holding the items it wraps, in a box and ribbon this hotel wraps
+in (`Turbo:Catalog:GiftWrapping`), else the free box.
 
 ## Wired
 
 A placed wired box keeps its settings: its picked furni, its delay (500 ms pulses in both), its
-text and its options, rewritten into the integer parameters of Turbo's box of the same name. A
-match-snapshot box keeps the state it remembers. Morningstar's boxes have the same names as
+text and its options, rewritten into the integer parameters of Turbo's box of the same name. Its
+picks and delay are held to this hotel's wired limits (`Turbo:Wired:SelectedItemsLimit`,
+`ActionDelayMaxPulses`). A match-snapshot box keeps the state it remembers, heights as the room
+compares them. Morningstar's boxes have the same names as
 Turbo's for nearly everything; the few Turbo has no twin of (give hand item, give respect, team win
 and lose triggers, alert) come across as furni that does nothing, and the report lists them. A
 give-reward box keeps its badge and furni rewards; credits, points and catalog rewards have no
@@ -192,3 +201,12 @@ Morningstar version, and writes through `Target/TableWriter`, multi-row inserts 
 EF model. `Turbo.Tests/Import/` holds the tests: an in-memory Morningstar database (`MorningstarDb`)
 imported into Turbo's SQLite test database, and one test against a real MySQL server
 (`TURBO_TEST_MYSQL`).
+
+What the importer needs from the server comes in `MorningstarImportOptions`, which
+`ImportStartup.Options` builds from the host's configuration (the tests build theirs the same way,
+from the default configuration): how pets level (`PetRules`), the limits what is copied keeps to
+(`ImportLimits`), and which furni logic exists and which one a definition runs. A value the server
+already names comes from where the server keeps it: an extra data section is written as its
+record (`FurnitureExtraDataSections.ToNode`), a logic or section name, a length or a default
+figure is the shared constant, text is cut with `ClientText.Truncate`, and a limit an operator
+tunes is an `ImportLimits` field, not a number in a step.

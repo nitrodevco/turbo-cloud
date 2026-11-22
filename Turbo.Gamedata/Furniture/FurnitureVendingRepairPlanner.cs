@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Furniture;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
 
@@ -75,7 +76,7 @@ internal static class FurnitureVendingRepairPlanner
         );
         if (
             definition.Logic != FurnitureBehaviours.VENDING_MACHINE
-            && !FurnitureRecords.IsDefaultLogic(registeredLogic)
+            && !DefaultFurnitureLogic.IsDefault(registeredLogic)
             && registeredLogic != FurnitureBehaviours.VENDING_MACHINE
         )
             return proposed with

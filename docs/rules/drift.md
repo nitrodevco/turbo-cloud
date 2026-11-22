@@ -432,6 +432,15 @@ finishing a change, check it against this list; each line is a mistake that was 
   approving one request and approving the lot did not, so an exclusive group could be approved
   past it. The limit is now a question with a name (`GuildGrain.FreeMemberSlots`) that all three
   ask. When you find a limit checked in one path, list every other way to reach that state.
+- **A tool outside the server asks the server's rules, it does not copy them.** The
+  Morningstar import decided an item's logic with its own copy of the room's classname rules,
+  which had one of their eight swaps (wired boxes). Turbo's `bb_counter` is plain furniture by its
+  logic column and a game timer in a room, so the import wrote its time for plain furniture and
+  every counter came across at 0. It also wrote a wired snapshot's height rounded where the room
+  truncates (`Altitude.ToInt`), so a furni at 0.29 never matched its own snapshot. The room's
+  rules are now `RoomObjectLogics` (which logic exists, which one a definition runs) and the
+  import is handed them (`ImportStartup.Options`); a value the room compares is computed the way
+  the room computes it.
 - **A count the client sends is read with `PopList` / `PopCount`, never `PopInt`.**
   `PopList(bytesPerItem, read)` bounds the count by what the packet can hold and reads the
   entries; twelve parsers had the loop by hand, and two used a raw `PopInt` — one of them sized a

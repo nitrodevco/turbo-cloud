@@ -21,6 +21,7 @@ using Turbo.Database.Extensions;
 using Turbo.Database.Furniture;
 using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.Habbo;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Gamedata;
@@ -814,8 +815,8 @@ internal sealed class GamedataFurnitureService(
             .Where(x =>
                 x.ProductType == ProductType.Floor
                 && (
-                    x.Logic == "vending_machine"
-                    || x.Logic == "default_floor"
+                    x.Logic == FurnitureBehaviours.VENDING_MACHINE
+                    || x.Logic == DefaultFurnitureLogic.FLOOR
                     || x.Logic == "none"
                     || x.Logic == ""
                 )

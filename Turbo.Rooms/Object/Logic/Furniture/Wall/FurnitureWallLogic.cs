@@ -1,3 +1,4 @@
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -5,7 +6,7 @@ using Turbo.Primitives.Rooms.Object.Logic.Furniture;
 
 namespace Turbo.Rooms.Object.Logic.Furniture.Wall;
 
-[RoomObjectLogic("default_wall")]
+[RoomObjectLogic(DefaultFurnitureLogic.WALL)]
 public class FurnitureWallLogic(IStuffDataFactory stuffDataFactory, IRoomWallItemContext ctx)
     : FurnitureLogic<IRoomWallItem, IFurnitureWallLogic, IRoomWallItemContext>(
         stuffDataFactory,

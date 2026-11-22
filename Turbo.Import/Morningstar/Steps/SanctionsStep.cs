@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Turbo.Database.Entities.Moderation;
 using Turbo.Import.Source;
 using Turbo.Primitives.Moderation.Enums;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Import.Morningstar.Steps;
 
@@ -54,10 +55,10 @@ internal sealed class SanctionsStep : IImportStep
                         CreatedAt = row.UnixTime("timestamp") ?? ctx.Now,
                         PlayerEntityId = player,
                         Kind = SanctionKind.Ban,
-                        Reason =
-                            reason.Length > PlayerSanctionEntity.REASON_MAX_LENGTH
-                                ? reason[..PlayerSanctionEntity.REASON_MAX_LENGTH]
-                                : reason,
+                        Reason = ClientText.Truncate(
+                            reason,
+                            PlayerSanctionEntity.REASON_MAX_LENGTH
+                        ),
                         IssuerEntityId = ctx.Players.Contains(issuer) ? issuer : null,
                         ExpiresAt = ends,
                     },

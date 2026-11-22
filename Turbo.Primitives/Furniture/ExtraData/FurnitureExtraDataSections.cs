@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 
 namespace Turbo.Primitives.Furniture.ExtraData;
@@ -7,18 +8,31 @@ namespace Turbo.Primitives.Furniture.ExtraData;
 /// Reads a typed section from an item's extra data, falling back to the same section in the
 /// furniture definition's extra data so a furniture type can carry a default for every item.
 /// Every section record is read through here, so an unreadable section is always logged with
-/// its name instead of silently turning into "absent".
+/// its name instead of silently turning into "absent". Sections are written through
+/// <see cref="ToNode"/>.
 /// </summary>
 public static class FurnitureExtraDataSections
 {
     /// <summary>
-    /// Sections are written camelCase (the extra data writer's naming), while definition
-    /// defaults and older rows may be PascalCase; names are matched ignoring case so both read.
+    /// Sections are written camelCase (<see cref="ToNode"/>), while definition defaults and
+    /// older rows may be PascalCase; names are matched ignoring case so both read.
     /// </summary>
     private static readonly JsonSerializerOptions OPTIONS = new()
     {
         PropertyNameCaseInsensitive = true,
     };
+
+    private static readonly JsonSerializerOptions WRITE_OPTIONS = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
+    /// <summary>
+    /// A section as item extra data stores it, camelCase: the room's extra data writes every
+    /// section this way, and so does anything else that writes one (the Morningstar import).
+    /// </summary>
+    public static JsonNode? ToNode<TSection>(TSection section) =>
+        JsonSerializer.SerializeToNode(section, WRITE_OPTIONS);
 
     public static TSection? Read<TSection>(
         IExtraData itemExtraData,

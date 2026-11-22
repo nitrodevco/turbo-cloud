@@ -125,7 +125,7 @@ public sealed class PlayerAccountServiceTests : IDisposable
         bob.Name.Should().Be("Bob");
         bob.Motto.Should().Be("Hello");
         bob.Gender.Should().Be(AvatarGenderType.Female);
-        bob.Figure.Should().Be(PlayerAccountService.FEMALE_FIGURE);
+        bob.Figure.Should().Be(PlayerFigures.FEMALE);
         bob.PlayerStatus.Should().Be(PlayerStatusType.Offline);
     }
 
@@ -210,13 +210,8 @@ public sealed class PlayerAccountServiceTests : IDisposable
             .Select(x => (x.Name, x.Figure, x.Source, x.RemoteAddress))
             .Should()
             .Equal(
-                (
-                    "Erin",
-                    PlayerAccountService.FEMALE_FIGURE,
-                    RegistrationSource.Site,
-                    "203.0.113.7"
-                ),
-                ("Fay", PlayerAccountService.FEMALE_FIGURE, RegistrationSource.Site, "203.0.113.7")
+                ("Erin", PlayerFigures.FEMALE, RegistrationSource.Site, "203.0.113.7"),
+                ("Fay", PlayerFigures.FEMALE, RegistrationSource.Site, "203.0.113.7")
             );
         await using (var db = await _db.CreateDbContextAsync(Ct))
             (await db.Players.AnyAsync(x => x.Name == "Fay", Ct)).Should().BeFalse();

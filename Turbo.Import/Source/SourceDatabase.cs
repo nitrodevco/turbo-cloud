@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using MySqlConnector;
+using Turbo.Database.Backups;
 
 namespace Turbo.Import.Source;
 
@@ -193,10 +194,7 @@ internal sealed class SourceDatabase : IAsyncDisposable
 
     private bool IsSqlite => _conn.GetType().Name.StartsWith("Sqlite", StringComparison.Ordinal);
 
-    private string Quote(string name) =>
-        IsSqlite
-            ? $"\"{name.Replace("\"", "\"\"", StringComparison.Ordinal)}\""
-            : $"`{name.Replace("`", "``", StringComparison.Ordinal)}`";
+    private string Quote(string name) => DatabaseDump.Quote(name, IsSqlite);
 
     private async Task LoadSchemaAsync(CancellationToken ct)
     {

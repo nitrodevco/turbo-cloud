@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Furniture;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Rooms.Enums;
 
@@ -20,7 +21,7 @@ internal static class FurnitureBehaviourApplier
     /// <summary>The known floor behaviour, preserving the resolved custom logic and wall behavior.</summary>
     public static string LogicOf(ProductType type, string className, string resolvedLogic)
     {
-        if (type != ProductType.Floor || !FurnitureRecords.IsDefaultLogic(resolvedLogic))
+        if (type != ProductType.Floor || !DefaultFurnitureLogic.IsDefault(resolvedLogic))
             return resolvedLogic;
 
         var name = FurnitureBehaviours.BaseName(className);

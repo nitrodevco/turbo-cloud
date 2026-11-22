@@ -1,8 +1,13 @@
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Database.Entities.Furniture;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
+using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Tests.Support;
 using Xunit;
 using static Turbo.Tests.Import.MorningstarImportPlayersTests;
@@ -217,6 +222,15 @@ public class MorningstarImportFurnitureTests
     private static JsonObject Extra(FurnitureEntity item) =>
         JsonNode.Parse(item.ExtraData!)!.AsObject();
 
+    /// <summary>A section as the room reads it.</summary>
+    private static TSection Section<TSection>(FurnitureEntity item, string section)
+        where TSection : class =>
+        FurnitureExtraDataSections.ReadDefinition<TSection>(
+            item.ExtraData,
+            section,
+            NullLogger.Instance
+        )!;
+
     [Fact]
     public async Task Definitions_are_matched_by_classname_or_created_with_their_logic()
     {
@@ -303,8 +317,8 @@ public class MorningstarImportFurnitureTests
         Assert.Equal("12", Extra(poster)["stuff"]!["Data"]!.GetValue<string>());
 
         // Teleporters know each other, the other half in an inventory.
-        Assert.Equal(1002, Extra(items[1001])["room_linker"]!["ItemId"]!.GetValue<int>());
-        Assert.Equal(1001, Extra(items[1002])["room_linker"]!["ItemId"]!.GetValue<int>());
+        Assert.Equal(1002, Section<RoomLinkerData>(items[1001], RoomLinkerData.SECTION).ItemId);
+        Assert.Equal(1001, Section<RoomLinkerData>(items[1002], RoomLinkerData.SECTION).ItemId);
 
         // Trophy date as the client writes it.
         Assert.Equal(
@@ -317,9 +331,13 @@ public class MorningstarImportFurnitureTests
 
         Assert.Equal(Rotation.South, items[1005].Rotation);
         Assert.Equal("2,1,2,#000000,255", dimmer["stuff"]!["Data"]!.GetValue<string>());
-        Assert.Equal(3, dimmer["dimmer"]!.AsArray().Count);
-        Assert.Equal("#123456", dimmer["dimmer"]![1]!["color"]!.GetValue<string>());
-        Assert.Equal(80, dimmer["dimmer"]![1]!["brightness"]!.GetValue<int>());
+        var presets = Section<List<DimmerPresetSnapshot>>(
+            items[1005],
+            DimmerPresetSnapshot.SECTION
+        );
+
+        Assert.Equal(3, presets.Count);
+        Assert.Equal(("#123456", 80), (presets[1].Color, presets[1].Brightness));
 
         Assert.Equal("9CCEFF Hello", Extra(items[1006])["stuff"]!["Data"]!.GetValue<string>());
 
@@ -360,13 +378,9 @@ public class MorningstarImportFurnitureTests
         Assert.Equal("Enjoy", card["stuff"]!["Data"]!["MESSAGE"]!.GetValue<string>());
         Assert.Equal("throne", card["stuff"]!["Data"]!["PRODUCT_CODE"]!.GetValue<string>());
         Assert.Equal("Alice", card["stuff"]!["Data"]!["PURCHASER_NAME"]!.GetValue<string>());
-        Assert.Equal(
-            (3, 5),
-            (
-                card["gift"]!["BoxType"]!.GetValue<int>(),
-                card["gift"]!["RibbonType"]!.GetValue<int>()
-            )
-        );
+        var storage = Section<PresentStorage>(present, PresentStorage.SECTION);
+
+        Assert.Equal((3, 5), (storage.BoxType, storage.RibbonType));
 
         // The wrapped throne is the receiver's, held by the present, in no inventory or room.
         var wrapped = await db.Furnitures.SingleAsync(x => x.Id == 1007, ct);
@@ -416,5 +430,84 @@ public class MorningstarImportFurnitureTests
         Assert.Equal(4, remembered["rotation"]!.GetValue<int>());
         Assert.Equal(50, remembered["z"]!.GetValue<int>());
         Assert.Equal(THRONE, remembered["definitionId"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task A_game_timer_turbo_knows_by_its_classname_keeps_its_time()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var ms = Hotel();
+        using var target = Target();
+
+        // Turbo's own counter is plain furniture by its logic column; the room makes it a game
+        // timer by its classname, and its state is the timer's seconds.
+        target.Insert(
+            new FurnitureDefinitionEntity
+            {
+                SpriteId = 231,
+                Name = "bb_counter",
+                ProductType = ProductType.Floor,
+                FurniCategory = FurnitureCategory.Default,
+                Logic = DefaultFurnitureLogic.FLOOR,
+                TotalStates = 1,
+                Width = 1,
+                Length = 1,
+                StackHeight = 1,
+                CanStack = true,
+                CanWalk = false,
+                CanSit = false,
+                CanLay = false,
+                CanRecycle = false,
+                CanTrade = true,
+                CanGroup = true,
+                CanSell = true,
+            }
+        );
+        Base(ms, 14, "bb_counter", "s", "game_timer");
+        // Morningstar: the time left, then the time it is reset to.
+        Item(ms, 1018, 10, 100, 14, x: 3, y: 1, extra: "45	120");
+
+        await ImportAsync(ms, target);
+
+        await using var db = await target.CreateDbContextAsync(ct);
+
+        Assert.Equal(
+            "120",
+            Extra(await db.Furnitures.SingleAsync(x => x.Id == 1018, ct))["stuff"]![
+                "Data"
+            ]!.GetValue<string>()
+        );
+    }
+
+    [Fact]
+    public async Task A_snapshot_remembers_a_height_as_the_room_reads_one()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var ms = Hotel();
+        using var target = Target();
+
+        // 0.29 is 28.999... hundredths in a double: the room truncates it to 28.
+        Item(ms, 1018, 10, 100, 1, x: 2, y: 2, z: 0.29);
+        Item(
+            ms,
+            1019,
+            10,
+            100,
+            9,
+            x: 1,
+            y: 2,
+            wired: """{"state":true,"direction":true,"position":true,"items":[{"item_id":1018,"state":"0","rotation":0,"x":2,"y":2}],"delay":0}"""
+        );
+
+        await ImportAsync(ms, target);
+
+        await using var db = await target.CreateDbContextAsync(ct);
+
+        var throne = await db.Furnitures.SingleAsync(x => x.Id == 1018, ct);
+        var remembered = Extra(await db.Furnitures.SingleAsync(x => x.Id == 1019, ct))[
+            "wired_snapshot"
+        ]!["1018"]!;
+
+        Assert.Equal(Altitude.FromValue(throne.Z).ToInt(), remembered["z"]!.GetValue<int>());
     }
 }

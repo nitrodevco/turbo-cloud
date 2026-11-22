@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using Turbo.Primitives.Furniture.Snapshots;
 
 namespace Turbo.Import.Morningstar;
 
@@ -34,24 +36,14 @@ public sealed record MorningstarImportOptions
     /// import creates gets one of these, never a key the server would not find.
     /// </summary>
     public required IReadOnlySet<string> LogicKeys { get; init; }
-}
 
-/// <summary>The part of the target's pet configuration (<c>PetConfig</c>) an import needs.</summary>
-public sealed record PetRules
-{
-    /// <summary>Experience to reach level 2, 3, ... in order.</summary>
-    public required IReadOnlyList<int> LevelExperience { get; init; }
+    /// <summary>
+    /// The logic the target's rooms run for a definition: its logic column, or what the room
+    /// swaps that for by classname, category or custom params (a game timer, a highscore board, a
+    /// wired box...). An item's state is written for this logic.
+    /// </summary>
+    public required Func<FurnitureDefinitionSnapshot, string> LogicOf { get; init; }
 
-    public required int MaxLevel { get; init; }
-
-    public required int MonsterplantMaxLevel { get; init; }
-
-    /// <summary>Seconds a monsterplant takes to grow a level.</summary>
-    public required int MonsterplantGrowthSeconds { get; init; }
-
-    /// <summary>A grown monsterplant's wellbeing when watered, in seconds.</summary>
-    public required int MonsterplantWellBeingSeconds { get; init; }
-
-    /// <summary>A growing monsterplant's wellbeing when watered, in seconds.</summary>
-    public required int MonsterplantBabyWellBeingSeconds { get; init; }
+    /// <summary>The target's limits what is copied is held to (<see cref="ImportLimits"/>).</summary>
+    public required ImportLimits Limits { get; init; }
 }

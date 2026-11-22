@@ -14,6 +14,7 @@ using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Gamedata;
 using Turbo.Gamedata.Assets;
 using Turbo.Gamedata.Habbo;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.ExtraData;
 using Turbo.Primitives.Gamedata.Enums;
@@ -291,7 +292,7 @@ internal sealed class FurnitureStatusIndex(
             registered
         );
 
-        return FurnitureRecords.IsDefaultLogic(logic) ? null : logic;
+        return DefaultFurnitureLogic.IsDefault(logic) ? null : logic;
     }
 
     /// <summary>
@@ -305,7 +306,7 @@ internal sealed class FurnitureStatusIndex(
     ) =>
         matching is not null
         && logic != matching
-        && (FurnitureRecords.IsDefaultLogic(logic) || !registered.Contains(logic));
+        && (DefaultFurnitureLogic.IsDefault(logic) || !registered.Contains(logic));
 
     /// <summary>The client logic each asset's newest read file names, by asset.</summary>
     private static Dictionary<string, string> ClientLogics(

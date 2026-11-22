@@ -10,6 +10,7 @@ using Turbo.Import.Source;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Texts;
 
 namespace Turbo.Import.Morningstar.Steps;
 
@@ -21,8 +22,6 @@ namespace Turbo.Import.Morningstar.Steps;
 /// </summary>
 internal sealed class RoomsStep : IImportStep
 {
-    private const int MAX_TAGS = 10;
-    private const int MAX_TAG_LENGTH = 30;
     private const string FALLBACK_MODEL = "model_a";
 
     public string Name => "rooms";
@@ -69,14 +68,17 @@ internal sealed class RoomsStep : IImportStep
     private static RoomEntity Room(ImportContext ctx, SourceRow row, int id, int owner, int model)
     {
         var category = row.Int("category");
+        var limits = ctx.Options.Limits;
 
         return new RoomEntity
         {
             Id = id,
             CreatedAt = ctx.Now,
             LastActive = ctx.Now,
-            Name = Cut(row.Text("name", $"Room {id}").Trim(), 512),
-            Description = row.String("description"),
+            Name = ClientText.Truncate(row.Text("name", $"Room {id}"), limits.RoomNameMaxLength),
+            Description = row.String("description") is { } description
+                ? ClientText.Truncate(description, limits.RoomDescriptionMaxLength)
+                : null,
             PlayerEntityId = owner,
             DoorMode = DoorMode(row.Text("state")),
             Password = row.String("password") is { Length: > 0 } password ? password : null,
@@ -85,7 +87,11 @@ internal sealed class RoomsStep : IImportStep
                 ? c
                 : null,
             UsersNow = 0,
-            PlayersMax = Math.Clamp(row.Int("users_max", 25), 1, 1000),
+            PlayersMax = Math.Clamp(
+                row.Int("users_max", 25),
+                1,
+                Math.Max(1, limits.RoomPlayersMax)
+            ),
             PaintWall = Paint(row.String("paper_wall")),
             PaintFloor = Paint(row.String("paper_floor")),
             PaintLandscape = Paint(row.String("paper_landscape")),
@@ -113,7 +119,7 @@ internal sealed class RoomsStep : IImportStep
                 _ => ChatFloodSensitivityType.Normal,
             },
             Score = Math.Max(0, row.Int("score")),
-            Tags = Tags(row.String("tags")),
+            Tags = Tags(row.String("tags"), limits),
             StaffPick = row.Bool("is_staff_picked"),
             StaffPickedAt = row.Bool("is_staff_picked") ? ctx.Now : null,
             PlayerEntity = null!,
@@ -414,19 +420,18 @@ internal sealed class RoomsStep : IImportStep
         string.IsNullOrWhiteSpace(value) || value.Trim() is "0" or "0.0" ? null : value.Trim();
 
     /// <summary>Morningstar separates tags with ';', Turbo with ','.</summary>
-    private static string? Tags(string? value)
+    private static string? Tags(string? value, ImportLimits limits)
     {
         if (string.IsNullOrWhiteSpace(value))
             return null;
 
-        var tags = RoomTags.Normalize(value.Split(';', ','), MAX_TAGS, MAX_TAG_LENGTH).ToList();
+        var tags = RoomTags
+            .Normalize(value.Split(';', ','), limits.RoomTagsMax, limits.RoomTagMaxLength)
+            .ToList();
 
         while (tags.Count > 0 && RoomTags.Join(tags).Length > RoomEntity.TAGS_MAX_LENGTH)
             tags.RemoveAt(tags.Count - 1);
 
         return tags.Count == 0 ? null : RoomTags.Join(tags);
     }
-
-    private static string Cut(string value, int length) =>
-        value.Length > length ? value[..length] : value;
 }

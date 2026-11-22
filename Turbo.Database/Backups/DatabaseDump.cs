@@ -213,7 +213,8 @@ public sealed class DatabaseDump(IOptions<DatabaseConfig> config, TimeProvider t
     /// <summary>A table or column name quoted for the database: backticks on MySQL, double quotes on SQLite.</summary>
     public static string Quote(TurboDbContext db, string name) => Quote(name, IsSqlite(db));
 
-    private static string Quote(string name, bool sqlite) =>
+    /// <inheritdoc cref="Quote(TurboDbContext, string)"/>
+    public static string Quote(string name, bool sqlite) =>
         sqlite ? $"\"{name.Replace("\"", "\"\"")}\"" : $"`{name.Replace("`", "``")}`";
 
     private static async Task<long> WriteTableAsync(

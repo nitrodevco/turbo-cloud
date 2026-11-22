@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Orleans;
+using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Guilds;
@@ -34,14 +35,6 @@ public class FurnitureGuildCustomizedLogic(
     IRoomFloorItemContext ctx
 ) : FurnitureFloorLogic(stuffDataFactory, ctx)
 {
-    /// <summary>The slots, in the order the client reads them.</summary>
-    private const int SLOT_STATE = 0;
-    private const int SLOT_GUILD_ID = 1;
-    private const int SLOT_BADGE_CODE = 2;
-    private const int SLOT_PRIMARY_COLOR = 3;
-    private const int SLOT_SECONDARY_COLOR = 4;
-    private const int SLOT_COUNT = 5;
-
     private readonly IGrainFactory _grainFactory = grainFactory;
 
     protected override StuffDataType _stuffDataType => StuffDataType.StringKey;
@@ -54,9 +47,9 @@ public class FurnitureGuildCustomizedLogic(
 
     public GuildId GuildId =>
         StuffData is IStringStuffData data
-        && data.Data.Count > SLOT_GUILD_ID
+        && data.Data.Count > GuildFurnitureData.GUILD_ID_SLOT
         && int.TryParse(
-            data.Data[SLOT_GUILD_ID],
+            data.Data[GuildFurnitureData.GUILD_ID_SLOT],
             NumberStyles.Integer,
             CultureInfo.InvariantCulture,
             out var guildId
@@ -126,9 +119,9 @@ public class FurnitureGuildCustomizedLogic(
 
         EnsureSlots();
 
-        data.Data[SLOT_BADGE_CODE] = guild?.BadgeCode ?? string.Empty;
-        data.Data[SLOT_PRIMARY_COLOR] = guild?.PrimaryColor ?? string.Empty;
-        data.Data[SLOT_SECONDARY_COLOR] = guild?.SecondaryColor ?? string.Empty;
+        data.Data[GuildFurnitureData.BADGE_CODE_SLOT] = guild?.BadgeCode ?? string.Empty;
+        data.Data[GuildFurnitureData.PRIMARY_COLOR_SLOT] = guild?.PrimaryColor ?? string.Empty;
+        data.Data[GuildFurnitureData.SECONDARY_COLOR_SLOT] = guild?.SecondaryColor ?? string.Empty;
 
         if (show)
             await _ctx.RefreshStuffDataAsync();
@@ -140,16 +133,16 @@ public class FurnitureGuildCustomizedLogic(
         if (StuffData is not IStringStuffData data)
             return;
 
-        while (data.Data.Count < SLOT_COUNT)
+        while (data.Data.Count < GuildFurnitureData.SLOT_COUNT)
             data.Data.Add(string.Empty);
     }
 
     /// <summary>The state slot, which the client animates from like any other furni.</summary>
     public override int GetState() =>
         StuffData is IStringStuffData data
-        && data.Data.Count > SLOT_STATE
+        && data.Data.Count > GuildFurnitureData.STATE_SLOT
         && int.TryParse(
-            data.Data[SLOT_STATE],
+            data.Data[GuildFurnitureData.STATE_SLOT],
             NumberStyles.Integer,
             CultureInfo.InvariantCulture,
             out var state

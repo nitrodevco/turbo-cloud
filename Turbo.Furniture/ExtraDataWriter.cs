@@ -1,5 +1,5 @@
-using System.Text.Json;
 using System.Text.Json.Nodes;
+using Turbo.Primitives.Furniture.ExtraData;
 
 namespace Turbo.Furniture;
 
@@ -20,15 +20,9 @@ internal sealed class ExtraDataWriter
     }
 
     public void SetSection<TSection>(string name, TSection section) =>
-        _root[name] = JsonSerializer.SerializeToNode(section, OPTIONS);
+        _root[name] = FurnitureExtraDataSections.ToNode(section);
 
     public void RemoveSection(string name) => _root.Remove(name);
 
-    public string ToJsonString() => _root.ToJsonString(OPTIONS);
-
-    private static readonly JsonSerializerOptions OPTIONS = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = false,
-    };
+    public string ToJsonString() => _root.ToJsonString();
 }
