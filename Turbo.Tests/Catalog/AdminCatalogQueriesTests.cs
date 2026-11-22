@@ -7,7 +7,6 @@ using Turbo.Primitives.Catalog.Editing;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Players.Enums;
-using Turbo.Tests.Support;
 using Xunit;
 using static Turbo.Tests.Catalog.CatalogFixture;
 

@@ -1,5 +1,4 @@
 using Turbo.Primitives.Rooms.Enums;
-using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables.Room;

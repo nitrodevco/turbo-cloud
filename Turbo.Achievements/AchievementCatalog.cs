@@ -13,7 +13,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Turbo.Achievements.Configuration;
 using Turbo.Database.Context;
-using Turbo.Database.Entities.Achievements;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Achievements.Enums;
 using Turbo.Primitives.Players.Providers;

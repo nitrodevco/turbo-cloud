@@ -9,7 +9,6 @@ using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons.VariableFx;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Conditions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
-using Turbo.Rooms.Wired;
 using Turbo.Tests.Support;
 using Xunit;
 

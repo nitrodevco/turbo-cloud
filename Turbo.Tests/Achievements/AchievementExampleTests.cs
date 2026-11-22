@@ -2,7 +2,6 @@ using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Turbo.Achievements;
 using Turbo.Achievements.Configuration;
-using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Texts;
 using Turbo.Tests.Support;

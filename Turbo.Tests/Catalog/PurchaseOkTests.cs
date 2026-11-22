@@ -12,7 +12,6 @@ using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Enums;
 using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Catalog.Snapshots;
-using Turbo.Primitives.Catalog.Tags;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Inventory.Snapshots;

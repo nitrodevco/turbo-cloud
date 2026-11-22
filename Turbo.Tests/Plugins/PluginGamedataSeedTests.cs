@@ -1,4 +1,3 @@
-using System.IO;
 using System.Net.Http;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;

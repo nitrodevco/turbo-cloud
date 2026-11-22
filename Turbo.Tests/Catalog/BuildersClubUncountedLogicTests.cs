@@ -12,7 +12,6 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Grains.Subscriptions;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Primitives.Rooms.Enums;

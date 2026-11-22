@@ -2,7 +2,6 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Turbo.Database.Achievements;
 using Turbo.Database.Entities.Players;
-using Turbo.Inventory.Factories;
 using Turbo.Inventory.Grains;
 using Turbo.Inventory.Grains.Modules;
 using Turbo.Primitives.Catalog;

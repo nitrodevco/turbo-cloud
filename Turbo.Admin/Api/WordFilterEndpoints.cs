@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Routing;
 using Orleans;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Moderation;
-using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Admin.Api;

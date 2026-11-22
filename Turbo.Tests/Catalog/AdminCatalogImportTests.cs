@@ -6,7 +6,6 @@ using Turbo.Admin.Catalog;
 using Turbo.Catalog.Editing;
 using Turbo.Primitives.Catalog.Editing;
 using Turbo.Primitives.Catalog.Enums;
-using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Tests.Support;

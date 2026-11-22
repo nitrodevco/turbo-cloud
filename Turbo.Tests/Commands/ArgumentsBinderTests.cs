@@ -1,8 +1,6 @@
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
 using Turbo.Commands;
 using Turbo.Primitives.Commands;
-using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Tests.Support;
 using Xunit;

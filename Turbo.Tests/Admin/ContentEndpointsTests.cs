@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
-using System.Net.Sockets;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Hosting;

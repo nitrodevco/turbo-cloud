@@ -1,7 +1,6 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Quests.Enums;
-using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Tests.Support;
 using Xunit;

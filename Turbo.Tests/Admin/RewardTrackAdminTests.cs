@@ -4,7 +4,6 @@ using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Achievements;

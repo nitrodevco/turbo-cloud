@@ -6,7 +6,6 @@ using Turbo.Admin.Api.Contracts;
 using Turbo.Admin.Catalog;
 using Turbo.Admin.Configuration;
 using Turbo.Catalog.Editing;
-using Turbo.Database.Entities.Catalog;
 using Turbo.Inventory;
 using Turbo.Inventory.Configuration;
 using Turbo.Primitives.Catalog.Editing;

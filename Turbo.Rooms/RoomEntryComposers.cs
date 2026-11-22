@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Messages.Outgoing.Room.Layout;
 using Turbo.Primitives.Messages.Outgoing.Room.Session;

@@ -12,7 +12,6 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Guilds.Enums;
-using Turbo.Primitives.Guilds.Forums.Enums;
 using Turbo.Primitives.Orleans;
 
 namespace Turbo.Admin.Content;

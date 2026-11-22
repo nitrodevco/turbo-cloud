@@ -9,7 +9,6 @@ using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Catalog;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Inventory.Snapshots;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Providers;

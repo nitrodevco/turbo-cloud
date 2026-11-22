@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Turbo.Gamedata.Habbo.Client;
-using Turbo.Primitives.Gamedata;
 
 namespace Turbo.Gamedata.Assets;
 

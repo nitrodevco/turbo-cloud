@@ -14,7 +14,6 @@ using Turbo.Primitives.WiredTrading;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Grains;
 using Turbo.Primitives.WiredTrading.Snapshots;
-using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;

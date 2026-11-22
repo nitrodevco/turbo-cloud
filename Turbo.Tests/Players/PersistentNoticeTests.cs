@@ -5,7 +5,6 @@ using Orleans;
 using Turbo.Players.Configuration;
 using Turbo.Players.Notifications;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Notifications;
 using Turbo.Primitives.Texts;
 using Turbo.Tests.Support;

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Wired;

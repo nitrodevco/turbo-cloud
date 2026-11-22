@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Entities.Room;
 using Turbo.Import.Morningstar.Formats;
-using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Import.Morningstar.Steps;
 

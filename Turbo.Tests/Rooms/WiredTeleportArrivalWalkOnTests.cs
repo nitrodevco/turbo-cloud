@@ -8,7 +8,6 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Logic.Avatars;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;

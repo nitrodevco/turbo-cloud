@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Turbo.Contracts.Furni;
 using Turbo.Contracts.Rooms;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Rooms;

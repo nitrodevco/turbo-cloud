@@ -1,6 +1,5 @@
 using System;
 using Turbo.Gamedata.Configuration;
-using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 
 namespace Turbo.Gamedata.Assets;

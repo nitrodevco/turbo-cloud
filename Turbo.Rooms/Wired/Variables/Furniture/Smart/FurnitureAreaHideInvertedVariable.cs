@@ -1,5 +1,4 @@
 using Turbo.Rooms.Grains;
-using Turbo.Rooms.Object.Logic.Furniture.Floor;
 
 namespace Turbo.Rooms.Wired.Variables.Furniture.Smart;
 

@@ -3,7 +3,6 @@ using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Gamedata.Furniture;
 using Turbo.Primitives.Catalog.Enums;
-using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Furniture.Enums;
 using Xunit;
 using static Turbo.Tests.Catalog.CatalogFixture;

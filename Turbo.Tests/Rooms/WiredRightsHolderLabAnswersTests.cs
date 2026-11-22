@@ -7,7 +7,6 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Actions;
 using Turbo.Rooms.Wired;

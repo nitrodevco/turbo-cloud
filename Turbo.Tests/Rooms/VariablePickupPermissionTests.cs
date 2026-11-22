@@ -2,7 +2,6 @@ using System.Collections;
 using System.Runtime.CompilerServices;
 using FluentAssertions;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Snapshots;

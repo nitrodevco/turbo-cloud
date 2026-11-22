@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Turbo.Contracts.Hotel;
 using Turbo.Main.Hotel;
 using Turbo.Testing;
 using Turbo.Tests.Catalog;

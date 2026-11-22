@@ -1,6 +1,5 @@
 using FluentAssertions;
 using Turbo.Primitives.Action;
-using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Systems;

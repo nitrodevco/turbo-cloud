@@ -1,4 +1,3 @@
-using System;
 using FluentAssertions;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Permissions;

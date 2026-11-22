@@ -1,4 +1,3 @@
-using System.IO;
 using System.IO.Compression;
 using System.Text;
 using FluentAssertions;
@@ -6,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Turbo.Contracts.Plugins;
 using Turbo.Database.Context;
 using Turbo.Plugins;
 using Turbo.Plugins.Configuration;

@@ -6,7 +6,6 @@ using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
-using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;

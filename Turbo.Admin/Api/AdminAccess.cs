@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Orleans;
-using Turbo.Primitives.Orleans;
 
 namespace Turbo.Admin.Api;
 

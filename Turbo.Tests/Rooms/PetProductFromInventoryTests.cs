@@ -16,7 +16,6 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Logic.Avatars;
-using Turbo.Primitives.Rooms.Snapshots.Furniture;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Object.Avatars.Player;

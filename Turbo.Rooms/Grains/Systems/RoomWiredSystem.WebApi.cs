@@ -11,8 +11,6 @@ using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
-using Turbo.Primitives.Rooms.Object.Furniture;
-using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Primitives.Rooms.Wired.WebApi;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;

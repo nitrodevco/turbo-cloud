@@ -12,8 +12,6 @@ using Turbo.Database.Context;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Database.Extensions;
 using Turbo.Guilds.Configuration;
-using Turbo.Primitives.Guilds;
-using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Forums;
 using Turbo.Primitives.Guilds.Forums.Enums;
 using Turbo.Primitives.Guilds.Forums.Snapshots;

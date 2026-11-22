@@ -26,7 +26,6 @@ using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons.VariableFx;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
-using Turbo.Rooms.Wired;
 
 namespace Turbo.Rooms.Wired.VariableFx;
 

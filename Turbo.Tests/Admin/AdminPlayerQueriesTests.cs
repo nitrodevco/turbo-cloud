@@ -22,7 +22,6 @@ using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Permissions;
-using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Tests.Support;

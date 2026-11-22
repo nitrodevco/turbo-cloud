@@ -1,7 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Turbo.Primitives.Bots.Snapshots;
-using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Avatars;

@@ -4,7 +4,6 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
-using Turbo.Primitives.Rooms.Providers;
 using Turbo.Rooms.Object.Logic.Furniture.Floor;
 using Turbo.Tests.Support;
 using Xunit;

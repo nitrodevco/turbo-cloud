@@ -3,7 +3,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Furniture.Custody;
 using Turbo.Primitives.Movements;
-using Turbo.Primitives.Movements.Enums;
 using Turbo.Primitives.Trading;
 using Turbo.Tests.Support;
 using Xunit;

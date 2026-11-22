@@ -12,7 +12,6 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Texts;
 using Turbo.Tests.Support;
 using Xunit;
 

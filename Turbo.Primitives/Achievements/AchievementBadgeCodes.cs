@@ -1,5 +1,3 @@
-using System;
-
 namespace Turbo.Primitives.Achievements;
 
 /// <summary>

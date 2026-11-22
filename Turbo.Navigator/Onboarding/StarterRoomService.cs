@@ -13,7 +13,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans;
 using Turbo.Database.Context;
-using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Room;
 using Turbo.Furniture.Custody;
 using Turbo.Navigator.Configuration;

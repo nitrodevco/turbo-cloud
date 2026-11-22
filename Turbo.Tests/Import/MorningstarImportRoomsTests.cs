@@ -1,5 +1,3 @@
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Forums.Enums;

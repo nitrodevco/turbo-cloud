@@ -19,7 +19,6 @@ using Turbo.Primitives.Trading;
 using Turbo.Primitives.WiredTrading;
 using Turbo.Primitives.WiredTrading.Enums;
 using Turbo.Primitives.WiredTrading.Snapshots;
-using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.WiredTrading;
 using Turbo.Rooms.Wired;
 

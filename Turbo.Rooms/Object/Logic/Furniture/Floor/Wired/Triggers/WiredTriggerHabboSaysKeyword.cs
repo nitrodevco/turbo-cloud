@@ -9,7 +9,6 @@ using Orleans;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
-using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Bot;

@@ -2,7 +2,6 @@ using FluentAssertions;
 using Turbo.Primitives.Badges.Enums;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Badges;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
-using Turbo.Primitives.Packets;
 using Turbo.Primitives.Players.Snapshots;
 using Turbo.Tests.Support;
 using Xunit;

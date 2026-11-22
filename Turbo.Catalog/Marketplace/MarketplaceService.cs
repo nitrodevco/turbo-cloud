@@ -17,7 +17,6 @@ using Turbo.Database.Movements;
 using Turbo.Primitives.Catalog.Marketplace;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
-using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
 using Turbo.Primitives.Inventory.Factories;
 using Turbo.Primitives.Inventory.Snapshots;

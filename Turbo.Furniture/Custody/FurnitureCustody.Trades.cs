@@ -12,8 +12,6 @@ using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Extensions;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Movements;
-using Turbo.Primitives.Movements.Enums;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Trading;
 
 namespace Turbo.Furniture.Custody;

@@ -2,7 +2,6 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Orleans;
-using Turbo.Database.Entities.Furniture;
 using Turbo.Messages.Registry;
 using Turbo.PacketHandlers.Room.Engine;
 using Turbo.Primitives.Action;

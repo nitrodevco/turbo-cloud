@@ -5,7 +5,6 @@ using Turbo.Primitives.Rooms.Enums;
 using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Avatars.Player;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Highscore;
-using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired;
 using Turbo.Tests.Support;
 using Xunit;
 

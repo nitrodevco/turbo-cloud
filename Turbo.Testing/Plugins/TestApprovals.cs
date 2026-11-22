@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -9,7 +8,6 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Turbo.Contracts.Approvals;
 using Turbo.Database.Context;
 using Turbo.Database.Entities;
-using Turbo.Plugins.Approvals;
 
 namespace Turbo.Testing;
 

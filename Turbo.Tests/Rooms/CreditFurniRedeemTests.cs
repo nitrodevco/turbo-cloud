@@ -4,7 +4,6 @@ using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Interactions;
 using Turbo.Primitives.Inventory.Grains;
-using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Grains;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms.Object;

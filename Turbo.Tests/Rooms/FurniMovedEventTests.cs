@@ -5,7 +5,6 @@ using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.RoomItem;
-using Turbo.Primitives.Rooms.Object;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Tests.Support;
 using Xunit;

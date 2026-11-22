@@ -9,7 +9,6 @@ using Turbo.Primitives.Messages.Outgoing.Room.Engine;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Wallet;
-using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;

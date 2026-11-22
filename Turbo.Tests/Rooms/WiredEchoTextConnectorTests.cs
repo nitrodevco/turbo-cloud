@@ -8,7 +8,6 @@ using Turbo.Rooms.Grains.Systems;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Addons;
 using Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Variables;
 using Turbo.Rooms.Wired;
-using Turbo.Rooms.Wired.Variables;
 using Turbo.Rooms.Wired.Variables.User;
 using Turbo.Tests.Support;
 using Xunit;

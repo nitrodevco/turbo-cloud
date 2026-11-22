@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Database.Achievements;
 using Turbo.Database.Context;
-using Turbo.Database.Entities.Achievements;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;

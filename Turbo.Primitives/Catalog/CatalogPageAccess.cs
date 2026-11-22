@@ -5,7 +5,6 @@ using System.Linq;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Players.Enums;
-using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Players.Snapshots.Permissions;
 
 namespace Turbo.Primitives.Catalog;

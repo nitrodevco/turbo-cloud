@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http;
-using System.Net.Sockets;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;

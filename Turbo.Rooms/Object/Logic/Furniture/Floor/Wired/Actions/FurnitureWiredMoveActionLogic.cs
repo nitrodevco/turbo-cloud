@@ -9,7 +9,6 @@ using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
-using Turbo.Primitives.Rooms.Object.Furniture.Wall;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Rooms.Wired;
 

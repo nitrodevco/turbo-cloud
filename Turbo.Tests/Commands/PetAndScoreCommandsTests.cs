@@ -1,7 +1,6 @@
 using System.Reflection;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using Turbo.Primitives.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Furniture.Snapshots;
@@ -9,7 +8,6 @@ using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Messages.Outgoing.Room.Chat;
 using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;

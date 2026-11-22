@@ -12,7 +12,6 @@ using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Catalog.Providers;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Catalog.Tags;
-using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Tests.Support;
 using Xunit;

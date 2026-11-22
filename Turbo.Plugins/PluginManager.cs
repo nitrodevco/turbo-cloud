@@ -19,7 +19,6 @@ using Turbo.Contracts.Approvals;
 using Turbo.Contracts.Hotel;
 using Turbo.Contracts.Plugins;
 using Turbo.Contracts.Plugins.Admin;
-using Turbo.Contracts.Plugins.Mcp;
 using Turbo.Contracts.Plugins.Web;
 using Turbo.Database.Context;
 using Turbo.Database.Migrations;

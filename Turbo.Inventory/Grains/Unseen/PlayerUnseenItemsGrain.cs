@@ -15,7 +15,6 @@ using Turbo.Primitives.Inventory;
 using Turbo.Primitives.Inventory.Grains;
 using Turbo.Primitives.Messages.Outgoing.Notifications;
 using Turbo.Primitives.Orleans;
-using Turbo.Primitives.Players;
 
 namespace Turbo.Inventory.Grains.Unseen;
 

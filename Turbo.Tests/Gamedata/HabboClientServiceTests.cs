@@ -1,10 +1,8 @@
-using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;

@@ -1,7 +1,6 @@
 using FluentAssertions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object;
-using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Rooms.Configuration;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Tests.Support;

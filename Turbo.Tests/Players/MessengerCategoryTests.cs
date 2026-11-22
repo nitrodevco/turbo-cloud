@@ -1,6 +1,3 @@
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -9,7 +6,6 @@ using Turbo.Database.Entities.Players;
 using Turbo.Players.Configuration;
 using Turbo.Players.Grains.Messenger;
 using Turbo.Primitives.Messages.Outgoing.FriendList;
-using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Enums.Messenger;
 using Turbo.Primitives.Players.Grains.Messenger;

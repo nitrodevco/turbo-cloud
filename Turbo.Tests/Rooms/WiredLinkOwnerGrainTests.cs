@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Orleans;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;

@@ -2,7 +2,6 @@ using FluentAssertions;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Room.Engine;
-using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events.Wired;

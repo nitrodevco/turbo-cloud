@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Turbo.Achievements;
 using Turbo.Achievements.Configuration;
-using Turbo.Database.Achievements;
 using Turbo.Database.Entities.Achievements;
 using Turbo.Primitives.Achievements;
 using Turbo.Primitives.Achievements.Enums;

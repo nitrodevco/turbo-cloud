@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Turbo.Catalog.Configuration;
 using Turbo.Catalog.Reception;
-using Turbo.Database.Entities.Catalog;
 using Turbo.Primitives.Catalog;
 using Turbo.Tests.Support;
 using Xunit;

@@ -3,7 +3,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Turbo.Assets.Conversion;
 using Turbo.Assets.Nitro;
-using Turbo.Database.Entities.Assets;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Gamedata.Enums;

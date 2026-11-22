@@ -2,7 +2,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Messages.Registry;
 using Turbo.Primitives.Messages.Incoming.Moderator;
-using Turbo.Primitives.Messages.Outgoing.Moderation;
 using Turbo.Primitives.Moderation;
 using Turbo.Primitives.Players.Permissions;
 
