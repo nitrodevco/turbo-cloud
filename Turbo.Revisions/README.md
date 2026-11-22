@@ -17,7 +17,22 @@ message, and how each is read and written.
 - A plugin adds packets of its own through the extension packet registry
   (`docs/plugin-packets.md`), not by editing these folders.
 - Handler and grain rules (for example the extended profile flow) are in `AGENTS.md` and
-  `CONTEXT.md`, as is the packet addition checklist.
+  `CONTEXT.md`.
+
+## Packet addition checklist
+When adding packet mappings in `Turbo.Revisions/Revision20260909`:
+1. Update `Turbo.Revisions/Revision20260909/Headers.cs`:
+   - add/update incoming `MessageEvent` id constants
+   - add/update outgoing `MessageComposer` id constants
+2. Add parser class under:
+   - `Turbo.Revisions/Revision20260909/Parsers/<Domain>/*MessageParser.cs`
+3. Add serializer class under:
+   - `Turbo.Revisions/Revision20260909/Serializers/<Domain>/*MessageComposerSerializer.cs`
+4. Register mappings in:
+   - `Turbo.Revisions/Revision20260909/Revision20260909.cs`
+   - incoming: `Parsers` dictionary with `MessageEvent` key
+   - outgoing: `Serializers` dictionary with composer type + `MessageComposer` id
+5. Ensure the required `using` directives are present in `Revision20260909.cs` for new parser/serializer namespaces.
 
 ## When adding protocol support
 1. Add parser(s) under `Parsers/<Domain>/`.

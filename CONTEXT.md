@@ -35,11 +35,13 @@
 - Keep plugin lifecycle operations inside `Turbo.Plugins`; do not duplicate plugin loading logic in unrelated modules.
 - Theme authoring builds in ignored staging directories on the plugin filesystem. The plugin
   manager publishes complete directories and handles load/rollback under its existing reload gate;
-  theme creation and package installation share a case-insensitive key reservation. Failure cleanup
-  verifies the operation marker and preserves the original error if cleanup also fails.
+  theme creation and package installation share a case-insensitive key reservation, taken before
+  anything is copied. Failure cleanup verifies the operation marker and preserves the original
+  error if cleanup also fails. This is a host-level guarantee, not a transaction with arbitrary
+  external filesystem writers.
 - Protocol revision parser/serializer trees live in this repository:
   - `Turbo.Revisions/Revision<id>/**` (headers, `Parsers/<Domain>/`, `Serializers/<Domain>/`)
-  - Follow the packet addition checklist in `AGENTS.md`; do not add them anywhere else.
+  - Follow the packet addition checklist in `Turbo.Revisions/README.md`; do not add them anywhere else.
 - Extended profile flow boundary:
   - `Turbo.PacketHandlers/Users/*ExtendedProfile*Handler.cs` orchestrates lookup + response mapping only.
   - `Turbo.Players/Grains/PlayerDirectoryGrain.cs` owns username/id lookup semantics and cache coherence.
@@ -73,13 +75,10 @@
   - session is added to gateway/session tracking.
 - After SSO success:
   - session is registered to `PlayerPresenceGrain` for that player id.
-- Player outbound targeting, one of exactly three ways by who it is for:
-  - the session that sent the packet being handled: `ctx.SendComposerAsync`
-  - any other player: `grainFactory.SendComposerToPlayerAsync` / `SendComposerToPlayersAsync`
-  - everyone in a room: `RoomGrain.SendComposerToRoomAsync`
-  - the player wrappers go through the presence grain, which fans out to that player's
-    sessions; do not spell out `GetPlayerPresenceGrain(id).SendComposerAsync(...)` or add a
-    local send helper.
+- Player outbound targeting:
+  - one of exactly three ways, by who it is for; `AGENTS.md`, *Session and room routing*, names
+    them. The player wrappers go through the presence grain, which fans out to that player's
+    sessions.
 - Room activity:
   - active room indexing/lookup and keepalive ping responsibilities stay in `RoomDirectoryGrain`.
 - Lifecycle:
@@ -112,6 +111,9 @@
   - `Turbo.<Domain>/Grains/...`
 
 ## Pattern references
+The rules for one area (grains, room objects, wired, inventory, handlers...) are in `docs/rules/`;
+`AGENTS.md`, *Rules by area*, says which page covers what.
+
 Use and adapt these examples before inventing new structure:
 - `docs/patterns/ServicePattern.cs`
 - `docs/patterns/HandlerPattern.cs`

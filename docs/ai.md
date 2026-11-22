@@ -23,10 +23,12 @@ A plugin that asks language models while the hotel runs (an NPC, a staff assista
 
 | File | What it holds |
 | --- | --- |
-| [`AGENTS.md`](../AGENTS.md) | The coding contract: architecture rules, review expectations, how to validate a change |
+| [`AGENTS.md`](../AGENTS.md) | The coding contract: the rules every change needs, review expectations, how to validate a change, and which rules page covers each area. Codex reads it itself |
 | [`CONTEXT.md`](../CONTEXT.md) | Where code belongs and which project may depend on which |
-| [`docs/patterns/`](patterns/README.md) | One real-shaped sample each of a packet handler, a service and a unit test |
-| `CLAUDE.md`, `CODEX.md`, `.github/copilot-instructions.md` | Short adapters that point each tool at the files above |
+| `docs/rules/` | The rules for one area: [grains](rules/grains.md), [room objects](rules/room-objects.md), [wired](rules/wired.md), [inventory](rules/inventory.md), [types and constants](rules/types-and-constants.md), [packet handlers](rules/handlers.md), [host features](rules/host-features.md), [test helpers](rules/testing.md), and the [drift checklist](rules/drift.md). An agent reads only the pages for what it touches |
+| `.claude/rules/` | One short reminder per area, each loaded by Claude Code only when it opens a file of that area (its `paths:` frontmatter), pointing at the area's page. They hold no rules of their own |
+| [`docs/patterns/`](patterns/README.md) | One real-shaped sample each of a packet handler, a service and a unit test, and the task recipes |
+| `CLAUDE.md`, `.github/copilot-instructions.md` | Short adapters that point Claude Code and Copilot at the files above; `CLAUDE.md` imports `AGENTS.md` and `CONTEXT.md` |
 
 A plugin made from the template has its own `README.md` listing its commands and recipes; give an
 agent that, and this site's pages for the parts it touches.

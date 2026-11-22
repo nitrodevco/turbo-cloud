@@ -315,7 +315,7 @@ Times on the wire are *seconds ago*, not timestamps. The client counts up from t
 
 ## 4. Enums
 
-Per `AGENTS.md`, each of these is an enum in `Turbo.Primitives/Guilds/Enums/`, one type per file,
+Per [Types & Constants](rules/types-and-constants.md#constants-and-magic-values), each of these is an enum in `Turbo.Primitives/Guilds/Enums/`, one type per file,
 and the serializer does the cast. None of them becomes an `int` field with a cast at the call
 site.
 
@@ -519,8 +519,8 @@ because the catalog has to recognise a guild furni before the item exists.
 The fan-out that repaints a group's furni lives in `GuildGrain.Notify`, with everything else the
 group publishes when it changes. The room answers a rights check by asking the group grain, so
 none of it is **awaited**: it goes out with `LogAndForget`, which holds no turn, so the group
-finishes and the room's question is answered on the next one. That is the same rule `AGENTS.md`
-states for `RoomTradeGrain`, and it is what to check against any new call out of the group grain —
+finishes and the room's question is answered on the next one. That is the same rule [Grain Rules](rules/grains.md#grains-are-not-reentrant-side-effects-on-other-grains-that-call-back-go-in-the-service)
+state for `RoomTradeGrain`, and it is what to check against any new call out of the group grain —
 tell it, do not ask it.
 
 Buying one is an ordinary catalog purchase whose `ExtraParam` is the group id. The purchase path
@@ -639,7 +639,7 @@ and released separately afterwards. Nothing in 1–7 may be shaped around the fo
    transaction, every member's grain is told and every member gets `HabboGroupDeactivated`. The
    furni is left where it is, which is a real gap against `group.deleteconfirm.desc` — it
    promises the furniture comes back. Returning it means the room handing its items over, and
-   the room grain calls into the group grain from phase 5; per `AGENTS.md` that side effect
+   the room grain calls into the group grain from phase 5; per [Grain Rules](rules/grains.md#grains-are-not-reentrant-side-effects-on-other-grains-that-call-back-go-in-the-service) that side effect
    belongs in a service rather than in either grain. It is phase 5's to finish, and nothing
    about the current deletion has to change for it.
 
@@ -703,7 +703,7 @@ and released separately afterwards. Nothing in 1–7 may be shaped around the fo
    A settings change cannot use that route, because the group still exists and the room answers
    a rights check by asking the group grain — the two would wait on each other. So
    `UpdateGuildSettingsMessageHandler` tells the room once the grain call has returned. This is
-   the `AGENTS.md` rule about side effects that call back belonging outside the grain, and it is
+   the rule in [Grain Rules](rules/grains.md#grains-are-not-reentrant-side-effects-on-other-grains-that-call-back-go-in-the-service) about side effects that call back belonging outside the grain, and it is
    the shape to copy for anything similar.
 6. **Guild furni.** *Done.* The two logic classes, the context menu packets, and the purchase
    path validating `ExtraParam` against the buyer's memberships.

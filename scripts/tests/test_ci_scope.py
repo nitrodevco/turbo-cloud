@@ -48,6 +48,32 @@ class ScopeTests(unittest.TestCase):
     def test_root_instruction_edit(self):
         self.assertTrue(self.classify(b"M\0AGENTS.md\0"))
 
+    def test_claude_instructions_and_rules(self):
+        self.write("CLAUDE.md")
+        self.write(".claude/rules/wired.md")
+        self.assertTrue(self.classify(b"M\0CLAUDE.md\0A\0.claude/rules/wired.md\0"))
+
+    def test_other_claude_files_are_not_documentation(self):
+        for name in (".claude/settings.json", ".claude/rules/hook.sh", ".claude/skills/x/SKILL.md"):
+            with self.subTest(name=name):
+                self.write(name)
+                self.assertFalse(self.classify(f"M\0{name}\0".encode()))
+
+    def test_agents_at_the_codex_limit_passes(self):
+        self.write("AGENTS.md", "x" * ci_scope.AGENTS_MAX_BYTES)
+        self.assertTrue(self.classify(b"M\0AGENTS.md\0"))
+
+    def test_agents_past_the_codex_limit_fails(self):
+        self.write("AGENTS.md", "x" * (ci_scope.AGENTS_MAX_BYTES + 1))
+        with self.assertRaises(SystemExit):
+            self.classify(b"M\0AGENTS.md\0")
+
+    def test_agents_counts_non_ascii_as_three_bytes(self):
+        self.write("README.md")
+        self.write("AGENTS.md", "é" * (ci_scope.AGENTS_MAX_BYTES // 3 + 1))
+        with self.assertRaises(SystemExit):
+            self.classify(b"M\0README.md\0")
+
     def test_paths_with_spaces(self):
         self.write("docs/a guide.md")
         self.assertTrue(self.classify(b"A\0docs/a guide.md\0"))

@@ -15,9 +15,9 @@ namespace Turbo.Guilds.Grains;
 /// file exists to avoid. A call that is not awaited holds no turn: this grain finishes, and the
 /// room's question is answered on the next one.
 ///
-/// It is the same rule <c>AGENTS.md</c> states for <c>RoomTradeGrain</c>, which awaits the room
-/// and so is only ever told things. Before adding a call out of this grain, check whether the
-/// callee awaits a group — and if it does, tell it, do not ask it.
+/// It is the same rule <c>docs/rules/grains.md</c> states for <c>RoomTradeGrain</c>, which
+/// awaits the room and so is only ever told things. Before adding a call out of this grain, check
+/// whether the callee awaits a group — and if it does, tell it, do not ask it.
 /// </summary>
 internal sealed partial class GuildGrain
 {

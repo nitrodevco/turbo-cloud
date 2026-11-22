@@ -1,74 +1,10 @@
 # Copilot Instructions (Turbo Cloud)
 
 Before suggesting code, read:
-1. `AGENTS.md` (canonical AI coding contract)
-2. `CONTEXT.md` (architecture and placement boundaries)
+1. `AGENTS.md`: the coding contract every AI tool follows, and which `docs/rules/` page to read for
+   the area you are changing
+2. `CONTEXT.md`: where code belongs and which type owns what
 3. One relevant sample in `docs/patterns/`
 
-## Repository expectations
-- Keep output compatible with repository quality gates (`csharpier`, `dotnet format`, analyzers, build).
-- Follow `.editorconfig` and local naming/style conventions.
-- Keep changes minimal and scoped to the task.
-- Match patterns in nearby files before adding new abstractions.
-- Include guard clauses and failure-path behavior where relevant.
-
-## Prompt contract (short form)
-Include in every request:
-1. Goal
-2. Target files
-3. Required context files (`AGENTS.md`, `CONTEXT.md`, nearby pattern file)
-4. Invariants to preserve
-5. Forbidden changes
-6. Validation commands
-
-## Core-specific constraints
-- Keep host composition in `Turbo.Main`.
-- Keep plugin lifecycle logic centralized in `Turbo.Plugins`.
-- Keep packet handlers in `Turbo.PacketHandlers` and domain logic in domain modules.
-- Respect Orleans grain boundaries and avoid bypassing grain orchestration.
-- For protocol revision parser/serializer work, edit `Turbo.Revisions/Revision<id>/**` in this
-  repository and follow the packet addition checklist in `AGENTS.md`.
-- For extended profile flow:
-  - keep handlers orchestration-only
-  - do not query database contexts/repositories from handlers
-  - use canonical grain access patterns
-  - avoid silent catch blocks
-  - map available snapshot fields into composer payloads
-  - keep incoming message contracts explicit for required fields
-- For session/presence/room flow:
-  - do not send composers directly to raw sessions/sockets from handlers
-  - there are exactly three ways to send a composer: `ctx.SendComposerAsync` to the session being
-    handled, `grainFactory.SendComposerToPlayerAsync` / `SendComposerToPlayersAsync` to a player,
-    and `RoomGrain.SendComposerToRoomAsync` to a room
-  - do not spell out `GetPlayerPresenceGrain(id).SendComposerAsync(...)` or add a local send helper
-  - keep active-room indexing and keepalive behavior in `RoomDirectoryGrain`
-  - treat `[KeepAlive]` as explicit infrastructure-only usage
-
-## Orleans grain constraints
-- Never use bare `catch { }` — always `catch (Exception ex)` with `ILogger<T>`.
-- Parallelize independent grain calls with `Task.WhenAll`, not sequential `await` in loops.
-- Hoist repeated grain calls out of loops.
-- Batch DB deletes with `WHERE ... IN (...)`, not per-entity `ExecuteDeleteAsync`.
-- Use timer-flush for housekeeping writes (see `RoomPersistenceGrain`).
-- A config option carries the hotel default it ships with; `required` is only for an option with no sensible default (`CryptoConfig`).
-- No hardcoded limits in grains — they are options on the module's config class, read by the grain through `IOptions<TConfig>`. Handlers do not pass limits in; client-chosen numbers are clamped in the grain.
-- Use tracked EF deletes when atomicity with inserts is required.
-- Replace `.Ignore()` with a `LogAndForget` helper that logs faulted tasks.
-- Cap in-memory per-event collections (message history, queues).
-- One grain per responsibility — isolate heavy I/O into secondary grains (e.g. `RoomPersistenceGrain`).
-- Use grain single-threading for concurrency safety (per-player `PurchaseGrain`, per-item `LimitedItemGrain`). No manual locks.
-- Grains orchestrate their own outbound communication; the caller that triggered a change does not build or send the composer.
-- All mutations to grain-owned data go through grain methods. No direct DB updates for grain-owned state.
-
-## Task routing hints
-- Handler task: use neighboring handler + `Turbo.Primitives/Orleans/GrainFactoryExtensions.cs`.
-- Grain task: use grain interface + snapshot/state types as primary references.
-- Message/composer task: update incoming/outgoing contracts and handler mapping together.
-- Lookup/cache task: preserve bidirectional + case-insensitive behavior across set/invalidate/get flows.
-
-## Validation guidance
-Generated changes should pass:
-- `dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudFastCheck`
-- `dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudQualityGate`
-- `dotnet test Turbo.Tests/Turbo.Tests.csproj`, with a regression test for any behaviour change (helper
-  quick reference and verification loop: `CLAUDE.md`, `## Tests`)
+This file adds no rules of its own. A rule written here would be one that Claude Code and Codex
+never see, so rules go in the files above.

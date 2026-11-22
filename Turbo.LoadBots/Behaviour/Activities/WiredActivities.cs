@@ -35,9 +35,9 @@ public static class WiredActivities
 
     /// <summary>
     /// Boxes the catalog sells that the server has no logic for yet, each waiting on a system
-    /// rather than a box (chests, transactions, contracts, the web API; AGENTS.md, "Which boxes
-    /// the server still lacks"). They are still tried every run, briefly, so the day one is
-    /// written the bots test it; until then their silence is reported, not failed.
+    /// rather than a box (chests, transactions, contracts, the web API; docs/rules/wired.md,
+    /// "Which boxes the server still lacks"). They are still tried every run, briefly, so the day
+    /// one is written the bots test it; until then their silence is reported, not failed.
     /// </summary>
     private static readonly HashSet<string> KNOWN_GAPS = new(StringComparer.Ordinal)
     {

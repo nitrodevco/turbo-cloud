@@ -131,7 +131,7 @@ Found by reading rather than by the tool. None of these is a packet.
 reward track actions (58, 59), the level condition (44), the global placeholder (2000), the web
 API addon (2002) and variable box 8. Of these only the reward tracks and the web API have furni
 in the hotel; the others cannot be placed and are not gaps until a furni carries them
-(`AGENTS.md`, "Wired").
+([Wired Rules](rules/wired.md#wired)).
 
 Still missing around the wired menu and the trading block:
 
@@ -141,7 +141,7 @@ Still missing around the wired menu and the trading block:
 - the web API key (`WiredGenerateWebApiKey` / `WiredWebApiKeyResult`);
 - the chest item type scanner (addon 18), which needs context variables that hold values.
 
-Chests, contracts and the transaction wired are done (`AGENTS.md`, "Wired chests").
+Chests, contracts and the transaction wired are done ([Wired Rules](rules/wired.md#wired-chests)).
 
 ## Closed since the first survey
 

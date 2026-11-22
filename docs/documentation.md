@@ -91,3 +91,13 @@
     - [Client Conventions](https://github.com/nitrodevco/nitro-next/blob/pixi-render/docs/client-conventions.md)
     - [AGENTS.md (Core Rules)](https://github.com/nitrodevco/turbo-cloud/blob/main/AGENTS.md)
     - [CONTEXT.md (Architecture Boundaries)](https://github.com/nitrodevco/turbo-cloud/blob/main/CONTEXT.md)
+- ## Core Rules
+    - [Grain Rules](rules/grains.md)
+    - [Room Object Logic Rules](rules/room-objects.md)
+    - [Wired Rules](rules/wired.md)
+    - [Inventory Rules](rules/inventory.md)
+    - [Types & Constants](rules/types-and-constants.md)
+    - [Packet Handler Rules](rules/handlers.md)
+    - [Host Feature Rules](rules/host-features.md)
+    - [Core Test Helpers](rules/testing.md)
+    - [Keeping the Codebase From Drifting](rules/drift.md)

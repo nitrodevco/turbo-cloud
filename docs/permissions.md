@@ -57,8 +57,8 @@ of weighted **groups** that inherit from each other, permissions are string **no
 wildcards and negation, grants can **expire**, groups and players carry **meta** (limits), every
 change is **audited**, and any check can **explain** itself.
 
-Written for whoever implements it. Read `AGENTS.md` first — the grain rules and the constants
-rules both bear on the shape below.
+Written for whoever implements it. Read [Grain Rules](rules/grains.md) and [Types & Constants](rules/types-and-constants.md)
+first; both bear on the shape below.
 
 ## 1. What is there now
 
@@ -231,7 +231,7 @@ This is LuckPerms' order with contexts removed — see §12.
 
 ## 6. Meta
 
-Meta is for the limits retros kept as per-rank columns. `AGENTS.md` already says a limit is a
+Meta is for the limits retros kept as per-rank columns. [The grain rules](rules/grains.md#do-not-hardcode-limits-in-grains) already say a limit is a
 config option on its module's config class; meta does not change that. **The config option stays
 the hotel default, and meta overrides it per group or per player.** Built in phase 7.
 
@@ -242,8 +242,8 @@ the hotel default, and meta overrides it per group or per player.** Built in pha
 | `limit.favourite_rooms` | `PlayerNavigatorConfig.MaxFavouriteRooms` | `PlayerNavigatorGrain.AddFavouriteRoomAsync`, and the limit sent at login |
 
 The code that enforces a limit asks for it with `IGrainFactory.GetLimitAsync(player, key,
-configDefault)`, passing its own config option, so the default still lives where `AGENTS.md` puts
-it and the grain still reads its own config. `PermissionMeta.ReadLimit` turns the meta value into
+configDefault)`, passing its own config option, so the default still lives where [the grain rules](rules/grains.md#do-not-hardcode-limits-in-grains)
+put it and the grain still reads its own config. `PermissionMeta.ReadLimit` turns the meta value into
 the limit: a whole number of zero or more replaces the default, anything else is ignored. All three
 keys are registered with `HighestNumber`, so a player in two groups that both raise a limit gets
 the larger — and a group can lower one too, since any value it sets replaces the default.
@@ -370,8 +370,8 @@ while its player is online (a check every `PermissionConfig.OnlineCheckMs` pins 
 check that finds no session): what the client
 and the room were told lives only in the activation, and one collected for idleness would neither
 hear a group change nor know the client had not. The push goes
-straight to the grain, not through the presence: `AGENTS.md` keeps the presence as a transport for
-packets, and the directory needs no presence state to decide anything. Group edits are rare
+straight to the grain, not through the presence: [the grain rules](rules/grains.md#grains-orchestrate-their-own-outbound-communication)
+keep the presence as a transport for packets, and the directory needs no presence state to decide anything. Group edits are rare
 operator actions, so every subscriber is told rather than working out who is affected; an older
 push arriving after a newer one is dropped by version.
 

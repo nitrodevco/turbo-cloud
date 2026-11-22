@@ -2,13 +2,17 @@
 
 import os
 from pathlib import Path
+import re
 import subprocess
 
 
 ROOT_DOCUMENTS = {
-    "README.md", "CONTRIBUTING.md", "CHANGELOG.md", "AGENTS.md", "CONTEXT.md",
+    "README.md", "CONTRIBUTING.md", "CHANGELOG.md", "AGENTS.md", "CONTEXT.md", "CLAUDE.md",
     ".github/copilot-instructions.md",
 }
+
+# Folders whose markdown is documentation: the docs site, and Claude Code's path-scoped reminders.
+DOCUMENT_FOLDERS = ("docs/", ".claude/rules/")
 
 # Keep these aligned with TurboCloudAiGovernanceCheck in Directory.Build.targets.
 REQUIRED_FILES = (
@@ -16,6 +20,14 @@ REQUIRED_FILES = (
     "docs/patterns/ServicePattern.cs", "docs/patterns/HandlerPattern.cs",
     "docs/patterns/UnitTestPattern.cs",
 )
+
+# Codex reads AGENTS.md only up to 32 KiB. Counted as the governance check counts it: a character
+# outside ASCII as three bytes, its most in UTF-8.
+AGENTS_MAX_BYTES = 32768
+
+
+def agents_bytes(text):
+    return len(re.sub(r"[^\x00-\x7F]", "___", text))
 
 
 def documentation_only():
@@ -37,7 +49,7 @@ def documentation_only():
 
     paths = []
     for status, path in zip(fields[::2], fields[1::2]):
-        allowed = path in ROOT_DOCUMENTS or (path.startswith("docs/") and path.endswith(".md"))
+        allowed = path in ROOT_DOCUMENTS or (path.startswith(DOCUMENT_FOLDERS) and path.endswith(".md"))
         if status not in ("A", "M") or not allowed:
             return False
         paths.append(path)
@@ -45,6 +57,13 @@ def documentation_only():
     for path in (*REQUIRED_FILES, *paths):
         if not Path(path).is_file() or not Path(path).read_text(encoding="utf-8").strip():
             raise SystemExit(f"Required or changed documentation file is missing or empty: {path}")
+
+    size = agents_bytes(Path("AGENTS.md").read_text(encoding="utf-8"))
+    if size > AGENTS_MAX_BYTES:
+        raise SystemExit(
+            f"AGENTS.md is about {size} bytes; Codex reads only the first {AGENTS_MAX_BYTES}. "
+            "Move rules for one area to their page in docs/rules/ (AGENTS.md, Rules by area)."
+        )
 
     return True
 

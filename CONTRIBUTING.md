@@ -84,12 +84,15 @@ git config --local core.hooksPath .githooks
 ## AI-assisted contribution policy
 
 Canonical instructions for all AI tools:
-- `AGENTS.md` (coding constraints, review expectations, and validation contract)
+- `AGENTS.md` (coding constraints, review expectations, validation contract, and which
+  `docs/rules/` page covers each area)
 - `CONTEXT.md` (architecture and dependency boundaries)
+- `docs/rules/` (the rules for one area: grains, room objects, wired, inventory, handlers...)
 - `docs/patterns/` (golden sample implementations)
 
-Copilot-specific adapter:
+Tool adapters, which only point at the files above (Codex reads `AGENTS.md` itself):
 - `.github/copilot-instructions.md`
+- `CLAUDE.md`
 
 ### Prompt recipe (Claude/Gemini/Copilot/other)
 1. Include exact file paths being changed.
@@ -107,7 +110,7 @@ Use this structure for all AI requests:
 6. Validation commands
 7. Expected output format (diff summary + risk notes + command results)
 
-Task-specific recipes are maintained in `AGENTS.md`:
+Task-specific recipes are maintained in `docs/patterns/README.md`:
 - Add packet handler
 - Change grain behavior
 - Add message/composer mapping
@@ -120,9 +123,13 @@ Task-specific recipes are maintained in `AGENTS.md`:
 
 ## AI contract maintenance
 - If architecture flow changes, update `CONTEXT.md` in the same PR.
-- If a recurring task pattern emerges, add/update a task recipe in `AGENTS.md`.
+- A rule for one area goes in its `docs/rules/` page; `AGENTS.md` takes only rules every change
+  needs, and the quality gate fails when it grows past the 32 KiB Codex reads. A new page gets a
+  row in `AGENTS.md`'s *Rules by area* table and a path-scoped reminder in `.claude/rules/`
+  (a reminder with no `paths:` would load in every Claude Code session).
+- If a recurring task pattern emerges, add/update a task recipe in `docs/patterns/README.md`.
 - Keep plugin mirror rules concise and aligned with core source-of-truth docs.
-- Remove conflicting or duplicated guidance when contract files diverge.
+- A rule has one home. Remove conflicting or duplicated guidance when contract files diverge.
 
 ## Local development config
 

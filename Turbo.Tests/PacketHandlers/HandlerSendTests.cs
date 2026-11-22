@@ -6,7 +6,7 @@ using Xunit;
 namespace Turbo.Tests.PacketHandlers;
 
 /// <summary>
-/// A packet handler sends a composer one of the three ways CLAUDE.md names: to its own session
+/// A packet handler sends a composer one of the three ways AGENTS.md names: to its own session
 /// (<c>ctx.SendComposerAsync</c>), to a player (<c>SendComposerToPlayerAsync</c>) or to a room.
 /// It does not spell out <c>GetPlayerPresenceGrain(id).SendComposerAsync(...)</c>, which
 /// <c>TurboClientCapabilitiesMessageHandler</c> did; this reads every handler's compiled

@@ -17,6 +17,19 @@
       Condition="!Exists('$(MSBuildThisFileDirectory)AGENTS.md')"
       Text="Missing AGENTS.md at repository root."
     />
+    <!--
+      Codex reads AGENTS.md only up to its project_doc_max_bytes, 32 KiB by default; what lies past
+      it is never seen. Characters outside ASCII count as three bytes, their most in UTF-8.
+    -->
+    <PropertyGroup Condition="Exists('$(MSBuildThisFileDirectory)AGENTS.md')">
+      <TurboAgentsMaxBytes Condition="'$(TurboAgentsMaxBytes)' == ''">32768</TurboAgentsMaxBytes>
+      <TurboAgentsText>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)AGENTS.md'))</TurboAgentsText>
+      <TurboAgentsBytes>$([System.Text.RegularExpressions.Regex]::Replace($(TurboAgentsText), '[^\x00-\x7F]', '___').Length)</TurboAgentsBytes>
+    </PropertyGroup>
+    <Error
+      Condition="'$(TurboAgentsBytes)' != '' and $(TurboAgentsBytes) &gt; $(TurboAgentsMaxBytes)"
+      Text="AGENTS.md is about $(TurboAgentsBytes) bytes; Codex reads only the first $(TurboAgentsMaxBytes). Move rules for one area to their page in docs/rules/ (AGENTS.md, Rules by area)."
+    />
     <Error
       Condition="!Exists('$(MSBuildThisFileDirectory)CONTEXT.md')"
       Text="Missing CONTEXT.md at repository root."

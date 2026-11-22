@@ -168,14 +168,15 @@ dotnet build Turbo.Main/Turbo.Main.csproj
 
 ## AI-Assisted Development
 Canonical AI context files:
-- `AGENTS.md` (coding contract and review rules)
+- `AGENTS.md` (coding contract, review rules, and which `docs/rules/` page covers each area)
 - `CONTEXT.md` (architecture boundaries and placement rules)
+- `docs/rules/` (the rules for one area: grains, room objects, wired, inventory, handlers...)
 - `docs/patterns/` (golden implementation examples)
 
-Tool-specific adapters:
+Tool-specific adapters, which only point at the files above:
 - `.github/copilot-instructions.md` (GitHub Copilot)
-- `CLAUDE.md` (Claude)
-- `CODEX.md` (Codex)
+- `CLAUDE.md` (Claude Code, which imports `AGENTS.md` and `CONTEXT.md`)
+- Codex reads `AGENTS.md` itself.
 
 Prompt recipe for any AI tool:
 1. Include task + exact target file paths.
@@ -184,6 +185,6 @@ Prompt recipe for any AI tool:
 4. Ask for edge-case handling and validation commands.
 
 Boost-style prompting pack:
-- portable prompt contract + task recipes live in `AGENTS.md`
+- the portable prompt contract lives in `CONTRIBUTING.md`, the task recipes in `docs/patterns/README.md`
 - architecture invariants live in `CONTEXT.md`
-- tool adapters live in `.github/copilot-instructions.md`, `CLAUDE.md`, and `CODEX.md`
+- tool adapters live in `.github/copilot-instructions.md` and `CLAUDE.md`

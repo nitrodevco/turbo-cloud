@@ -1,31 +1,13 @@
-# Codex Adapter (Turbo Cloud)
+# Core Test Helpers
 
-This adapter points Codex to the canonical AI contract for this repository.
+What `Turbo.Tests/Support` offers for a regression test in core, so a test can be written without
+reading the helpers' source. The rule that a behaviour change comes with a test, and the
+verification loop, are in [`AGENTS.md`](../../AGENTS.md) under *Tests*;
+[`docs/patterns/UnitTestPattern.cs`](../patterns/README.md) shows the shape. Plugin tests use
+[the test hotel](../plugin-testing.md) instead.
 
-## Required context load order
-1. `AGENTS.md`
-2. `CONTEXT.md`
-3. One relevant sample in `docs/patterns/`
-4. `.github/copilot-instructions.md` (tool adapter parity rules)
+## Helpers at a glance
 
-## Non-negotiable constraints
-- Keep packet handlers orchestration-only.
-- Do not query database contexts/repositories from packet handlers.
-- Do not send composers directly to sockets/sessions from handlers. There are exactly three ways
-  to send one: `ctx.SendComposerAsync` to the session being handled,
-  `grainFactory.SendComposerToPlayerAsync` / `SendComposerToPlayersAsync` to a player, and
-  `RoomGrain.SendComposerToRoomAsync` to a room. Do not spell out
-  `GetPlayerPresenceGrain(id).SendComposerAsync(...)` or add a local send helper.
-- For `Revision<id>` parser/serializer work, edit `Turbo.Revisions/Revision<id>/**`.
-
-## Tests
-- A change to behaviour comes with a regression test in `Turbo.Tests` that fails without the
-  change and passes with it. Drive the entry point that production uses (the grain or module
-  method, or client bytes through `PacketHarness`) and assert what a player or the client would
-  observe, not private fields. `Turbo.Tests/Support` builds rooms, grains, packet round-trips and
-  databases without a silo; `docs/patterns/UnitTestPattern.cs` shows the shape.
-
-### Test helpers at a glance
 Read a `Turbo.Tests/Support` file only when you need a member not listed here.
 - `RoomHarness(width, height, heights?, clock?)`: a room grain with real modules and no silo;
   `.Room`, `.Module<T>()`, `.CreateFloorItem(...)`, `.AddToRoom(item)`, `.TileHeight(x, y)`,
@@ -47,6 +29,9 @@ Read a `Turbo.Tests/Support` file only when you need a member not listed here.
 - `PacketHarness`: client bytes -> revision parser -> handler -> serializer; `Incoming(name)` /
   `Outgoing(name)` header ids, `Payload(w => ...)`, `await SendAsync(header, payload)` returns the
   replies as readable packets.
+- `SettingsHarness(db, appSettingsJson, (services, config) => services.Configure<T>(...))`: the real
+  server settings (an appsettings.json, the panel's overrides, the environment under `.EnvironmentPrefix`);
+  `.Settings`, `.Running<T>()` (what the server took at start), `.Restart()`. `TestHotelConfig` has every kind.
 - `InMemoryDb(throwOnUnorderedTake)` and `SqliteDb` (relational; `.Insert(entity)`) are database
   factories. `CapturingLogger<T>.AtLeast(level)` asserts on log output.
 - `Fakes`: an unconfigured call returns a completed task, `default`, or another fake for an
@@ -59,16 +44,3 @@ Read a `Turbo.Tests/Support` file only when you need a member not listed here.
   (each `UserUpdateMessageComposer`'s avatars). `TrySendComposerAsync` is not a send there; read
   the log for it.
 - Copy the shape of the one example test closest to your subject; there is no need to read them all.
-
-### Verification loop (once each, in this order)
-1. `dotnet test Turbo.Tests/Turbo.Tests.csproj --filter <YourTestClass>` until it passes.
-2. Show it catches the bug: `git stash push -- <the production files you changed>`, run step 1 again
-   and expect it to fail, then `git stash pop`.
-3. At the end, one `TurboCloudQualityGate` build and one full `dotnet test`.
-
-## Validation commands
-```bash
-dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudFastCheck
-dotnet build Turbo.Main/Turbo.Main.csproj -t:TurboCloudQualityGate
-dotnet test Turbo.Tests/Turbo.Tests.csproj
-```

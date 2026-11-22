@@ -19,8 +19,8 @@ public sealed class UserIsGroupAdminVariable(RoomGrain roomGrain)
     protected override WiredVariableGroupSubBandType SubBandType =>
         WiredVariableGroupSubBandType.Base;
 
-    // The slot AGENTS.md kept for it: after @has_rights (30), before @is_owner (10), as
-    // sirjonasxx's internal variable overview (variables-info #9) lists them.
+    // The slot docs/rules/wired.md kept for it: after @has_rights (30), before @is_owner
+    // (10), as sirjonasxx's internal variable overview (variables-info #9) lists them.
     protected override ushort Order => 20;
 
     protected override bool HasFlag(IRoomPlayer avatar) =>

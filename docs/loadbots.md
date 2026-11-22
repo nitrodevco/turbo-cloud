@@ -80,7 +80,7 @@ at `Run:MaxRoomsPerBot`; builders pick furni back up once a room holds `Run:MaxI
   reopens it to check the save kept, then sends a save with 17 int params (more than any box
   takes) and expects it refused. Staff-only boxes (`wf_act_give_reward`) are expected to refuse
   an owner. A box with no editor at all is reported under `wired.box.opens_editor`, except the
-  boxes AGENTS.md lists as waiting on a system (chests, transactions, contracts, the web API):
+  boxes the [wired rules](rules/wired.md) list as waiting on a system (chests, transactions, contracts, the web API):
   those are still tried every run, with a short timeout, and listed as known gaps
   (`wired.open_known_gap`, soft) until the server answers for them. The list is `KNOWN_GAPS` in
   `WiredActivities`; take a box off it once its logic exists.

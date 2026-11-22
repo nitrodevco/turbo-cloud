@@ -201,7 +201,7 @@ In `Turbo.Players/Grains/`, keyed by player id, **write-through**, shaped like
   `periods_purchased` and `total_days_subscribed`, and raises `furni_limit` by the configured
   step, clamped to the configured maximum.
 - `HasActiveAsync(SubscriptionType, ct)` — the cheap predicate for room entry and for the wired
-  `@is_hc` variable, which `AGENTS.md` listed as reserved for want of this system (phase 6).
+  `@is_hc` variable, which the [wired rules](rules/wired.md) listed as reserved for want of this system (phase 6).
 
 The grain sends its own outbound on every change, through `SendComposerToPlayerAsync`:
 `UserRightsMessage`, `ScrSendUserInfoMessageComposer` and
@@ -234,8 +234,8 @@ A nested `SubscriptionConfig` on `PlayerConfig`, mirroring how `CatalogConfig` h
 `BuildersClubFurniLimitPerExtension`, `BuildersClubMaxFurniLimit`.
 
 It belongs to the player module and not to the catalog for two reasons: `Turbo.Catalog` already
-references `Turbo.Players` and not the other way round, and `AGENTS.md` forbids passing a limit
-into a grain as an argument — the grain that enforces the limit has to read it from its own
+references `Turbo.Players` and not the other way round, and [the grain rules](rules/grains.md#do-not-hardcode-limits-in-grains) forbid passing a
+limit into a grain as an argument — the grain that enforces the limit has to read it from its own
 module's config.
 
 ### Expiry while offline
@@ -317,7 +317,7 @@ Recycling a freed id within a room is safe only if the id carries nothing forwar
 furni is destroyed, and its wired values should go with it.
 
 A `FurniIdBands` static class under `Turbo.Primitives/Furniture/` mirrors the client's `FurniId`,
-per the rule in `AGENTS.md` about tables of protocol values the client interprets. It declares
+per the rule in [Room Object Logic Rules](rules/room-objects.md#logic-classes) about tables of protocol values the client interprets. It declares
 only the Builders Club band, because that is the only one of the three this server keeps to; the
 layout of all three is on the class, where it explains why the band starts where it does.
 
