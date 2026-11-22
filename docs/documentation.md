@@ -55,7 +55,6 @@
     - [The Test Hotel](plugin-testing.md)
     - [MCP Tool Tests](plugin-mcp-tools.md#3-testing-a-tool)
     - [AI Fakes](ai-sdk.md#testing)
-    - [Load-Test Bots](loadbots.md)
 - ## Hotel Features
     - [Achievements](achievements.md)
     - [Avatar Effects](avatar-effects.md)

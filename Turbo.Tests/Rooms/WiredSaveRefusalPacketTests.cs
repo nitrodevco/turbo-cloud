@@ -1,6 +1,6 @@
 using System.Globalization;
 using FluentAssertions;
-using Turbo.LoadBots.Protocol;
+using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Tests.Support;
 using Xunit;
@@ -19,7 +19,7 @@ namespace Turbo.Tests.Rooms;
 public sealed class WiredSaveRefusalPacketTests
 {
     private static async Task<List<Turbo.Primitives.Packets.ClientPacket>> SaveAsync(
-        WiredKind kind,
+        WiredType kind,
         WiredSaveResult result
     )
     {
@@ -27,20 +27,61 @@ public sealed class WiredSaveRefusalPacketTests
 
         harness.Fakes.Handlers["ApplyWiredUpdateAsync"] = _ => Task.FromResult(result);
 
-        var save = ClientRequests.UpdateWired(new WiredSave { Kind = kind, ObjectId = 7 });
-
-        return await harness.SendAsync(save.Header, save.Body, roomId: 5);
+        return await harness.SendAsync(
+            PacketHarness.Incoming(SaveMessage(kind)),
+            EmptySave(kind, objectId: 7),
+            roomId: 5
+        );
     }
 
+    private static string SaveMessage(WiredType kind) =>
+        kind switch
+        {
+            WiredType.Trigger => "UpdateTriggerMessageEvent",
+            WiredType.Action => "UpdateActionMessageEvent",
+            WiredType.Condition => "UpdateConditionMessageEvent",
+            WiredType.Selector => "UpdateSelectorMessageEvent",
+            WiredType.Addon => "UpdateAddonMessageEvent",
+            WiredType.Variable => "UpdateVariableMessageEvent",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+        };
+
+    /// <summary>
+    /// A save with nothing set, laid out as the client's <c>UpdateWiredDataParser</c> reads it: the
+    /// box, int params, string param, picked furni, then what the kind's parser reads (an action's
+    /// delay, a condition's quantifier, a selector's filter and invert), then furni sources, user
+    /// sources, variable ids and the second picked furni.
+    /// </summary>
+    private static byte[] EmptySave(WiredType kind, int objectId) =>
+        PacketHarness.Payload(w =>
+        {
+            w.Int(objectId).Int(0).String(string.Empty).Int(0);
+
+            switch (kind)
+            {
+                case WiredType.Action:
+                case WiredType.Condition:
+                    w.Int(0);
+                    break;
+                case WiredType.Selector:
+                    w.Bool(false).Bool(false);
+                    break;
+                default:
+                    break;
+            }
+
+            w.Int(0).Int(0).Int(0).Int(0);
+        });
+
     [Theory]
-    [InlineData(WiredKind.Trigger, 3050)]
-    [InlineData(WiredKind.Action, 3051)]
-    [InlineData(WiredKind.Condition, 3052)]
-    [InlineData(WiredKind.Addon, 3055)]
-    [InlineData(WiredKind.Selector, 3058)]
-    [InlineData(WiredKind.Variable, 3059)]
+    [InlineData(WiredType.Trigger, 3050)]
+    [InlineData(WiredType.Action, 3051)]
+    [InlineData(WiredType.Condition, 3052)]
+    [InlineData(WiredType.Addon, 3055)]
+    [InlineData(WiredType.Selector, 3058)]
+    [InlineData(WiredType.Variable, 3059)]
     public async Task A_refusal_without_a_text_is_answered_with_server_error_1_action_11_E2(
-        WiredKind kind,
+        WiredType kind,
         int messageId
     )
     {
@@ -66,7 +107,7 @@ public sealed class WiredSaveRefusalPacketTests
     {
         var packet = (
             await SaveAsync(
-                WiredKind.Action,
+                WiredType.Action,
                 WiredSaveResult.RefusedWith("wiredfurni.error.invalid_user_source")
             )
         ).Single();
@@ -78,7 +119,7 @@ public sealed class WiredSaveRefusalPacketTests
     [Fact]
     public async Task A_hotel_without_the_server_error_answers_with_its_own_text()
     {
-        var packet = (await SaveAsync(WiredKind.Action, WiredSaveResult.Refused)).Single();
+        var packet = (await SaveAsync(WiredType.Action, WiredSaveResult.Refused)).Single();
 
         packet.Header.Should().Be(PacketHarness.Outgoing("WiredValidationErrorMessageComposer"));
         packet.PopString().Should().Be(WiredSaveErrors.GENERIC);

@@ -19,7 +19,7 @@ public class SecurityTicketEntity : TurboEntity
     /// <summary>
     /// What a login is checked against. A ticket the server issues is stored only as
     /// <see cref="Hash"/> of it, so a copy of the table logs nobody in; one written by something
-    /// else (a CMS, the load-test bots) is stored as it was written and still works.
+    /// else (a CMS) is stored as it was written and still works.
     /// </summary>
     [Column("ticket")]
     public required string Ticket { get; set; }

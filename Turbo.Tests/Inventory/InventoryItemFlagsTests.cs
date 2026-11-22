@@ -1,8 +1,7 @@
-using Turbo.LoadBots.Protocol;
-using Turbo.LoadBots.Protocol.Decoders;
 using Turbo.Primitives.Furniture.Enums;
 using Turbo.Primitives.Furniture.Snapshots;
 using Turbo.Primitives.Furniture.Snapshots.StuffData;
+using Turbo.Primitives.Furniture.StuffData;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Furni;
 using Turbo.Primitives.Rooms.Enums;
@@ -33,18 +32,17 @@ public class InventoryItemFlagsTests
         var packet = PacketHarness.Encode(
             new FurniListAddOrUpdateEventMessageComposer { Items = [Item(canRecycle, canTrade)] }
         );
-        var reader = new PacketReader(packet.PopBytes(packet.Remaining));
+        Assert.Equal(1, packet.PopInt()); // items
+        _ = packet.PopInt(); // id
+        _ = packet.PopString(); // type
+        _ = packet.PopInt(); // ref
+        _ = packet.PopInt(); // sprite
+        _ = packet.PopInt(); // category
+        Assert.Equal((int)StuffDataType.LegacyKey, packet.PopInt()); // stuff data: legacy, no flags
+        Assert.Equal("0", packet.PopString());
 
-        Assert.Equal(1, reader.Count());
-        _ = reader.Int(); // id
-        _ = reader.String(); // type
-        _ = reader.Int(); // ref
-        _ = reader.Int(); // sprite
-        _ = reader.Int(); // category
-        _ = RoomDecoders.StuffData(reader);
-
-        Assert.Equal(listedRecyclable, reader.Bool());
-        Assert.Equal(canTrade, reader.Bool());
+        Assert.Equal(listedRecyclable, packet.PopBoolean());
+        Assert.Equal(canTrade, packet.PopBoolean());
     }
 
     private static FurnitureItemSnapshot Item(bool canRecycle, bool canTrade) =>

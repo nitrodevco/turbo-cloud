@@ -51,8 +51,6 @@ public sealed class AssetWriteGuardTests
             "a room deletion's backstop for the pets and bots still in it, sent home with their movements (room.delete)",
         ["Turbo.Rooms.Grains.Jukebox.JukeboxGrain"] =
             "a disk's place in the playlist, in the unit of work of the custody move that put it in the jukebox",
-        ["Turbo.LoadBots.Provisioning.BotProvisioner"] =
-            "the starting credits of load-test accounts, which are not players of the hotel (docs/movements.md)",
     };
 
     /// <summary>The rows guarded, and the interface the pet and bot rows are written through.</summary>

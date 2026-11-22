@@ -147,7 +147,6 @@ and the write. A lambda, an async method or a local function counts as the type 
 | `RoomPersistenceGrain` | A room's buffered furni position and data (on a row that names no owner or room), its pets' stats and its bots' settings: moves inside a room are not movements. |
 | `RoomGrain` | A room deletion's backstop for the pets and bots still in it, sent home with their movements. |
 | `JukeboxGrain` | A disk's place in the playlist, in the unit of work of the custody move that put it there. |
-| `BotProvisioner` (`Turbo.LoadBots`) | Load-test accounts' starting credits: not players of the hotel, so not recorded. |
 
 A new writer moves its change through one of these, or records its movement itself and joins the
 list with why; a listed type that stops writing has to leave it (the test says which). Not

@@ -66,8 +66,8 @@ public sealed class AuthenticationService(
             if (dbCtx.SecurityTickets is null)
                 return 0;
 
-            // An issued ticket is stored as its hash; one written by something else (a CMS, the
-            // load-test bots) as written. A value shaped like a stored hash is only ever hashed,
+            // An issued ticket is stored as its hash; one written by something else (a CMS) as
+            // written. A value shaped like a stored hash is only ever hashed,
             // so a copy of the table can't be replayed.
             var hashed = SecurityTicketEntity.Hash(ticket);
             var asWritten = ticket.StartsWith(
