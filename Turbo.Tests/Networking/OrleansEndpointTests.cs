@@ -32,8 +32,8 @@ public sealed class OrleansEndpointTests
         Assert.Equal(endpoints.GatewayPort, endpoints.GatewayListeningEndpoint!.Port);
     }
 
-    // Installed from nothing 2026-10-29: the gateway's default, 3000, is the port nitro-next's dev
-    // server takes (docs/turbo-development.md), so the silo refused to start beside the client.
+    // Installed from nothing 2026-10-29: the gateway's default, 3000, is the port the client's dev
+    // server takes (nitro-next's docs/development.md), so the silo refused to start beside it.
     [Fact]
     public void TheDefaultGatewayPortIsNotTheClientsDevServerPort()
     {

@@ -49,7 +49,7 @@ Orleans is configured in `Turbo.Main/Extensions/HostApplicationBuilderExtensions
 Current configuration includes:
 - `UseLocalhostClustering()`
 - Silo endpoint: `127.0.0.1:11111`
-- Gateway endpoint: `127.0.0.1:3000`
+- Gateway endpoint: `127.0.0.1:30001` (not 3000, which the client's dev server takes)
 - Grain collection age: 2 minutes (`GrainCollectionOptions.CollectionAge`)
 - In-memory grain stores:
   - `PubSubStore`
