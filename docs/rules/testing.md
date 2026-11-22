@@ -37,7 +37,8 @@ Read a `Turbo.Tests/Support` file only when you need a member not listed here.
 - The `MySql*` tests run only when `TURBO_TEST_MYSQL` names a server (no database; one that may
   create them), and each makes and drops a database of its own. CI does not set it, so run them
   yourself when a change touches migrations, raw SQL, transactions or the provider: seven of them
-  once broke unnoticed. A fixture that drives the real host `IHotel` builds it through
+  once broke unnoticed, and a migration that seeds rows changes what every one of them starts
+  from (`MySqlHostHotelReadsTests` inserted currencies 1 to 3 after `SeedCurrencyTypes` had). A fixture that drives the real host `IHotel` builds it through
   `Turbo.Tests/Hotel/HostHotelServices.Build`.
 - `Fakes`: an unconfigured call returns a completed task, `default`, or another fake for an
   interface, so a grain method returning a record or class gives null. Stub it with

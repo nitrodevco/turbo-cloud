@@ -8,7 +8,6 @@ using Turbo.Contracts.Hotel;
 using Turbo.Database.Configuration;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Achievements;
-using Turbo.Database.Entities.Catalog;
 using Turbo.Database.Entities.Furniture;
 using Turbo.Database.Entities.Players;
 using Turbo.Database.Entities.Room;
@@ -22,7 +21,6 @@ using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Navigator.Enums;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
-using Turbo.Primitives.Players.Enums.Wallet;
 using Turbo.Primitives.Players.Providers;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
@@ -219,11 +217,8 @@ public sealed class MySqlHostHotelReadsTests(MySqlHostHotelReadsTests.Database d
             Player(db, 5, "al_x", respects: 0);
             Player(db, 6, "System", respects: 100, system: true);
 
-            db.CurrencyTypes.AddRange(
-                Currency(1, "credits", CurrencyType.Credits, null),
-                Currency(2, "duckets", CurrencyType.ActivityPoints, 0),
-                Currency(3, "diamonds", CurrencyType.ActivityPoints, 5)
-            );
+            // The SeedCurrencyTypes migration gave the database its currencies, in this order:
+            // credits 1, duckets 2, diamonds 3.
             db.PlayerCurrencies.AddRange(
                 Balance(1, 1, 500),
                 Balance(3, 1, 40),
@@ -308,21 +303,6 @@ public sealed class MySqlHostHotelReadsTests(MySqlHostHotelReadsTests.Database d
                     RespectPoints = respects,
                 }
             );
-
-        private static CurrencyTypeEntity Currency(
-            int id,
-            string name,
-            CurrencyType type,
-            int? pointType
-        ) =>
-            new()
-            {
-                Id = id,
-                Name = name,
-                CurrencyType = type,
-                ActivityPointType = pointType,
-                Enabled = true,
-            };
 
         private static PlayerCurrencyEntity Balance(int player, int currency, int amount) =>
             new()
