@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Globalization;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -253,7 +252,4 @@ internal sealed class SourceDatabase : IAsyncDisposable
 
     private static string QuoteLiteral(string value) =>
         $"'{value.Replace("'", "''", StringComparison.Ordinal)}'";
-
-    /// <summary>The tables there are, for the report.</summary>
-    public IReadOnlyCollection<string> Tables => _columns.Keys.ToList();
 }

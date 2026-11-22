@@ -68,9 +68,8 @@ is the panel:
 
 > [!NOTE]
 > A ticket the server did not issue also works when written to `security_tickets` as it is, with
-> `is_locked = 1` so a login does not use it up: that is what the load-test bots do
-> ([Load-test bots](loadbots.md#accounts)), and it saves the panel round trip on a machine of your
-> own. Never on a hotel other people reach.
+> `is_locked = 1` so a login does not use it up ([Login tickets](admin-panel.md#login-tickets)).
+> It saves the panel round trip on a machine of your own. Never on a hotel other people reach.
 
 ## Taking Habbo's Data In
 

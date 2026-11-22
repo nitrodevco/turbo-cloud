@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Turbo.Primitives.Messages.Incoming.Poll;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Packets;
@@ -12,17 +11,13 @@ internal class PollAnswerMessageParser : IParser
     {
         var pollId = packet.PopInt();
         var questionId = packet.PopInt();
-        var count = packet.PopInt();
-        var answers = ImmutableArray.CreateBuilder<string>();
-
-        for (var i = 0; i < count; i++)
-            answers.Add(packet.PopString());
+        var answers = packet.PopList(bytesPerItem: 2, p => p.PopString());
 
         return new PollAnswerMessage
         {
             PollId = pollId,
             QuestionId = questionId,
-            Answers = answers.ToImmutable(),
+            Answers = [.. answers],
         };
     }
 }

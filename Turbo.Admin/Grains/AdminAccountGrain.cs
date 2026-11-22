@@ -19,19 +19,25 @@ namespace Turbo.Admin.Grains;
 /// rows afresh: sign-ins are rare, and the grain's turn-by-turn execution keeps a replace and a
 /// remove from crossing.
 /// </summary>
-internal sealed class AdminAccountGrain(
-    IDbContextFactory<TurboDbContext> database,
-    TimeProvider timeProvider
-) : Grain, IAdminAccountGrain
+internal sealed class AdminAccountGrain : Grain, IAdminAccountGrain
 {
     private const int MAX_NAME_LENGTH = 64;
     private const string DEFAULT_NAME = "Passkey";
 
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
+    private readonly TimeProvider _time;
+
     private PlayerId PlayerId => this.GetPlayerId();
+
+    public AdminAccountGrain(IDbContextFactory<TurboDbContext> dbCtxFactory, TimeProvider time)
+    {
+        _dbCtxFactory = dbCtxFactory;
+        _time = time;
+    }
 
     public async Task<AdminAccountSnapshot> GetAccountAsync(CancellationToken ct)
     {
-        await using var db = await database.CreateDbContextAsync(ct);
+        await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         var passkeys = await db
             .AdminPasskeys.Where(x => x.PlayerEntityId == PlayerId.Value)
@@ -52,7 +58,7 @@ internal sealed class AdminAccountGrain(
         CancellationToken ct
     )
     {
-        await using var db = await database.CreateDbContextAsync(ct);
+        await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         var passkeys = await db
             .AdminPasskeys.Where(x => x.PlayerEntityId == PlayerId.Value)
@@ -74,7 +80,7 @@ internal sealed class AdminAccountGrain(
         CancellationToken ct
     )
     {
-        await using var db = await database.CreateDbContextAsync(ct);
+        await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         var passkey = await db.AdminPasskeys.FirstOrDefaultAsync(
             x => x.PlayerEntityId == PlayerId.Value && x.CredentialId == credentialId,
@@ -85,7 +91,7 @@ internal sealed class AdminAccountGrain(
             return;
 
         passkey.SignCount = signCount;
-        passkey.LastUsedAt = timeProvider.GetUtcNow().UtcDateTime;
+        passkey.LastUsedAt = _time.GetUtcNow().UtcDateTime;
 
         await db.SaveChangesAsync(ct);
     }
@@ -96,7 +102,7 @@ internal sealed class AdminAccountGrain(
         CancellationToken ct
     )
     {
-        await using var db = await database.CreateDbContextAsync(ct);
+        await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         // A replacing link is for a lost device, which may be in somebody else's hands, so every
         // passkey goes and only the new one signs in.
@@ -114,7 +120,7 @@ internal sealed class AdminAccountGrain(
         CancellationToken ct
     )
     {
-        await using var db = await database.CreateDbContextAsync(ct);
+        await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         db.AdminPasskeys.Add(ToEntity(passkey, name));
 
@@ -123,7 +129,7 @@ internal sealed class AdminAccountGrain(
 
     public async Task<bool> RemovePasskeyAsync(int passkeyId, CancellationToken ct)
     {
-        await using var db = await database.CreateDbContextAsync(ct);
+        await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         var passkeys = await db
             .AdminPasskeys.Where(x => x.PlayerEntityId == PlayerId.Value)

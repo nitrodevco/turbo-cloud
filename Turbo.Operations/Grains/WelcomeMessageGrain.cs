@@ -16,17 +16,23 @@ namespace Turbo.Operations.Grains;
 /// activation and kept in memory, since every login asks; staff saving a new one writes it
 /// through and replaces the copy here.
 /// </summary>
-internal sealed class WelcomeMessageGrain(
-    IDbContextFactory<TurboDbContext> dbCtxFactory,
-    ILogger<IWelcomeMessageGrain> logger
-) : Grain, IWelcomeMessageGrain
+internal sealed class WelcomeMessageGrain : Grain, IWelcomeMessageGrain
 {
     internal const string SETTING_KEY = "welcome_message";
 
-    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
-    private readonly ILogger<IWelcomeMessageGrain> _logger = logger;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
+    private readonly ILogger<IWelcomeMessageGrain> _logger;
 
     private string _message = string.Empty;
+
+    public WelcomeMessageGrain(
+        IDbContextFactory<TurboDbContext> dbCtxFactory,
+        ILogger<IWelcomeMessageGrain> logger
+    )
+    {
+        _dbCtxFactory = dbCtxFactory;
+        _logger = logger;
+    }
 
     public override async Task OnActivateAsync(CancellationToken ct)
     {

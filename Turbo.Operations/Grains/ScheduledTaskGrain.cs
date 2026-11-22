@@ -28,15 +28,11 @@ namespace Turbo.Operations.Grains;
 /// <see cref="ScheduledTaskTimes.StoreEvery"/>: a restart counts it from now either way, and a
 /// task every few seconds would otherwise write its row as often as it runs.
 /// </summary>
-internal sealed class ScheduledTaskGrain(
-    IDbContextFactory<TurboDbContext> dbCtxFactory,
-    TimeProvider time,
-    ILogger<IScheduledTaskGrain> logger
-) : Grain, IScheduledTaskGrain
+internal sealed class ScheduledTaskGrain : Grain, IScheduledTaskGrain
 {
-    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
-    private readonly TimeProvider _time = time;
-    private readonly ILogger<IScheduledTaskGrain> _logger = logger;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
+    private readonly TimeProvider _time;
+    private readonly ILogger<IScheduledTaskGrain> _logger;
 
     private readonly Dictionary<string, TaskState> _tasks = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ServerState> _servers = new(StringComparer.Ordinal);
@@ -45,6 +41,17 @@ internal sealed class ScheduledTaskGrain(
     private Dictionary<string, ScheduledTaskRunEntity>? _stored;
 
     private IDisposable? _timer;
+
+    public ScheduledTaskGrain(
+        IDbContextFactory<TurboDbContext> dbCtxFactory,
+        TimeProvider time,
+        ILogger<IScheduledTaskGrain> logger
+    )
+    {
+        _dbCtxFactory = dbCtxFactory;
+        _time = time;
+        _logger = logger;
+    }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken ct)
     {

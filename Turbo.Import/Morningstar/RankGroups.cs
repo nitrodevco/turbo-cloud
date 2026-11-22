@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Turbo.Primitives.Players.Permissions;
 
 namespace Turbo.Import.Morningstar;
 
@@ -13,8 +14,6 @@ namespace Turbo.Import.Morningstar;
 /// </summary>
 internal static class RankGroups
 {
-    public const string DEFAULT = "default";
-
     // Most specific first: "Senior Moderator" is not a moderator, "Trial Moderator" neither.
     private static readonly (string[] Words, string Group)[] GUESSES =
     [
@@ -45,7 +44,7 @@ internal static class RankGroups
             return (chosen, "--rank");
 
         if (rank <= 1)
-            return (DEFAULT, "rank 1 is a player");
+            return (PermissionGroupNames.DEFAULT, "rank 1 is a player");
 
         var name = rankName.Trim().ToLowerInvariant();
         var asGroup = name.Replace(' ', '_');
@@ -57,7 +56,7 @@ internal static class RankGroups
             if (words.Any(word => Matches(name, word)) && groups.Contains(group))
                 return (group, $"named '{rankName}'");
 
-        return (DEFAULT, $"nothing matched '{rankName}'");
+        return (PermissionGroupNames.DEFAULT, $"nothing matched '{rankName}'");
     }
 
     private static bool Matches(string name, string word) =>

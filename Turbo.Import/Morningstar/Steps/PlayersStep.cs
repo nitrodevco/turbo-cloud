@@ -9,6 +9,7 @@ using Turbo.Database.Entities.Permissions;
 using Turbo.Database.Entities.Players;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 
 namespace Turbo.Import.Morningstar.Steps;
@@ -327,7 +328,13 @@ internal sealed class PlayersStep : IImportStep
         {
             var (group, reason) = RankGroups.Resolve(rank, rankName, ctx.Options.RankGroups, names);
 
-            if (!string.Equals(group, RankGroups.DEFAULT, StringComparison.OrdinalIgnoreCase))
+            if (
+                !string.Equals(
+                    group,
+                    PermissionGroupNames.DEFAULT,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
             {
                 if (!groupIds.TryGetValue(group, out var groupId))
                     throw new ImportException(

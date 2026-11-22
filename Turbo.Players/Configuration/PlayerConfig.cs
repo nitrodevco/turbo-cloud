@@ -44,7 +44,6 @@ public class PlayerConfig
     /// recently asked-for is dropped past this and read from the database again when needed.
     /// </summary>
     public int DirectoryMaxCachedPlayers { get; init; } = 100_000;
-    public int MessengerUserFriendLimit { get; init; } = 100;
     public int MessengerNormalFriendLimit { get; init; } = 100;
     public int MessengerExtendedFriendLimit { get; init; } = 100;
     public int MessengerSearchLimit { get; init; } = 25;

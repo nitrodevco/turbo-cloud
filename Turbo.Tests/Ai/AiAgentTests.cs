@@ -1,10 +1,5 @@
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Turbo.Contracts.Ai;
 using Turbo.Contracts.Plugins.Mcp;
@@ -258,7 +253,8 @@ public sealed class AiAgentTests
                 .StreamAsync(
                     new Helper(new WaveTool()),
                     "Wave",
-                    new AiCall { As = AiActor.System("*") }
+                    new AiCall { As = AiActor.System("*") },
+                    Ct
                 )
         );
 
@@ -295,7 +291,8 @@ public sealed class AiAgentTests
                 .StreamAsync(
                     new Helper(new WaveTool()),
                     "Wave",
-                    new AiCall { As = AiActor.System("*"), Budget = new AiBudget(Tokens: 100) }
+                    new AiCall { As = AiActor.System("*"), Budget = new AiBudget(Tokens: 100) },
+                    Ct
                 )
         );
 

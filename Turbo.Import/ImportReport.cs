@@ -18,12 +18,6 @@ public sealed class ImportReport
     private readonly Dictionary<string, Tally> _notes = new(StringComparer.Ordinal);
     private readonly List<string> _order = [];
 
-    public IReadOnlyDictionary<string, long> Written => _written;
-
-    /// <summary>The notes by kind, with how often each happened.</summary>
-    public IReadOnlyDictionary<string, long> NoteCounts =>
-        _notes.ToDictionary(x => x.Key, x => x.Value.Count, StringComparer.Ordinal);
-
     public void Wrote(string table, long rows)
     {
         if (rows == 0)

@@ -115,7 +115,7 @@ public sealed class SeedCurrencyTypesTests : IDisposable
 
     private static List<string> Sql(string method)
     {
-        var builder = new MigrationBuilder("Pomelo.EntityFrameworkCore.MySql");
+        var builder = new MigrationBuilder("Microting.EntityFrameworkCore.MySql");
 
         typeof(SeedCurrencyTypes)
             .GetMethod(method, BindingFlags.NonPublic | BindingFlags.Instance)!

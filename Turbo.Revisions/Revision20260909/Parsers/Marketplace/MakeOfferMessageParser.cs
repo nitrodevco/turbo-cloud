@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Immutable;
 using Turbo.Primitives.Messages.Incoming.Marketplace;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Packets;
@@ -14,17 +12,13 @@ internal class MakeOfferMessageParser : IParser
     {
         var price = packet.PopInt();
         var furniType = packet.PopInt();
-        var count = packet.PopInt();
-        var refs = ImmutableArray.CreateBuilder<int>(Math.Clamp(count, 0, MAX_ITEMS));
-
-        for (var i = 0; i < count && i < MAX_ITEMS; i++)
-            refs.Add(packet.PopInt());
+        var refs = packet.PopList(bytesPerItem: 4, p => p.PopInt(), MAX_ITEMS);
 
         return new MakeOfferMessage
         {
             Price = price,
             FurniType = furniType,
-            ItemRefs = refs.ToImmutable(),
+            ItemRefs = [.. refs],
         };
     }
 }

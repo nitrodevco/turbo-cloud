@@ -107,6 +107,7 @@ public sealed class DatabaseDumpTests : IAsyncLifetime
             );
         }
 
+        var version = await ServerVersion.AutoDetectAsync(SERVER!, Ct);
         await using var db = new TurboDbContext(
             new DbContextOptionsBuilder<TurboDbContext>()
                 .UseMySql(
@@ -114,7 +115,7 @@ public sealed class DatabaseDumpTests : IAsyncLifetime
                     {
                         Database = _database,
                     }.ConnectionString,
-                    ServerVersion.AutoDetect(SERVER!)
+                    version
                 )
                 .Options
         );

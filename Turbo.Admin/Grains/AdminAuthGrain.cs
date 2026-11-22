@@ -27,26 +27,36 @@ namespace Turbo.Admin.Grains;
 /// Kept alive: links and ceremonies live only here, and collecting it on idle would void them.
 /// </summary>
 [KeepAlive]
-internal sealed class AdminAuthGrain(
-    IDbContextFactory<TurboDbContext> database,
-    IOptions<AdminConfig> config,
-    TimeProvider timeProvider
-) : Grain, IAdminAuthGrain
+internal sealed class AdminAuthGrain : Grain, IAdminAuthGrain
 {
     private const int TOKEN_BYTES = 32;
 
-    private readonly AdminConfig _config = config.Value;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory;
+    private readonly AdminConfig _config;
+    private readonly TimeProvider _time;
+
     private readonly Dictionary<string, Pending> _setupTokens = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Pending> _ceremonies = new(StringComparer.Ordinal);
     private readonly Dictionary<string, AdminSessionSnapshot> _sessions = new(
         StringComparer.Ordinal
     );
 
+    public AdminAuthGrain(
+        IDbContextFactory<TurboDbContext> dbCtxFactory,
+        IOptions<AdminConfig> config,
+        TimeProvider time
+    )
+    {
+        _dbCtxFactory = dbCtxFactory;
+        _config = config.Value;
+        _time = time;
+    }
+
     public override async Task OnActivateAsync(CancellationToken ct)
     {
-        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var now = _time.GetUtcNow().UtcDateTime;
 
-        await using var db = await database.CreateDbContextAsync(ct);
+        await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
 
         await db.AdminSessions.Where(x => x.ExpiresAt <= now).ExecuteDeleteAsync(ct);
 
@@ -144,7 +154,7 @@ internal sealed class AdminAuthGrain(
             CreatedAt = now,
         };
 
-        await using (var db = await database.CreateDbContextAsync(ct))
+        await using (var db = await _dbCtxFactory.CreateDbContextAsync(ct))
         {
             await db
                 .AdminSessions.Where(x => x.ExpiresAt <= now || stale.Contains(x.TokenHash))
@@ -174,7 +184,7 @@ internal sealed class AdminAuthGrain(
         if (string.IsNullOrEmpty(sessionToken))
             return null;
 
-        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var now = _time.GetUtcNow().UtcDateTime;
         var hash = Hash(sessionToken);
 
         if (!_sessions.TryGetValue(hash, out var session))
@@ -234,7 +244,7 @@ internal sealed class AdminAuthGrain(
         if (hashes.Count == 0)
             return;
 
-        await using (var db = await database.CreateDbContextAsync(ct))
+        await using (var db = await _dbCtxFactory.CreateDbContextAsync(ct))
             await db.AdminSessions.Where(x => hashes.Contains(x.TokenHash)).ExecuteDeleteAsync(ct);
 
         foreach (var hash in hashes)
@@ -271,7 +281,7 @@ internal sealed class AdminAuthGrain(
     /// </summary>
     private DateTime Purge()
     {
-        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var now = _time.GetUtcNow().UtcDateTime;
 
         foreach (var store in (Dictionary<string, Pending>[])[_setupTokens, _ceremonies])
         {

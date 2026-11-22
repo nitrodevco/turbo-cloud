@@ -29,8 +29,6 @@ internal sealed class Batch<T>(
     private readonly List<IFlushable> _parents = [];
     private long _written;
 
-    public long Written => _written;
-
     /// <summary>Writes <paramref name="parents"/> before each write of this one.</summary>
     public Batch<T> After(params IFlushable[] parents)
     {

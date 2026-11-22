@@ -14,7 +14,6 @@ using Turbo.Primitives.Games.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Game.Directory;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
-using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
 using Turbo.Rooms.Configuration;
@@ -28,17 +27,36 @@ namespace Turbo.Rooms.Games;
 /// player is sent <c>Game2GameStarted</c> and forwarded there, and the game counts as played.
 /// Lobbies live in memory only: a lobby is a minute's wait, not something to keep.
 /// </summary>
-internal sealed class GameDirectoryGrain(
-    GameRegistry registry,
-    GameScoreStore scores,
-    IGameAccessPolicy access,
-    IOptionsMonitor<GameCenterConfig> config,
-    IGrainFactory grainFactory,
-    TimeProvider clock,
-    ILogger<GameDirectoryGrain> logger
-) : Grain, IGameDirectoryGrain
+internal sealed class GameDirectoryGrain : Grain, IGameDirectoryGrain
 {
+    private readonly IOptionsMonitor<GameCenterConfig> _config;
+    private readonly IGrainFactory _grainFactory;
+    private readonly GameRegistry _registry;
+    private readonly GameScoreStore _scores;
+    private readonly IGameAccessPolicy _access;
+    private readonly TimeProvider _clock;
+    private readonly ILogger<IGameDirectoryGrain> _logger;
+
     private readonly GameDirectoryLiveState _state = new();
+
+    public GameDirectoryGrain(
+        IOptionsMonitor<GameCenterConfig> config,
+        IGrainFactory grainFactory,
+        GameRegistry registry,
+        GameScoreStore scores,
+        IGameAccessPolicy access,
+        TimeProvider clock,
+        ILogger<IGameDirectoryGrain> logger
+    )
+    {
+        _config = config;
+        _grainFactory = grainFactory;
+        _registry = registry;
+        _scores = scores;
+        _access = access;
+        _clock = clock;
+        _logger = logger;
+    }
 
     public async Task<GameDirectoryStatusSnapshot> GetDirectoryStatusAsync(
         PlayerId playerId,
@@ -73,8 +91,8 @@ internal sealed class GameDirectoryGrain(
         CancellationToken ct
     )
     {
-        var (total, _) = await scores.CountGamesAsync(playerId, gameTypeId, ct);
-        var left = await access.GetFreeGamesLeftAsync(playerId, gameTypeId, ct);
+        var (total, _) = await _scores.CountGamesAsync(playerId, gameTypeId, ct);
+        var left = await _access.GetFreeGamesLeftAsync(playerId, gameTypeId, ct);
 
         return new GameAccountStatusSnapshot
         {
@@ -86,9 +104,9 @@ internal sealed class GameDirectoryGrain(
 
     public async Task JoinAsync(PlayerId playerId, string? key, CancellationToken ct)
     {
-        var game = string.IsNullOrEmpty(key) ? DefaultGame() : registry.Find(key);
+        var game = string.IsNullOrEmpty(key) ? DefaultGame() : _registry.Find(key);
 
-        if (game is null || !config.CurrentValue.Enabled)
+        if (game is null || !_config.CurrentValue.Enabled)
         {
             await FailJoinAsync(playerId, GameCenter.JOIN_FAILED_GENERIC, ct);
             return;
@@ -101,7 +119,7 @@ internal sealed class GameDirectoryGrain(
         }
 
         var definition = game.Definition;
-        var left = await access.GetFreeGamesLeftAsync(playerId, definition.GameTypeId, ct);
+        var left = await _access.GetFreeGamesLeftAsync(playerId, definition.GameTypeId, ct);
 
         if (left == 0)
         {
@@ -111,7 +129,7 @@ internal sealed class GameDirectoryGrain(
 
         _state.GameByPlayer.Remove(playerId);
 
-        var summary = await grainFactory.GetPlayerGrain(playerId).GetSummaryAsync(ct);
+        var summary = await _grainFactory.GetPlayerGrain(playerId).GetSummaryAsync(ct);
 
         // The await above let another join in: check again before taking the place.
         if (_state.LobbyByPlayer.ContainsKey(playerId))
@@ -141,12 +159,12 @@ internal sealed class GameDirectoryGrain(
         lobby.Players.Add(player);
         _state.LobbyByPlayer[playerId] = lobby;
 
-        await grainFactory.SendComposerToPlayerAsync(
+        await _grainFactory.SendComposerToPlayerAsync(
             playerId,
             new Game2GameCreatedMessageComposer { Lobby = Snapshot(lobby) },
             ct
         );
-        await grainFactory.SendComposerToPlayersAsync(
+        await _grainFactory.SendComposerToPlayersAsync(
             others,
             new Game2UserJoinedGameMessageComposer { Player = player },
             ct
@@ -155,7 +173,7 @@ internal sealed class GameDirectoryGrain(
         if (lobby.StartsAt is null && lobby.Players.Count >= Math.Max(1, definition.MinPlayers))
             await StartCountdownAsync(lobby, ct);
         else if (lobby.StartsAt is { } startsAt)
-            await grainFactory.SendComposerToPlayerAsync(
+            await _grainFactory.SendComposerToPlayerAsync(
                 playerId,
                 new Game2StartCounterMessageMessageComposer
                 {
@@ -172,7 +190,7 @@ internal sealed class GameDirectoryGrain(
             lobby.Players.RemoveAll(player => player.PlayerId == playerId);
 
             var left = new Game2UserLeftGameMessageMessageComposer { PlayerId = playerId };
-            await grainFactory.SendComposerToPlayersAsync([playerId, .. Ids(lobby)], left, ct);
+            await _grainFactory.SendComposerToPlayersAsync([playerId, .. Ids(lobby)], left, ct);
 
             if (lobby.Players.Count == 0)
             {
@@ -189,7 +207,7 @@ internal sealed class GameDirectoryGrain(
                 lobby.Timer?.Dispose();
                 lobby.Timer = null;
 
-                await grainFactory.SendComposerToPlayersAsync(
+                await _grainFactory.SendComposerToPlayersAsync(
                     Ids(lobby),
                     new Game2StopCounterMessageMessageComposer(),
                     ct
@@ -207,7 +225,7 @@ internal sealed class GameDirectoryGrain(
             }
             catch (Exception ex)
             {
-                logger.LogError(
+                _logger.LogError(
                     ex,
                     "Game {Key} failed on player {PlayerId} leaving",
                     launched.Game.Definition.Key,
@@ -220,7 +238,7 @@ internal sealed class GameDirectoryGrain(
     /// <summary>Starts every lobby whose countdown is over. The countdown timer calls it.</summary>
     internal async Task LaunchDueAsync(CancellationToken ct)
     {
-        var now = clock.GetUtcNow();
+        var now = _clock.GetUtcNow();
         var due = _state.Lobbies.Where(lobby => lobby.StartsAt is { } at && at <= now).ToList();
 
         foreach (var lobby in due)
@@ -241,9 +259,9 @@ internal sealed class GameDirectoryGrain(
         var players = Ids(lobby);
 
         // The game left with its plugin while the lobby counted down.
-        if (!registry.Games.Contains(lobby.Game))
+        if (!_registry.Games.Contains(lobby.Game))
         {
-            await grainFactory.SendComposerToPlayersAsync(
+            await _grainFactory.SendComposerToPlayersAsync(
                 players,
                 new Game2GameCancelledMessageMessageComposer(),
                 ct
@@ -275,7 +293,7 @@ internal sealed class GameDirectoryGrain(
         }
         catch (Exception ex)
         {
-            logger.LogError(
+            _logger.LogError(
                 ex,
                 "Game {Key} failed to open an arena for game {GameId}",
                 lobby.Game.Definition.Key,
@@ -285,7 +303,7 @@ internal sealed class GameDirectoryGrain(
 
         if (arena is null || arena.RoomId.Value <= 0)
         {
-            await grainFactory.SendComposerToPlayersAsync(
+            await _grainFactory.SendComposerToPlayersAsync(
                 players,
                 new Game2StartingGameFailedMessageMessageComposer { Reason = 1 },
                 ct
@@ -293,19 +311,19 @@ internal sealed class GameDirectoryGrain(
             return;
         }
 
-        await scores.RecordStartAsync(launch, ct);
+        await _scores.RecordStartAsync(launch, ct);
 
         foreach (var player in players)
             _state.GameByPlayer[player] = new GameDirectoryLiveState.Launched(lobby.Game, launch);
 
-        await grainFactory.SendComposerToPlayersAsync(
+        await _grainFactory.SendComposerToPlayersAsync(
             players,
             new Game2GameStartedMessageComposer { Lobby = Snapshot(lobby) },
             ct
         );
         await Task.WhenAll(
             players.Select(player =>
-                grainFactory.ForwardPlayerToRoomAsync(
+                _grainFactory.ForwardPlayerToRoomAsync(
                     player,
                     arena.RoomId,
                     RoomEntrySnapshot.Default,
@@ -319,10 +337,10 @@ internal sealed class GameDirectoryGrain(
     {
         var seconds = Math.Max(
             0,
-            lobby.Game.Definition.CountdownSeconds ?? config.CurrentValue.CountdownSeconds
+            lobby.Game.Definition.CountdownSeconds ?? _config.CurrentValue.CountdownSeconds
         );
 
-        lobby.StartsAt = clock.GetUtcNow().AddSeconds(seconds);
+        lobby.StartsAt = _clock.GetUtcNow().AddSeconds(seconds);
         lobby.Timer = this.RegisterGrainTimer(
             static async (self, ct) => await self.LaunchDueAsync(ct),
             this,
@@ -334,7 +352,7 @@ internal sealed class GameDirectoryGrain(
             }
         );
 
-        await grainFactory.SendComposerToPlayersAsync(
+        await _grainFactory.SendComposerToPlayersAsync(
             Ids(lobby),
             new Game2StartCounterMessageMessageComposer { CountDownLength = seconds },
             ct
@@ -350,7 +368,7 @@ internal sealed class GameDirectoryGrain(
     }
 
     private Task FailJoinAsync(PlayerId playerId, int reason, CancellationToken ct) =>
-        grainFactory.SendComposerToPlayerAsync(
+        _grainFactory.SendComposerToPlayerAsync(
             playerId,
             new Game2JoiningGameFailedMessageMessageComposer { Reason = reason },
             ct
@@ -358,18 +376,18 @@ internal sealed class GameDirectoryGrain(
 
     private IRoomGame? DefaultGame()
     {
-        var settings = config.CurrentValue;
+        var settings = _config.CurrentValue;
 
         if (!settings.Enabled)
             return null;
 
         return string.IsNullOrEmpty(settings.DefaultGame)
-            ? registry.Games.OrderBy(game => game.Definition.GameTypeId).FirstOrDefault()
-            : registry.Find(settings.DefaultGame);
+            ? _registry.Games.OrderBy(game => game.Definition.GameTypeId).FirstOrDefault()
+            : _registry.Find(settings.DefaultGame);
     }
 
     private int SecondsUntil(DateTimeOffset at) =>
-        Math.Max(0, (int)Math.Ceiling((at - clock.GetUtcNow()).TotalSeconds));
+        Math.Max(0, (int)Math.Ceiling((at - _clock.GetUtcNow()).TotalSeconds));
 
     private static List<PlayerId> Ids(GameDirectoryLiveState.Lobby lobby) =>
         [.. lobby.Players.Select(player => player.PlayerId)];
@@ -392,11 +410,11 @@ internal sealed class GameDirectoryGrain(
     {
         try
         {
-            _state.LastGameId = await scores.GetLastGameIdAsync(ct);
+            _state.LastGameId = await _scores.GetLastGameIdAsync(ct);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to read the last game id");
+            _logger.LogError(ex, "Failed to read the last game id");
         }
     }
 }

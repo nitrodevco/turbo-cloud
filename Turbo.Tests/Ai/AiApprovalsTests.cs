@@ -1,9 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -184,7 +179,9 @@ public sealed class AiApprovalsTests : IDisposable
         // The model's answer after the tool: a slow model, answering only when the test says.
         _model.Enqueue(async () =>
         {
+#pragma warning disable VSTHRD003 // The model deliberately answers only when the test releases it.
             await model.Task;
+#pragma warning restore VSTHRD003
 
             return AiFake.Answer([new AiTextPart("Bob was kicked.")], AiFinish.EndTurn, 10, 5);
         });

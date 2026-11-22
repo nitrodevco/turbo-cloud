@@ -153,7 +153,10 @@ finishing a change, check it against this list; each line is a mistake that was 
 - **Remove what a change orphans**: the setting nothing reads, the interface member with no
   caller, the using, the appsettings key. A setting added "for later" (`OnlineTimeMinutes`,
   `MinutesBetweenMountAttempts`) is an orphan from the day it lands: add it with the code that
-  reads it.
+  reads it. An option that moves to another config class takes its key along:
+  `TrophyInscriptionMaxLength` moved from `RoomConfig` to `CatalogConfig` and its key stayed under
+  `Turbo:Rooms`, where the binder ignored it. `ShippedAppSettingsTests` now fails on a key in a
+  shipped settings file that no option reads.
 - **A `new` member that hides a base one is drift, not a specialisation.** `RoomAvatar` declared
   `public new void SetRotation` that turned the body *and* the head, over `RoomObject`'s
   body-only `SetRotation`. Which one ran depended on the static type of the variable: the
@@ -205,7 +208,11 @@ finishing a change, check it against this list; each line is a mistake that was 
   one. Read what the client's handler does with each packet before sending both a snapshot and a
   delta, and keep the server's copy in the order the client assumes (oldest first there).
 - **Zero warnings is the baseline, and an incremental build hides them.** A clean tree builds
-  `Turbo.Main` with no warnings at all, so any warning belongs to the change in front of you.
+  `Turbo.Tests`, and with it `Turbo.Main`, with no warnings at all, so any warning belongs to the
+  change in front of you. Build the tests, not only the host: `Turbo.Main` does not compile them,
+  and the test project carried four analyzer warnings (`VSTHRD003`, `VSTHRD103`, two `xUnit1051`)
+  that no host build showed. Grep the log for `warning [A-Za-z]+[0-9]+`; xUnit's ids start in
+  lower case.
   MSBuild only reports warnings for projects it actually recompiles, so a project that was
   already up to date stays silent about its own: `RoomSnapshot`'s uninitialised `ModSettings`
   went unreported for as long as `Turbo.Primitives` was not rebuilt. Build to a scratch
@@ -275,7 +282,8 @@ finishing a change, check it against this list; each line is a mistake that was 
   IDE0005 does not fire without a documentation file, and the repository sets no severity for
   it, so neither gate sees an unused using. To sweep for them without touching `.editorconfig`:
   write a `.globalconfig` (`is_global = true`, `dotnet_diagnostic.IDE0005.severity = warning`)
-  and a targets file adding it as an `EditorConfigFiles` item, then build `Turbo.Main` with
+  and a targets file adding it as an `EditorConfigFiles` item, then build `Turbo.Tests` (it
+  compiles every project, and most dead usings were in the tests) with
   `-p:CustomAfterMicrosoftCommonTargets=<targets> -p:EnforceCodeStyleInBuild=true
   -p:GenerateDocumentationFile=true --no-incremental` and grep for IDE0005. (Adding it as a
   `GlobalAnalyzerConfigFiles` item through `CustomBefore…` is not picked up.) Verify the sweep works by adding a deliberately unused `using` first — a
@@ -327,9 +335,13 @@ finishing a change, check it against this list; each line is a mistake that was 
   `using`: IDE0005 needs a documentation file and the repository sets no severity for it, so
   `csharpier`, `dotnet format` and the build are all silent. The recipe is above; run it over the
   whole tree rather than the files you touched, because removing one `using` can make another
-  unnecessary — a full pass took four rounds to reach zero (107, then 7, then 2, then none).
-  Re-run `csharpier format` between rounds and confirm the diff contains nothing but `using`
-  lines before trusting it.
+  unnecessary, and the build reports only the first `using` of an unbroken run of dead ones, so
+  a long run sheds one a round. A full pass took four rounds once (107, 7, 2, none) and eleven
+  the next (516, 75, 29, 14, 6, 2, 2, 1, 1, 1, none), the tail being one test file that had
+  twenty-five. Re-run `csharpier format` between rounds and confirm the diff contains nothing
+  but `using` lines before trusting it. Leave `docs/examples` out: the room window example's
+  sources compile into `Turbo.Tests`, whose `GlobalUsings.cs` makes their `System` usings look
+  dead, and the plugin compiler that builds the example as a hotel does needs them.
 
 - **A handler that does anything after the grain call is a design smell.** A packet handler
   guards its inputs, calls one grain method, and turns the answer into a packet. If it is also
@@ -423,7 +435,11 @@ finishing a change, check it against this list; each line is a mistake that was 
 - **A count the client sends is read with `PopList` / `PopCount`, never `PopInt`.**
   `PopList(bytesPerItem, read)` bounds the count by what the packet can hold and reads the
   entries; twelve parsers had the loop by hand, and two used a raw `PopInt` — one of them sized a
-  dictionary from it, so one packet could ask the server to allocate a billion entries.
+  dictionary from it, so one packet could ask the server to allocate a billion entries. A later
+  sweep found four more loops behind six parsers (the crafting mixer, poll answers, marketplace
+  offers, call-for-help chat lines; `ClientCountParserTests` covers the first three). The one
+  raw count left is `VariableLeaderboardReplaceSubscriptionMessageParser`'s, which needs it to
+  refuse a list longer than Flash sends.
 - **A row two packets carry is written by one serializer.** The inventory and the trade window
   both start an item with id, type and *ref*, and the client locks an inventory item while it is
   in a trade by matching that ref. Inventory wrote a floor item's ref negated, trade wrote it

@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Database.Entities.Guilds;
 using Turbo.Import.Source;
+using Turbo.Primitives.Guilds;
 using Turbo.Primitives.Guilds.Enums;
 using Turbo.Primitives.Guilds.Forums.Enums;
 
@@ -212,7 +213,7 @@ internal sealed class GuildsStep : IImportStep
                 : rank == GuildMemberRank.Owner ? GuildMemberRank.Admin
                 : rank,
             IsFavourite =
-                rank != GuildMemberRank.Requested
+                GuildMemberRanks.IsMember(rank)
                 && ctx.UserSettings.TryGetValue(player, out var settings)
                 && settings.FavouriteGuild == guild,
         };
@@ -344,8 +345,8 @@ internal sealed class GuildsStep : IImportStep
     private static GuildForumState State(int value) =>
         value switch
         {
-            10 => (GuildForumState)10,
-            20 => (GuildForumState)20,
+            10 => GuildForumState.HiddenByAdmin,
+            20 => GuildForumState.HiddenByStaff,
             _ => GuildForumState.Normal,
         };
 

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -34,8 +33,6 @@ internal sealed class TableWriter(TurboDbContext db, bool dryRun)
     private const int MAX_BYTES = 1024 * 1024;
 
     private readonly Dictionary<Type, TableShape> _shapes = [];
-
-    public bool DryRun => dryRun;
 
     /// <summary>Writes the rows in one transaction; answers how many were written.</summary>
     public async Task<int> InsertAsync<T>(IReadOnlyList<T> rows, CancellationToken ct)

@@ -51,8 +51,6 @@ internal sealed class SourceRow
         return new SourceRow(_ordinals, values);
     }
 
-    public bool Has(string column) => _ordinals.ContainsKey(column);
-
     /// <summary>The raw value, or null for a missing column, NULL or a zero date.</summary>
     public object? Value(string column)
     {
@@ -155,24 +153,6 @@ internal sealed class SourceRow
         return SourceTime.FromUnix(seconds);
     }
 
-    /// <summary>A DATETIME or TIMESTAMP column (or a Unix time stored in one), as UTC.</summary>
-    public DateTime? Time(string column) =>
-        Value(column) switch
-        {
-            null => null,
-            DateTime dt when dt.Year > 1900 => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
-            DateTime => null,
-            DateTimeOffset dto => dto.UtcDateTime,
-            string s
-                when DateTime.TryParse(
-                    s,
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
-                    out var parsed
-                ) => parsed.Year > 1900 ? parsed : null,
-            _ => UnixTime(column),
-        };
-
     private static long ParseLong(string? s, long fallback)
     {
         if (string.IsNullOrWhiteSpace(s))
@@ -210,17 +190,5 @@ internal static class SourceTime
         var time = DateTimeOffset.FromUnixTimeSeconds(Math.Min(seconds, 4102444800L)).UtcDateTime;
 
         return time >= LATEST ? null : time;
-    }
-
-    /// <summary>
-    /// A Unix time that may mean "for ever": far in the future (2100 or later, which is how
-    /// Morningstar writes a permanent ban) answers <paramref name="forever"/>.
-    /// </summary>
-    public static DateTime? Expiry(long seconds, DateTime? forever = null)
-    {
-        if (seconds <= 0)
-            return null;
-
-        return seconds >= 4102444800L ? forever : FromUnix(seconds);
     }
 }

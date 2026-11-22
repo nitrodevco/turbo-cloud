@@ -1,6 +1,7 @@
 using Turbo.Primitives.Messages.Incoming.Crafting;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Packets;
+using Turbo.Primitives.Rooms.Object;
 
 namespace Turbo.Revisions.Revision20260909.Parsers.Crafting;
 
@@ -11,6 +12,6 @@ internal class GetCraftingRecipesAvailableMessageParser : IParser
         new GetCraftingRecipesAvailableMessage
         {
             ObjectId = packet.PopInt(),
-            ItemIds = CraftingItemIds.Pop(packet),
+            ItemIds = [.. packet.PopList(bytesPerItem: 4, p => RoomObjectId.Parse(p.PopInt()))],
         };
 }

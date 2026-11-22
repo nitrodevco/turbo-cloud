@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Turbo.Primitives.Messages.Incoming.Crafting;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Packets;
@@ -13,20 +12,6 @@ internal class CraftSecretMessageParser : IParser
         new CraftSecretMessage
         {
             ObjectId = packet.PopInt(),
-            ItemIds = CraftingItemIds.Pop(packet),
+            ItemIds = [.. packet.PopList(bytesPerItem: 4, p => RoomObjectId.Parse(p.PopInt()))],
         };
-}
-
-internal static class CraftingItemIds
-{
-    public static ImmutableArray<RoomObjectId> Pop(IClientPacket packet)
-    {
-        var count = packet.PopInt();
-        var ids = ImmutableArray.CreateBuilder<RoomObjectId>();
-
-        for (var i = 0; i < count; i++)
-            ids.Add(packet.PopInt());
-
-        return ids.ToImmutable();
-    }
 }
