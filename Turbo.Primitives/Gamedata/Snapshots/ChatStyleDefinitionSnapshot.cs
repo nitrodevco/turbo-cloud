@@ -6,7 +6,7 @@ namespace Turbo.Primitives.Gamedata.Snapshots;
 /// <summary>
 /// A chat bubble style whole: who may speak with it (the server's flags), how the client draws it
 /// (its reg points, flags and bitmaps, as chat-style-definitions.json has them), and how many own
-/// it and have it as their bubble.
+/// it.
 /// </summary>
 [GenerateSerializer, Immutable]
 public sealed record ChatStyleDefinitionSnapshot
@@ -59,9 +59,6 @@ public sealed record ChatStyleDefinitionSnapshot
 
     [Id(14)]
     public required int Owners { get; init; }
-
-    [Id(15)]
-    public required int Preferring { get; init; }
 
     /// <summary>Whether the bundle carries it: it needs reg points and its three bitmaps.</summary>
     [Id(16)]

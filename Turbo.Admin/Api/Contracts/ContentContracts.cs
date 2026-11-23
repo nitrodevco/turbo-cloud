@@ -312,7 +312,7 @@ public sealed record CurrencyRequest(
 /// <summary>
 /// A chat bubble style whole: the id the client draws it by and its asset id, who may speak with
 /// it, how the client draws it (its reg points and bitmaps, as chat-style-definitions.json has
-/// them), and how many own it and have it as their bubble. <c>Drawable</c> says whether the
+/// them), and how many own it. <c>Drawable</c> says whether the
 /// bundle carries it: it needs reg points and its three bitmaps. <c>FromClient</c> says its look is
 /// Habbo's HTML client's, <c>ChangedHere</c> that it was changed since it was taken from it.
 /// </summary>
@@ -332,7 +332,6 @@ public sealed record ChatStyleItem(
     string[] Bitmaps,
     int SortOrder,
     int Owners,
-    int Preferring,
     bool Drawable,
     bool FromClient,
     bool ChangedHere
@@ -355,7 +354,6 @@ public sealed record ChatStyleItem(
             [.. style.Bitmaps],
             style.SortOrder,
             style.Owners,
-            style.Preferring,
             style.Drawable,
             style.FromClient,
             style.ChangedHere

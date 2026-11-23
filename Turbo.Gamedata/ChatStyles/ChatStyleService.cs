@@ -109,13 +109,6 @@ internal sealed partial class ChatStyleService(
             .Select(x => new { x.Key, Count = x.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Count, ct)
             .ConfigureAwait(false);
-        var preferring = await dbCtx
-            .PlayerSettings.AsNoTracking()
-            .Where(x => x.ChatStyleId != DEFAULT_STYLE_ID)
-            .GroupBy(x => x.ChatStyleId)
-            .Select(x => new { x.Key, Count = x.Count() })
-            .ToDictionaryAsync(x => x.Key, x => x.Count, ct)
-            .ConfigureAwait(false);
         var bundle = await dbCtx
             .AssetBundles.AsNoTracking()
             .FirstOrDefaultAsync(x => x.Kind == AssetBundleKind.Template && x.Name == LIBRARY, ct)
@@ -152,7 +145,6 @@ internal sealed partial class ChatStyleService(
                         Bitmaps = files,
                         SortOrder = x.SortOrder,
                         Owners = owners.GetValueOrDefault(x.Id),
-                        Preferring = preferring.GetValueOrDefault(x.ClientStyleId),
                         Drawable = IsDrawable(x, files),
                         FromClient = looks.GetValueOrDefault(x.Id).FromClient,
                         ChangedHere = looks.GetValueOrDefault(x.Id).Changed,

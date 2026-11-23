@@ -1276,7 +1276,6 @@ public sealed class DataPluginTests : IDisposable
                             Bitmaps = [],
                             SortOrder = 0,
                             Owners = 0,
-                            Preferring = 0,
                             Drawable = true,
                         },
                     ],
