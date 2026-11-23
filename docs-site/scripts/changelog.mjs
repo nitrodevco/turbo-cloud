@@ -15,7 +15,7 @@ const target = resolve(here, '../generated/changelog.md');
 
 const NAME = /^(\d{4}-\d{2}-\d{2})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$/;
 const PR = /^([a-z0-9][\w.-]*)#(\d+)$/;
-// A change committed without a pull request names its commit instead: turbo-cloud@b6cb95ab.
+// A change committed without a pull request names its commit instead: turbo-cloud@938971d0.
 const COMMIT = /^([a-z0-9][\w.-]*)@([0-9a-f]{7,40})$/;
 const LABELS = ['What', 'Breaks plugins', 'Action'];
 
@@ -93,7 +93,7 @@ export function readFragments() {
             const prs = (fields.pr ?? '').split(',').map((x) => x.trim()).filter(Boolean);
             for (const pr of prs) {
                 if (!PR.test(pr) && !COMMIT.test(pr)) {
-                    problem(`pr "${pr}" is not <repository>#<number> (turbo-cloud#480) or <repository>@<commit> (turbo-cloud@b6cb95ab)`);
+                    problem(`pr "${pr}" is not <repository>#<number> (turbo-cloud#480) or <repository>@<commit> (turbo-cloud@938971d0)`);
                 }
             }
 
