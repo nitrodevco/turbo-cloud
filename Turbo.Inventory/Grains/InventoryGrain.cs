@@ -74,6 +74,7 @@ internal sealed partial class InventoryGrain : Grain, IInventoryGrain
         FurniModule = new InventoryFurniModule(
             this,
             _state,
+            dbContextFactory,
             furnitureCustody,
             furnitureItemsLoader,
             furnitureDefinitionProvider,

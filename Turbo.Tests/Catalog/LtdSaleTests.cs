@@ -17,7 +17,9 @@ using Turbo.Primitives.Catalog.Grains;
 using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Inventory.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Collectibles;
+using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Networking;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Policies;
@@ -206,21 +208,71 @@ public sealed class LtdSaleTests : IDisposable
     }
 
     /// <summary>
+    /// The weighting asks each count of what owns it: badges of the badge grain, rooms of the
+    /// navigator, furni of the inventory. With no base weight and only that count weighing, a
+    /// buyer it gives nothing weighs nothing, so the one item goes to the buyer it gives some,
+    /// though the other entered first. Counted from the rows instead, as the raffle once did,
+    /// both weighed nothing here and the first in won.
+    /// </summary>
+    [Theory]
+    [InlineData("GetBadgeCountAsync")]
+    [InlineData("GetRoomCountForOwnerAsync")]
+    [InlineData("GetOwnedFurnitureCountAsync")]
+    public async Task TheWeighting_CountsWhatTheOwnerReports(string count)
+    {
+        var config = Unweighted();
+        var raffle = config.LtdRaffle;
+
+        raffle.BaseWeight = 0;
+        (
+            count switch
+            {
+                "GetBadgeCountAsync" => raffle.BadgeCount,
+                "GetRoomCountForOwnerAsync" => raffle.RoomCount,
+                _ => raffle.FurnitureCount,
+            }
+        ).Enabled = true;
+        _catalog.Fakes.Handlers[count] = call => Task.FromResult(OwnerOf(call) == 8 ? 10 : 0);
+
+        var (grain, _) = await SeriesAsync(raffled: false, size: 1, config: config);
+
+        (await grain.EnterRaffleAsync(7, Ct)).Success.Should().BeTrue();
+        (await grain.EnterRaffleAsync(8, Ct)).Success.Should().BeTrue();
+
+        await _timer!(_timerState, _timerToken!.Token);
+
+        Results()
+            .Should()
+            .BeEquivalentTo([(7, LtdRaffleResultType.Lost), (8, LtdRaffleResultType.Won)]);
+    }
+
+    /// <summary>Whose count was asked for: the navigator is told the owner, a grain is keyed by them.</summary>
+    private static int OwnerOf(FakeCall call) =>
+        call.Args.FirstOrDefault() is PlayerId player
+            ? player.Value
+            : Convert.ToInt32(call.Key!.ToString());
+
+    /// <summary>
     /// The offer <see cref="SOLD"/> made a limited series, and the grain that sells it: with its
     /// opening raffle to come, or drawn already so each purchase is a sale of its own.
     /// </summary>
     private async Task<(
         ICatalogLtdRaffleGrain Grain,
         Turbo.Catalog.Providers.CatalogSnapshotProvider<Turbo.Primitives.Catalog.Tags.NormalCatalog> Catalog
-    )> SeriesAsync(bool raffled, IGamePolicies? policies = null)
+    )> SeriesAsync(
+        bool raffled,
+        IGamePolicies? policies = null,
+        int size = SIZE,
+        CatalogConfig? config = null
+    )
     {
         _catalog.Db.Insert(
             new LtdSeriesEntity
             {
                 Id = SERIES,
                 CatalogProductEntityId = SOLD,
-                TotalQuantity = SIZE,
-                RemainingQuantity = SIZE,
+                TotalQuantity = size,
+                RemainingQuantity = size,
                 RaffleWindowSeconds = 30,
                 IsActive = true,
                 IsRaffleFinished = raffled,
@@ -301,8 +353,9 @@ public sealed class LtdSaleTests : IDisposable
             SERIES
         );
         Set(grain, "_catalogService", fakes.Create<ICatalogService>());
+        Set(grain, "_navigatorProvider", fakes.Create<INavigatorProvider>());
         Set(grain, "_events", _bus.System);
-        Set(grain, "_config", Unweighted());
+        Set(grain, "_config", config ?? Unweighted());
 
         if (policies is not null)
             Set(grain, "_policies", policies);

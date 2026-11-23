@@ -227,6 +227,7 @@ public sealed class PetPurchaseNamingTests : IDisposable
         var furniModule = new InventoryFurniModule(
             grain,
             GrainHarness.Get<InventoryLiveState>(grain),
+            _db,
             TestCustody.Over(_db),
             _fakes.Create<IInventoryFurnitureLoader>(),
             _fakes.Create<IFurnitureDefinitionProvider>(),

@@ -20,6 +20,7 @@ using Turbo.Primitives.Catalog.Snapshots;
 using Turbo.Primitives.Messages.Outgoing.Catalog;
 using Turbo.Primitives.Messages.Outgoing.Collectibles;
 using Turbo.Primitives.Movements;
+using Turbo.Primitives.Navigator;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Wallet;
@@ -42,6 +43,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
     private readonly CatalogConfig _config;
     private readonly IGrainFactory _grainFactory;
     private readonly ICatalogService _catalogService;
+    private readonly INavigatorProvider _navigatorProvider;
     private readonly IGamePolicies _policies;
     private readonly EventSystem _events;
     private readonly ILogger<ICatalogLtdRaffleGrain> _logger;
@@ -55,6 +57,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         IOptions<CatalogConfig> config,
         IGrainFactory grainFactory,
         ICatalogService catalogService,
+        INavigatorProvider navigatorProvider,
         IGamePolicies policies,
         EventSystem events,
         ILogger<ICatalogLtdRaffleGrain> logger
@@ -64,6 +67,7 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         _config = config.Value;
         _grainFactory = grainFactory;
         _catalogService = catalogService;
+        _navigatorProvider = navigatorProvider;
         _policies = policies;
         _events = events;
         _logger = logger;
@@ -542,26 +546,58 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
     private async Task<double> CalculateWeightAsync(int playerId, CancellationToken ct)
     {
         var cfg = _config.LtdRaffle;
-        var playerGrain = _grainFactory.GetPlayerGrain(PlayerId.Parse(playerId));
+        var player = PlayerId.Parse(playerId);
+        var playerGrain = _grainFactory.GetPlayerGrain(player);
 
-        // The inputs come from the player grain, the messenger and the database, none waiting
-        // on another, so they are read side by side.
+        // Each count is asked of what owns it, and only when it counts: the friends of the
+        // messenger, the badges of the badge grain, the rooms of the navigator's cached count, the
+        // furni of the inventory. None waits on another, so they are read side by side.
         var summaryTask = playerGrain.GetSummaryAsync(ct);
         var profileTask = playerGrain.GetExtendedProfileSnapshotAsync(ct);
-        var friendCountTask = cfg.FriendCount.Enabled
-            ? _grainFactory
-                .GetPlayerMessengerGrain(PlayerId.Parse(playerId))
-                .GetFriendCountAsync(ct)
-            : Task.FromResult(0);
-        var dbWeightTask = CalculateDatabaseWeightAsync(playerId, ct);
+        var friendCountTask = CountIfEnabledAsync(cfg.FriendCount, () =>
+            _grainFactory.GetPlayerMessengerGrain(player).GetFriendCountAsync(ct)
+        );
+        var badgeCountTask = CountIfEnabledAsync(cfg.BadgeCount, () =>
+            _grainFactory.GetPlayerBadgeGrain(player).GetBadgeCountAsync(ct)
+        );
+        var roomCountTask = CountIfEnabledAsync(cfg.RoomCount, () =>
+            _navigatorProvider.GetRoomCountForOwnerAsync(player, ct)
+        );
+        var furniCountTask = CountIfEnabledAsync(cfg.FurnitureCount, () =>
+            _grainFactory.GetInventoryGrain(player).GetOwnedFurnitureCountAsync(ct)
+        );
 
-        await Task.WhenAll(summaryTask, profileTask, friendCountTask, dbWeightTask);
+        await Task.WhenAll(
+            summaryTask,
+            profileTask,
+            friendCountTask,
+            badgeCountTask,
+            roomCountTask,
+            furniCountTask
+        );
 
         var summary = await summaryTask;
         var profile = await profileTask;
-        var weight = cfg.BaseWeight + await dbWeightTask;
+        var weight = cfg.BaseWeight;
 
-        // Snapshot-based weighting (no DB round-trip needed)
+        if (cfg.BadgeCount.Enabled)
+            weight += Math.Min(
+                await badgeCountTask * cfg.BadgeCount.BonusPerUnit,
+                cfg.BadgeCount.MaxBonus
+            );
+
+        if (cfg.RoomCount.Enabled)
+            weight += Math.Min(
+                await roomCountTask * cfg.RoomCount.BonusPerUnit,
+                cfg.RoomCount.MaxBonus
+            );
+
+        if (cfg.FurnitureCount.Enabled)
+            weight += Math.Min(
+                await furniCountTask * cfg.FurnitureCount.BonusPerUnit,
+                cfg.FurnitureCount.MaxBonus
+            );
+
         if (cfg.AccountAgeDays.Enabled)
             weight += Math.Min(
                 (DateTime.UtcNow - summary.CreatedAt).Days * cfg.AccountAgeDays.BonusPerUnit,
@@ -589,49 +625,11 @@ internal sealed class CatalogLtdRaffleGrain : Grain, ICatalogLtdRaffleGrain
         return weight;
     }
 
-    /// <summary>
-    /// The weight counted from rows: badges, rooms and furniture owned. One context, so the
-    /// counts run one after another; together they still run beside the grain reads.
-    /// </summary>
-    private async Task<double> CalculateDatabaseWeightAsync(int playerId, CancellationToken ct)
-    {
-        // TODO: Replace these with snapshot-based lookups once PlayerGrain exposes badge count,
-        // room count and furniture count in PlayerSummarySnapshot or a dedicated snapshot.
-        var cfg = _config.LtdRaffle;
-
-        if (!cfg.BadgeCount.Enabled && !cfg.RoomCount.Enabled && !cfg.FurnitureCount.Enabled)
-            return 0;
-
-        var weight = 0.0;
-
-        await using var db = await _dbCtxFactory.CreateDbContextAsync(ct);
-
-        if (cfg.BadgeCount.Enabled)
-        {
-            var badgeCount = await db.PlayerBadges.CountAsync(
-                b => b.PlayerEntityId == playerId,
-                ct
-            );
-            weight += Math.Min(badgeCount * cfg.BadgeCount.BonusPerUnit, cfg.BadgeCount.MaxBonus);
-        }
-
-        if (cfg.RoomCount.Enabled)
-        {
-            var roomCount = await db.Rooms.CountAsync(r => r.PlayerEntityId == playerId, ct);
-            weight += Math.Min(roomCount * cfg.RoomCount.BonusPerUnit, cfg.RoomCount.MaxBonus);
-        }
-
-        if (cfg.FurnitureCount.Enabled)
-        {
-            var furniCount = await db.Furnitures.CountAsync(f => f.PlayerEntityId == playerId, ct);
-            weight += Math.Min(
-                furniCount * cfg.FurnitureCount.BonusPerUnit,
-                cfg.FurnitureCount.MaxBonus
-            );
-        }
-
-        return weight;
-    }
+    /// <summary>The count <paramref name="count"/> reads, or 0 without asking when the criterion is off.</summary>
+    private static Task<int> CountIfEnabledAsync(
+        WeightCriterion criterion,
+        Func<Task<int>> count
+    ) => criterion.Enabled ? count() : Task.FromResult(0);
 
     private static HashSet<int> SelectWeighted(List<KeyValuePair<int, double>> entries, int count)
     {

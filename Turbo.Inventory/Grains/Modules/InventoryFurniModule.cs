@@ -4,7 +4,9 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Turbo.Database.Context;
 using Turbo.Furniture.Custody;
 using Turbo.Logging;
 using Turbo.Primitives;
@@ -37,6 +39,7 @@ namespace Turbo.Inventory.Grains.Modules;
 internal sealed partial class InventoryFurniModule(
     InventoryGrain inventoryGrain,
     InventoryLiveState liveState,
+    IDbContextFactory<TurboDbContext> dbCtxFactory,
     IFurnitureCustody custody,
     IInventoryFurnitureLoader furnitureLoader,
     IFurnitureDefinitionProvider definitionProvider,
@@ -45,6 +48,7 @@ internal sealed partial class InventoryFurniModule(
 ) : InventoryGrainComponent(inventoryGrain)
 {
     private readonly InventoryLiveState _state = liveState;
+    private readonly IDbContextFactory<TurboDbContext> _dbCtxFactory = dbCtxFactory;
     private readonly IFurnitureCustody _custody = custody;
     private readonly IInventoryFurnitureLoader _furnitureLoader = furnitureLoader;
     private readonly IFurnitureDefinitionProvider _definitionProvider = definitionProvider;
@@ -110,6 +114,19 @@ internal sealed partial class InventoryFurniModule(
         }
 
         return found.ToImmutable();
+    }
+
+    /// <summary>
+    /// How many furni the player owns, wherever each is. Counted from the rows: this section's
+    /// list holds only the furni in no room, and it is not loaded for this.
+    /// </summary>
+    public async Task<int> CountOwnedAsync(CancellationToken ct)
+    {
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        return await dbCtx
+            .Furnitures.AsNoTracking()
+            .CountAsync(x => x.PlayerEntityId == PlayerId.Value, ct);
     }
 
     /// <summary>

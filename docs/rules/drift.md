@@ -142,6 +142,11 @@ finishing a change, check it against this list; each line is a mistake that was 
   system that owns the concept, not to the one that needed it first (see [System boundaries](wired.md#system-boundaries-wired-is-a-user-of-the-room-not-a-part-of-it)).
   A `Wired` prefix on something in a general class, or a general module checking for a wired
   type, is the sign it landed in the wrong place.
+- **A count another domain owns is asked of its owner.** The LTD raffle weighed a buyer by
+  counting their badge, room and furni rows itself, beside a navigator that already cached the
+  room count and a badge grain that holds the badges in memory. It asks
+  `IPlayerBadgeGrain.GetBadgeCountAsync`, `INavigatorProvider.GetRoomCountForOwnerAsync` and
+  `IInventoryGrain.GetOwnedFurnitureCountAsync` now; when the owner has no such read, give it one.
 - **A rule written in a change is kept by that change.** The variable fx section said every
   client table lives in `VariableFxStyles` while the team colours sat in the system; the
   logic rules said state values live in `Turbo.Primitives/Furniture/` while the rentable space

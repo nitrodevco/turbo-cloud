@@ -380,6 +380,7 @@ public sealed class PresentInventoryTests : IDisposable
         var module = new InventoryFurniModule(
             grain,
             GrainHarness.Get<InventoryLiveState>(grain),
+            _db,
             TestCustody.Over(_db),
             loader,
             definitions,

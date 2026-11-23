@@ -53,6 +53,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Badges.Grains.IBadgeLeaderboardG
 
 interface [GrainInterfaceType("Turbo.Primitives.Badges.Grains.IPlayerBadgeGrain")] Turbo.Primitives.Badges.Grains.IPlayerBadgeGrain [Version(0)]
   C020F431: GetAllBadgeSnapshotsAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.Snapshots.PlayerBadgeSnapshot>>
+  82E98A95: GetBadgeCountAsync(System.Threading.CancellationToken) -> Task<int>
   9A63F14C: GetBadgeSnapshotAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.PlayerBadgeSnapshot?>
   56378B79: GetBadgeSummaryAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Badges.Snapshots.PlayerBadgeSummarySnapshot>
   7FF00B8D: GetSelectedBadgesAsync(System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Players.Snapshots.PlayerBadgeSnapshot>>
@@ -192,6 +193,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Inventory.Grains.IInventoryGrain
   B916659F: GetBotSnapshotAsync(int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Bots.Snapshots.BotSnapshot?>
   93437806: GetItemSnapshotAsync(Turbo.Primitives.Rooms.Object.RoomObjectId, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot?>
   0FAD35D9: GetItemSnapshotsAsync(System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Rooms.Object.RoomObjectId>, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot>>
+  36AFAD07: GetOwnedFurnitureCountAsync(System.Threading.CancellationToken) -> Task<int>
   11F706E8: GetPetSnapshotAsync(int, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Pets.Snapshots.PetSnapshot?>
   709B395B: GrantCatalogOfferAsync(Turbo.Primitives.Catalog.Snapshots.CatalogOfferSnapshot, string, int, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<System.Collections.Immutable.ImmutableArray<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot>>
   11832CF3: GrantFurnitureAsync(int, string?, Turbo.Primitives.Movements.MovementCause, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Inventory.Snapshots.FurnitureItemSnapshot?>

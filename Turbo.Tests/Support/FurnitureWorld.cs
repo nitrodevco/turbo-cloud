@@ -79,6 +79,7 @@ public sealed class FurnitureWorld : IDisposable
         var module = new InventoryFurniModule(
             grain,
             GrainHarness.Get<InventoryLiveState>(grain),
+            Db,
             TestCustody.Over(Db, recorder),
             loader,
             definitions,

@@ -33,6 +33,10 @@ public interface IPlayerBadgeGrain : IGrainWithIntegerKey
     [AlwaysInterleave]
     public Task<bool> HasBadgeAsync(string badgeCode, CancellationToken ct);
 
+    /// <summary>How many badges the player owns, worn or not.</summary>
+    [AlwaysInterleave]
+    public Task<int> GetBadgeCountAsync(CancellationToken ct);
+
     /// <summary>Gives the badge. False when the code is empty or the player already has it.</summary>
     public Task<bool> GiveBadgeAsync(string badgeCode, CancellationToken ct);
 

@@ -26,6 +26,9 @@ internal sealed partial class InventoryGrain
         CancellationToken ct
     ) => FurniModule.GetManyAsync(itemIds, ct);
 
+    public Task<int> GetOwnedFurnitureCountAsync(CancellationToken ct) =>
+        FurniModule.CountOwnedAsync(ct);
+
     public async Task<bool> AddFurnitureFromRoomItemSnapshotAsync(
         RoomItemSnapshot snapshot,
         CancellationToken ct

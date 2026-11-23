@@ -208,4 +208,10 @@ public partial interface IInventoryGrain
     public Task<ImmutableArray<FurnitureItemSnapshot>> GetAllItemSnapshotsAsync(
         CancellationToken ct
     );
+
+    /// <summary>
+    /// How many furni the player owns: those in the inventory and those standing in rooms or held
+    /// by a chest or jukebox alike. Counted from the rows, which every change writes through.
+    /// </summary>
+    public Task<int> GetOwnedFurnitureCountAsync(CancellationToken ct);
 }

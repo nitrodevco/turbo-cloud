@@ -113,6 +113,9 @@ internal sealed partial class PlayerBadgeGrain : Grain, IPlayerBadgeGrain
     public Task<bool> HasBadgeAsync(string badgeCode, CancellationToken ct) =>
         Task.FromResult(_state.BadgesByCode.ContainsKey(badgeCode ?? string.Empty));
 
+    public Task<int> GetBadgeCountAsync(CancellationToken ct) =>
+        Task.FromResult(_state.BadgesByCode.Count);
+
     public async Task<bool> GiveBadgeAsync(string badgeCode, CancellationToken ct)
     {
         if (!TryNormalizeCode(badgeCode, out var code))
