@@ -92,13 +92,14 @@ public static partial class LayoutTemplateMapper
     private static readonly string?[] ALIGN_V = ["top", "bottom", null, "middle"];
 
     /// <summary>What sits beside a window's elements in its XML rather than being one.</summary>
-    private static readonly HashSet<string> STRUCTURE = new(StringComparer.Ordinal)
-    {
+    private static readonly HashSet<string> STRUCTURE =
+    [
+        with(StringComparer.Ordinal),
         "variables",
         "params",
         "filters",
         "children",
-    };
+    ];
 
     private static readonly Dictionary<string, string> ENTITIES = new(
         StringComparer.OrdinalIgnoreCase
@@ -172,7 +173,7 @@ public static partial class LayoutTemplateMapper
             if (!match.Groups[2].Success)
                 continue;
 
-            var node = new Node(match.Groups[2].Value, new(StringComparer.Ordinal), []);
+            var node = new Node(match.Groups[2].Value, [with(StringComparer.Ordinal)], []);
 
             foreach (Match attribute in AttributePattern().Matches(match.Groups[3].Value))
                 node.Attrs[attribute.Groups[1].Value] = DecodeEntities(

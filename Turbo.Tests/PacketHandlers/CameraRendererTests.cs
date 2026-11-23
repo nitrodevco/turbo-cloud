@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
@@ -47,32 +46,12 @@ public sealed class CameraRendererTests : IDisposable
 
     public void Dispose() => _server.Dispose();
 
-    private static void RequireNode()
-    {
-        try
-        {
-            using var node = Process.Start(
-                new ProcessStartInfo("node", "--version")
-                {
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                }
-            );
-
-            node!.WaitForExit();
-        }
-        catch (Exception)
-        {
-            Assert.Skip("node is not installed");
-        }
-    }
-
     private async Task<(bool Drawn, string Png)> RenderAsync(
         string json,
         params string[] externalUrls
     )
     {
-        RequireNode();
+        NodeRuntime.Require();
 
         var jsonPath = Path.Combine(_folder, "render.json");
         var pngPath = Path.Combine(_folder, "render.png");

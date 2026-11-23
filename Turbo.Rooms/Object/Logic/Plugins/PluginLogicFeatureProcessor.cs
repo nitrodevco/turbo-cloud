@@ -121,7 +121,8 @@ internal sealed class PluginLogicFeatureProcessor(IRoomObjectLogicProvider logic
             var grains = services.GetRequiredService<IGrainFactory>();
             var stuff = services.GetRequiredService<IStuffDataFactory>();
 
-            return ActivatorUtilities.CreateInstance(services, type) switch
+            // The type was found as a WiredBox, and a WiredBox is one of the four kinds.
+            return (WiredBox)ActivatorUtilities.CreateInstance(services, type) switch
             {
                 WiredEffect effect => new PluginWiredEffectLogic(grains, stuff, ctx, effect),
                 WiredCondition condition => new PluginWiredConditionLogic(
@@ -137,9 +138,6 @@ internal sealed class PluginLogicFeatureProcessor(IRoomObjectLogicProvider logic
                     selector
                 ),
                 WiredTrigger trigger => new PluginWiredTriggerLogic(grains, stuff, ctx, trigger),
-                var other => throw new InvalidOperationException(
-                    $"{other.GetType().Name} is no wired kind the hotel runs."
-                ),
             };
         };
 

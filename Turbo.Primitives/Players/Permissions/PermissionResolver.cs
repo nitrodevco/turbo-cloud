@@ -42,10 +42,10 @@ public static class PermissionResolver
 
         var granted = ImmutableHashSet.CreateBuilder<string>(StringComparer.Ordinal);
 
+        // The first source with a say decides a node; one none of them names keeps its default.
+        nodes:
         foreach (var (node, definition) in registry.Nodes)
         {
-            var decided = false;
-
             foreach (var source in sources)
             {
                 var match = BestMatch(source, node, definition.ExplicitOnly);
@@ -56,12 +56,10 @@ public static class PermissionResolver
                 if (match.Value)
                     granted.Add(node);
 
-                decided = true;
-
-                break;
+                continue nodes;
             }
 
-            if (!decided && definition.GrantedByDefault)
+            if (definition.GrantedByDefault)
                 granted.Add(node);
         }
 

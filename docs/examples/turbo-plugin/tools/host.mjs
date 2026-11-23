@@ -17,7 +17,7 @@ export const projectName = () => path.parse(readdirSync(path.join(root, 'server'
 /** The --turbo checkout, as Directory.Build.props has it (TurboCloudPath overrides it). */
 const checkout = () => process.env.TurboCloudPath ?? path.resolve(root, '../turbo-cloud');
 
-export const turboBin = () => process.env.TurboBin ?? path.join(checkout(), 'Turbo.Main', 'bin', 'Debug', 'net10.0');
+export const turboBin = () => process.env.TurboBin ?? path.join(checkout(), 'Turbo.Main', 'bin', 'Debug', 'net11.0');
 
 const rebuild = () => (process.env.TurboBin
     ? 'Build or publish that server again from a current turbo-cloud, or set TurboBin to the bin folder of the server you run.'

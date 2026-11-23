@@ -25,8 +25,8 @@ loaded.
 
 ## Requirements
 
-- The **.NET SDK 10**. The exact version is pinned in `global.json`; `dotnet --version` should
-  print a `10.x`.
+- The **.NET SDK 11**. The exact version is pinned in `global.json`; `dotnet --version` should
+  print an `11.x`.
 - **MySQL 8** or **MariaDB 10.6+**, local or reachable.
 - **Git**.
 - **Node.js 22**, only if you write a plugin with a client module or run the client yourself.

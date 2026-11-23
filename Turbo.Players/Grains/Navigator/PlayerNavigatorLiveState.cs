@@ -12,9 +12,9 @@ internal sealed class PlayerNavigatorLiveState
     public required PlayerId PlayerId { get; init; }
     public List<RoomId> FavouriteRoomIds { get; } = [];
     public List<NavigatorQuickLinkSnapshot> SavedSearches { get; } = [];
-    public HashSet<string> CollapsedSearchCodes { get; } = new(StringComparer.Ordinal);
+    public HashSet<string> CollapsedSearchCodes { get; } = [with(StringComparer.Ordinal)];
     public Dictionary<string, NavigatorViewModeType> ViewModes { get; } =
-        new(StringComparer.Ordinal);
+    [with(StringComparer.Ordinal)];
     public Dictionary<RoomId, RoomVisitStats> VisitsByRoomId { get; } = [];
     public List<RoomId> PendingVisits { get; } = [];
 

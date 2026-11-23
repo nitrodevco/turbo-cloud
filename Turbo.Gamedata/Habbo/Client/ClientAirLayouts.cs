@@ -71,7 +71,7 @@ internal static class ClientAirLayouts
             }
 
             if (!layouts.TryGetValue(library, out var taken))
-                layouts[library] = taken = new(StringComparer.Ordinal);
+                layouts[library] = taken = [with(StringComparer.Ordinal)];
 
             taken[asset] = xml;
         }

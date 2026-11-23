@@ -1250,9 +1250,7 @@ public sealed class PluginManager(
                 descriptor.ServiceType,
                 sp =>
                 {
-                    var building = _building ??= new HashSet<ServiceDescriptor>(
-                        ReferenceEqualityComparer.Instance
-                    );
+                    var building = _building ??= [with(ReferenceEqualityComparer.Instance)];
 
                     if (!building.Add(descriptor))
                         throw new InvalidOperationException(

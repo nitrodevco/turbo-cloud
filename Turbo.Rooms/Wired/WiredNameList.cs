@@ -58,7 +58,7 @@ public static class WiredNameList
     /// <summary>The names in a box's text, trimmed, blanks dropped, compared by <see cref="Comparer"/>.</summary>
     public static HashSet<string> Parse(string? text) =>
         string.IsNullOrWhiteSpace(text)
-            ? new HashSet<string>(Comparer)
+            ? [with(Comparer)]
             : text.Split(
                     SEPARATORS,
                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
@@ -73,6 +73,6 @@ public static class WiredNameList
     /// </summary>
     public static HashSet<string> ParseUntrimmed(string? text) =>
         string.IsNullOrEmpty(text)
-            ? new HashSet<string>(Comparer)
+            ? [with(Comparer)]
             : text.Split(SEPARATORS, StringSplitOptions.RemoveEmptyEntries).ToHashSet(Comparer);
 }

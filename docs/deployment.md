@@ -15,7 +15,7 @@
 A live hotel is the same server you run locally, published as a release and run by a supervisor
 that starts it again when it stops. The repository ships scripts for one way of doing that, on a
 [Ploi](https://ploi.io)-managed Ubuntu server, and every guide on this site assumes those scripts
-where it talks about production. Nothing in Turbo depends on Ploi: any host that can run .NET 10
+where it talks about production. Nothing in Turbo depends on Ploi: any host that can run .NET 11
 and restart a process will do.
 
 ## What a Hotel Runs
@@ -33,7 +33,7 @@ and restart a process will do.
 
 [`scripts/ploi/README.md`](../scripts/ploi/README.md) is the step-by-step setup. In short:
 
-1. Install the .NET 10 SDK as the `ploi` user and create a database.
+1. Install the .NET 11 SDK as the `ploi` user and create a database.
 2. Create the site for the domain the client connects to, and install this repository on it.
 3. Paste `scripts/ploi/turbo.env.example` into the site's **Environment** tab and fill in the
    database. Generate your own `TURBO_CRYPTO_*` keys: the ones in `appsettings.json` are public.

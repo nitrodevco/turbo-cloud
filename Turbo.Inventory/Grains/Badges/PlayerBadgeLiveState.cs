@@ -10,7 +10,7 @@ internal sealed class PlayerBadgeLiveState
     public required PlayerId PlayerId { get; init; }
 
     public Dictionary<string, OwnedBadge> BadgesByCode { get; } =
-        new(StringComparer.OrdinalIgnoreCase);
+    [with(StringComparer.OrdinalIgnoreCase)];
 }
 
 /// <summary>

@@ -220,10 +220,10 @@ internal sealed class ArgumentsBinder : ICommandBinder
     {
         if (Syntax.Count > 0)
         {
+            branches:
             foreach (var branch in Syntax.OrderByDescending(x => x.Path.Length))
             {
                 var cursor = 0;
-                var matched = true;
                 foreach (var literal in branch.Path.Split(' '))
                 {
                     var token = CommandTextReader.Read(argumentText, ref cursor);
@@ -231,13 +231,8 @@ internal sealed class ArgumentsBinder : ICommandBinder
                         !token.Valid
                         || !token.Text.Equals(literal, StringComparison.OrdinalIgnoreCase)
                     )
-                    {
-                        matched = false;
-                        break;
-                    }
+                        continue branches;
                 }
-                if (!matched)
-                    continue;
                 if (
                     branch.Permission is { } permission
                     && hasPermission is not null

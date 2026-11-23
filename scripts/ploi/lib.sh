@@ -114,7 +114,7 @@ turbo_find_dotnet() {
     return
   fi
 
-  turbo_fail "dotnet was not found. Install the .NET 10 SDK on the server (see scripts/ploi/README.md)."
+  turbo_fail "dotnet was not found. Install the .NET 11 SDK on the server (see scripts/ploi/README.md)."
 }
 
 # The connection string from TURBO_DB_CONNECTION_STRING, or built from the TURBO_DB_* parts.

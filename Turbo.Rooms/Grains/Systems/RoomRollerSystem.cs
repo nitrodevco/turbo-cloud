@@ -86,6 +86,7 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
             if (rollerIds.Count == 0)
                 continue;
 
+            rollers:
             foreach (var rollerId in rollerIds)
             {
                 try
@@ -116,7 +117,6 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
                     // Kept across rollers and ticks: most rollers carry nothing on most ticks.
                     var items = _items;
                     var avatars = _avatars;
-                    var canAvatarMove = true;
 
                     items.Clear();
                     avatars.Clear();
@@ -144,17 +144,14 @@ public sealed class RoomRollerSystem(RoomGrain roomGrain)
                         )
                             continue;
 
+                        // One avatar that can't go holds the whole roller.
                         if (!avatar.Logic.CanRoll() || !MapModule.CanAvatarWalk(avatar, toIdx))
-                        {
-                            canAvatarMove = false;
-
-                            break;
-                        }
+                            continue rollers;
 
                         avatars.Add(avatar);
                     }
 
-                    if (!canAvatarMove || (items.Count == 0 && avatars.Count == 0))
+                    if (items.Count == 0 && avatars.Count == 0)
                         continue;
 
                     currentPlans.Add(

@@ -65,12 +65,12 @@ internal sealed class RoomLiveState
     public Dictionary<PlayerId, DateTime> MutedUntilByPlayerId { get; } = [];
     public Dictionary<PlayerId, DateTime> BannedUntilByPlayerId { get; } = [];
     public Dictionary<string, PlayerId> DoorbellRingersByName { get; } =
-        new(StringComparer.OrdinalIgnoreCase);
+    [with(StringComparer.OrdinalIgnoreCase)];
     public bool IsRoomMuted { get; internal set; } = false;
 
     /// <summary>Set once deletion starts: no new entries, and hydration must not resurrect it.</summary>
     public bool IsDeleting { get; internal set; } = false;
-    public HashSet<string> FilterWords { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public HashSet<string> FilterWords { get; } = [with(StringComparer.OrdinalIgnoreCase)];
     public Dictionary<RoomObjectId, FriendFurniLockRequest> PendingFriendFurniLocks { get; } = [];
 
     /// <summary>Nest breedings awaiting the owners' answers, keyed by the nest item.</summary>

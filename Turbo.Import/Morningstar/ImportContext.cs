@@ -76,7 +76,7 @@ internal sealed class ImportContext(
     public Dictionary<int, DefinitionRef> Definitions { get; } = [];
 
     /// <summary>Turbo's room model for each Morningstar model name, in any case.</summary>
-    public Dictionary<string, int> RoomModels { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, int> RoomModels { get; } = [with(StringComparer.OrdinalIgnoreCase)];
 
     /// <summary>Turbo's navigator category for each Morningstar one.</summary>
     public Dictionary<int, int> FlatCategories { get; } = [];

@@ -37,8 +37,8 @@ public sealed class AiFake : IPluginAiHost
     private readonly ConcurrentQueue<Scripted> _script = new();
     private readonly List<AiProviderRequest> _requests = [];
     private readonly List<AiResponse> _responses = [];
-    private readonly HashSet<string> _allowed = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _refused = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _allowed = [with(StringComparer.OrdinalIgnoreCase)];
+    private readonly HashSet<string> _refused = [with(StringComparer.OrdinalIgnoreCase)];
     private readonly Lock _lock = new();
     private readonly AiHost _host;
     private int _calls;
@@ -555,7 +555,7 @@ public sealed class AiFake : IPluginAiHost
     /// <summary>With no fake hotel: the player holds <paramref name="nodes"/> (<c>*</c> all of them).</summary>
     public AiFake Grant(PlayerId player, params string[] nodes)
     {
-        _grants.GetOrAdd(player, _ => new HashSet<string>(StringComparer.Ordinal)).UnionWith(nodes);
+        _grants.GetOrAdd(player, _ => [with(StringComparer.Ordinal)]).UnionWith(nodes);
 
         return this;
     }

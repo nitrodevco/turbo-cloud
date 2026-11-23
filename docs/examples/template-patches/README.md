@@ -30,5 +30,5 @@ runs it first, and the add-on's elements are named `skills:<name>`, so neither c
 other. Turbo.Tests compiles and loads all three (`TemplatePatchExampleTests`).
 
 Copy `purse-theme/` as it is into the server's plugins folder. Build the others with `dotnet build
-docs/examples/template-patches/<name>/<Name>.csproj` and copy `bin/Debug/net10.0/` there, or name
+docs/examples/template-patches/<name>/<Name>.csproj` and copy `bin/Debug/net11.0/` there, or name
 it in `Turbo:Plugin:DevPluginPaths`.

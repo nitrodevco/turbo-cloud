@@ -11,6 +11,6 @@
     <TurboCloudPath Condition="'$(TurboCloudPath)' == ''"
       >$([System.IO.Path]::GetFullPath($([System.IO.Path]::Combine('$(MSBuildThisFileDirectory)', '../turbo-cloud'))))</TurboCloudPath>
     <TurboBin Condition="'$(TurboBin)' == ''"
-      >$(TurboCloudPath)/Turbo.Main/bin/Debug/net10.0</TurboBin>
+      >$(TurboCloudPath)/Turbo.Main/bin/Debug/net11.0</TurboBin>
   </PropertyGroup>
 </Project>

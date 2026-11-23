@@ -706,44 +706,47 @@ internal sealed class CatalogEndpoints(
     /// <summary>What importing the packet logs would add and change; nothing is changed.</summary>
     private async Task<IResult> PreviewLogImportAsync(HttpContext http, CancellationToken ct)
     {
-        var (error, request) = await ReadLogsAsync(http, ct).ConfigureAwait(false);
-
-        return request is null
-            ? AdminResults.Error(StatusCodes.Status400BadRequest, error!)
-            : Built(await importer.PlanLogsAsync(request, ct).ConfigureAwait(false));
+        return await ReadLogsAsync(http, ct).ConfigureAwait(false) switch
+        {
+            CatalogLogImportRequest request => Built(
+                await importer.PlanLogsAsync(request, ct).ConfigureAwait(false)
+            ),
+            string error => AdminResults.Error(StatusCodes.Status400BadRequest, error),
+        };
     }
 
     private async Task<IResult> LogImportAsync(HttpContext http, CancellationToken ct)
     {
-        // The form is read whole first: the job can't read the request once it has answered.
-        var (error, request) = await ReadLogsAsync(http, ct).ConfigureAwait(false);
-
-        if (request is null)
-            return AdminResults.Error(StatusCodes.Status400BadRequest, error!);
-
         var who = AdminIdentity.Of(http).PlayerId;
 
-        return await jobs.RunAsync(
-                who,
-                "Importing the packet logs",
-                async jobCt =>
-                    Built(await importer.ApplyLogsAsync(who, request, jobCt).ConfigureAwait(false)),
-                ct
-            )
-            .ConfigureAwait(false);
+        // The form is read whole first: the job can't read the request once it has answered.
+        return await ReadLogsAsync(http, ct).ConfigureAwait(false) switch
+        {
+            CatalogLogImportRequest request => await jobs.RunAsync(
+                    who,
+                    "Importing the packet logs",
+                    async jobCt =>
+                        Built(
+                            await importer.ApplyLogsAsync(who, request, jobCt).ConfigureAwait(false)
+                        ),
+                    ct
+                )
+                .ConfigureAwait(false),
+            string error => AdminResults.Error(StatusCodes.Status400BadRequest, error),
+        };
     }
+
+    /// <summary>A form's packet logs, or why they could not be read.</summary>
+    private union LogsForm(CatalogLogImportRequest, string);
 
     /// <summary>
     /// The packet logs of a form: <c>normal</c> and <c>buildersClub</c> files, either left out,
     /// with <c>takeOthersOut</c> and <c>publish</c> as <c>true</c> or not.
     /// </summary>
-    private async Task<(string? Error, CatalogLogImportRequest? Request)> ReadLogsAsync(
-        HttpContext http,
-        CancellationToken ct
-    )
+    private async Task<LogsForm> ReadLogsAsync(HttpContext http, CancellationToken ct)
     {
         if (!http.Request.HasFormContentType)
-            return ("Send the packet logs as a form.", null);
+            return "Send the packet logs as a form.";
 
         var tooLarge =
             $"A packet log is at most {AdminCatalogImport.LOG_MAX_BYTES / (1024 * 1024)} MB.";
@@ -761,7 +764,7 @@ internal sealed class CatalogEndpoints(
         catch (BadHttpRequestException ex)
             when (ex.StatusCode == StatusCodes.Status413PayloadTooLarge)
         {
-            return (tooLarge, null);
+            return tooLarge;
         }
         catch (InvalidDataException ex)
         {
@@ -770,7 +773,7 @@ internal sealed class CatalogEndpoints(
                 "A catalogue import's packet logs could not be read from the form"
             );
 
-            return ($"The form could not be read: {ex.Message}", null);
+            return $"The form could not be read: {ex.Message}";
         }
 
         var logs = new string?[LogFields.Length];
@@ -781,7 +784,7 @@ internal sealed class CatalogEndpoints(
                 continue;
 
             if (file.Length > AdminCatalogImport.LOG_MAX_BYTES)
-                return (tooLarge, null);
+                return tooLarge;
 
             using var memory = new MemoryStream((int)file.Length);
             var stream = file.OpenReadStream();
@@ -792,14 +795,11 @@ internal sealed class CatalogEndpoints(
             logs[i] = PacketLog.TextOf(memory.ToArray());
         }
 
-        return (
-            null,
-            new CatalogLogImportRequest(
-                logs[0],
-                logs[1],
-                form["takeOthersOut"] == "true",
-                form["publish"] == "true"
-            )
+        return new CatalogLogImportRequest(
+            logs[0],
+            logs[1],
+            form["takeOthersOut"] == "true",
+            form["publish"] == "true"
         );
     }
 

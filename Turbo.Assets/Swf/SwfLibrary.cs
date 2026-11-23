@@ -33,9 +33,9 @@ public sealed class SwfLibrary : IAssetLibrary
     // A tag's length is a 6-bit field; this value says a 32-bit length follows.
     private const int LONG_TAG = 0x3f;
 
-    private readonly Dictionary<string, int> _characterByName = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _characterByName = [with(StringComparer.Ordinal)];
     private readonly Dictionary<int, string> _nameByCharacter = [];
-    private readonly HashSet<string> _assignedNames = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _assignedNames = [with(StringComparer.Ordinal)];
     private readonly List<(int Id, string Name)> _symbols = [];
     private readonly Dictionary<int, byte[]> _binaries = [];
     private readonly List<SwfImageTag> _images = [];
@@ -99,7 +99,7 @@ public sealed class SwfLibrary : IAssetLibrary
             foreach (var (className, fields) in AbcStaticClasses.Read(abc, wanted))
             {
                 if (!found.TryGetValue(className, out var embedded))
-                    found[className] = embedded = new(StringComparer.Ordinal);
+                    found[className] = embedded = [with(StringComparer.Ordinal)];
 
                 foreach (var (field, assigned) in fields)
                     if (

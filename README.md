@@ -57,7 +57,7 @@ shop, a navigator with no tabs and a "Create room" that refuses every layout.
 It includes the host executable (`Turbo.Main`), domain modules (`Turbo.Rooms`, `Turbo.Players`, `Turbo.Database`, and others), networking/message layers, and plugin infrastructure.
 
 ## Tooling Baseline
-- .NET SDK 10.x (pinned via `global.json`)
+- .NET SDK 11.x (pinned via `global.json`)
 - Git
 - MySQL or MariaDB running locally (or a reachable dev instance). Turbo creates and migrates its own database on first start; see [docs/database.md](docs/database.md)
 

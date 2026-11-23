@@ -35,11 +35,12 @@ internal sealed class AdminAuthGrain : Grain, IAdminAuthGrain
     private readonly AdminConfig _config;
     private readonly TimeProvider _time;
 
-    private readonly Dictionary<string, Pending> _setupTokens = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, Pending> _ceremonies = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, AdminSessionSnapshot> _sessions = new(
-        StringComparer.Ordinal
-    );
+    private readonly Dictionary<string, Pending> _setupTokens = [with(StringComparer.Ordinal)];
+    private readonly Dictionary<string, Pending> _ceremonies = [with(StringComparer.Ordinal)];
+    private readonly Dictionary<string, AdminSessionSnapshot> _sessions =
+    [
+        with(StringComparer.Ordinal),
+    ];
 
     public AdminAuthGrain(
         IDbContextFactory<TurboDbContext> dbCtxFactory,

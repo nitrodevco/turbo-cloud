@@ -79,13 +79,14 @@ internal sealed partial class ClientBundleBuilder(
     private const string TEMPLATES_BUILD = "2";
 
     /// <summary>The libraries with a bundle of their own, built from what the hotel keeps of them: never packed as templates.</summary>
-    private static readonly HashSet<string> OWN_BUILDS = new(StringComparer.Ordinal)
-    {
+    private static readonly HashSet<string> OWN_BUILDS =
+    [
+        with(StringComparer.Ordinal),
         AVATAR_LIBRARY,
         VISUALIZATION_LIBRARY,
         LOCALIZATION_LIBRARY,
         ChatStyles.ChatStyleService.LIBRARY,
-    };
+    ];
 
     /// <summary>The stamp of an avatar render bundle built without Habbo's avatar actions.</summary>
     private const string NO_ACTIONS = "no-actions";

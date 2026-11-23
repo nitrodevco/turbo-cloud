@@ -36,9 +36,10 @@ internal sealed partial class ClientExtensionReports(
     /// <summary>The external variable the client checks a module's origin against.</summary>
     public const string HOSTS_SETTING = "client.modules.hosts";
 
-    private readonly Dictionary<string, Dictionary<Key, Entry>> _owners = new(
-        StringComparer.OrdinalIgnoreCase
-    );
+    private readonly Dictionary<string, Dictionary<Key, Entry>> _owners =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
+    ];
 
     public void Report(long playerId, ImmutableArray<ClientExtensionReport> reports)
     {

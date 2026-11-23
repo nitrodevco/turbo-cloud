@@ -246,7 +246,7 @@ public sealed class AiRuntime(
         private readonly AiConversationRecord? _conversation;
         private readonly List<AiMessage> _messages;
         private readonly List<AiToolCall> _toolCalls = [];
-        private readonly HashSet<string> _called = new(StringComparer.Ordinal);
+        private readonly HashSet<string> _called = [with(StringComparer.Ordinal)];
         private Dictionary<string, McpToolDefinition>? _offered;
         private McpToolDefinition? _respond;
         private IRespondTool? _respondTool;

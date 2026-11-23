@@ -86,9 +86,10 @@ public sealed class TestHotel : IAsyncDisposable
     private readonly ConcurrentDictionary<string, Assembly> _builds = new(
         StringComparer.OrdinalIgnoreCase
     );
-    private readonly Dictionary<string, TestPlayer> _players = new(
-        StringComparer.OrdinalIgnoreCase
-    );
+    private readonly Dictionary<string, TestPlayer> _players =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
+    ];
     private readonly Dictionary<int, TestRoom> _rooms = [];
     private readonly List<Action<PluginManifest, IServiceCollection>> _replacements = [];
     private readonly TestLifetime _lifetime = new();
@@ -314,9 +315,10 @@ public sealed class TestHotel : IAsyncDisposable
     /// <summary>The live plugins, by key.</summary>
     public IReadOnlyDictionary<string, TestPlugin> Plugins => _plugins;
 
-    private readonly Dictionary<string, TestPlugin> _plugins = new(
-        StringComparer.OrdinalIgnoreCase
-    );
+    private readonly Dictionary<string, TestPlugin> _plugins =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
+    ];
 
     internal StandIns Sessions { get; }
 

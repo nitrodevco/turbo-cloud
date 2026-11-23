@@ -28,7 +28,7 @@ public sealed class PluginDesignTimeTests : IDisposable
     [Fact]
     public void Design_time_takes_the_prefix_of_the_manifest_above_the_build_folder_and_the_connection_given()
     {
-        var build = Path.Combine(_plugin, "server", "bin", "Debug", "net10.0");
+        var build = Path.Combine(_plugin, "server", "bin", "Debug", "net11.0");
 
         Directory.CreateDirectory(build);
         File.WriteAllText(

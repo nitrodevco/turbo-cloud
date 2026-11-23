@@ -35,7 +35,7 @@ public sealed class CameraPhotoPosterTests
     [Fact]
     public async Task A_photo_is_drawn_with_the_half_size_copy_a_poster_loads()
     {
-        RequireNode();
+        NodeRuntime.Require();
 
         var config = Options.Create(
             new CameraConfig
@@ -106,25 +106,5 @@ public sealed class CameraPhotoPosterTests
             zlib.Write(Encoding.UTF8.GetBytes(json));
 
         return output.ToArray();
-    }
-
-    private static void RequireNode()
-    {
-        try
-        {
-            using var node = Process.Start(
-                new ProcessStartInfo("node", "--version")
-                {
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                }
-            );
-
-            node!.WaitForExit();
-        }
-        catch (Exception)
-        {
-            Assert.Skip("node is not installed");
-        }
     }
 }

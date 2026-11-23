@@ -62,12 +62,13 @@ public sealed class AdminCatalogAddFurni(
     private const string LAYOUT = "default_3x3";
 
     /// <summary>The shop grids, whose header and teaser pictures and texts a page made under one takes.</summary>
-    private static readonly HashSet<string> ShopGrids = new(StringComparer.Ordinal)
-    {
+    private static readonly HashSet<string> ShopGrids =
+    [
+        with(StringComparer.Ordinal),
         LAYOUT,
         "default_3x3_color_grouping",
         "default_3x3_extrainfo",
-    };
+    ];
 
     private const string UNKNOWN_SORT =
         "Furni are sorted by kind, by colour, or by kind and then colour.";

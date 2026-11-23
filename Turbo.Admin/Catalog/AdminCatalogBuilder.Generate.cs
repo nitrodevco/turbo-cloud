@@ -182,12 +182,13 @@ public sealed partial class AdminCatalogBuilder
     private const string CLUB_GIFTS_LINE = "habbo_club_gifts";
 
     /// <summary>Furni lines that are the hotel's own tests, never sold.</summary>
-    private static readonly HashSet<string> UnsoldLines = new(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly HashSet<string> UnsoldLines =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
         CLUB_GIFTS_LINE,
         "testing",
         "test",
-    };
+    ];
 
     /// <summary>The generated catalog as it would be, planned from the hotel as it is; nothing is changed.</summary>
     public async Task<CatalogBuildOutcome<CatalogGeneratePlan>> PlanCatalogAsync(
@@ -1658,12 +1659,13 @@ public sealed partial class AdminCatalogBuilder
     private static readonly Theme OtherLines = new("other", "More lines", Icons.FURNI, []);
 
     /// <summary>Lines of pet furni, which go with pet care on the pets tab.</summary>
-    private static readonly HashSet<string> PetLines = new(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly HashSet<string> PetLines =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
         "pet",
         "nests",
         "horse",
-    };
+    ];
 
     private static Theme ThemeOf(string stem) =>
         Themes.FirstOrDefault(x => x.Stems.Contains(stem, StringComparer.OrdinalIgnoreCase))

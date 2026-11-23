@@ -20,8 +20,8 @@ internal sealed class PluginMessageDirectory(IExtensionPacketRegistry extensions
 {
     private readonly IExtensionPacketRegistry _extensions = extensions;
     private readonly object _gate = new();
-    private readonly Dictionary<string, Entry> _live = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, int> _given = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Entry> _live = [with(StringComparer.Ordinal)];
+    private readonly Dictionary<string, int> _given = [with(StringComparer.Ordinal)];
     private ImmutableArray<PluginMessageSnapshot> _messages = [];
 
     public ImmutableArray<PluginMessageSnapshot> Messages => _messages;

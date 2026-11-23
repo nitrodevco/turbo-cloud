@@ -57,6 +57,20 @@ a snapshot mapping or a literal.
   A pair's room is never stored, because either half can be picked up and placed elsewhere;
   resolve it when needed (`RoomFurniModule.GetRoomIdOfItemAsync`). A dangling `ItemId` (the pair
   was deleted) simply leads nowhere.
+- A hierarchy the code switches over by kind is `closed` (C# 15) when all its direct subtypes are
+  in its own assembly, as `WiredBox` is: a switch expression over it then needs no `_ =>` arm, and
+  a new kind stops compiling wherever it is not handled. Before, `WiredBox` faked this with a
+  `private protected` constructor, and the switch that builds a box's room logic ended in a
+  `throw` for a kind that could not exist. Only switch expressions are checked: a switch
+  statement keeps its `default`. A type plugins derive from directly (`WiredEffect`) stays open.
+- A value that is exactly one of a few types is a `union` (C# 15), not a tuple of nullables read
+  back with `!` or an `object` slot with a dummy `_ =>` arm: `CatalogEndpoints.LogsForm` (the
+  packet logs, or why the form had none) and `GamedataFurnitureService.ImportedRow`. A union stays
+  private to the class that uses it, and never crosses a grain call (`docs/rules/grains.md`).
+- A collection built with a comparer or a capacity is `[with(StringComparer.Ordinal), ...]` where
+  it has a target type (a field, a return, an assignment). A copy of another collection stays
+  `new HashSet<int>(source)` or `[.. source]`: `[with(source)]` compiles to the same constructor
+  call, but reads as an option rather than as the contents.
 
 ## Constants and magic values
 - Do not scatter hardcoded literals or `const` fields through implementation files. Give them a home:

@@ -21,8 +21,8 @@ cd "$TURBO_SITE_DIR"
 
 dotnet_version="$("$TURBO_DOTNET" --version | tr -d '\r')"
 case "$dotnet_version" in
-  10.*) turbo_log "Using .NET SDK $dotnet_version" ;;
-  *) turbo_fail ".NET SDK 10.x is required, found '$dotnet_version'." ;;
+  11.*) turbo_log "Using .NET SDK $dotnet_version" ;;
+  *) turbo_fail ".NET SDK 11.x is required, found '$dotnet_version'." ;;
 esac
 
 connection_string="$(turbo_connection_string)"

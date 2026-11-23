@@ -125,6 +125,12 @@ A reader who knows one grain should be able to find their way in any other. `Pla
   without `Immutable`, since handlers mutate them (`PlayerChatEvent` rewrites `Text`).
 - A composer that is only ever sent from inside the grain that built it still needs this: the next
   caller to route it through `IPlayerPresenceGrain.SendComposerAsync` crosses a proxy.
+- A C# 15 `union` never crosses a grain call. It declares no members to number (its case sits in
+  an `object?` `Value`), and Orleans 10.4's serializer generator predates unions, so it would fail
+  at runtime as an unattributed type does. A union stays inside the class that uses it
+  (`CatalogEndpoints.LogsForm`). A value a grain hands back that is one of several kinds is a
+  `[GenerateSerializer]` record hierarchy, `closed` when its kinds are all in one assembly
+  (`docs/rules/types-and-constants.md`).
 
 ### Declare grain implementations `internal sealed`
 - A grain implementation is an implementation detail: only its interface is public. Declare it

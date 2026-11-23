@@ -25,7 +25,7 @@ internal sealed class Batch<T>(
 ) : IFlushable
     where T : class
 {
-    private readonly List<T> _rows = new(size);
+    private readonly List<T> _rows = [with(size)];
     private readonly List<IFlushable> _parents = [];
     private long _written;
 

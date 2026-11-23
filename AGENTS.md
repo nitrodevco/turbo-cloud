@@ -13,11 +13,11 @@ for its area, and comes here only when every change needs it.
 
 ## Foundational context
 This repository targets the following core stack. When coding, prefer patterns compatible with these versions:
-- .NET SDK `10.0.404` (from `global.json`)
-- C# / BCL `net10.0`
+- .NET SDK `11.0.100` (from `global.json`)
+- C# 15 / BCL `net11.0`
 - Orleans `10.4.2`
-- EF Core `10.0.15` (on the major the target framework and the MySQL provider share: EF Core 11 needs .NET 11)
-- MySQL provider `Microting.EntityFrameworkCore.MySql` `10.0.14` (Pomelo's successor; Pomelo stopped at EF Core 9)
+- EF Core `11.0.0` (on the major the target framework and the MySQL provider share)
+- MySQL provider `Microting.EntityFrameworkCore.MySql` `11.0.0` (Pomelo's successor; Pomelo stopped at EF Core 9)
 - SuperSocket `2.1.0`
 
 ## Rules by area
@@ -48,7 +48,7 @@ reading it whole.
 4. Existing neighboring code conventions in the target folder
 
 ## Required standards
-- Target framework/tooling: `.NET 10` pinned via `global.json`.
+- Target framework/tooling: `.NET 11` pinned via `global.json`.
 - Keep C# formatting compatible with repo quality gates (`dotnet csharpier check`, `dotnet format`).
 - Follow `.editorconfig` naming/style preferences.
 - Keep diffs focused and minimal; avoid unrelated refactors.
@@ -103,7 +103,7 @@ patterns*.
   use the token the timer passes, and are disposed before the final flush.
 - Every type that crosses a grain call carries `[GenerateSerializer]` and an `[Id(n)]` on each
   member, never renumbered; composers and snapshots are also `[Immutable]`, events are not. A
-  missing attribute fails at runtime only.
+  missing attribute fails at runtime only, and a C# 15 `union` never crosses one.
 - Grain implementations are `internal sealed`; only the interface, in
   `Turbo.Primitives/<Domain>/Grains/`, is public. `RoomGrain` and every type `AssemblyExplorer`
   discovers (room object logic, wired variables, packet handlers) stay public: an internal one

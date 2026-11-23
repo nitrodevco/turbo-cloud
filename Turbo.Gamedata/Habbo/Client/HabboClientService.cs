@@ -917,18 +917,18 @@ internal sealed partial class HabboClientService(
         var path = Path.Combine(Root, ENVIRONMENTS_FILE);
 
         if (!File.Exists(path))
-            return new(StringComparer.Ordinal);
+            return [with(StringComparer.Ordinal)];
 
         try
         {
             return JsonSerializer.Deserialize<Dictionary<string, EnvironmentState>>(
                 await File.ReadAllTextAsync(path, ct).ConfigureAwait(false),
                 JSON
-            ) ?? new(StringComparer.Ordinal);
+            ) ?? [with(StringComparer.Ordinal)];
         }
         catch (JsonException)
         {
-            return new(StringComparer.Ordinal);
+            return [with(StringComparer.Ordinal)];
         }
     }
 

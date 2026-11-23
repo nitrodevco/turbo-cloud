@@ -32,7 +32,7 @@ internal sealed class PluginRoomLeases(
     private readonly Dictionary<
         string,
         Dictionary<RoomId, Dictionary<string, DateTimeOffset>>
-    > _byPlugin = new(StringComparer.Ordinal);
+    > _byPlugin = [with(StringComparer.Ordinal)];
 
     public async Task<RoomHoldOutcome> HoldAsync(
         string plugin,
@@ -242,7 +242,7 @@ internal sealed class PluginRoomLeases(
                 _byPlugin[plugin] = rooms = [];
 
             if (!rooms.TryGetValue(room, out var there))
-                rooms[room] = there = new(StringComparer.Ordinal);
+                rooms[room] = there = [with(StringComparer.Ordinal)];
 
             there[key] = time.GetUtcNow() + lease;
         }

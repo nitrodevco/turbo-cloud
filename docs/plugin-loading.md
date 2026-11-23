@@ -51,7 +51,7 @@ folder are all the same sources.
   (see below). The MySQL provider is `Microting.EntityFrameworkCore.MySql` since EF Core 10;
   before, it was `Pomelo.EntityFrameworkCore.MySql`. A plugin whose project names Pomelo's
   assembly, or whose code uses its `Pomelo.*` namespaces, changes them to Microting's.
-- **Compiled as** the server is: C# 14, nullable on, optimized, no unsafe code, with the source
+- **Compiled as** the server is: C# 15, nullable on, optimized, no unsafe code, with the source
   generators the server ships pinned with it: Orleans serializers (`[GenerateSerializer]`),
   `[LoggerMessage]`, System.Text.Json (`[JsonSerializable]`) and `[GeneratedRegex]`. A plugin brings
   no generator or analyzer of its own.

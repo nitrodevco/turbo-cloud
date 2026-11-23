@@ -144,7 +144,7 @@ internal sealed class GamedataFurnitureService(
         var files = await furnitureFiles.LoadAsync(ct).ConfigureAwait(false);
         var plan = await PlanAsync(dbCtx, release, files, tracked: true, ct).ConfigureAwait(false);
         var now = time.GetUtcNow().UtcDateTime;
-        var changes = new List<(GamedataChangeEntity Change, object Row)>();
+        var changes = new List<(GamedataChangeEntity Change, ImportedRow Row)>();
         var added = 0;
         var updated = 0;
 
@@ -253,7 +253,6 @@ internal sealed class GamedataFurnitureService(
                 {
                     FurnitureDefinitionEntity definition => definition.Id,
                     HabboFurnitureEntity habbo => habbo.Id,
-                    _ => change.RecordId,
                 };
 
                 if (change.Before is null && row is FurnitureDefinitionEntity made)
@@ -1310,6 +1309,9 @@ internal sealed class GamedataFurnitureService(
                 Logic = Logic,
             };
     }
+
+    /// <summary>The row an import change is about, which has its id only once it is saved.</summary>
+    private union ImportedRow(FurnitureDefinitionEntity, HabboFurnitureEntity);
 
     private sealed class ImportPlan(IReadOnlyCollection<FurnitureDefinitionEntity> definitions)
     {

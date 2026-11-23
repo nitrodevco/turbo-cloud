@@ -286,28 +286,30 @@ public static class SpriteSheetPacker
 
         free.Clear();
 
+        // A rectangle inside another (or the later of two equal ones) is dropped.
+        candidates:
         for (var i = 0; i < next.Count; i++)
         {
             var a = next[i];
-            var contained = false;
 
-            for (var j = 0; j < next.Count && !contained; j++)
+            for (var j = 0; j < next.Count; j++)
             {
                 if (i == j)
                     continue;
 
                 var b = next[j];
 
-                contained =
+                if (
                     a.X >= b.X
                     && a.Y >= b.Y
                     && a.X + a.W <= b.X + b.W
                     && a.Y + a.H <= b.Y + b.H
-                    && (a != b || i > j);
+                    && (a != b || i > j)
+                )
+                    continue candidates;
             }
 
-            if (!contained)
-                free.Add(a);
+            free.Add(a);
         }
     }
 

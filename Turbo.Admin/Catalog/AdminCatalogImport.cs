@@ -481,7 +481,7 @@ public sealed class AdminCatalogImport(
         );
         var sharedByName = builders
             ? ByName(x => x.Display == CatalogPageDisplay.Both)
-            : new Dictionary<string, Queue<SavedPage>>(StringComparer.Ordinal);
+            : [with(StringComparer.Ordinal)];
 
         // The pages only the other catalogue shows, but for tabs: one the other catalogue's
         // import made alone, before this one, is the same page by its name, to be shown in both.
@@ -1276,16 +1276,16 @@ public sealed class AdminCatalogImport(
         public List<string> MissingClasses { get; } = [];
 
         /// <summary>The pictures the plan's pages show, by the names the pages give them.</summary>
-        public HashSet<string> Pictures { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> Pictures { get; } = [with(StringComparer.Ordinal)];
 
         public List<string> MissingPictures { get; } = [];
 
         /// <summary>The pages the plan makes, or leaves, shown in both catalogues, by name.</summary>
-        public HashSet<string> BothNames { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> BothNames { get; } = [with(StringComparer.Ordinal)];
 
         public List<string> Warnings { get; } = [];
 
-        public HashSet<string> Names { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> Names { get; } = [with(StringComparer.Ordinal)];
 
         public int KeptOffers { get; set; }
 

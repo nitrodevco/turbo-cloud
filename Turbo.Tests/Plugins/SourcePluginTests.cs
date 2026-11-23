@@ -1,5 +1,6 @@
 using System.Xml.Linq;
 using FluentAssertions;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -416,7 +417,10 @@ public sealed class SourcePluginTests : IDisposable
             .Descendants("LangVersion")
             .Single()
             .Value.Should()
-            .Be("14.0", $"the server compiles plugins as {PluginCompiler.LANGUAGE}");
+            .Be(
+                PluginCompiler.LANGUAGE.ToDisplayString(),
+                "a plugin's project builds in the C# the server compiles it in"
+            );
         File.ReadAllText(
                 Path.Combine(
                     RepositoryRoot(),

@@ -58,8 +58,9 @@ public sealed class GiftCommand(
     private const string USAGE = ":gift <who> <furni> \"<note>\" [badge] [trusted]";
 
     /// <summary>The words the binder reads as a yes or no, none of them a badge.</summary>
-    private static readonly HashSet<string> YesNoWords = new(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly HashSet<string> YesNoWords =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
         "true",
         "false",
         "yes",
@@ -68,7 +69,7 @@ public sealed class GiftCommand(
         "off",
         "1",
         "0",
-    };
+    ];
 
     private const string SENT = "sent";
     private const string SENT_MANY = "sent_many";

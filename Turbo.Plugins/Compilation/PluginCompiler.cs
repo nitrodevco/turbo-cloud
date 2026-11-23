@@ -51,7 +51,7 @@ internal sealed class PluginCompiler(
 )
 {
     /// <summary>The C# the server itself is built with.</summary>
-    public const LanguageVersion LANGUAGE = LanguageVersion.CSharp14;
+    public const LanguageVersion LANGUAGE = LanguageVersion.CSharp15;
 
     /// <summary>Goes up when what a compile makes changes, so every plugin is compiled again.</summary>
     private const string FORMAT = "turbo-plugin-compile/1";

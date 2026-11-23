@@ -7,38 +7,37 @@
     <PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="18.12.1" />
   </ItemGroup>
   <ItemGroup>
-    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.404" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="11.0.100" />
     <!--
       Roslyn and its transitives are pinned together so central transitive pinning resolves one
-      version: Orleans 10 asks for Microsoft.CodeAnalysis 5.x and EF Core 10's design-time
-      packages for 5.0.0, and the plugin policy analyzer (Turbo.Plugins.Policy) must stay
-      loadable by every SDK 10 compiler.
+      version: Orleans 10 asks for Microsoft.CodeAnalysis 5.0.0 or later and EF Core 11's
+      design-time packages for 5.9.0. 5.12.0 is the compiler SDK 11.0.100 ships, so the plugin
+      policy analyzer (Turbo.Plugins.Policy) loads in it, and the server compiles plugins with the
+      same C# the SDK builds them with (Turbo.Plugins/Compilation/PluginCompiler.cs).
     -->
-    <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="5.0.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.0.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="5.0.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.0.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="5.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="5.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.12.0" />
     <!--
       EF Core stays on the major the target framework and the MySQL provider share:
-      Microting.EntityFrameworkCore.MySql 10.0.14 asks for Relational [10.0.14, 10.0.999], and
-      EF Core 11 (with Microting 11) needs .NET 11.
+      Microting.EntityFrameworkCore.MySql 11.0.0 asks for Relational [11.0.0, 11.0.999].
     -->
-    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Abstractions" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.15" />
-    <PackageVersion
-      Include="Microsoft.Extensions.DependencyInjection.Abstractions"
-      Version="10.0.15"
-    />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyModel" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Abstractions" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="11.0.0" />
+    <!--
+      The abstractions (DependencyInjection, Hosting, Logging, Options, Configuration...) are in
+      the .NET 11 shared framework: a package reference to one is pruned (NU1510).
+    -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyModel" Version="11.0.0" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.21.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
     <PackageVersion Include="Microsoft.Orleans.Serialization.Abstractions" Version="10.4.2" />
@@ -48,7 +47,7 @@
     <PackageVersion Include="Microsoft.Orleans.Core.Abstractions" Version="10.4.2" />
     <PackageVersion Include="Microsoft.Orleans.Sdk" Version="10.4.2" />
     <!-- Pomelo's successor: Pomelo.EntityFrameworkCore.MySql stopped at EF Core 9. -->
-    <PackageVersion Include="Microting.EntityFrameworkCore.MySql" Version="10.0.14" />
+    <PackageVersion Include="Microting.EntityFrameworkCore.MySql" Version="11.0.0" />
     <PackageVersion Include="SuperSocket.Server" Version="2.1.0" />
     <PackageVersion Include="SuperSocket.Server.Abstractions" Version="2.1.0" />
     <PackageVersion Include="SuperSocket.ProtoBase" Version="2.1.0" />
@@ -72,7 +71,7 @@
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.15" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.0.0" />
   </ItemGroup>
 </Project>

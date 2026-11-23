@@ -12,12 +12,14 @@ namespace Turbo.Primitives.Players.Permissions;
 /// </summary>
 public sealed class PermissionRegistry
 {
-    private readonly Dictionary<string, PermissionNodeDefinition> _nodes = new(
-        StringComparer.Ordinal
-    );
-    private readonly Dictionary<string, PermissionMetaDefinition> _metaKeys = new(
-        StringComparer.Ordinal
-    );
+    private readonly Dictionary<string, PermissionNodeDefinition> _nodes =
+    [
+        with(StringComparer.Ordinal),
+    ];
+    private readonly Dictionary<string, PermissionMetaDefinition> _metaKeys =
+    [
+        with(StringComparer.Ordinal),
+    ];
 
     /// <exception cref="InvalidOperationException">
     /// A node or key is malformed or registered twice, or a plugin source registers outside its

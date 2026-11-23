@@ -18,7 +18,7 @@ namespace Turbo.Testing;
 public sealed class TestSchedule
 {
     private readonly TestHotel _hotel;
-    private readonly Dictionary<string, DateTimeOffset> _since = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, DateTimeOffset> _since = [with(StringComparer.Ordinal)];
     private readonly List<(string Key, DateTimeOffset At)> _ran = [];
 
     internal TestSchedule(TestHotel hotel) => _hotel = hotel;

@@ -51,7 +51,7 @@ clock moves.
 | --- | --- |
 | `title` | the entry's heading, in quotes |
 | `date` | the same date as the file's name |
-| `pr` | the pull request, `<repository>#<number>`; several are separated by commas (`turbo-cloud#467, nitro-next#254`) |
+| `pr` | the pull request, `<repository>#<number>`; several are separated by commas (`turbo-cloud#467, nitro-next#254`). A change committed straight to a branch, with no pull request, names its commit, `<repository>@<sha>` (`turbo-cloud@b6cb95ab`) |
 | `breaks` | `yes` or `no`: does it break plugins (above) |
 | `who` | who it affects, in quotes |
 

@@ -1,6 +1,7 @@
 # Upgrading a Plugin
 
 - [Introduction](#introduction)
+- [To .NET 11 (2026-11-22)](#to-net-11-2026-11-22)
 - [Furniture-service replacements (2026-10-29)](#furniture-service-replacements-2026-10-29)
 - [Theme-file providers (2026-10-28)](#theme-file-providers-2026-10-28)
 - [Theme audience providers (2026-10-28)](#theme-audience-providers-2026-10-28)
@@ -24,6 +25,29 @@ What a plugin author does when Turbo changes what plugins are. Each change, with
 whether it breaks a plugin, is in `docs/plugin-changelog.md` (one file per change in
 `docs/changelog/`); this page is the work, in order. A pull request with a breaking change adds its
 changelog entry and its steps here together.
+
+## To .NET 11 (2026-11-22)
+
+The server is built for .NET 11, and a plugin's project builds against its assemblies, so the
+project moves with it. A plugin that is only sources and a manifest, compiled by the server, needs
+nothing.
+
+1. Install the .NET 11 SDK (11.0.100 or later). The policy analyzer `Turbo.Plugin.props` brings in
+   is built against the C# 15 compiler, which SDK 10 cannot load. A plugin with a `global.json`
+   pins `11.0.100` in it.
+2. Set `<TargetFramework>net11.0</TargetFramework>` in `server/<Name>.csproj` and in
+   `tests/<Name>.Tests/<Name>.Tests.csproj`.
+3. Build the server you point `TurboBin` at from this version: its bin folder is now
+   `Turbo.Main/bin/Debug/net11.0`, which is also the template's default in `tools/host.mjs` and
+   `Directory.Build.props`.
+4. A plugin that pins a package of its own moves EF Core and `Microsoft.Extensions.*` to 11.0.0,
+   and drops its references to `Microsoft.Extensions.*.Abstractions`, `Microsoft.Extensions.Options`
+   and `Microsoft.Extensions.Primitives`: .NET 11 carries them, and a reference warns NU1510.
+5. Rename a type called `union` or `closed`, or write it `@union`/`@closed` where it is used:
+   both are C# 15 keywords now, and `closed x;` or `union x;` no longer declares a field.
+
+`npm run check` (or `dotnet build server/<Name>.csproj`) then fails where the server's compile
+would, as before.
 
 ## Furniture-service replacements (2026-10-29)
 
@@ -144,7 +168,7 @@ After:
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="$(TurboBin)/plugin-sdk/Turbo.Plugin.props" />
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <RootNamespace>TurboEvents</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
@@ -264,7 +288,7 @@ abstractions). Move them to `tests/<Name>.Tests/` with a `ProjectReference` to
 ### 11. Check it as the server will
 
 - `npm run check` in a template plugin, or `dotnet build server/<Name>.csproj`: the same references,
-  C# 14, nullable, no unsafe code and the policy analyzer, so it fails exactly where the server's
+  C# 15, nullable, no unsafe code and the policy analyzer, so it fails exactly where the server's
   compile would, as `server/File.cs(line,column)`.
 - Then load it: name the plugin's folder (a template plugin's `dist/<key>/`, which `npm run dev`
   keeps current) in the server's `Turbo:Plugin:DevPluginPaths` and look at the admin panel's plugin

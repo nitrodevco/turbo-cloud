@@ -26,15 +26,16 @@ public sealed record FakeMovement(
 public sealed class FakeWallet : IHotelWallet
 {
     private readonly FakeHotel _hotel;
-    private readonly HashSet<string> _currencies = new(StringComparer.OrdinalIgnoreCase)
-    {
+    private readonly HashSet<string> _currencies =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
         "credits",
         "duckets",
         "diamonds",
-    };
-    private readonly Dictionary<(PlayerId, string), int> _balances = new(new BalanceKey());
-    private readonly HashSet<(PlayerId, string)> _credited = new(new BalanceKey());
-    private readonly HashSet<(PlayerId, string)> _debited = new(new BalanceKey());
+    ];
+    private readonly Dictionary<(PlayerId, string), int> _balances = [with(new BalanceKey())];
+    private readonly HashSet<(PlayerId, string)> _credited = [with(new BalanceKey())];
+    private readonly HashSet<(PlayerId, string)> _debited = [with(new BalanceKey())];
     private readonly List<FakeMovement> _movements = [];
     private readonly FakeFaults _faults = new();
 

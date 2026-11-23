@@ -14,7 +14,10 @@ namespace Turbo.Players.Grains;
 internal sealed class PlayerNameCache(int capacity)
 {
     private readonly Dictionary<PlayerId, LinkedListNode<(PlayerId Id, string Name)>> _byId = [];
-    private readonly Dictionary<string, PlayerId> _idByName = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, PlayerId> _idByName =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
+    ];
 
     /// <summary>Most recently used first.</summary>
     private readonly LinkedList<(PlayerId Id, string Name)> _recency = new();

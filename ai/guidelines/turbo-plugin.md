@@ -24,7 +24,7 @@ when the plugin unloads. Write against the plugin surface only; never against th
   `using Turbo.Rooms`, `Turbo.Players`, `Turbo.Catalog`... fails with CS0234: use the contracts.
 - **Refused calls** (`TPP` errors, file and line): TPP001 loading assemblies, TPP002 native code,
   TPP003 `unsafe`/pointers, TPP004 `Reflection.Emit`, TPP005 `Process.Start`, TPP006 Roslyn.
-- C# 14, nullable on, no unsafe. Generators available: `[GenerateSerializer]`, `[LoggerMessage]`,
+- C# 15, nullable on, no unsafe. Generators available: `[GenerateSerializer]`, `[LoggerMessage]`,
   `[JsonSerializable]`, `[GeneratedRegex]`.
 - **Found, not registered.** Public, concrete, top-level classes are found as the plugin loads:
   commands, permission node sources, packet and message handlers, furni logic, wired boxes, room

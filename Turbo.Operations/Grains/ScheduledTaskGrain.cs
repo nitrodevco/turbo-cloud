@@ -34,8 +34,8 @@ internal sealed class ScheduledTaskGrain : Grain, IScheduledTaskGrain
     private readonly TimeProvider _time;
     private readonly ILogger<IScheduledTaskGrain> _logger;
 
-    private readonly Dictionary<string, TaskState> _tasks = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, ServerState> _servers = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, TaskState> _tasks = [with(StringComparer.Ordinal)];
+    private readonly Dictionary<string, ServerState> _servers = [with(StringComparer.Ordinal)];
 
     // The last run of every task the database knows, read once per activation.
     private Dictionary<string, ScheduledTaskRunEntity>? _stored;
@@ -467,7 +467,7 @@ internal sealed class ScheduledTaskGrain : Grain, IScheduledTaskGrain
         {
             // Without them every task counts from now, as on a new hotel.
             _logger.LogError(ex, "Scheduled tasks: the last runs could not be read");
-            _stored = new(StringComparer.Ordinal);
+            _stored = [with(StringComparer.Ordinal)];
         }
 
         return _stored;
@@ -582,7 +582,7 @@ internal sealed class ScheduledTaskGrain : Grain, IScheduledTaskGrain
         /// <summary>Whether <see cref="Last"/> is newer than its row.</summary>
         public bool Unstored { get; set; }
 
-        public HashSet<string> Servers { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> Servers { get; } = [with(StringComparer.Ordinal)];
     }
 
     private sealed record ServerState(IScheduledTaskServer Reference, DateTimeOffset LastSeen);

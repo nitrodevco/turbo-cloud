@@ -19,9 +19,10 @@ internal sealed class SourceDatabase : IAsyncDisposable
 {
     private readonly DbConnection _conn;
     private readonly bool _ownsConnection;
-    private readonly Dictionary<string, HashSet<string>> _columns = new(
-        StringComparer.OrdinalIgnoreCase
-    );
+    private readonly Dictionary<string, HashSet<string>> _columns =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
+    ];
 
     private SourceDatabase(DbConnection conn, bool ownsConnection)
     {
@@ -243,7 +244,7 @@ internal sealed class SourceDatabase : IAsyncDisposable
     private void Add(string table, string column)
     {
         if (!_columns.TryGetValue(table, out var columns))
-            _columns[table] = columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            _columns[table] = columns = [with(StringComparer.OrdinalIgnoreCase)];
 
         columns.Add(column);
     }

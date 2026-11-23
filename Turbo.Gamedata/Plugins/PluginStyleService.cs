@@ -194,7 +194,7 @@ internal sealed partial class PluginStyleService(
         var path = Path.Combine(folder, PluginGamedataSeeds.FOLDER, PluginGamedataSeeds.TEXTS_FILE);
         var own = File.Exists(path)
             ? ExternalTextsFile.Parse(await File.ReadAllTextAsync(path, ct).ConfigureAwait(false))
-            : new Dictionary<string, string>(StringComparer.Ordinal);
+            : [with(StringComparer.Ordinal)];
 
         foreach (var (key, value) in texts)
         {

@@ -36,7 +36,7 @@ public sealed class PluginHotReloadService(
 
     private Timer? _debounceTimer;
     private Timer? _dataTimer;
-    private readonly HashSet<string> _pendingData = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _pendingData = [with(StringComparer.OrdinalIgnoreCase)];
     private bool _pendingReload;
     private string? _lastPath;
     private int _shutdownStarted;

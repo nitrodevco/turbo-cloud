@@ -25,14 +25,13 @@ public sealed class WiredBoxAttribute(string key) : Attribute
 /// it is stored, exactly as for core's boxes.
 /// <para>
 /// Derive from <see cref="WiredEffect"/>, <see cref="WiredTrigger{TEvent}"/>,
-/// <see cref="WiredCondition"/> or <see cref="WiredSelector"/>. One instance is made per furni, by
-/// the plugin's container (take <c>IHotel</c> or the plugin's own services by constructor).
+/// <see cref="WiredCondition"/> or <see cref="WiredSelector"/>, the only four kinds: the class is
+/// <c>closed</c>, as the room runs each kind its own way. One instance is made per furni, by the
+/// plugin's container (take <c>IHotel</c> or the plugin's own services by constructor).
 /// </para>
 /// </summary>
-public abstract class WiredBox
+public closed class WiredBox
 {
-    private protected WiredBox() { }
-
     /// <summary>The int params, in the order the editor sends them; each refuses what it does not allow.</summary>
     public virtual IReadOnlyList<WiredParam> Params => [];
 

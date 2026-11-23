@@ -902,13 +902,9 @@ public sealed class PluginTemplateTests : IDisposable
 
         start.Environment["TurboBin"] = turboBin;
 
-        using var node = Process.Start(start)!;
-        var output = node.StandardOutput.ReadToEndAsync(Ct);
-        var errors = node.StandardError.ReadToEndAsync(Ct);
+        var run = await Process.RunAndCaptureTextAsync(start, Ct);
 
-        await node.WaitForExitAsync(Ct);
-
-        return (node.ExitCode, await output + await errors);
+        return (run.ExitStatus.ExitCode, run.StandardOutput + run.StandardError);
     }
 
     private static string TemplateKey() =>
@@ -988,13 +984,10 @@ public sealed class PluginTemplateTests : IDisposable
         start.Environment["TURBO_MAKE_EF"] = "0";
         start.Environment["TurboBin"] = AppContext.BaseDirectory;
 
-        using var node = Process.Start(start)!;
-        var output = node.StandardOutput.ReadToEndAsync(Ct);
-        var errors = node.StandardError.ReadToEndAsync(Ct);
+        var run = await Process.RunAndCaptureTextAsync(start, Ct);
 
-        await node.WaitForExitAsync(Ct);
-
-        node.ExitCode.Should().Be(0, $"make {recipe}: {await errors}{await output}");
+        run.ExitStatus.ExitCode.Should()
+            .Be(0, $"make {recipe}: {run.StandardError}{run.StandardOutput}");
     }
 
     private static string RepositoryRoot()

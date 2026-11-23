@@ -43,7 +43,7 @@ public sealed class OnlineRewardService(
     // Only the loop touches these: one sweep at a time.
     private readonly Dictionary<PlayerId, OnlineRewardClock> _clocks = [];
     private readonly HashSet<PlayerId> _seen = [];
-    private readonly HashSet<string> _unknownCurrencies = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _unknownCurrencies = [with(StringComparer.OrdinalIgnoreCase)];
 
     /// <summary>A rule as paid: its currency resolved, the hotel's idle and sleep settings where it has none.</summary>
     private sealed record Payout(

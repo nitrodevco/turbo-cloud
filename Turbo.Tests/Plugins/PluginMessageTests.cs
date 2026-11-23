@@ -655,7 +655,7 @@ public sealed class PluginMessageTests : IDisposable
         return PluginMessageSchema.For(type).Read(packet).ToString()!;
     }
 
-    private readonly Dictionary<string, Type> _loadedTypes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Type> _loadedTypes = [with(StringComparer.Ordinal)];
 
     private ServiceProvider HostServices() =>
         new ServiceCollection()

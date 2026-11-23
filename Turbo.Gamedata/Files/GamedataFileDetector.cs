@@ -28,8 +28,9 @@ namespace Turbo.Gamedata.Files;
 internal static class GamedataFileDetector
 {
     /// <summary>Keys a client's variables or a Nitro client config has, and texts never do.</summary>
-    private static readonly HashSet<string> VARIABLE_KEYS = new(StringComparer.Ordinal)
-    {
+    private static readonly HashSet<string> VARIABLE_KEYS =
+    [
+        with(StringComparer.Ordinal),
         "flash.client.url",
         "external.texts.txt",
         "external.variables.txt",
@@ -45,7 +46,7 @@ internal static class GamedataFileDetector
         "productdata.url",
         "figuredata.url",
         "nitro.config.url",
-    };
+    ];
 
     private static readonly JsonDocumentOptions JSON_OPTIONS = new()
     {

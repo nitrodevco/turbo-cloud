@@ -27,10 +27,10 @@ These scripts run Turbo on a Ploi-managed Ubuntu server:
 
 ## One-time setup
 
-1. **Install the .NET 10 SDK** as the `ploi` user (SSH in as `ploi`):
+1. **Install the .NET 11 SDK** as the `ploi` user (SSH in as `ploi`):
 
    ```bash
-   curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0
+   curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 11.0
    ```
 
    The scripts find `~/.dotnet` on their own. A system-wide install under `/usr/share/dotnet` or `/usr/lib/dotnet` works too.

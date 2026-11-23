@@ -8,11 +8,11 @@ namespace Turbo.Players.Grains.Badges;
 internal sealed class BadgeDirectoryLiveState
 {
     public Dictionary<string, int> OwnerCountByCode { get; } =
-        new(StringComparer.OrdinalIgnoreCase);
+    [with(StringComparer.OrdinalIgnoreCase)];
 
     /// <summary>Rarities pinned in <c>badge_definitions</c>, which win over the owner count.</summary>
     public Dictionary<string, BadgeRarityType> PinnedRarityByCode { get; } =
-        new(StringComparer.OrdinalIgnoreCase);
+    [with(StringComparer.OrdinalIgnoreCase)];
 
     /// <summary>Registered players: what an owner count is a share of.</summary>
     public int TotalPlayers { get; set; }

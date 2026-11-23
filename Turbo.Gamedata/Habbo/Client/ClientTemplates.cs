@@ -31,12 +31,13 @@ internal static partial class ClientTemplates
     public const string TEMPLATES_FILE = "templates.json";
 
     /// <summary>The window types the layout model builds from a window layout of the element description: a template carries the ones its elements use.</summary>
-    private static readonly HashSet<string> SKINNED_TYPES = new(StringComparer.Ordinal)
-    {
+    private static readonly HashSet<string> SKINNED_TYPES =
+    [
+        with(StringComparer.Ordinal),
         "scrollable_itemlist_vertical",
         "scrollable_itemgrid_vertical",
         "tab_context",
-    };
+    ];
 
     private static readonly JsonSerializerOptions JSON = new()
     {
@@ -106,7 +107,7 @@ internal static partial class ClientTemplates
         Dictionary<string, byte[]> Bitmaps(string library)
         {
             if (!bitmapsOf.TryGetValue(library, out var found))
-                bitmapsOf[library] = found = new(StringComparer.Ordinal);
+                bitmapsOf[library] = found = [with(StringComparer.Ordinal)];
 
             return found;
         }

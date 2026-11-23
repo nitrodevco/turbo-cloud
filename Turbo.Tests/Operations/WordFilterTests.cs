@@ -14,11 +14,12 @@ namespace Turbo.Tests.Operations;
 
 public sealed class WordFilterTests
 {
-    private static readonly HashSet<string> Words = new(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly HashSet<string> Words =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
         "heck",
         "darn",
-    };
+    ];
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 

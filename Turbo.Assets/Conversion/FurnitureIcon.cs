@@ -33,11 +33,12 @@ public static partial class FurnitureIcon
 
     private const string LETTERS = "abcdefghijklmnopqrstuvwxyz";
 
-    private static readonly HashSet<string> GUILD_VISUALIZATIONS = new(StringComparer.Ordinal)
-    {
+    private static readonly HashSet<string> GUILD_VISUALIZATIONS =
+    [
+        with(StringComparer.Ordinal),
         "furniture_guild_customized",
         "furniture_guild_isometric_badge",
-    };
+    ];
 
     private static readonly Dictionary<string, int> GUILD_COLORS = new(StringComparer.Ordinal)
     {

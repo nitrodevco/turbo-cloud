@@ -109,7 +109,7 @@ public Task StopAsync(CancellationToken ct)
 `client/src/index.ts` (a toolbar icon, a me menu entry and the `hello/open` link opening a window, and
 a small bar over the player's own avatar), its icon `wwwroot/hello.png`, and the texts and variables (the bar's colour and width) it brings. `Turbo.Tests` (`HelloExamplePluginTests`) builds and loads it
 as a hotel would, so it keeps working as the server changes. Build it with
-`dotnet build docs/examples/client-modules/hello/Hello.csproj` and copy `bin/Debug/net10.0/` to
+`dotnet build docs/examples/client-modules/hello/Hello.csproj` and copy `bin/Debug/net11.0/` to
 `plugins/hello/`, or name that folder in `Turbo:Plugin:DevPluginPaths`, with its `client/src/` beside it.
 
 ### How the server builds a module
@@ -182,7 +182,7 @@ reloaded, which builds the module again, so clients are sent its new address and
 page reload (measured before the server built modules: about 2.5-3 s from saving a server line,
 1.5 s from saving a client line, to the change in a player's open client).
 `npm run package` makes the zip the panel's plugin upload takes. The server half builds against a
-server's own assemblies (`TurboBin`, by default the checkout's `Turbo.Main/bin/Debug/net10.0`),
+server's own assemblies (`TurboBin`, by default the checkout's `Turbo.Main/bin/Debug/net11.0`),
 never copied beside the plugin. `Turbo.Tests` (`PluginTemplateTests`) compiles and loads the
 template's server half and checks what its project references against the server's assemblies, so
 the template keeps working as the server changes; the generated `README.md` has the rest.

@@ -79,7 +79,7 @@ public sealed class FakeExecutor : IOperatorExecutor
 /// </summary>
 public sealed class OperatorFixture
 {
-    private readonly Dictionary<string, int> _idsByName = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _idsByName = [with(StringComparer.OrdinalIgnoreCase)];
 
     public Fakes Fakes { get; } = new();
 

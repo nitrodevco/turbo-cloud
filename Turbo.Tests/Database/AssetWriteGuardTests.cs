@@ -69,8 +69,9 @@ public sealed class AssetWriteGuardTests
     ];
 
     /// <summary>What writes rows of a set or a query (EF Core's names).</summary>
-    private static readonly HashSet<string> WRITES = new(StringComparer.Ordinal)
-    {
+    private static readonly HashSet<string> WRITES =
+    [
+        with(StringComparer.Ordinal),
         "Add",
         "AddAsync",
         "AddRange",
@@ -85,7 +86,7 @@ public sealed class AssetWriteGuardTests
         "ExecuteUpdateAsync",
         "ExecuteDelete",
         "ExecuteDeleteAsync",
-    };
+    ];
 
     /// <summary>SQL that writes a guarded table: <c>furniture</c> is not <c>furniture_definitions</c>.</summary>
     private static readonly Regex SQL_WRITE = new(
@@ -179,7 +180,7 @@ public sealed class AssetWriteGuardTests
                 continue;
 
             if (!writers.TryGetValue(type.FullName!, out var writes))
-                writers[type.FullName!] = writes = new HashSet<string>(StringComparer.Ordinal);
+                writers[type.FullName!] = writes = [with(StringComparer.Ordinal)];
 
             writes.UnionWith(found);
         }

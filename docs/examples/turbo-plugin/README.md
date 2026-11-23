@@ -149,7 +149,7 @@ from the server it builds against, `$(TurboBin)/plugin-sdk/Turbo.Plugin.props`: 
 references, C# version and rules (no assembly loading, native or unsafe code, run-time code
 generation, processes or the compiler). `TurboBin` (`-p:TurboBin=...` or the `TurboBin`
 environment variable) is that server's bin folder, by default the `--turbo` checkout's
-`Turbo.Main/bin/Debug/net10.0`. Point it at the bin folder of the server you run. `node tools/host.mjs` checks it, as `npm run dev`, `build`, `test` and
+`Turbo.Main/bin/Debug/net11.0`. Point it at the bin folder of the server you run. `node tools/host.mjs` checks it, as `npm run dev`, `build`, `test` and
 `make migration` do before they build: a server built before something the plugin uses (the
 scheduler, say) is named as the cause, with the namespace it lacks and what to rebuild.
 

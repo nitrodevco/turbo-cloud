@@ -13,7 +13,7 @@
   <PropertyGroup>
     <TurboBin>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</TurboBin>
     <Nullable>enable</Nullable>
-    <LangVersion>14.0</LangVersion>
+    <LangVersion>15.0</LangVersion>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <!-- `dotnet ef` builds with DesignTime=true and loads the plugin with the server's assemblies beside it. -->
     <TurboPluginPrivate Condition="'$(TurboPluginPrivate)' == ''">false</TurboPluginPrivate>

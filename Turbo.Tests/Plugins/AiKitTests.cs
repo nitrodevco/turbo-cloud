@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Turbo.Plugins.Compilation;
 using Turbo.Primitives.Plugins;
 using Turbo.Tests.Support;
 using Xunit;
@@ -138,7 +139,7 @@ public sealed partial class AiKitTests : IDisposable
         var compilation = CSharpCompilation.Create(
             "aikit",
             sources.Select(source =>
-                CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp14))
+                CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(PluginCompiler.LANGUAGE))
             ),
             references,
             new CSharpCompilationOptions(

@@ -253,6 +253,7 @@ public sealed class RoomHarness
                 if (!t.IsClass || t.IsAbstract || t.Namespace?.StartsWith("Turbo.Rooms") != true)
                     continue;
 
+                ctors:
                 foreach (var ctor in t.GetConstructors(All).OrderBy(c => c.GetParameters().Length))
                 {
                     var ps = ctor.GetParameters();
@@ -260,7 +261,6 @@ public sealed class RoomHarness
                         continue;
                     var args = new object?[ps.Length];
                     args[0] = Room;
-                    var ok = true;
                     for (var i = 1; i < ps.Length; i++)
                     {
                         var pt = ps[i].ParameterType;
@@ -272,13 +272,8 @@ public sealed class RoomHarness
                         )
                             args[i] = null;
                         else
-                        {
-                            ok = false;
-                            break;
-                        }
+                            continue ctors;
                     }
-                    if (!ok)
-                        continue;
                     try
                     {
                         f.SetValue(Room, ctor.Invoke(args));

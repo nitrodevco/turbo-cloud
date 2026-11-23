@@ -44,10 +44,11 @@ paths. Successful builds do not upload these diagnostics.
 
 Dependabot is off: there is no `.github/dependabot.yml`, and Dependabot security
 updates are disabled in the repository settings, so dependencies are upgraded by
-hand. Roslyn stays on 5.0.0 and EF Core and its MySQL provider on major 10, for
-the reasons `Directory.Packages.props` gives, and `Microsoft.Extensions.*` 11 needs
-.NET 11. Turning Dependabot back on needs ignore rules for each of them, or every
-run opens pull requests that cannot build.
+hand. Roslyn stays on the compiler the pinned SDK ships (5.12.0 for SDK 11.0.100),
+and EF Core, its MySQL provider and `Microsoft.Extensions.*` on the target
+framework's major (11), for the reasons `Directory.Packages.props` gives. Turning
+Dependabot back on needs ignore rules for each of them, or every run opens pull
+requests that cannot build.
 
 Local workflow validation: `actionlint .github/workflows/quality.yml`.
 The existing `TurboCloudFastCheck` and `TurboCloudQualityGate` MSBuild targets

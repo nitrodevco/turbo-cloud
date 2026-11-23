@@ -213,19 +213,17 @@ internal sealed class PluginClientBuilder(
         foreach (var argument in arguments)
             start.ArgumentList.Add(argument);
 
+        using var process = Process.Start(start)
+            ?? throw new PluginClientBuildException(key, [$"esbuild did not start ({_esbuild})."]);
         var printed = new StringBuilder();
-        using var process = new Process { StartInfo = start };
 
-        process.ErrorDataReceived += (_, e) => Print(printed, e.Data);
-        process.OutputDataReceived += (_, e) => Print(printed, e.Data);
-
-        if (!process.Start())
-            throw new PluginClientBuildException(key, [$"esbuild did not start ({_esbuild})."]);
-
-        process.BeginErrorReadLine();
-        process.BeginOutputReadLine();
-
-        if (!process.WaitForExit(TIMEOUT))
+        try
+        {
+            // Both streams, in the order esbuild prints them: an error's lines span the two.
+            foreach (var line in process.ReadAllLines(TIMEOUT))
+                printed.Append(line.Content).Append('\n');
+        }
+        catch (TimeoutException)
         {
             process.Kill(entireProcessTree: true);
 
@@ -238,17 +236,7 @@ internal sealed class PluginClientBuilder(
         process.WaitForExit();
 
         if (process.ExitCode != 0)
-            lock (printed)
-                throw new PluginClientBuildException(key, Errors(printed.ToString()));
-    }
-
-    private static void Print(StringBuilder printed, string? line)
-    {
-        if (line is null)
-            return;
-
-        lock (printed)
-            printed.Append(line).Append('\n');
+            throw new PluginClientBuildException(key, Errors(printed.ToString()));
     }
 
     /// <summary>

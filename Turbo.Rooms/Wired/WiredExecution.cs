@@ -33,7 +33,7 @@ internal sealed class WiredExecution(long now, long startedAtWallMs)
     // not delivered yet; and every one raised, delivered or not, by reference: a record's equality
     // would take a second change alike for the first.
     private readonly Queue<RoomEvent> _raised = new();
-    private readonly HashSet<RoomEvent> _raisedEvents = new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<RoomEvent> _raisedEvents = [with(ReferenceEqualityComparer.Instance)];
 
     /// <summary>Keeps an event an effect of this execution raised, to be delivered in it.</summary>
     public void Raise(RoomEvent evt)

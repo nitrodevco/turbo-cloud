@@ -20,7 +20,7 @@ internal sealed class ServerSettingsConfigurationProvider(
 {
     private readonly Func<ServerSettingsLoad> _load = load;
 
-    private HashSet<string> _paths = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string> _paths = [with(StringComparer.OrdinalIgnoreCase)];
 
     /// <summary>The rows read last, by path: what <see cref="Holds"/> compares the database's with.</summary>
     private IReadOnlyList<(string Path, string Value)> _rows = [];

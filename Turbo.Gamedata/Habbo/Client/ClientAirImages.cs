@@ -49,7 +49,7 @@ internal static class ClientAirImages
                         var png = SwfImageDecoder.Decode(tag).EncodePng();
 
                         if (!images.TryGetValue(library, out var taken))
-                            images[library] = taken = new(StringComparer.Ordinal);
+                            images[library] = taken = [with(StringComparer.Ordinal)];
 
                         taken[asset] = png;
                     }

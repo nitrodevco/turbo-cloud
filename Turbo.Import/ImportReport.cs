@@ -14,8 +14,8 @@ public sealed class ImportReport
 {
     private const int EXAMPLES = 5;
 
-    private readonly Dictionary<string, long> _written = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, Tally> _notes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, long> _written = [with(StringComparer.Ordinal)];
+    private readonly Dictionary<string, Tally> _notes = [with(StringComparer.Ordinal)];
     private readonly List<string> _order = [];
 
     public void Wrote(string table, long rows)

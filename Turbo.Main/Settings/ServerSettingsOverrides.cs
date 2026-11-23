@@ -10,7 +10,7 @@ namespace Turbo.Main.Settings;
 /// </summary>
 internal sealed class ServerSettingsOverrides
 {
-    private volatile HashSet<string> _whole = new(StringComparer.OrdinalIgnoreCase);
+    private volatile HashSet<string> _whole = [with(StringComparer.OrdinalIgnoreCase)];
 
     public void Replace(IEnumerable<string> paths) =>
         _whole = new HashSet<string>(paths, StringComparer.OrdinalIgnoreCase);
