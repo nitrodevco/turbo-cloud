@@ -145,22 +145,25 @@ catalogue colour and art with defaults alone:
 } }
 ```
 
-The hotel's own plugin extends `habbo`, so **Appearance > Style properties** lists these with no theme file:
+The hotel's own plugin extends `habbo`, so the **Theme studio**'s Theme settings list these with no theme file:
 staff restyle the hotel's frames, colours, fonts and loading screen from the panel. A theme that
 extends another plugin needs it installed; one that extends in a circle is refused.
 
 ## In the panel
 
 Everything a theme author changes is under one sidebar section, **Appearance**; the Plugins page
-links to it. Every editor there saves into the theme staff are **working on** (below): this hotel's
+links to it. Its **Themes** entry holds the theme studio, the themes and the editors below, each a
+tab along the header of the others; **Chat bubbles** stands beside it. Every editor there saves into the theme staff are **working on** (below): this hotel's
 own by default.
 
 - **Appearance > Themes**: every plugin that is a theme (the hotel's own always) as a tree under the
-  base theme `habbo`, each under the theme it `extends`, with how many style properties it has (and
-  declares itself), how many staff changed, whether it is on (turn it off or on here), and links to
-  its style properties, images and patches. Admin API: `GET /plugins/themes`. **New theme** makes one
-  (below), **Duplicate** copies one, **Work on it** makes it the theme the editors save into.
-- **Appearance > Style properties**: a theme picker (the same tree) and an area picker (the
+  base theme `habbo`, each under the theme it `extends`, with its status (Live, In development, Off,
+  or its plugin's state when it is not loaded), who gets it in a few words, and how many style
+  properties it has (and declares itself) and staff changed. **Edit** opens it in the Theme studio;
+  its **More** has the rest: **Work on it** (the theme the editors save into, tinted in the list),
+  **Who gets it** (below), Preview as this theme, its images and patches, **Duplicate**, and turning
+  its plugin off or on. Admin API: `GET /plugins/themes`. **New theme** makes one (below).
+- **Theme studio > Theme settings**: a theme picker (the same tree) and an area picker (the
   `theme.json` groups; the base theme's say what each restyles) over each style property as a
   picker (colour, number, image upload, font), with **Reset** and a "changed" mark. Reset says
   whose default it goes back to: **Habbo's own** for one the base theme declares, or the theme's
@@ -170,7 +173,7 @@ own by default.
   (below), so updating the theme keeps it; **Pick an uploaded image** uses one from its Images.
   A style with no default says "Habbo's own". Every appearance save says who has it: "saved - live
   for N players now", the players online whose look it is part of (Live reload, below).
-- **Appearance > Images** (a theme picker, the hotel's by default): the images in its `wwwroot/styles/` (the hotel's:
+- **Appearance > Images** (a theme picker, the theme you work on by default; uploads land in the theme shown): the images in its `wwwroot/styles/` (the hotel's:
   `plugins/hotel/wwwroot/styles/`). Upload a PNG, GIF, JPEG or WebP (at most 2 MB, checked by its
   content; one of the same name is replaced) and copy its **Path** (`styles/tab0.png`: what a patch's
   `asset` and an image style take, resolved against the plugin's served files) or its **Address**
@@ -211,9 +214,11 @@ own by default.
   "An arrangement as data").
   **Test**, under the ops, shows the window's element tree with them applied before saving: what each
   op changes, and each one naming an element the window lacks (clients would report it unmatched).
-- **Appearance > Outdated patches**: every patch whose window or element is gone from the client's
-  `template-index.json` (a client update renamed or removed it), with why, before any player's client
-  reports it unmatched. Elements a patch adds itself (`insert`, `wrap`) count as there.
+- **Outdated**, on Template patches: when a patch names a window or an element gone from the
+  client's `template-index.json` (a client update renamed or removed it), the page says how many
+  before any player's client reports them unmatched, each with why, and **Show only them**
+  (`?show=outdated`) lists just those: the working-on theme's patches that are on, and those of
+  plugins that are on. Elements a patch adds itself (`insert`, `wrap`) count as there.
 - **Appearance > Texts**: the texts windows show, by window (pick one; every text key it shows with
   the text players see, edited in place) or by what they say (type "Earnings" to find
   `earnings.title`, with the windows showing it).
@@ -275,8 +280,8 @@ folder replaced by an outside writer so rollback leaves that replacement alone. 
 coordinate operations on one host; external filesystem writers, multiple server processes sharing
 the folder, and crash recovery are not covered by a filesystem transaction.
 
-The panel's **Working on** picker (a bar at the top of Style properties, Template patches, Images and
-Windows & skins, with the folder it writes) is where staff edits land, XenForo's development mode: one
+The panel's **Working on** picker (the Theme studio's theme, and a bar at the top of Template patches
+and Windows & skins' Skins, with the folder it writes) is where staff edits land, XenForo's development mode: one
 choice for every editor, kept in the browser, `hotel` by default. Working on a theme, its edits are
 written into its own files and the theme is loaded again:
 
