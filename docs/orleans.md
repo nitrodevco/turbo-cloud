@@ -120,7 +120,10 @@ dotnet format PATH_TO_PROJECT.csproj analyzers --severity info --diagnostics ORL
 ```
 
 Review every changed identity, version and signature before accepting the result. Keep
-retired declarations and retained removed-method signatures. A removed method continues
+retired declarations and retained removed-method signatures. Regenerating can drop the
+`# Previous declaration` comments at the end of a manifest (it did on 2026-11-22, under
+10.4.2): when the diff deletes them, append them again from `git show HEAD:<manifest>` before
+committing. A removed method continues
 to fail with `ORLEANS0027` until restored or its retained signature is explicitly removed
 after accepting the compatibility break. Do not regenerate baselines simply to silence
 a failing check, or hand-edit active entries.
@@ -147,8 +150,8 @@ Orleans 10.4 reports an RPC method whose `CancellationToken` is not its last par
 last, so their wire identities changed. The same change accepts two older breaks the manifest
 had kept as `ORLEANS0027`: `IInventoryGrain.GrantLtdFurnitureAsync` returning the granted items,
 and `IWiredTradeGrain.StartChestDepositAsync` taking the chest's free capacity. Each retired
-signature is a `# Previous declaration` comment at the end of `Turbo.Primitives/OrleansContracts.txt`,
-and regenerating with 10.4 keeps those comments. These changes are not compatible with mixed
+signature is a `# Previous declaration` comment at the end of `Turbo.Primitives/OrleansContracts.txt`;
+a regeneration that drops them is restored by hand (above). These changes are not compatible with mixed
 old/new silos: stop every Turbo silo and Orleans client, deploy the same build everywhere, then
 restart together.
 
