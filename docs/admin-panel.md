@@ -579,19 +579,25 @@ acting on them with the matching command permissions.
   Discord username they sign in to the [public site](public-site.md) with. Players with a
   Discord account have a **Discord** badge. Results come 25 to a page, most recently logged in first; players who have never logged in come last. **Online
   only** shows just the players connected right now. The page also says how many are online.
-- **A player's page** (`/players/<id>`) has their card on top: their face, motto, where they
-  are and what holds on them now (banned, muted, trade locked), with the **Actions** row under
-  it. Under the card are two tabs:
-  - **Overview**: their balances, each with Give and Take; their profile (status, room, last
-    login, when they joined, gender, respect, how many rooms they own, figure); their standing
-    (the ban, mute and trade lock that hold now) with their sanctions under it, newest first:
-    active, ended or lifted, why, by whom, and until when; their login ticket and Discord account;
-    and links to the rooms they own (the Rooms page, searched by owner id) and to the Room
-    visits, Chat log and Command log pages narrowed to them, each for staff who may open it.
+- **A player's page** (`/players/<id>`) is laid out as a room's page is. Its header, on both
+  tabs, has their head and name, their id, when they joined and their motto, whether they are
+  online and where, and buttons to the chat log narrowed to them and to their permissions (for
+  staff who may open each). Its tabs:
+  - **Overview**: the answer to the last action on them; four figures at a glance (online or when
+    last seen, respect, rooms owned, and sanctions, red or amber while one holds); their balances,
+    a tile each, with one row under them to give or take an amount of any of them; a card of tabs:
+    their sanctions, newest first (active, ended or lifted, why, by whom, and until when), the rooms
+    they own (with a link to the Rooms page searched by owner id) and the rooms they went into
+    lately (with a link to the Room visits log). Beside these are the **Player controls**, their
+    profile (what holds on them now, the room they are in or when they last logged in, motto, when
+    they joined, gender, figure), and links to the Currency log, Chat log, Messages and Command log
+    narrowed to them, each for staff who may open it. On a phone the controls come first.
   - **Inventory**: how much furniture they have in their inventory and placed in rooms, their
     badges, pets and bots; their furniture by kind and their badges (worn ones first), each with
     a filter, an **Add** button, and on each badge a button to take it.
-  - The header links to their permissions, for staff with `admin.permissions.view`.
+  - **Account**: their [login ticket](#login-tickets) and [Discord account](#discord-accounts),
+    side by side. The tab is there when it has something for you: a ticket you may issue, or a
+    Discord account.
 - People in a room link to their player pages.
 
 Looking at a player starts nothing for them: who is online comes from the open sessions, and only
@@ -599,9 +605,10 @@ an online player is asked which room they're in. Everything else is read from th
 
 ### Acting on a player
 
-A player's card has an **Actions** row (alert, sanction, mute, trade lock, disconnect), each in
-a sheet that also lifts the one that holds; balances are given and taken on the overview, and
-furniture and badges added on the inventory. Each action is the hotel's own operator command, run as
+A player's **Player controls**, like a room's controls, have a row each for muting and trade
+locking them (saying what holds, and opening a sheet for how long or to lift it), an alert, and a
+danger zone with banning (or lifting the ban) and disconnecting. Balances are given and taken on
+the overview, and furniture and badges added on the inventory. Each action is the hotel's own operator command, run as
 you, exactly as if you typed it in the hotel: it needs that command's permission, the command's
 own guards apply (you can't ban or silence someone who outranks you), the player gets the same
 notice, and it's written to the command log under your name. Only what you may do is shown.
@@ -622,7 +629,7 @@ A mute and a trade lock are denials of `chat.speak` and `trade` on the player, n
 the page reads them from the player's own permission rows: the one that holds now, and until
 when.
 
-The command's answer is shown under the card. A command that asks to be confirmed gets a
+The command's answer is shown at the top of the page, as a room action's is. A command that asks to be confirmed gets a
 **Confirm** button. Messages need the player online, as in the hotel. A player whose name starts
 with `@` or has a space can't be acted on from the panel, because the commands would misread it.
 Use the console for them.
@@ -1049,14 +1056,15 @@ give them a login ticket.
 ### Login tickets
 
 A login ticket is what the client logs in with (the SSO ticket). Staff with `admin.tickets.issue`
-get a **Login ticket** card on a player's page:
+get a **Login ticket** card on the **Account** tab of a player's page:
 
 - **Works for:** 15 minutes, 1 hour, 1 day or 7 days, or **never** runs out.
 - **Can be used more than once:** off, the first login uses it up. On, it logs in every time
   until it runs out or is taken away.
-- **Issue:** the ticket is shown once, with a copy button. If `ClientLoginUrl` is set, a ready
-  login link is shown too. Nothing shows the ticket again; the card only says whether there is
-  one and until when.
+- **Issue:** the ticket is shown once, hidden behind dots until **Show** is pressed, with a copy
+  button that copies it either way. If `ClientLoginUrl` is set, a ready login link is shown too,
+  its ticket hidden the same way. Nothing shows the ticket again; the card only says whether there
+  is one and until when.
 - **One per player:** a new ticket replaces the old one, which stops working at once.
 - **Take it away:** the ticket stops working at once.
 
@@ -1084,7 +1092,8 @@ can own rooms, stand in them and be a friend of those it already is. Plugins ask
 
 ### Discord accounts
 
-Players who signed up on the [public site](public-site.md) have a **Discord** card on their page:
+Players who signed up on the [public site](public-site.md) have a **Discord** card on their page's
+**Account** tab:
 the Discord account they sign in with, since when, and how many site sign-ins they have now.
 Staff with `admin.accounts.manage` can, for themselves or for a player whose every permission
 they hold:
@@ -1236,8 +1245,8 @@ recording was on are not there.
 
 Staff with `admin.players.view` get a **Room visits** page under Logs: who went into which room,
 newest first, from the entry log the navigator's history keeps. Narrow it to one player (exact
-name or id) or one room (by id). A player's page and a room's **Visitors** tab each link to their
-own visits.
+name or id) or one room (by id). A player's **Visits** tab and a room's **Visitors** tab each show the
+latest of their own visits and link to the rest.
 
 Like the chat log, the page goes a page at a time (`RoomVisitsPageSize`) and counts at most 10,000
 visits: the log grows with every room entered. It sorts by when and by room id, both of which its
