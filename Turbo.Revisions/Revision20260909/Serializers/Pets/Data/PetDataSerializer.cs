@@ -1,4 +1,5 @@
 using Turbo.Primitives.Packets;
+using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Snapshots;
 
 namespace Turbo.Revisions.Revision20260909.Serializers.Pets.Data;
@@ -12,6 +13,8 @@ internal static class PetDataSerializer
 
         PetFigureSerializer.Serialize(packet, pet.Figure);
 
-        packet.WriteInteger(pet.Level).WriteInteger(pet.RarityLevel);
+        packet
+            .WriteInteger(pet.Level)
+            .WriteInteger(PetTypes.InventoryRarityLevel(pet.Figure.TypeId, pet.RarityLevel));
     }
 }
