@@ -16,6 +16,7 @@ using Turbo.Primitives.Packets;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Snapshots;
@@ -77,6 +78,13 @@ public sealed class ModerationToolTests : IDisposable
                 (Convert.ToInt32(call.Key) == MODERATOR ? _held : _targetHeld).Contains(
                     (string)call.Args[0]!
                 )
+            );
+        _fakes.Handlers["GetStandingAsync"] = call =>
+            Task.FromResult(
+                ResolvedPermissionsSnapshot.EMPTY with
+                {
+                    Granted = [.. Convert.ToInt32(call.Key) == MODERATOR ? _held : _targetHeld],
+                }
             );
         _fakes.Handlers["GetRoomPlayersAsync"] = _ =>
             Task.FromResult(ImmutableArray.CreateRange(_inRoom.Select(x => (PlayerId)x)));

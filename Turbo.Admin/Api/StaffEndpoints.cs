@@ -100,7 +100,7 @@ internal sealed class StaffEndpoints(
                 link.ExpiresAtUtc,
                 decision.ReplacesExisting,
                 await grainFactory
-                    .HasPermissionAsync(playerId, PermissionNodes.Admin.PANEL, ct)
+                    .HasStandingAsync(playerId, PermissionNodes.Admin.PANEL, ct)
                     .ConfigureAwait(false)
             )
         );

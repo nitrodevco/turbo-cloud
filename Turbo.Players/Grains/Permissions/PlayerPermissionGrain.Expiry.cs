@@ -25,13 +25,7 @@ internal sealed partial class PlayerPermissionGrain
             .Where(x => x is not null)
             .Min();
 
-        var due = (earliestOwn, next) switch
-        {
-            (null, null) => (DateTime?)null,
-            (null, _) => next,
-            (_, null) => earliestOwn,
-            _ => earliestOwn < next ? earliestOwn : next,
-        };
+        var due = Earliest(earliestOwn, next);
 
         if (due is null)
         {
@@ -42,6 +36,13 @@ internal sealed partial class PlayerPermissionGrain
 
         ScheduleExpiryIn(due.Value - UtcNow);
     }
+
+    /// <summary>The earlier of two times, either of which may be unset.</summary>
+    private static DateTime? Earliest(DateTime? a, DateTime? b) =>
+        a is null ? b
+        : b is null ? a
+        : a < b ? a
+        : b;
 
     private void ScheduleExpiryIn(TimeSpan due) =>
         _expiryTimer?.Change(

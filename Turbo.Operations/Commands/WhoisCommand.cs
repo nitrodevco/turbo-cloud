@@ -48,7 +48,10 @@ public sealed class WhoisCommand(
 
         var target = selection.Players[0];
         var summary = await grainFactory.GetPlayerGrain(target.Id).GetSummaryAsync(ct);
-        var resolved = await grainFactory.GetPlayerPermissionGrain(target.Id).GetResolvedAsync(ct);
+        var permissions = grainFactory.GetPlayerPermissionGrain(target.Id);
+        // Their own groups and sanctions; a group they are previewing is said beside them.
+        var resolved = await permissions.GetStandingAsync(ct);
+        var preview = (await permissions.GetResolvedAsync(ct)).Preview;
         var ban = await sanctionService.GetActiveBanAsync(target.Id, ct);
         var online = sessionGateway.GetOnlinePlayerIds().Contains(target.Id);
 
@@ -57,7 +60,9 @@ public sealed class WhoisCommand(
             $"{target.Name} (player {target.Id})",
             $"Registered: {summary.CreatedAt.ToString(DATE_FORMAT, CultureInfo.InvariantCulture)}",
             await WhereAsync(target.Id, online, summary.LastUpdated, ct),
-            $"Groups: {GroupsOf(resolved)}",
+            preview is null
+                ? $"Groups: {GroupsOf(resolved)}"
+                : $"Groups: {GroupsOf(resolved)}, viewing as {preview.GroupName} until {preview.EndsAt.ToString(DATE_FORMAT, CultureInfo.InvariantCulture)}",
             ban is null
                 ? "Ban: none"
                 : $"Ban: {(ban.ExpiresAtUtc is { } ends ? $"until {ends.ToString(DATE_FORMAT, CultureInfo.InvariantCulture)}" : "permanent")} ({ban.Reason})",

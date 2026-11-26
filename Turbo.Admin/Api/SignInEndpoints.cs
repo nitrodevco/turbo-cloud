@@ -224,9 +224,10 @@ internal sealed class SignInEndpoints(
     /// <summary>Opens a session for a player who has proved who they are, if they may sign in.</summary>
     private async Task<IResult> OpenSessionAsync(PlayerId playerId, CancellationToken ct)
     {
+        // Their own node: a group they are previewing does not keep them out of the panel.
         if (
             !await grainFactory
-                .HasPermissionAsync(playerId, PermissionNodes.Admin.PANEL, ct)
+                .HasStandingAsync(playerId, PermissionNodes.Admin.PANEL, ct)
                 .ConfigureAwait(false)
         )
             return AdminResults.Error(StatusCodes.Status403Forbidden, NO_ACCESS);

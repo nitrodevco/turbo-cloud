@@ -63,6 +63,9 @@ public sealed class Fakes
 
 public class RecordingProxy : DispatchProxy
 {
+    private const string STANDING = "GetStandingAsync";
+    private const string RESOLVED = "GetResolvedAsync";
+
     internal Fakes Owner = default!;
     internal Type Interface = default!;
     internal object? Key;
@@ -89,6 +92,17 @@ public class RecordingProxy : DispatchProxy
             if (!ReferenceEquals(handled, Fakes.NotHandled))
                 return handled;
         }
+
+        // What a player holds of their own is what they act with unless they preview a group,
+        // which a fake player does only when a test says so: an unhandled GetStandingAsync is
+        // answered by the GetResolvedAsync handler.
+        if (
+            targetMethod.Name == STANDING
+            && Owner.Handlers.TryGetValue(RESOLVED, out var resolved)
+            && resolved(call) is var standing
+            && !ReferenceEquals(standing, Fakes.NotHandled)
+        )
+            return standing;
 
         return DefaultFor(targetMethod, args);
     }

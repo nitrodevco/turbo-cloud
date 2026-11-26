@@ -92,6 +92,7 @@ internal sealed class AdminApiServer(
         var passkeys = ActivatorUtilities.CreateInstance<AdminPasskeys>(services);
 
         ActivatorUtilities.CreateInstance<AuthEndpoints>(services).Map(secured);
+        ActivatorUtilities.CreateInstance<PreviewEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<JobEndpoints>(services).Map(secured);
         ActivatorUtilities.CreateInstance<SignInEndpoints>(services, passkeys).Map(app);
         ActivatorUtilities.CreateInstance<AccountEndpoints>(services, passkeys).Map(secured);

@@ -52,6 +52,16 @@ public sealed record ResolvedPermissionsSnapshot
     [Id(5)]
     public string? VerboseFilter { get; init; }
 
+    /// <summary>
+    /// The group the player is previewing, when these are that group's permissions rather than
+    /// their own (<c>docs/permissions.md</c>, §9, <i>Previewing a group</i>): everything they do
+    /// is checked against this set, while a check that protects them from someone else reads
+    /// their own (<c>IPlayerPermissionGrain.GetStandingAsync</c>). <c>null</c> otherwise. Not
+    /// something the player holds.
+    /// </summary>
+    [Id(6)]
+    public PermissionPreviewSnapshot? Preview { get; init; }
+
     public bool Has(string node) => Granted.Contains(node);
 
     /// <summary>Whether a check of <paramref name="node"/> is to be logged.</summary>

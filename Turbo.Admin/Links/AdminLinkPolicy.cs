@@ -54,10 +54,11 @@ public sealed class AdminLinkPolicy(IGrainFactory grainFactory)
                 .GetResolvedAsync(ct)
                 .ConfigureAwait(false)
         ).Granted;
+        // What the target holds of their own: previewing a lighter group does not lay them open.
         var targetNodes = (
             await grainFactory
                 .GetPlayerPermissionGrain(target)
-                .GetResolvedAsync(ct)
+                .GetStandingAsync(ct)
                 .ConfigureAwait(false)
         ).Granted;
 

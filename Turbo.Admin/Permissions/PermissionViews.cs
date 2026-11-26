@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
+using Turbo.Admin.Api;
 using Turbo.Admin.Api.Contracts;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players;
@@ -57,7 +58,12 @@ public sealed class PermissionViews(
         );
     }
 
-    public PermissionGroupResponse? GetGroup(PermissionEditor editor, string name)
+    /// <param name="standing">What the staff member asking holds of their own, for whether they may view as the group.</param>
+    public PermissionGroupResponse? GetGroup(
+        PermissionEditor editor,
+        ResolvedPermissionsSnapshot standing,
+        string name
+    )
     {
         var groups = editor.Groups.Groups;
         var group = groups.Values.FirstOrDefault(x => x.Name == name);
@@ -67,13 +73,7 @@ public sealed class PermissionViews(
 
         // The level is a property of the whole inheritance: worked out for a player holding just
         // this group, as `perm group <g> info` does.
-        var member = new PlayerPermissionAssignmentsSnapshot
-        {
-            Groups = [new PermissionGroupMembershipSnapshot { GroupId = group.Id }],
-            Nodes = [],
-            Meta = [],
-        };
-        var resolved = PermissionResolver.Resolve(Registry, groups, member, UtcNow);
+        var resolved = PermissionPreview.MemberOf(Registry, editor.Groups, group, UtcNow);
 
         return new PermissionGroupResponse(
             group.Id,
@@ -91,7 +91,11 @@ public sealed class PermissionViews(
             NodesOf(group.Nodes),
             MetaOf(group.Meta),
             LevelOf(resolved),
-            editor.CheckGroup(group.Name) == PermissionEditRefusal.None
+            editor.CheckGroup(group.Name) == PermissionEditRefusal.None,
+            PermissionResults.PreviewRefusalOf(
+                PermissionPreview.Refusal(editor.Groups, standing, group, resolved),
+                group.Name
+            )
         );
     }
 
@@ -176,8 +180,10 @@ public sealed class PermissionViews(
     {
         var grain = grainFactory.GetPlayerPermissionGrain(playerId);
         var assignments = await grain.GetAssignmentsAsync(ct).ConfigureAwait(false);
-        var resolved = await grain.GetResolvedAsync(ct).ConfigureAwait(false);
-        var client = await grain.GetClientStateAsync(ct).ConfigureAwait(false);
+        // Their own, a preview aside: the page is about the player, and says what they preview.
+        var resolved = await grain.GetStandingAsync(ct).ConfigureAwait(false);
+        var preview = (await grain.GetResolvedAsync(ct).ConfigureAwait(false)).Preview;
+        var client = PermissionProjection.Project(Registry, resolved);
         var canEdit =
             await editor.CheckPlayerAsync(playerId, ct).ConfigureAwait(false)
             == PermissionEditRefusal.None;
@@ -221,7 +227,8 @@ public sealed class PermissionViews(
                 [.. client.Perks.Where(x => x.IsAllowed).Select(x => x.Perk.ToString())]
             ),
             LevelOf(resolved),
-            canEdit
+            canEdit,
+            PreviewOf(preview)
         );
     }
 
@@ -231,8 +238,12 @@ public sealed class PermissionViews(
             check.IsRegistered,
             check.Granted,
             check.Decision is { } decision ? SourceOf(decision) : null,
-            [.. check.Overridden.Select(SourceOf)]
+            [.. check.Overridden.Select(SourceOf)],
+            PreviewOf(check.Preview)
         );
+
+    public static PermissionPreviewView? PreviewOf(PermissionPreviewSnapshot? preview) =>
+        preview is null ? null : new(preview.GroupName, preview.DisplayName, preview.EndsAt);
 
     public PermissionCatalogResponse GetCatalog() =>
         new(

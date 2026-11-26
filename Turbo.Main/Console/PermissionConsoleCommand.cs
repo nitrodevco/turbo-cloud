@@ -158,6 +158,11 @@ internal sealed class PermissionConsoleCommand(
         foreach (var overridden in check.Overridden)
             System.Console.WriteLine($"  overrides   {Describe(overridden)}");
 
+        if (check.Preview is { } preview)
+            System.Console.WriteLine(
+                $"  viewing as  {preview.GroupName}{FormatExpiry(preview.EndsAt)}: the answer is that group's, not their own"
+            );
+
         return true;
     }
 
@@ -493,8 +498,10 @@ internal sealed class PermissionConsoleCommand(
     private async Task PrintUserAsync(IPlayerPermissionGrain grain, CancellationToken ct)
     {
         var assignments = await grain.GetAssignmentsAsync(ct).ConfigureAwait(false);
-        var resolved = await grain.GetResolvedAsync(ct).ConfigureAwait(false);
-        var client = await grain.GetClientStateAsync(ct).ConfigureAwait(false);
+        // Their own, a preview aside, which is said at the end.
+        var resolved = await grain.GetStandingAsync(ct).ConfigureAwait(false);
+        var preview = (await grain.GetResolvedAsync(ct).ConfigureAwait(false)).Preview;
+        var client = PermissionProjection.Project(_permissionRegistryProvider.Current, resolved);
         var groups = (await Directory.GetSnapshotAsync(ct).ConfigureAwait(false)).Groups;
 
         System.Console.WriteLine("groups:");
@@ -540,6 +547,11 @@ internal sealed class PermissionConsoleCommand(
             System.Console.WriteLine(
                 $"unregistered: {string.Join(", ", resolved.UnregisteredNodes)}"
             );
+
+        if (preview is not null)
+            System.Console.WriteLine(
+                $"viewing as {preview.GroupName}{FormatExpiry(preview.EndsAt)}: until then they hold what a plain member of it does"
+            );
     }
 
     private async Task PrintGroupAsync(string name, CancellationToken ct)
@@ -584,17 +596,16 @@ internal sealed class PermissionConsoleCommand(
     )
     {
         var registry = _permissionRegistryProvider.Current;
-        var member = new PlayerPermissionAssignmentsSnapshot
-        {
-            Groups = [new PermissionGroupMembershipSnapshot { GroupId = group.Id }],
-            Nodes = [],
-            Meta = [],
-        };
 
         PrintLevel(
             PermissionProjection.ReportLevel(
                 registry,
-                PermissionResolver.Resolve(registry, groups, member, UtcNow)
+                PermissionResolver.Resolve(
+                    registry,
+                    groups,
+                    PlayerPermissionAssignmentsSnapshot.MemberOf(group.Id),
+                    UtcNow
+                )
             )
         );
     }

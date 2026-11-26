@@ -14,6 +14,16 @@ public sealed record PlayerPermissionAssignmentsSnapshot
         Meta = [],
     };
 
+    /// <summary>
+    /// A player who holds just the group <paramref name="groupId"/>, besides default, and nothing
+    /// of their own: what the group's members get, for its client level and for a preview of it.
+    /// </summary>
+    public static PlayerPermissionAssignmentsSnapshot MemberOf(int groupId) =>
+        EMPTY with
+        {
+            Groups = [new PermissionGroupMembershipSnapshot { GroupId = groupId }],
+        };
+
     /// <summary>Direct memberships. The default group is held whether it is listed or not.</summary>
     [Id(0)]
     public required ImmutableArray<PermissionGroupMembershipSnapshot> Groups { get; init; }

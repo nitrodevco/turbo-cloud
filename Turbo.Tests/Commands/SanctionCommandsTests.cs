@@ -11,6 +11,7 @@ using Turbo.Primitives.Moderation.Enums;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Grains.Permissions;
 using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Tests.Support;
 using Xunit;
 
@@ -30,6 +31,9 @@ public abstract class OperatorCommandsTestBase : IDisposable
     protected const int CAROL = 12;
 
     private readonly HashSet<(int, string)> _held = [];
+
+    /// <summary>Players previewing a group that gives none of their nodes: they act without them.</summary>
+    private readonly HashSet<int> _previewing = [];
 
     protected OperatorFixture Hotel { get; } = new();
 
@@ -51,7 +55,26 @@ public abstract class OperatorCommandsTestBase : IDisposable
 
         Hotel.Fakes.Handlers["HasAsync"] = call =>
             call.Interface == typeof(IPlayerPermissionGrain)
-                ? Task.FromResult(_held.Contains(((int)(long)call.Key!, (string)call.Args[0]!)))
+                ? Task.FromResult(
+                    !_previewing.Contains((int)(long)call.Key!)
+                        && _held.Contains(((int)(long)call.Key!, (string)call.Args[0]!))
+                )
+                : Fakes.NotHandled;
+        // A test that says what players resolve to says what they hold of their own with it.
+        Hotel.Fakes.Handlers["GetStandingAsync"] = call =>
+            call.Interface == typeof(IPlayerPermissionGrain)
+            && !Hotel.Fakes.Handlers.ContainsKey("GetResolvedAsync")
+                ? Task.FromResult(
+                    ResolvedPermissionsSnapshot.EMPTY with
+                    {
+                        Granted =
+                        [
+                            .. _held
+                                .Where(x => x.Item1 == (int)(long)call.Key!)
+                                .Select(x => x.Item2),
+                        ],
+                    }
+                )
                 : Fakes.NotHandled;
     }
 
@@ -67,6 +90,12 @@ public abstract class OperatorCommandsTestBase : IDisposable
         foreach (var node in nodes)
             _held.Add((player, node));
     }
+
+    /// <summary>
+    /// The player previews a group that gives them none of their nodes: what they do is checked
+    /// without them, while what they hold of their own stays as <see cref="Holds"/> says.
+    /// </summary>
+    protected void Previews(int player) => _previewing.Add(player);
 
     /// <summary>The staff member, typing in room 7 with Alice and Bob, holding the nodes.</summary>
     protected FakeExecutor Staff(params string[] nodes)
@@ -208,6 +237,21 @@ public class SanctionCommandsTests : OperatorCommandsTestBase
 
         staff.Replies.Should().Equal("You can't ban staff.", "You can't ban Alice.");
         console.Replies.Should().Equal("Alice is banned: permanent.");
+    }
+
+    [Fact]
+    public async Task Ban_CannotReachStaffWhilePreviewingALighterGroup()
+    {
+        // Alice may ban, but is seeing the hotel as a group that may not: she is still staff to
+        // the command, so a ban meant for a plain player does not reach her.
+        Holds(ALICE, PermissionNodes.Command.BAN);
+        Previews(ALICE);
+        var staff = Staff(PermissionNodes.Command.BAN);
+
+        await Hotel.RunAsync("ban", staff, "alice perm");
+
+        staff.Replies.Should().Equal("You can't ban Alice.");
+        (await _sanctions.GetActiveBanAsync(ALICE, CancellationToken.None)).Should().BeNull();
     }
 
     [Fact]

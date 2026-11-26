@@ -49,10 +49,11 @@ public sealed class AdminTicketPolicy(IGrainFactory grainFactory)
         if (issuer == player)
             return null;
 
+        // What the player holds of their own: previewing a lighter group does not lay them open.
         var playerNodes = (
             await grainFactory
                 .GetPlayerPermissionGrain(player)
-                .GetResolvedAsync(ct)
+                .GetStandingAsync(ct)
                 .ConfigureAwait(false)
         ).Granted;
 

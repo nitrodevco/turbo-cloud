@@ -44,7 +44,35 @@ public interface IPlayerPermissionGrain : IGrainWithIntegerKey
     /// <summary>The resolved value of a registered meta key, or <c>null</c> when nothing sets it.</summary>
     public Task<string?> GetMetaAsync(string key, CancellationToken ct);
 
+    /// <summary>
+    /// What the player holds: every check of what they may do or see reads it. While they preview
+    /// a group it is that group's (<see cref="ResolvedPermissionsSnapshot.Preview"/>).
+    /// </summary>
     public Task<ResolvedPermissionsSnapshot> GetResolvedAsync(CancellationToken ct);
+
+    /// <summary>
+    /// What the player holds of their own, whether or not they are previewing a group: what a
+    /// check that protects them from someone else reads (a ban, a passkey reset, an edit of their
+    /// permissions), so a staff member previewing a lighter group is never treated as one by
+    /// others. The same as <see cref="GetResolvedAsync"/> when no preview runs.
+    /// </summary>
+    public Task<ResolvedPermissionsSnapshot> GetStandingAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Previews <paramref name="groupName"/>: until the preview ends, after
+    /// <c>PermissionConfig.PreviewDurationMs</c> or when <see cref="EndPreviewAsync"/> is called,
+    /// the player holds what a plain member of the group holds, in the hotel and in the admin
+    /// panel, and their client and room are told as for any change. Only a group lighter than
+    /// their heaviest that gives them nothing they do not hold (<c>PermissionPreview</c>); asking
+    /// again replaces the preview and its end. Lasts while the grain is active.
+    /// </summary>
+    public Task<PermissionPreviewResultSnapshot> StartPreviewAsync(
+        string groupName,
+        CancellationToken ct
+    );
+
+    /// <summary>Ends the player's preview, so they hold their own permissions again. False when none was running.</summary>
+    public Task<bool> EndPreviewAsync(CancellationToken ct);
 
     /// <summary>What the client is told about the player: security level, ambassador, moderator, perks.</summary>
     public Task<PermissionClientSnapshot> GetClientStateAsync(CancellationToken ct);

@@ -16,6 +16,7 @@
     - [What a level leaks, and the Nitro opt-in](#what-a-level-leaks-and-the-nitro-opt-in)
 - [9. Where the authority lives](#9-where-the-authority-lives)
     - [The console](#the-console)
+    - [Previewing a group](#previewing-a-group)
 - [10. Audit and the check trace](#10-audit-and-the-check-trace)
 - [11. How gating is enforced](#11-how-gating-is-enforced)
 - [12. What is deliberately left out](#12-what-is-deliberately-left-out)
@@ -452,6 +453,50 @@ covers it, granting or denying — who was given it, not who ends up holding it,
 answers for one player; `perm log` is the audit of everyone, newest first, and `perm log search
 <text>` narrows it to rows whose node, key or group name contains the text. All three are queries
 on the directory grain, capped by `Permissions.LookupPageLimit` and `AuditPageLimit`.
+
+### Previewing a group
+
+After "why can this person do that", staff ask "what does this group actually see". A player can
+take on a group's permissions for a while: `IPlayerPermissionGrain.StartPreviewAsync`, which the
+admin panel's **View as** calls (`docs/admin-panel.md`, *Viewing as a group*). Until it ends they
+hold what a plain member of the group holds (the group, its parents and `default`, none of their
+own nodes or meta), and every check of what they may do reads that set: their client is sent the
+group's `UserRights`, perks and nodes, their avatar in a room carries it, commands, the catalog and
+the navigator follow it, and so does the panel, its pages and routes, and the permission editor's
+weight and held-node limits. `ResolvedPermissionsSnapshot.Preview` names the group, and
+`ExplainAsync` explains the group's answer and says so (`perm check` prints it).
+
+The rule is `PermissionPreview.Refusal`: the group must be **lighter than the player's heaviest
+group**, and **every node it gives must be one they hold themselves**; a holder of
+`permissions.manage` and `permissions.superuser`, who may give themselves anything, may preview any
+group. So a preview only takes powers away, and nothing that reads the previewing player's groups
+(the editor's "only groups below yours") can find them heavier than they are. The grain asks the
+rule at the start and again at every resolve, so a preview it stops allowing (the group deleted or
+made heavier, a node it gives taken from the player, a sanction on them) ends there and then.
+
+A preview is held in the grain's memory and nowhere else: nothing is written or audited (the grain
+logs its start and end), and it ends after `PermissionConfig.PreviewDurationMs` (an hour), when
+`EndPreviewAsync` is called (the panel's banner), or with the grain's activation. The player is
+told in the hotel when it starts and ends (`player.permissions.preview.started` and `.ended`).
+Starting one raises `PlayerPermissionsChangedEvent` like any other change, with the preview on its
+`Current`.
+
+**What protects a player reads their own permissions.** A preview changes what the player does,
+never how others may treat them: `IPlayerPermissionGrain.GetStandingAsync` is what they hold of
+their own, preview or not, and `IGrainFactory.HasStandingAsync` asks it for one node. Every check
+that protects a player from someone else reads it: whether a command reaches them
+(`OperatorGuards`, the moderation tool's sanctions), a passkey link or login ticket for their
+account (`AdminLinkPolicy`, `AdminTicketPolicy`), whether an editor outranks them
+(`PermissionEditor.CheckPlayerAsync`), and whether they may open the panel at all (the session
+filter, signing in, `PanelAccessLostHandler`), so a group without `admin.panel` neither locks them
+out nor ends their sessions. Their restriction notices, `perm user info`, the panel's player page
+and `:whois` show their own too, with the preview beside it. Were these to read the preview, an
+admin previewing `default` would be one a moderator could ban, or take the account of. Inside a
+room the avatar carries the previewed set, so the room's own scale treats them as the group (a
+room owner may kick a previewing moderator); that ends with the preview.
+
+So a new check about what a player may do asks `HasPermissionAsync`; one about whether someone
+else may act on a player asks `HasStandingAsync`.
 
 ## 10. Audit and the check trace
 

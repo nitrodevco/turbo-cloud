@@ -24,4 +24,10 @@ public class PermissionConfig
     /// that activation); from the first that finds no session it is left to idle collection.
     /// </summary>
     public int OnlineCheckMs { get; init; } = 60_000;
+
+    /// <summary>
+    /// How long a staff member's preview of a group lasts (the admin panel's "View as"): after it
+    /// they hold their own permissions again, whether or not they stopped it.
+    /// </summary>
+    public int PreviewDurationMs { get; init; } = 3_600_000;
 }

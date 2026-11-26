@@ -55,8 +55,17 @@ internal sealed class PlayerPermissionLiveState
     /// </summary>
     public ResolvedPermissionsSnapshot? Announced { get; set; }
 
-    /// <summary>What the player holds. Null only before the first resolve.</summary>
+    /// <summary>
+    /// What the player holds, and every check of what they may do reads: <see cref="Standing"/>,
+    /// or the previewed group's while a preview runs. Null only before the first resolve.
+    /// </summary>
     public ResolvedPermissionsSnapshot? Resolved { get; set; }
+
+    /// <summary>What the player's own rows resolve to, a preview aside. Null only before the first resolve.</summary>
+    public ResolvedPermissionsSnapshot? Standing { get; set; }
+
+    /// <summary>The group being previewed and until when, as asked; <c>null</c> when none is.</summary>
+    public PermissionPreviewSnapshot? Preview { get; set; }
 
     /// <summary>The prior immutable resolution inputs used to identify expiry-only restorations.</summary>
     public RestrictionResolutionInputs? RestrictionInputs { get; set; }

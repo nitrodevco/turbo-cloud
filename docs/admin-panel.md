@@ -37,6 +37,7 @@
 - [Currency log](#currency-log)
 - [Room visits](#room-visits)
 - [Permission editor](#permission-editor)
+    - [Viewing as a group](#viewing-as-a-group)
 - [Who can make links for whom](#who-can-make-links-for-whom)
 - [Permissions](#permissions)
     - [How a route says who may call it](#how-a-route-says-who-may-call-it)
@@ -1313,6 +1314,28 @@ while it lasts. **Extend** adds the time to one already running instead of repla
 
 The panel doesn't reload permissions from the database (`perm reload`) or turn on `verbose`; use
 the console for those.
+
+### Viewing as a group
+
+To see what a group actually gets, open its page and press **View as**. For an hour (or until you
+stop) you are a plain member of that group, everywhere: the panel shows only the pages and
+actions the group has, and in the hotel your client, your avatar in a room, your commands and the
+catalog all behave as they would for its members. A strip across the top of every page says which
+group you are viewing as and until when, with **Stop viewing** to get your own permissions back.
+It works even for a group that can't open the panel (you then see the banner and little else), and
+the hotel tells you when it starts and ends.
+
+You can only view as a group lighter than your heaviest that gives you nothing you don't hold
+already, so viewing never adds a power; the button says why when it is greyed out. A superuser may
+view as any group. If the group changes so that the rule no longer holds (it is made heavier, or
+gains a node you lack), or you are sanctioned meanwhile, the view ends by itself.
+
+Nobody else sees you as that group. A ban, a silence, a passkey link or a login ticket aimed at
+you, and the permission editor's "only people below you", still go by your own permissions, and
+your page under Permissions → Players shows them with the group you are viewing as beside them.
+Only inside a room are you treated as the group: a room owner can kick you as they could one of
+its members. How long it lasts is `Turbo:Players:Permissions:PreviewDurationMs`; the rule is in
+[permissions.md](permissions.md#previewing-a-group).
 
 ## Who can make links for whom
 

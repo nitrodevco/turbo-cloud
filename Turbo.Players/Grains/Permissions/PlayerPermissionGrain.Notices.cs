@@ -20,10 +20,15 @@ internal sealed partial class PlayerPermissionGrain
     public async Task NotifyActiveRestrictionsAsync(CancellationToken ct)
     {
         // A returning session receives its current restriction, never a backlog of elapsed ones.
+        // Read from the player's own rows: a sanction is theirs, whatever group they preview.
         EnsureResolved(notifyRestrictionRestorations: false);
         foreach (var node in RESTRICTION_NODES)
-            if (!EnsureResolved(notifyRestrictionRestorations: false).Has(node))
+        {
+            EnsureResolved(notifyRestrictionRestorations: false);
+
+            if (!_state.Standing!.Has(node))
                 await SendRestrictionNoticeAsync(node, restored: false, ct);
+        }
     }
 
     private string[] RestoredRestrictions(
@@ -64,7 +69,7 @@ internal sealed partial class PlayerPermissionGrain
     private async Task NotifyRestoredRestrictionsAsync(string[] nodes)
     {
         foreach (var node in nodes)
-            if (_state.Resolved?.Has(node) == true)
+            if (_state.Standing?.Has(node) == true)
                 if (
                     await SendRestrictionNoticeAsync(node, restored: true, CancellationToken.None)
                     != PlayerNoticeDelivery.Sent

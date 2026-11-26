@@ -408,6 +408,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Permissions.IPerm
 
 interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Permissions.IPlayerPermissionGrain")] Turbo.Primitives.Players.Grains.Permissions.IPlayerPermissionGrain [Version(0)]
   17802D21: AddGroupAsync(string, System.DateTime?, Turbo.Primitives.Players.Enums.PermissionExpiryModeType, Turbo.Primitives.Players.PlayerId?, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.PermissionChangeResultType>
+  C7813BB5: EndPreviewAsync(System.Threading.CancellationToken) -> Task<bool>
   D332026A: ExplainAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.Permissions.PermissionCheckSnapshot>
   10914457: ExplainInterleavedAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.Permissions.PermissionCheckSnapshot>
   2020794A: GetAssignmentsAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.Permissions.PlayerPermissionAssignmentsSnapshot>
@@ -415,6 +416,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Permissions.IPlay
   933F2D8D: GetClientStateAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.Permissions.PermissionClientSnapshot>
   7667FA91: GetMetaAsync(string, System.Threading.CancellationToken) -> Task<string?>
   63E5C490: GetResolvedAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.Permissions.ResolvedPermissionsSnapshot>
+  AF7903C6: GetStandingAsync(System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.Permissions.ResolvedPermissionsSnapshot>
   B2CECC2D: HasAsync(string, System.Threading.CancellationToken) -> Task<bool>
   550BBB61: NotifyActiveRestrictionsAsync(System.Threading.CancellationToken) -> Task
   9A247091: OnGroupsChangedAsync(Turbo.Primitives.Players.Snapshots.Permissions.PermissionGroupDirectorySnapshot, System.Threading.CancellationToken) -> Task
@@ -427,6 +429,7 @@ interface [GrainInterfaceType("Turbo.Primitives.Players.Grains.Permissions.IPlay
   C2312A4F: SetMetaAsync(string, string, System.DateTime?, Turbo.Primitives.Players.Enums.PermissionExpiryModeType, Turbo.Primitives.Players.PlayerId?, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.PermissionChangeResultType>
   7AD5AAEE: SetNodeAsync(string, bool, System.DateTime?, Turbo.Primitives.Players.Enums.PermissionExpiryModeType, Turbo.Primitives.Players.PlayerId?, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.PermissionChangeResultType>
   B889D8A5: SetVerboseAsync(string?, System.Threading.CancellationToken) -> Task
+  66E833FC: StartPreviewAsync(string, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Snapshots.Permissions.PermissionPreviewResultSnapshot>
   41A44792: UnsetMetaAsync(string, bool, Turbo.Primitives.Players.PlayerId?, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.PermissionChangeResultType>
   CA7F09C5: UnsetNodeAsync(string, bool, Turbo.Primitives.Players.PlayerId?, System.Threading.CancellationToken) -> Task<Turbo.Primitives.Players.Enums.PermissionChangeResultType>
 

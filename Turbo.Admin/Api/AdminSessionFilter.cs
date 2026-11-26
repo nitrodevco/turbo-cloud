@@ -13,7 +13,8 @@ namespace Turbo.Admin.Api;
 /// Lets a request through only with a live session whose player still holds
 /// <c>admin.panel</c>. The node is asked on every request, not remembered with the session, so
 /// taking it away locks the panel at once, and the session is ended (see
-/// <see cref="PanelAccessLostHandler"/>).
+/// <see cref="PanelAccessLostHandler"/>). While the player previews a group, everything else is
+/// asked of that group's permissions (<see cref="PreviewEndpoints"/>).
 /// </summary>
 internal sealed class AdminSessionFilter(IGrainFactory grainFactory) : IEndpointFilter
 {
@@ -42,10 +43,8 @@ internal sealed class AdminSessionFilter(IGrainFactory grainFactory) : IEndpoint
 
         // Read once for the request: the panel node, the route's declarations and the handler's
         // own questions all answer from it rather than each asking the grain.
-        var permissions = await grainFactory
-            .GetPlayerPermissionGrain(session.PlayerId)
-            .GetResolvedAsync(ct)
-            .ConfigureAwait(false);
+        var grain = grainFactory.GetPlayerPermissionGrain(session.PlayerId);
+        var permissions = await grain.GetResolvedAsync(ct).ConfigureAwait(false);
         var identity = new AdminIdentity(
             session.PlayerId,
             string.Empty,
@@ -54,11 +53,17 @@ internal sealed class AdminSessionFilter(IGrainFactory grainFactory) : IEndpoint
             permissions
         );
 
-        if (
-            !await identity
+        // A group being previewed decides what the panel shows and allows, but not whether its
+        // viewer may open it, so the banner that ends the preview is always reachable.
+        var panel = permissions.Preview is null
+            ? await identity
                 .HoldsAsync(grainFactory, PermissionNodes.Admin.PANEL, ct)
                 .ConfigureAwait(false)
-        )
+            : (await grain.GetStandingAsync(ct).ConfigureAwait(false)).Has(
+                PermissionNodes.Admin.PANEL
+            );
+
+        if (!panel)
         {
             // Ended, not just refused: the panel being given back later opens no old session.
             await grainFactory.GetAdminAuthGrain().EndSessionAsync(token, ct).ConfigureAwait(false);

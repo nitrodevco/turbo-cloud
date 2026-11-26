@@ -15,6 +15,8 @@ using Turbo.Primitives.Networking;
 using Turbo.Primitives.Packets;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Players.Enums;
+using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Players.Snapshots.Permissions;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Tests.Support;
 using Xunit;
@@ -84,6 +86,23 @@ public sealed class ModerationIssueQueueTests : IDisposable
                 Convert.ToInt32(call.Key)
                     is MODERATOR
                         or OTHER_MODERATOR
+            );
+        // What a sanction's target holds of their own: the moderators are staff to every action.
+        _fakes.Handlers["GetStandingAsync"] = call =>
+            Task.FromResult(
+                ResolvedPermissionsSnapshot.EMPTY with
+                {
+                    Granted = Convert.ToInt32(call.Key) is MODERATOR or OTHER_MODERATOR
+                        ?
+                        [
+                            PermissionNodes.Moderation.TOOL,
+                            PermissionNodes.Command.BAN,
+                            PermissionNodes.Command.SILENCE,
+                            PermissionNodes.Command.TRADELOCK,
+                            PermissionNodes.Room.MODERATE_ANY,
+                        ]
+                        : [],
+                }
             );
         _fakes.Handlers["SendComposerAsync"] = call =>
         {

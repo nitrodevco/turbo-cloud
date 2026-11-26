@@ -195,6 +195,25 @@ public static class GrainFactoryExtensions
     ) => factory.GetPlayerPermissionGrain(playerId).HasAsync(node, ct);
 
     /// <summary>
+    /// Whether a player holds a node of their own, whatever group they may be previewing: for a
+    /// check that protects them from what someone else does to them (a ban, a silence, a passkey
+    /// reset), which a staff member previewing a lighter group must not lose. What a player may do
+    /// themselves is <see cref="HasPermissionAsync"/>.
+    /// </summary>
+    public static async Task<bool> HasStandingAsync(
+        this IGrainFactory factory,
+        PlayerId playerId,
+        string node,
+        CancellationToken ct
+    ) =>
+        (
+            await factory
+                .GetPlayerPermissionGrain(playerId)
+                .GetStandingAsync(ct)
+                .ConfigureAwait(false)
+        ).Has(node);
+
+    /// <summary>
     /// Which of <paramref name="playerIds"/> hold <paramref name="node"/>, asked of their
     /// permission grains at once: asked one after another, every online player cost a grain
     /// call's time before the answer.

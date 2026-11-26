@@ -129,6 +129,31 @@ public sealed class AdminLinkPolicyTests
         decision.Refusal.Should().Be(AdminLinkRefusal.OutranksIssuer);
     }
 
+    [Fact]
+    public async Task AnAccountPreviewingALighterGroup_StillCannotBeTakenOver()
+    {
+        // The owner is seeing the panel as a helper would: what they do is a helper's, but
+        // their account is still the owner's, and a moderator's link must not reach it.
+        _fakes.Handlers["GetResolvedAsync"] = call =>
+            Task.FromResult(
+                ResolvedPermissionsSnapshot.EMPTY with
+                {
+                    Granted = [.. _nodes[Key(call) == OWNER.Value ? HELPER.Value : Key(call)]],
+                }
+            );
+        _fakes.Handlers["GetStandingAsync"] = call =>
+            Task.FromResult(
+                ResolvedPermissionsSnapshot.EMPTY with
+                {
+                    Granted = [.. _nodes[Key(call)]],
+                }
+            );
+
+        var decision = await Policy().CheckAsync(MODERATOR, OWNER, Ct);
+
+        decision.Refusal.Should().Be(AdminLinkRefusal.OutranksIssuer);
+    }
+
     private AdminLinkPolicy Policy() => new(_fakes.Create<IGrainFactory>());
 
     private static long Key(FakeCall call) => Convert.ToInt64(call.Key);

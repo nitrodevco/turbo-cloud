@@ -2,7 +2,10 @@ using System;
 
 namespace Turbo.Admin.Api.Contracts;
 
-/// <summary>Who is signed in, and which parts of the panel apply to them.</summary>
+/// <summary>
+/// Who is signed in, and which parts of the panel apply to them: while they preview a group
+/// (<see cref="Preview"/>), the parts that apply to that group.
+/// </summary>
 public sealed record MeResponse(
     int Id,
     string Name,
@@ -25,5 +28,6 @@ public sealed record MeResponse(
     bool CanViewTelemetry,
     bool CanManageCampaigns,
     bool CanViewApprovals,
-    bool CanBackupDatabase
+    bool CanBackupDatabase,
+    PermissionPreviewView? Preview
 );

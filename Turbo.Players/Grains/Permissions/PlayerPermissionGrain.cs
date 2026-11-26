@@ -31,6 +31,8 @@ namespace Turbo.Players.Grains.Permissions;
 /// changes (a plugin loaded or unloaded; pushed by the directory, and checked on every read
 /// besides), or an assignment runs out.
 /// While active it is subscribed to the directory, and it stays active while its player is online.
+/// A preview of a group (<c>PlayerPermissionGrain.Preview.cs</c>) is held in memory only, and
+/// ends with the activation.
 /// </summary>
 internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGrain
 {
@@ -248,6 +250,13 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
     public Task<ResolvedPermissionsSnapshot> GetResolvedAsync(CancellationToken ct) =>
         Task.FromResult(EnsureResolved());
 
+    public Task<ResolvedPermissionsSnapshot> GetStandingAsync(CancellationToken ct)
+    {
+        EnsureResolved();
+
+        return Task.FromResult(_state.Standing!);
+    }
+
     public Task<PermissionClientSnapshot> GetClientStateAsync(CancellationToken ct)
     {
         EnsureResolved();
@@ -257,16 +266,24 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
 
     public Task<PermissionCheckSnapshot> ExplainAsync(string node, CancellationToken ct)
     {
-        EnsureResolved();
+        // Explains the answer HasAsync gives: while a preview runs, that of a plain member.
+        var preview = EnsureResolved().Preview;
+        var assignments =
+            preview is not null && FindGroup(preview.GroupName) is { } group
+                ? PlayerPermissionAssignmentsSnapshot.MemberOf(group.Id)
+                : BuildAssignments();
 
         return Task.FromResult(
             PermissionResolver.Explain(
                 _state.Registry!,
                 _state.Groups.Groups,
-                BuildAssignments(),
+                assignments,
                 node,
                 UtcNow
-            )
+            ) with
+            {
+                Preview = preview,
+            }
         );
     }
 
@@ -411,7 +428,7 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
         var now = UtcNow;
         var registry = _permissionRegistryProvider.Current;
         var assignments = BuildAssignments();
-        var resolved = PermissionResolver.Resolve(
+        var standing = PermissionResolver.Resolve(
             registry,
             _state.Groups.Groups,
             assignments,
@@ -421,22 +438,27 @@ internal sealed partial class PlayerPermissionGrain : Grain, IPlayerPermissionGr
             VerboseFilter = _state.VerboseFilter,
         };
 
-        var restored = RestoredRestrictions(resolved, now, explicitlyChangedNode);
+        // Restrictions are the player's own sanctions, so they are read from their own rows.
+        var restored = RestoredRestrictions(standing, now, explicitlyChangedNode);
         _state.RestrictionInputs = new RestrictionResolutionInputs(
             registry,
             _state.Groups,
             assignments,
-            resolved
+            standing
         );
+
+        var resolved = ResolvePreview(registry, standing, now) ?? standing;
+
         _state.Registry = registry;
+        _state.Standing = standing;
         _state.Resolved = resolved;
         _state.Client = PermissionProjection.Project(registry, resolved);
 
-        if (resolved.UnregisteredNodes.Length > 0)
+        if (standing.UnregisteredNodes.Length > 0)
             _logger.LogDebug(
                 "Player {PlayerId} is assigned unregistered permission nodes {Nodes}",
                 PlayerId,
-                resolved.UnregisteredNodes
+                standing.UnregisteredNodes
             );
 
         ScheduleExpiry(resolved.NextExpiresAt);

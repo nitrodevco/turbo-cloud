@@ -27,4 +27,11 @@ public sealed record PermissionCheckSnapshot
     /// <summary>Lower-priority sources that also matched, in priority order: what the decision beat.</summary>
     [Id(4)]
     public required ImmutableArray<PermissionAssignmentSourceSnapshot> Overridden { get; init; }
+
+    /// <summary>
+    /// The group the player is previewing: the answer is what a plain member of it gets, which is
+    /// what the player holds until the preview ends. <c>null</c> when they are themselves.
+    /// </summary>
+    [Id(5)]
+    public PermissionPreviewSnapshot? Preview { get; init; }
 }

@@ -13,7 +13,8 @@ internal static class OperatorGuards
     /// <summary>
     /// Whether <paramref name="target"/> is out of the executor's reach: themself, or a player who
     /// holds the node of the command being run, which is what makes them staff to it. The console
-    /// is never stopped, because it is how a hotel's last administrator is dealt with.
+    /// is never stopped, because it is how a hotel's last administrator is dealt with. Asked of
+    /// what the target holds themselves, so staff previewing a lighter group stay out of reach.
     /// </summary>
     public static async Task<bool> IsProtectedAsync(
         IGrainFactory grainFactory,
@@ -27,6 +28,6 @@ internal static class OperatorGuards
             return false;
 
         return executor.PlayerId == target
-            || await grainFactory.HasPermissionAsync(target, commandNode, ct);
+            || await grainFactory.HasStandingAsync(target, commandNode, ct);
     }
 }

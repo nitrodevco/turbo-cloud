@@ -562,13 +562,14 @@ public sealed class ModerationToolService(
             _ => null,
         };
 
-        // The chat command's node, and a player who holds it is staff to it (OperatorGuards).
+        // The chat command's node, and a player who holds it of their own is staff to it
+        // (OperatorGuards).
         if (
             node is null
             || target <= 0
             || target == moderator
             || !await grainFactory.HasPermissionAsync(moderator, node, ct)
-            || await grainFactory.HasPermissionAsync(target, node, ct)
+            || await grainFactory.HasStandingAsync(target, node, ct)
         )
             return false;
 

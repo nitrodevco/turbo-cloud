@@ -132,9 +132,10 @@ public sealed class PermissionEditor
         if (IsSuperuser)
             return PermissionEditRefusal.None;
 
+        // The target's own groups: one previewing a lighter group is not one to their editors.
         var resolved = await _grainFactory
             .GetPlayerPermissionGrain(target)
-            .GetResolvedAsync(ct)
+            .GetStandingAsync(ct)
             .ConfigureAwait(false);
 
         return HeaviestOf(Groups, resolved) < HeaviestWeight

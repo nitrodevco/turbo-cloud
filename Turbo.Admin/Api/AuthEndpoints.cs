@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Orleans;
 using Turbo.Admin.Api.Contracts;
+using Turbo.Admin.Permissions;
 using Turbo.Primitives.Orleans;
 using Turbo.Primitives.Players.Permissions;
 
@@ -20,7 +21,9 @@ internal sealed class AuthEndpoints(IGrainFactory grainFactory)
             .PanelOnly("Signing out ends the caller's own session.");
         secured
             .MapGet("/me", MeAsync)
-            .PanelOnly("Who the caller is and what the panel shows them.");
+            .PanelOnly(
+                "Who the caller is and what the panel shows them, or the group they preview."
+            );
     }
 
     private async Task<IResult> LogoutAsync(HttpContext http, CancellationToken ct)
@@ -98,7 +101,8 @@ internal sealed class AuthEndpoints(IGrainFactory grainFactory)
                     .ConfigureAwait(false),
                 await identity
                     .HoldsAsync(grainFactory, PermissionNodes.Admin.DATABASE_BACKUP, ct)
-                    .ConfigureAwait(false)
+                    .ConfigureAwait(false),
+                PermissionViews.PreviewOf(identity.Permissions.Preview)
             )
         );
     }

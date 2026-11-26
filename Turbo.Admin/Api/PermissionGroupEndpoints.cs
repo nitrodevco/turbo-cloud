@@ -60,10 +60,18 @@ internal sealed class PermissionGroupEndpoints(
     private async Task<IResult> ListAsync(HttpContext http, CancellationToken ct) =>
         Results.Ok(views.ListGroups(await EditorAsync(http, ct).ConfigureAwait(false)));
 
-    private async Task<IResult> GetAsync(HttpContext http, string name, CancellationToken ct) =>
-        views.GetGroup(await EditorAsync(http, ct).ConfigureAwait(false), name) is { } group
+    private async Task<IResult> GetAsync(HttpContext http, string name, CancellationToken ct)
+    {
+        var editor = await EditorAsync(http, ct).ConfigureAwait(false);
+        var standing = await grainFactory
+            .GetPlayerPermissionGrain(AdminIdentity.Of(http).PlayerId)
+            .GetStandingAsync(ct)
+            .ConfigureAwait(false);
+
+        return views.GetGroup(editor, standing, name) is { } group
             ? Results.Ok(group)
             : AdminResults.Error(StatusCodes.Status404NotFound, $"There is no group {name}.");
+    }
 
     private async Task<IResult> MembersAsync(string name, int? count, CancellationToken ct) =>
         Results.Ok(

@@ -4,6 +4,7 @@ using Turbo.Admin.Api.Contracts;
 using Turbo.Primitives.Commands;
 using Turbo.Primitives.Players.Enums;
 using Turbo.Primitives.Players.Permissions;
+using Turbo.Primitives.Players.Snapshots.Permissions;
 
 namespace Turbo.Admin.Api;
 
@@ -90,6 +91,22 @@ internal static class PermissionResults
                 _ => "You can't do that.",
             }
         );
+
+    /// <summary>
+    /// Why the staff member may not view the panel and the hotel as <paramref name="group"/>, in the
+    /// panel's words; <c>null</c> when they may (<see cref="PermissionPreview"/>).
+    /// </summary>
+    public static string? PreviewRefusalOf(PermissionPreviewResultSnapshot? result, string group) =>
+        result?.Result switch
+        {
+            null or PermissionPreviewResultType.Started => null,
+            PermissionPreviewResultType.UnknownGroup => $"There is no group {group}.",
+            PermissionPreviewResultType.GroupTooHeavy =>
+                "You can only view as a group lighter than your heaviest.",
+            PermissionPreviewResultType.NodeNotHeld =>
+                $"{group} gives {result.Node}, which you don't hold, so you can't view as it.",
+            _ => "You can't view as that group.",
+        };
 
     /// <summary>The grain's answer to a change, as the panel shows it.</summary>
     public static IResult Changed(PermissionChangeResultType result) =>
