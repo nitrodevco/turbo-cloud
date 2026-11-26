@@ -4,6 +4,7 @@ using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums.Wired;
+using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Rooms.Grains.Modules;
 using Turbo.Rooms.Grains.Systems;
@@ -58,11 +59,41 @@ public sealed class WiredExecutionLimitAddonTests
         _room.Positions().Should().Equal("5@5,5");
     }
 
+    // An event the trigger turns down is no execution: Enter Room for "bob" heard someone else
+    // come in first, and that used up the one execution the window allowed, so bob's own
+    // entrance did nothing (inferred: the limit counts executions, and none was made).
+    [Fact]
+    [Trait("evidence", "inferred")]
+    public async Task An_event_the_trigger_turns_down_spends_no_execution()
+    {
+        _room.Enter(6, 2, 1, name: "bob");
+        _room.AddBox<WiredTriggerHabboJoinRoom>(1, 0, 0, "wf_trg_enter_room");
+        (await _room.SaveAsync<UpdateTriggerMessage>(1, stringParam: "bob")).Should().BeTrue();
+        await BuildRestAsync(executions: 1, windowPulses: 10);
+
+        await EnteredAsync(105);
+        await EnteredAsync(106);
+
+        _room.Positions().Should().Equal("5@1,1", "6@5,5");
+    }
+
+    private async Task EnteredAsync(int playerId)
+    {
+        await Wired.OnRoomEventAsync(
+            new PlayerEnterEvent
+            {
+                RoomId = 1,
+                CausedBy = ActionContext.CreateForPlayer((PlayerId)playerId, (RoomId)1),
+                PlayerId = playerId,
+            },
+            Ct
+        );
+        await TickAsync(3);
+    }
+
     private async Task BuildAsync(int executions, int windowPulses)
     {
         _room.AddBox<WiredTriggerClickFurni>(1, 0, 0, "wf_trg_click_furni");
-        _room.AddBox<WiredAddonExecutionLimit>(2, 0, 0, "wf_xtra_execution_limit");
-        _room.AddBox<WiredActionTeleportTo>(3, 0, 0, "wf_act_teleport_to");
 
         (
             await _room.SaveAsync<UpdateTriggerMessage>(
@@ -76,6 +107,16 @@ public sealed class WiredExecutionLimitAddonTests
         )
             .Should()
             .BeTrue();
+
+        await BuildRestAsync(executions, windowPulses);
+    }
+
+    /// <summary>The limit and a teleport of the triggering user onto the target, under the trigger on 0,0.</summary>
+    private async Task BuildRestAsync(int executions, int windowPulses)
+    {
+        _room.AddBox<WiredAddonExecutionLimit>(2, 0, 0, "wf_xtra_execution_limit");
+        _room.AddBox<WiredActionTeleportTo>(3, 0, 0, "wf_act_teleport_to");
+
         (await _room.SaveAsync<UpdateAddonMessage>(2, intParams: [executions, windowPulses]))
             .Should()
             .BeTrue();

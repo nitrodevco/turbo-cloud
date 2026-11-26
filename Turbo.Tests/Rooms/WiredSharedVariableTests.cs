@@ -51,6 +51,9 @@ public sealed class WiredSharedVariableTests
             room.Harness.Fakes.Instances[(typeof(IRoomGrain), (object)2L)] = _other.Harness.Room;
             room.Harness.Fakes.Handlers["GetActiveRoomIdsAsync"] = _ =>
                 Task.FromResult(ImmutableArray.Create((RoomId)1, (RoomId)2));
+            // Both rooms are loaded: whichever of them the directory is asked about is.
+            room.Harness.Fakes.Handlers[nameof(IRoomDirectoryGrain.GetActiveAmongAsync)] = call =>
+                Task.FromResult((ImmutableArray<RoomId>)call.Args[0]!);
             room.Enter(PLAYER_INDEX, 1, 1);
         }
 

@@ -84,7 +84,7 @@ public class WiredConditionVariableAgeMatch(
             return false;
 
         var targetType = GetTargetType(variable, 0);
-        var comparison = GetIntParamOrDefault(1, 2);
+        var comparison = GetIntParamOrDefault(1, 0);
         var useUpdate = GetIntParamOrDefault(2, false);
         var duration = GetLongParam(3);
 

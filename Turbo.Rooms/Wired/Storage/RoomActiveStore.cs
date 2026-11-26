@@ -8,6 +8,9 @@ public sealed class RoomActiveStore(TimeProvider clock) : ActiveStore
 {
     private readonly KeyValueStore _vars = new() { Clock = clock };
 
+    public override void RemoveVariable(WiredVariableId variableId) =>
+        _vars.RemoveVariable(variableId);
+
     public override bool TryGetStore(WiredVariableKey key, out KeyValueStore? store)
     {
         store = _vars;

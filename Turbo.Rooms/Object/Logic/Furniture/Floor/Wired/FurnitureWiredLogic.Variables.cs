@@ -158,14 +158,22 @@ public abstract partial class FurnitureWiredLogic
         WiredVariableTargetType targetType,
         int targetId,
         out long value
+    ) => TryReadOperandOnHolder(GetVariable(operandVariableIndex), targetType, targetId, out value);
+
+    /// <summary>
+    /// The same for a box that asks every holder in a loop: it finds the operand variable once
+    /// (<see cref="GetVariable"/> parses the id and looks it up) and passes it here.
+    /// </summary>
+    protected static bool TryReadOperandOnHolder(
+        IWiredVariable? operand,
+        WiredVariableTargetType targetType,
+        int targetId,
+        out long value
     )
     {
         value = 0;
 
-        if (
-            GetVariable(operandVariableIndex) is not { } operand
-            || ReadVariable(operand, targetType, targetId) is not { } found
-        )
+        if (operand is null || ReadVariable(operand, targetType, targetId) is not { } found)
             return false;
 
         value = found;

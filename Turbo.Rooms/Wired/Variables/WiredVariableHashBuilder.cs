@@ -1,6 +1,7 @@
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO.Hashing;
 using System.Text;
 using Turbo.Primitives.Rooms.Enums.Wired;
@@ -10,45 +11,6 @@ namespace Turbo.Rooms.Wired.Variables;
 
 public static class WiredVariableHashBuilder
 {
-    public static WiredVariableHash HashFromValues(
-        string variableName,
-        WiredVariableTargetType targetType
-    )
-    {
-        var hasher = new XxHash32();
-
-        WriteString(ref hasher, variableName);
-        WriteInt32(ref hasher, (int)targetType);
-
-        Span<byte> hashBytes = stackalloc byte[4];
-        hasher.GetHashAndReset(hashBytes);
-
-        return new WiredVariableHash(BinaryPrimitives.ReadInt32LittleEndian(hashBytes));
-    }
-
-    public static WiredVariableHash HashVariable(IWiredVariable varDef)
-    {
-        var snapshot = varDef.GetVarSnapshot();
-        var hasher = new XxHash32();
-
-        WriteString(ref hasher, snapshot.VariableName);
-        WriteInt32(ref hasher, (int)snapshot.AvailabilityType);
-        WriteInt32(ref hasher, (int)snapshot.TargetType);
-        WriteInt32(ref hasher, (int)snapshot.Flags);
-        WriteInt32(ref hasher, snapshot.TextConnectors.Count);
-
-        foreach (var s in snapshot.TextConnectors.Values)
-            WriteString(ref hasher, s);
-
-        if (snapshot.TextConnectorFallback is not null)
-            WriteString(ref hasher, snapshot.TextConnectorFallback);
-
-        Span<byte> hashBytes = stackalloc byte[4];
-        hasher.GetHashAndReset(hashBytes);
-
-        return new WiredVariableHash(BinaryPrimitives.ReadInt32LittleEndian(hashBytes));
-    }
-
     public static WiredVariableHash HashValues(
         string name,
         WiredAvailabilityType availabilityType,
@@ -66,8 +28,11 @@ public static class WiredVariableHashBuilder
         WriteInt32(ref hasher, (int)flags);
         WriteInt32(ref hasher, textConnectors.Count);
 
-        foreach (var s in textConnectors.Values)
-            WriteString(ref hasher, s);
+        foreach (var (value, label) in textConnectors)
+        {
+            WriteString(ref hasher, value.Value.ToString(CultureInfo.InvariantCulture));
+            WriteString(ref hasher, label);
+        }
 
         // A changed fallback has to change the hash, or the client keeps the old one cached.
         if (textConnectorFallback is not null)

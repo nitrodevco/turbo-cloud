@@ -67,6 +67,9 @@ public class WiredAddonVariableLevelUp(
 
     private List<long> _thresholds = [];
 
+    // Whether no threshold is below the one before it, which lets LevelAt search them.
+    private bool _thresholdsClimb;
+
     public override int WiredCode => (int)WiredAddonType.VARIABLE_LEVEL_UP;
 
     // A fresh box exposes no sub-variables and holds linear figures plus a third one (the editor
@@ -154,6 +157,10 @@ public class WiredAddonVariableLevelUp(
         await base.FillInternalDataAsync(ct);
 
         _thresholds = BuildThresholds();
+        _thresholdsClimb = true;
+
+        for (var i = 1; i < _thresholds.Count && _thresholdsClimb; i++)
+            _thresholdsClimb = _thresholds[i] >= _thresholds[i - 1];
     }
 
     protected override IEnumerable<IWiredVariable> BuildSubVariables(
@@ -229,10 +236,7 @@ public class WiredAddonVariableLevelUp(
         xp = Math.Max(0, xp);
 
         var maxLevel = _thresholds.Count;
-        var level = 1;
-
-        while (level < maxLevel && xp >= _thresholds[level])
-            level++;
+        var level = LevelAt(xp, maxLevel);
 
         var levelStart = _thresholds[level - 1];
 
@@ -248,6 +252,40 @@ public class WiredAddonVariableLevelUp(
     }
 
     /// <summary>XP needed to reach each level, index 0 being level 1 (always zero).</summary>
+    /// <summary>
+    /// The level <paramref name="xp"/> reaches: the first whose next threshold it has not. Read
+    /// for every sub-variable, fx status and leaderboard row of every holder, over up to
+    /// <see cref="MAX_LEVELS"/> thresholds, so thresholds that only climb (every mode makes
+    /// them so unless a custom list does not) are searched, not walked.
+    /// </summary>
+    private int LevelAt(long xp, int maxLevel)
+    {
+        if (!_thresholdsClimb)
+        {
+            var level = 1;
+
+            while (level < maxLevel && xp >= _thresholds[level])
+                level++;
+
+            return level;
+        }
+
+        // The first level in [1, maxLevel) whose threshold is above the xp, or maxLevel.
+        var (low, high) = (1, maxLevel);
+
+        while (low < high)
+        {
+            var middle = low + (high - low) / 2;
+
+            if (xp >= _thresholds[middle])
+                low = middle + 1;
+            else
+                high = middle;
+        }
+
+        return low;
+    }
+
     private List<long> BuildThresholds()
     {
         var mode = GetIntParamOrDefault(1, MODE_LINEAR);

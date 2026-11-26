@@ -328,6 +328,50 @@ public sealed partial class RoomWiredSystem
         }
     }
 
+    // The permanent variable boxes whose store changed in the execution running now.
+    private readonly HashSet<FurnitureWiredVariableLogic> _unsavedStorage = [];
+
+    /// <summary>
+    /// A permanent variable's store changed. The store is one extra data section, serialized
+    /// whole (every holder it ever had, values and times), so it is written once when the
+    /// execution that changed it ends rather than on each write: a stack changing the variable
+    /// on fifty users serialized it fifty times. Outside an execution (the wired menu, the Web
+    /// API) it is written at once.
+    /// </summary>
+    public void StorageChanged(FurnitureWiredVariableLogic box)
+    {
+        if (_execution is null)
+            box.WriteStorage();
+        else
+            _unsavedStorage.Add(box);
+    }
+
+    public void DiscardUnsavedStorage(FurnitureWiredVariableLogic box) =>
+        _unsavedStorage.Remove(box);
+
+    private void WriteUnsavedStorage()
+    {
+        if (_unsavedStorage.Count == 0)
+            return;
+
+        foreach (var box in _unsavedStorage)
+            box.WriteStorage();
+
+        _unsavedStorage.Clear();
+    }
+
+    /// <summary>
+    /// A variable box was picked up: what it created goes with it, on every furni and user and
+    /// on the room. The values a variable holds while the room is active live in the stores
+    /// here, not in the box, and outlived it: the same box put down again found them all.
+    /// </summary>
+    public void ForgetVariableValues(WiredVariableId variableId)
+    {
+        _furnitureActiveStore.RemoveVariable(variableId);
+        _playerActiveStore.RemoveVariable(variableId);
+        _roomActiveStore.RemoveVariable(variableId);
+    }
+
     /// <summary>
     /// A furni taken out of the room loses every furni variable it held, permanent ones too: a
     /// chest given a variable available while the room is active and a permanent one, picked up

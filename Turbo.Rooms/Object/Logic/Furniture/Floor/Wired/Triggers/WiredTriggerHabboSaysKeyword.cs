@@ -228,25 +228,19 @@ public class WiredTriggerHabboSaysKeyword(
     public override Task<bool> CanTriggerAsync(IWiredProcessingContext ctx, CancellationToken ct) =>
         ctx.Event switch
         {
-            PlayerChatEvent chatEvt => SpeakerMayTriggerAsync(chatEvt, ct),
+            PlayerChatEvent chatEvt => Task.FromResult(SpeakerMayTrigger(chatEvt)),
             // A bot is never the room's owner (inference: the owner-only box was not recorded
             // with a bot speaking).
             BotChatEvent => Task.FromResult(!GetIntParamOrDefault(OWNER_ONLY_PARAM_INDEX, false)),
             _ => Task.FromResult(false),
         };
 
-    private async Task<bool> SpeakerMayTriggerAsync(PlayerChatEvent chatEvt, CancellationToken ct)
-    {
-        if (!GetIntParamOrDefault(OWNER_ONLY_PARAM_INDEX, false))
-            return true;
-
-        var snapshot = await _ctx.Room.GetSnapshotAsync(ct);
-
-        return snapshot.OwnerId == chatEvt.PlayerId;
-    }
+    private bool SpeakerMayTrigger(PlayerChatEvent chatEvt) =>
+        !GetIntParamOrDefault(OWNER_ONLY_PARAM_INDEX, false)
+        || State.RoomSnapshot.OwnerId == chatEvt.PlayerId;
 
     /// <summary>Whether the keyword should not be shown to the room.</summary>
-    public bool ShouldHideMessage() => GetIntParamOrDefault(HIDE_PARAM_INDEX, false);
+    public bool ShouldHideMessage() => GetIntParamOrDefault(HIDE_PARAM_INDEX, true);
 
     /// <summary>
     /// Whether this box takes <paramref name="chatEvt"/> out of the room's chat: it hides, and it
@@ -254,11 +248,9 @@ public class WiredTriggerHabboSaysKeyword(
     /// alone.
     /// </summary>
     public async Task<bool> HidesAsync(PlayerChatEvent chatEvt, CancellationToken ct) =>
-        ShouldHideMessage()
-        && await MatchesEventAsync(chatEvt, ct)
-        && await SpeakerMayTriggerAsync(chatEvt, ct);
+        ShouldHideMessage() && await MatchesEventAsync(chatEvt, ct) && SpeakerMayTrigger(chatEvt);
 
     /// <summary>Whether this box fires for <paramref name="chatEvt"/> and its speaker.</summary>
     public async Task<bool> FiresForAsync(PlayerChatEvent chatEvt, CancellationToken ct) =>
-        await MatchesEventAsync(chatEvt, ct) && await SpeakerMayTriggerAsync(chatEvt, ct);
+        await MatchesEventAsync(chatEvt, ct) && SpeakerMayTrigger(chatEvt);
 }

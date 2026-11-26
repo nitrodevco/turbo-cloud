@@ -103,6 +103,7 @@ public class WiredSelectorItemsWithVariable(
             return Task.FromResult<IWiredSelectionSet>(output);
 
         var comparison = GetIntParamOrDefault(0, WiredComparisonType.GreaterThan);
+        var holderOperand = sameHolder ? GetVariable(1) : null;
 
         foreach (var targetId in WiredSystem.GetLiveTargetIds(TargetType))
         {
@@ -111,7 +112,10 @@ public class WiredSelectorItemsWithVariable(
             if (value is null)
                 continue;
 
-            if (sameHolder && !TryReadOperandOnHolder(1, TargetType, targetId, out operand))
+            if (
+                sameHolder
+                && !TryReadOperandOnHolder(holderOperand, TargetType, targetId, out operand)
+            )
                 continue;
 
             if (byValue && !WiredComparison.Compare(comparison, value.Value, operand))

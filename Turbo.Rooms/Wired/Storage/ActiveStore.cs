@@ -11,4 +11,7 @@ namespace Turbo.Rooms.Wired.Storage;
 public abstract class ActiveStore
 {
     public abstract bool TryGetStore(WiredVariableKey key, out KeyValueStore? store);
+
+    /// <summary>Drops every value of one variable from every store here (its box was picked up).</summary>
+    public abstract void RemoveVariable(WiredVariableId variableId);
 }

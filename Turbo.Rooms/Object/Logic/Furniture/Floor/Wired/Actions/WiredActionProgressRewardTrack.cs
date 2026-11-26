@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -83,30 +85,43 @@ public class WiredActionProgressRewardTrack(
 
         var score = ResolveScore(ctx);
         var add = GetIntParamOrDefault(PARAM_ADD, false);
-        var progressed = false;
 
-        foreach (var player in players)
+        // Each player's own grain, asked side by side.
+        var progressed = await Task.WhenAll(
+            players.Select(player => ProgressAsync(player.PlayerId, ids[0], ids[1], score, add, ct))
+        );
+
+        return progressed.Contains(true);
+    }
+
+    private async Task<bool> ProgressAsync(
+        PlayerId playerId,
+        string trackId,
+        string taskId,
+        int score,
+        bool add,
+        CancellationToken ct
+    )
+    {
+        try
         {
-            try
-            {
-                progressed |= await _grainFactory
-                    .GetPlayerRewardTrackGrain(player.PlayerId)
-                    .ProgressTaskAsync(ids[0], ids[1], score, add, ct);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(
-                    ex,
-                    "Wired reward track {TrackId}/{TaskId} could not be progressed for player {PlayerId} in room {RoomId}",
-                    ids[0],
-                    ids[1],
-                    player.PlayerId,
-                    _roomGrain.RoomId
-                );
-            }
+            return await _grainFactory
+                .GetPlayerRewardTrackGrain(playerId)
+                .ProgressTaskAsync(trackId, taskId, score, add, ct);
         }
+        catch (Exception ex)
+        {
+            Logger.LogError(
+                ex,
+                "Wired reward track {TrackId}/{TaskId} could not be progressed for player {PlayerId} in room {RoomId}",
+                trackId,
+                taskId,
+                playerId,
+                _roomGrain.RoomId
+            );
 
-        return progressed;
+            return false;
+        }
     }
 
     private int ResolveScore(IWiredExecutionContext ctx)

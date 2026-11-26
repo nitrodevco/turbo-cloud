@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Orleans;
@@ -41,68 +39,40 @@ public class WiredSelectorItemsOnItem(
     )
     {
         var input = ctx.GetSelection(this);
+        var mode = GetIntParamOrDefault(0, WiredFurniSelectionType.FurniAboveFurni);
         var output = new WiredSelectionSet();
 
         foreach (var id in input.SelectedFurniIds)
         {
-            try
+            // Every tile the furni covers, as "Furni Has Furni On" and "Users On Furni" read it:
+            // only its origin tile used to be looked at, so what stood on the rest of a sofa was
+            // never found (inferred from those two; not recorded with a furni wider than a tile).
+            if (
+                !FurniModule.TryGetFloorItem(id, out var floorItem)
+                || !FurniModule.GetTileIdForFloorItem(floorItem, out var tileIds)
+            )
+                continue;
+
+            foreach (var tileIdx in tileIds)
             {
-                if (
-                    !FurniModule.TryGetItem(id, out var item)
-                    || item is not IRoomFloorItem floorItem
-                )
-                    continue;
-
-                var tileIdx = MapModule.ToIdx(floorItem.X, floorItem.Y);
-                var floorStack = FurniModule.GetFloorItemsOnTile(tileIdx);
-
-                switch (_wiredData.GetIntParam<WiredFurniSelectionType>(0))
+                foreach (var other in FurniModule.GetFloorItemsOnTile(tileIdx))
                 {
-                    case WiredFurniSelectionType.FurniAboveFurni:
-                    {
-                        var aboveItems = floorStack.Where(i => i.Z > floorItem.Z);
-
-                        foreach (var aboveItem in aboveItems)
-                            output.SelectedFurniIds.Add((int)aboveItem.ObjectId);
-
-                        break;
-                    }
-                    case WiredFurniSelectionType.FurniUnderFurni:
-                    {
-                        var belowItems = floorStack.Where(i => i.Z < floorItem.Z);
-
-                        foreach (var belowItem in belowItems)
-                            output.SelectedFurniIds.Add((int)belowItem.ObjectId);
-
-                        break;
-                    }
                     // "Furni at same height" (wiredfurni.params.onfurni.2) picks the picked furni
                     // itself too: a pile's bottom box and its 4th box each selected themselves,
                     // with furni on top of both (official client capture 2026-10-24, W4 lab
                     // selector.4.R5, 1/1 each).
-                    case WiredFurniSelectionType.FurniHeightMatches:
+                    var matches = mode switch
                     {
-                        var sameHeightItems = floorStack.Where(i => i.Z == floorItem.Z);
+                        WiredFurniSelectionType.FurniAboveFurni => other.Z > floorItem.Z,
+                        WiredFurniSelectionType.FurniUnderFurni => other.Z < floorItem.Z,
+                        WiredFurniSelectionType.FurniHeightMatches => other.Z == floorItem.Z,
+                        WiredFurniSelectionType.AllFurniOnTile => true,
+                        _ => false,
+                    };
 
-                        foreach (var sameHeightItem in sameHeightItems)
-                            output.SelectedFurniIds.Add((int)sameHeightItem.ObjectId);
-
-                        break;
-                    }
-                    case WiredFurniSelectionType.AllFurniOnTile:
-                    {
-                        foreach (var stackItem in floorStack)
-                            output.SelectedFurniIds.Add((int)stackItem.ObjectId);
-
-                        break;
-                    }
+                    if (matches)
+                        output.SelectedFurniIds.Add((int)other.ObjectId);
                 }
-            }
-            catch (Exception ex)
-            {
-                LogWiredDataFault(ex);
-
-                continue;
             }
         }
 

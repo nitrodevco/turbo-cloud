@@ -909,12 +909,7 @@ public abstract class FurnitureWiredVariableLogic
                 if (_storage is not null)
                     _storage.Clock = _roomGrain._time;
 
-                _storage?.SetAction(() =>
-                    _ctx.RoomObject.ExtraData.UpdateSection(
-                        ExtraDataSectionType.STORAGE,
-                        JsonSerializer.SerializeToNode(_storage, _storage.GetType())
-                    )
-                );
+                _storage?.SetAction(() => WiredSystem.StorageChanged(this));
             }
         }
     }
@@ -1026,9 +1021,30 @@ public abstract class FurnitureWiredVariableLogic
     public override FurniturePickupConfirmation? GetPickupConfirmation() =>
         FurniturePickupConfirmation.WiredVariable;
 
+    /// <summary>
+    /// Writes what the box keeps into its extra data, the whole store as one section. Asked for
+    /// by the wired system once per execution (<c>RoomWiredSystem.StorageChanged</c>), not by
+    /// each write.
+    /// </summary>
+    internal void WriteStorage()
+    {
+        if (_storage is not null)
+            _ctx.RoomObject.ExtraData.UpdateSection(
+                ExtraDataSectionType.STORAGE,
+                JsonSerializer.SerializeToNode(_storage, _storage.GetType())
+            );
+    }
+
     public override async Task OnPickupAsync(ActionContext ctx, CancellationToken ct)
     {
+        // Nothing is left to write: a store still waiting for the execution to end would be
+        // written back into the furni on its way to the inventory.
+        WiredSystem.DiscardUnsavedStorage(this);
         _ctx.RoomObject.ExtraData.DeleteSection(ExtraDataSectionType.STORAGE);
+
+        // And what it keeps in the room's own stores while the room is active.
+        if (_wiredData is not null)
+            WiredSystem.ForgetVariableValues(GetVarSnapshot().VariableId);
 
         await base.OnPickupAsync(ctx, ct);
     }

@@ -89,7 +89,7 @@ public class WiredActionFleeHabbo(
 
                 if (candidates.Count == 0)
                 {
-                    var sideX = at.X + Random.Shared.Next(-1, 2);
+                    var sideX = at.X + (Random.Shared.Next(2) == 0 ? -1 : 1);
 
                     if (map.InBounds(sideX, at.Y))
                         candidates.Add(map.ToIdx(sideX, at.Y));

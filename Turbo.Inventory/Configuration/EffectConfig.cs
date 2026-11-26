@@ -47,7 +47,7 @@ public class EffectConfig
     /// </list>
     /// Entries a hotel lists are added to these, never instead of them. Add any team ids it
     /// changed (<c>Turbo:Rooms:GameTeamEffectIds</c>). The wired freeze paints the effects its
-    /// editor names (<c>WiredActionFreezeUser.FREEZE_EFFECT_IDS</c>).
+    /// editor names (<c>Turbo:Wired:FreezeEffectIds</c>).
     /// </summary>
     public HashSet<int> ReservedEffectIds { get; init; } =
     [

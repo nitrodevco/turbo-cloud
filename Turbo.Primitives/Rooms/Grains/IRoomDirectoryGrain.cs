@@ -55,4 +55,14 @@ public interface IRoomDirectoryGrain : IGrainWithStringKey
     /// is current the next time it loads, so telling it would be waking it for nothing.
     /// </summary>
     public Task<ImmutableArray<RoomId>> GetActiveRoomIdsAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Which of <paramref name="roomIds"/> are loaded right now, for a caller that has a few
+    /// rooms to tell and not the hotel: a shared wired variable asked for every loaded room on
+    /// each change, to find the two that use it.
+    /// </summary>
+    public Task<ImmutableArray<RoomId>> GetActiveAmongAsync(
+        ImmutableArray<RoomId> roomIds,
+        CancellationToken ct
+    );
 }

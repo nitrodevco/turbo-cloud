@@ -16,6 +16,7 @@ using Turbo.Primitives.Pets.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Quests;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Events.Pet;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -447,6 +448,18 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
 
         State.AvatarsByPetId.Remove(pet.PetId);
         _lastPersistedTileByPetId.Remove(pet.PetId);
+
+        // Whatever is kept by avatar lets go of the pet on this, as it does of a player or a
+        // bot: the wired user variables a pet held used to stay for the room's life.
+        await _roomGrain.PublishRoomEventAsync(
+            new PetRemovedEvent
+            {
+                RoomId = _roomGrain.RoomId,
+                CausedBy = ctx,
+                ObjectId = pet.ObjectId,
+            },
+            ct
+        );
     }
 
     /// <summary>

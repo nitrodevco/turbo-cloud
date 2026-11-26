@@ -17,6 +17,12 @@ public sealed class PlayerActiveStore(TimeProvider clock) : ActiveStore
 
     public bool RemoveAvatarStore(RoomObjectId objectId) => _byObjectId.Remove(objectId);
 
+    public override void RemoveVariable(WiredVariableId variableId)
+    {
+        foreach (var store in _byObjectId.Values)
+            store.RemoveVariable(variableId);
+    }
+
     public override bool TryGetStore(WiredVariableKey key, out KeyValueStore? store)
     {
         store = null;

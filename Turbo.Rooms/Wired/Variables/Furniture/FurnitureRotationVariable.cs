@@ -1,3 +1,4 @@
+using System;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Object.Furniture;
 using Turbo.Primitives.Rooms.Object.Furniture.Wall;
@@ -17,6 +18,10 @@ public sealed class FurnitureRotationVariable(RoomGrain roomGrain)
     /// <summary>A wall item only faces one of two ways; anything but south reads as north.</summary>
     protected override Placement Apply(IRoomItem item, Placement current, int value)
     {
+        // A number that is no direction leaves the furni as it stands, as @direction does.
+        if (!Enum.IsDefined((Rotation)value))
+            return current;
+
         var rotation = (Rotation)value;
 
         if (item is IRoomWallItem && rotation != Rotation.South)

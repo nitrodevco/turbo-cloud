@@ -130,6 +130,31 @@ public sealed class KeyValueStore : IWiredVariableStore
         return true;
     }
 
+    /// <summary>
+    /// Drops every value of one variable, whoever holds it, in this store alone (not the scope
+    /// it was started from). How many there were.
+    /// </summary>
+    public int RemoveVariable(WiredVariableId variableId)
+    {
+        var prefix = $"{variableId}|";
+        var removed = 0;
+
+        foreach (var storageKey in Store.Keys)
+        {
+            if (!storageKey.StartsWith(prefix, StringComparison.Ordinal))
+                continue;
+
+            Store.Remove(storageKey);
+            Timestamps.Remove(storageKey);
+            removed++;
+        }
+
+        if (removed > 0)
+            MarkDirty();
+
+        return removed;
+    }
+
     private void Stamp(string storageKey, bool created)
     {
         var now = Clock.GetUtcNow().ToUnixTimeMilliseconds();

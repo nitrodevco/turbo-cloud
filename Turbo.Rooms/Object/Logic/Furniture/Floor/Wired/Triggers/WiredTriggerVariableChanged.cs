@@ -127,7 +127,7 @@ public class WiredTriggerVariableChanged(
             yield break;
         }
 
-        foreach (var stuffId in _wiredData.StuffIds)
+        foreach (var stuffId in GetStuffIds())
         {
             if (
                 FurniModule.TryGetItem(stuffId, out var item)

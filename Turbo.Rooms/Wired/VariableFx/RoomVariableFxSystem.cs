@@ -155,6 +155,10 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
         {
             _statusesDirty = false;
 
+            // Nothing flushes here, and the flush is what empties this: every variable write in
+            // a room without an fx box was kept for the room's life.
+            _written.Clear();
+
             return Task.CompletedTask;
         }
 
@@ -372,7 +376,7 @@ public sealed class RoomVariableFxSystem(RoomGrain roomGrain)
                         true,
                         holder.ObjectId
                     ),
-                    holder.PlayerId,
+                    holder.ObjectId.Value,
                     value.Value,
                     teamColor
                 );

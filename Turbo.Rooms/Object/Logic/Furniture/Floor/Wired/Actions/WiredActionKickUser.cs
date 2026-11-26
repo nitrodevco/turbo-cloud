@@ -33,7 +33,8 @@ public class WiredActionKickUser(
     // capture 2026-10-24, Kick on the room owner, 2/2).
     private const string EXCEPTION_MESSAGE = "Wired kick exception: Room owner";
     private const int WIRED_STYLE_ID = 34;
-    private const int KICK_EFFECT_ID = 4;
+
+    // Habbo's own timing, not a hotel's to set (config-allowlist.txt); the effect worn is.
     private const int KICK_DELAY_MS = 2000;
 
     public override int WiredCode => (int)WiredActionType.KICK_FROM_ROOM;
@@ -68,7 +69,11 @@ public class WiredActionKickUser(
             if (message.Length > 0)
                 await WhisperAsync(player, message, ct);
 
-            await AvatarModule.SetAvatarEffectAsync(player.ObjectId, KICK_EFFECT_ID, ct);
+            await AvatarModule.SetAvatarEffectAsync(
+                player.ObjectId,
+                WiredConfig.TeleportEffectId,
+                ct
+            );
 
             WiredSystem.RunAfter(KICK_DELAY_MS, token =>
                 AvatarModule.TryGetPlayer(player.PlayerId, out var current) && current == player

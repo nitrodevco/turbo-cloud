@@ -148,9 +148,8 @@ Found while reading the client for every use of effects, and left for their own 
 
 - **Water and pool effects (28, 29, 30, 184, 185).** The client animates the splash and its swim
   menu from them, but nothing here applies them on entering or leaving water.
-- **Wired:** the "give effect" action (code 52), and the freeze effect ids, which default to all
-  zero (`WiredConfig.FreezeEffectIds`) while the client has a freeze effect (218) and a five-entry
-  dropdown.
+- **Wired:** the "give effect" action (code 52). The Freeze box's five effects are
+  `WiredConfig.FreezeEffectIds`, shipped as the ones its editor names (218, 12, 11, 53, 163).
 - **Furniture that gives effects:** the effect box, effect tiles and givers, and the snowboard (97).
   An effect box should end in `IPlayerEffectGrain.GiveEffectAsync`.
 - **The room broadcast's delay** (always 0 here; the client supports one).

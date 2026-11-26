@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Rooms.Enums.Wired;
-using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
 using Turbo.Primitives.Rooms.Wired;
@@ -28,7 +27,7 @@ public class WiredActionBotTeleport(
     IRoomFloorItemContext ctx
 ) : FurnitureWiredBotActionLogic(grainFactory, stuffDataFactory, ctx)
 {
-    private const int TELEPORT_EFFECT_ID = 4;
+    // Habbo's own timings, not a hotel's to set (config-allowlist.txt); the effect worn is.
     private const int ARRIVE_AFTER_MS = 1500;
     private const int EFFECT_OFF_AFTER_MS = 3100;
 
@@ -48,11 +47,13 @@ public class WiredActionBotTeleport(
         if (items.Count == 0)
             return false;
 
+        var effectId = WiredConfig.TeleportEffectId;
+
         foreach (var bot in bots)
         {
             var itemId = items[Random.Shared.Next(items.Count)].ObjectId;
 
-            await AvatarModule.SetAvatarEffectAsync(bot.ObjectId, TELEPORT_EFFECT_ID, ct);
+            await AvatarModule.SetAvatarEffectAsync(bot.ObjectId, effectId, ct);
 
             WiredSystem.RunAfter(ARRIVE_AFTER_MS, token =>
                 IsInRoom(bot)
@@ -62,7 +63,7 @@ public class WiredActionBotTeleport(
                     : Task.CompletedTask
             );
             WiredSystem.RunAfter(EFFECT_OFF_AFTER_MS, token =>
-                IsInRoom(bot) && bot.EffectId == TELEPORT_EFFECT_ID
+                IsInRoom(bot) && bot.EffectId == effectId
                     ? AvatarModule.SetAvatarEffectAsync(bot.ObjectId, 0, token)
                     : Task.CompletedTask
             );
@@ -70,7 +71,4 @@ public class WiredActionBotTeleport(
 
         return true;
     }
-
-    private bool IsInRoom(IRoomBot bot) =>
-        AvatarModule.TryGetAvatar(bot.ObjectId, out var current) && current == bot;
 }

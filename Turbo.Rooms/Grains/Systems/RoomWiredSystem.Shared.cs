@@ -114,17 +114,8 @@ public sealed partial class RoomWiredSystem
         RoomId? except
     )
     {
-        var active = (
-            await GrainFactory.GetRoomDirectoryGrain().GetActiveRoomIdsAsync(default)
-        ).ToHashSet();
-
-        foreach (var referrer in referrers)
+        foreach (var roomId in await LoadedReferrersAsync(referrers, except))
         {
-            var roomId = (RoomId)referrer;
-
-            if (roomId == except || roomId == _roomGrain.RoomId || !active.Contains(roomId))
-                continue;
-
             _roomGrain
                 ._grainFactory.GetRoomGrain(roomId)
                 .OnSharedWiredVariableChangedAsync(_roomGrain.RoomId, variableId, change, default)
@@ -166,22 +157,34 @@ public sealed partial class RoomWiredSystem
         return true;
     }
 
+    /// <summary>
+    /// The rooms using a shared variable that are loaded now, without this one and the one a
+    /// change came from. The directory is asked about those rooms only.
+    /// </summary>
+    private async Task<ImmutableArray<RoomId>> LoadedReferrersAsync(
+        IReadOnlyCollection<int> referrers,
+        RoomId? except
+    )
+    {
+        ImmutableArray<RoomId> others =
+        [
+            .. referrers
+                .Select(referrer => (RoomId)referrer)
+                .Where(roomId => roomId != except && roomId != _roomGrain.RoomId),
+        ];
+
+        return others.IsEmpty
+            ? others
+            : await GrainFactory.GetRoomDirectoryGrain().GetActiveAmongAsync(others, default);
+    }
+
     private async Task ShareAddonsChangedAsync(
         WiredVariableId variableId,
         IReadOnlyCollection<int> referrers
     )
     {
-        var active = (
-            await GrainFactory.GetRoomDirectoryGrain().GetActiveRoomIdsAsync(default)
-        ).ToHashSet();
-
-        foreach (var referrer in referrers)
+        foreach (var roomId in await LoadedReferrersAsync(referrers, except: null))
         {
-            var roomId = (RoomId)referrer;
-
-            if (roomId == _roomGrain.RoomId || !active.Contains(roomId))
-                continue;
-
             _roomGrain
                 ._grainFactory.GetRoomGrain(roomId)
                 .OnSharedWiredVariableAddonsChangedAsync(_roomGrain.RoomId, variableId, default)
@@ -272,9 +275,9 @@ public sealed partial class RoomWiredSystem
 
         var active = await _roomGrain
             ._grainFactory.GetRoomDirectoryGrain()
-            .GetActiveRoomIdsAsync(ct);
+            .GetActiveAmongAsync([.. rooms.Keys.Select(x => (RoomId)x)], ct);
 
-        candidates.UnionWith(active.Select(x => x.Value).Where(rooms.ContainsKey));
+        candidates.UnionWith(active.Select(x => x.Value));
 
         var result = ImmutableArray.CreateBuilder<WiredVariableSharedSnapshot>();
 

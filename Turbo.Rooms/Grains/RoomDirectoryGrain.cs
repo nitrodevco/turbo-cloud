@@ -75,6 +75,14 @@ internal sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
     public Task<ImmutableArray<RoomId>> GetActiveRoomIdsAsync(CancellationToken ct) =>
         Task.FromResult<ImmutableArray<RoomId>>([.. _state.ActiveRooms.Keys]);
 
+    public Task<ImmutableArray<RoomId>> GetActiveAmongAsync(
+        ImmutableArray<RoomId> roomIds,
+        CancellationToken ct
+    ) =>
+        Task.FromResult<ImmutableArray<RoomId>>(
+            roomIds.IsDefaultOrEmpty ? [] : [.. roomIds.Where(_state.ActiveRooms.ContainsKey)]
+        );
+
     public Task UpsertActiveRoomAsync(RoomInfoSnapshot snapshot, CancellationToken ct)
     {
         if (snapshot is null)

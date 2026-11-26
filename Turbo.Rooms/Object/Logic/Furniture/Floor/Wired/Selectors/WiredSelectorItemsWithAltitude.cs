@@ -38,7 +38,8 @@ public class WiredSelectorItemsWithAltitude(
         CancellationToken ct
     )
     {
-        var altitude = Altitude.FromInt(_wiredData.GetIntParam<int>(0));
+        var altitude = Altitude.FromInt(GetIntParamOrDefault(0, 0));
+        var comparison = GetIntParamOrDefault(1, WiredComparisonType.LessThan);
         var output = new WiredSelectionSet();
 
         foreach (var item in FurniModule.Items)
@@ -46,21 +47,16 @@ public class WiredSelectorItemsWithAltitude(
             if (item is not IRoomFloorItem floorItem)
                 continue;
 
-            switch (_wiredData.GetIntParam<WiredComparisonType>(1))
+            var matches = comparison switch
             {
-                case WiredComparisonType.LessThan:
-                    if (floorItem.Z < altitude)
-                        output.SelectedFurniIds.Add(item.ObjectId.Value);
-                    continue;
-                case WiredComparisonType.GreaterThan:
-                    if (floorItem.Z > altitude)
-                        output.SelectedFurniIds.Add(item.ObjectId.Value);
-                    continue;
-                case WiredComparisonType.Equals:
-                    if (floorItem.Z == altitude)
-                        output.SelectedFurniIds.Add(item.ObjectId.Value);
-                    continue;
-            }
+                WiredComparisonType.LessThan => floorItem.Z < altitude,
+                WiredComparisonType.GreaterThan => floorItem.Z > altitude,
+                WiredComparisonType.Equals => floorItem.Z == altitude,
+                _ => false,
+            };
+
+            if (matches)
+                output.SelectedFurniIds.Add(item.ObjectId.Value);
         }
 
         return Task.FromResult((IWiredSelectionSet)output);

@@ -63,6 +63,7 @@ ShowMessageMaxLength = client
 FurnitureLabelMaxLength = client
 ActionDelayMaxPulses = client
 TeleportEffectId = data
+FreezeEffectIds = data
 TeleportDelayMs = legacy
 TeleportEffectMs = legacy
 TeleportFastEffectId = data

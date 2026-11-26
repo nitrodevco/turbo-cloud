@@ -34,6 +34,7 @@ public class WiredActionToggleItemState(
     public override async Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
         var selection = ctx.GetSelection(this);
+        var reverse = GetIntParamOrDefault(0, false);
 
         foreach (var furniId in selection.SelectedFurniIds)
         {
@@ -49,11 +50,9 @@ public class WiredActionToggleItemState(
                 )
                     continue;
 
-                var state = _wiredData.GetIntParam<bool>(0) switch
-                {
-                    false => item.Logic.GetNextToggleableState(),
-                    true => item.Logic.GetPrevToggleableState(),
-                };
+                var state = reverse
+                    ? item.Logic.GetPrevToggleableState()
+                    : item.Logic.GetNextToggleableState();
 
                 // A furni without states has nothing to toggle to: it is skipped
                 // (WiredExecutionContext.ProcessItemStateUpdateAsync).

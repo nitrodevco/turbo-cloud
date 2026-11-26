@@ -48,7 +48,8 @@ public class WiredActionChaseHabbo(
 
             // A bot is chased like a player: the furni stepped toward the only bot in line 3/3
             // and stayed beside it 2/2 (official client capture 2026-10-24, W1 lab action.11.B3).
-            // Whether catching a bot fires the collision trigger was not recorded; it does not.
+            // Catching a bot fires the collision trigger as catching a player does
+            // (PublishCollision).
             if (
                 AvatarModule.TryGetNearestAvatar(
                     floorIdx,

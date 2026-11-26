@@ -297,6 +297,15 @@ public class WiredConfig
 
     public int TeleportDelayMs { get; init; } = 2000;
 
+    /// <summary>
+    /// The effect each option of the Freeze box paints, in the editor's order
+    /// (<c>wiredfurni.params.freeze.effect.0</c> to <c>.4</c> are <c>${fx_218}</c>,
+    /// <c>${fx_12}</c>, <c>${fx_11}</c>, <c>${fx_53}</c>, <c>${fx_163}</c>). An option past the
+    /// end of the list freezes without an effect. A hotel that changes one adds it to
+    /// <c>Turbo:Effects:ReservedEffectIds</c> if players must not be able to wear it.
+    /// </summary>
+    public int[] FreezeEffectIds { get; init; } = [218, 12, 11, 53, 163];
+
     public int TeleportEffectMs { get; init; } = 3500;
 
     /// <summary>

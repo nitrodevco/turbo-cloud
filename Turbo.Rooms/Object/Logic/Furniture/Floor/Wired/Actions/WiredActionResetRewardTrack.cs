@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Orleans;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Orleans;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -40,28 +42,34 @@ public class WiredActionResetRewardTrack(
             return false;
 
         var players = GetPlayers(WiredSlotSelection.ForUserSlot(this, ctx, 0));
-        var reset = false;
 
-        foreach (var player in players)
+        // Each player's own grain, asked side by side.
+        var reset = await Task.WhenAll(
+            players.Select(player => ResetAsync(player.PlayerId, trackId, ct))
+        );
+
+        return reset.Contains(true);
+    }
+
+    private async Task<bool> ResetAsync(PlayerId playerId, string trackId, CancellationToken ct)
+    {
+        try
         {
-            try
-            {
-                reset |= await _grainFactory
-                    .GetPlayerRewardTrackGrain(player.PlayerId)
-                    .ResetTrackAsync(trackId, ct);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(
-                    ex,
-                    "Wired reward track {TrackId} could not be reset for player {PlayerId} in room {RoomId}",
-                    trackId,
-                    player.PlayerId,
-                    _roomGrain.RoomId
-                );
-            }
+            return await _grainFactory
+                .GetPlayerRewardTrackGrain(playerId)
+                .ResetTrackAsync(trackId, ct);
         }
+        catch (Exception ex)
+        {
+            Logger.LogError(
+                ex,
+                "Wired reward track {TrackId} could not be reset for player {PlayerId} in room {RoomId}",
+                trackId,
+                playerId,
+                _roomGrain.RoomId
+            );
 
-        return reset;
+            return false;
+        }
     }
 }

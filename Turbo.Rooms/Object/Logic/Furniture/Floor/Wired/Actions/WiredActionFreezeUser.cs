@@ -24,10 +24,10 @@ public class WiredActionFreezeUser(
 ) : FurnitureWiredActionLogic(grainFactory, stuffDataFactory, ctx)
 {
     /// <summary>
-    /// The effect each option paints, as the editor names them: <c>wiredfurni.params.freeze.effect.0</c>
-    /// to <c>.4</c> are <c>${fx_218}</c>, <c>${fx_12}</c>, <c>${fx_11}</c>, <c>${fx_53}</c>, <c>${fx_163}</c>.
+    /// How many effects the editor offers (<c>wiredfurni.params.freeze.effect.0</c> to
+    /// <c>.4</c>); which effect each paints is <c>WiredConfig.FreezeEffectIds</c>.
     /// </summary>
-    public static readonly int[] FREEZE_EFFECT_IDS = [218, 12, 11, 53, 163];
+    private const int EFFECT_OPTIONS = 5;
 
     /// <summary>"Picked an invalid effect!", for an option the editor does not offer (0 to 4, actiontypes/_-Q1s.as:43-47, AS3 WIN63-202610131318).</summary>
     public const string ERROR_INVALID_EFFECT = "wiredfurni.error.invalid_freeze_effect";
@@ -36,10 +36,7 @@ public class WiredActionFreezeUser(
 
     public override List<IWiredParamRule> GetIntParamRules() =>
         [
-            new WiredRangeParamRule(0, FREEZE_EFFECT_IDS.Length - 1, 0)
-            {
-                ErrorKey = ERROR_INVALID_EFFECT,
-            },
+            new WiredRangeParamRule(0, EFFECT_OPTIONS - 1, 0) { ErrorKey = ERROR_INVALID_EFFECT },
             new WiredBoolParamRule(false),
         ];
 
@@ -49,7 +46,7 @@ public class WiredActionFreezeUser(
     {
         var effectIndex = GetIntParamOrDefault(0, 0);
         var cancelOnTeleport = GetIntParamOrDefault(1, false);
-        var effectIds = FREEZE_EFFECT_IDS;
+        var effectIds = WiredConfig.FreezeEffectIds;
         var effectId = effectIndex < effectIds.Length ? effectIds[effectIndex] : 0;
         var frozen = false;
 

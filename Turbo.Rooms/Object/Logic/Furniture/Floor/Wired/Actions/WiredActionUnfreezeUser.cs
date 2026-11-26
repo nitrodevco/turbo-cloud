@@ -26,7 +26,7 @@ public class WiredActionUnfreezeUser(
 
     public override Task<bool> ExecuteAsync(IWiredExecutionContext ctx, CancellationToken ct)
     {
-        var freezeEffects = WiredActionFreezeUser.FREEZE_EFFECT_IDS;
+        var freezeEffects = WiredConfig.FreezeEffectIds;
         var thawed = false;
 
         foreach (var avatar in GetAvatars(ctx.GetSelection(this)))

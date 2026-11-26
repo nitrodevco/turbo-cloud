@@ -67,6 +67,9 @@ public class WiredActionPlaceFurni(
     private const int PARAM_VALUE_TARGET = 9;
 
     private const int SLOT_TARGET_FURNI = 1;
+    private const int SLOT_TARGET_USERS = 0;
+    private const int SLOT_VALUE_FURNI = 2;
+    private const int SLOT_VALUE_USERS = 1;
 
     // The dialog Habbo sends when a copy cannot be placed, as recorded.
     private const string PLACEMENT_FAILURE_TYPE = "wired.error";
@@ -401,10 +404,15 @@ public class WiredActionPlaceFurni(
 
         if (
             GetIntParamOrDefault(PARAM_VALUE_IS_VARIABLE, false)
+            // Read on the reference slots alone (furni slot 2, user slot 1): the box's whole
+            // selection holds the furni to place and the custom target too, and one of those
+            // holding the variable was read instead of a reference holder.
             && !TryReadVariableOperand(
                 VARIABLE_VALUE,
                 PARAM_VALUE_TARGET,
-                ctx.GetSelection(this),
+                WiredSlotSelection
+                    .ForSlot(this, ctx, SLOT_VALUE_FURNI)
+                    .UnionWith(WiredSlotSelection.ForUserSlot(this, ctx, SLOT_VALUE_USERS)),
                 out value
             )
         )
@@ -451,7 +459,9 @@ public class WiredActionPlaceFurni(
 
         if (GetIntParamOrDefault(PARAM_TARGET_IS_USER, false))
         {
-            var players = GetPlayers(ctx.GetSelection(this));
+            // The target's own slot: the box's whole selection holds the users the value
+            // variable is read on as well, and with nobody triggering one of those was the target.
+            var players = GetPlayers(WiredSlotSelection.ForUserSlot(this, ctx, SLOT_TARGET_USERS));
 
             if (players.Count == 0)
                 return false;

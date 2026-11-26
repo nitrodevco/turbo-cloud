@@ -17,6 +17,7 @@ using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Avatar;
 using Turbo.Primitives.Rooms.Events.Bot;
+using Turbo.Primitives.Rooms.Events.Pet;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Events.Wired;
@@ -316,6 +317,8 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         {
             _execution = null;
 
+            WriteUnsavedStorage();
+
             // Only executions count as the room's wired time: loading boxes and building stacks,
             // which a room does once when it wakes, is not.
             var tookMs = _wallClockMs() - execution.StartedAtWallMs;
@@ -415,6 +418,11 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             // A bot picked up leaves as a user does, and lets go of what it held the same way.
             case BotRemovedEvent botRemovedEvt:
                 OnAvatarLeft(evt, botRemovedEvt.ObjectId);
+                break;
+            // A pet fires no trigger by leaving, so nothing waits to read it.
+            case PetRemovedEvent petRemovedEvt:
+                _playerActiveStore.RemoveAvatarStore(petRemovedEvt.ObjectId);
+                ForgetUserVisualization(petRemovedEvt.ObjectId);
                 break;
             case RoomItemDetachedEvent detatchedEvt:
                 _furnitureActiveStore.RemoveFurnitureStore(detatchedEvt.ObjectId);
@@ -780,6 +788,15 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 return null;
         }
 
+        // The trigger is asked before anything is spent or weighed: an event it turns down used
+        // to use up one execution of the stack's Execution Limit and have every condition
+        // evaluated and every move planned first. It is asked after the selectors and add-ons
+        // because some triggers listen on what a selector picked (the pool is filled by then),
+        // and before the conditions because some name their triggerer here (Score Achieved,
+        // Variable Changed), which the conditions are then asked about.
+        if (ctx.Trigger is not null && !await ctx.Trigger.CanTriggerAsync(ctx, ct))
+            return null;
+
         if (!SpendExecutionBudget(ctx))
             return null;
 
@@ -808,12 +825,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         // conditions are not asked and do not flash (official client capture, WIN63-202610171745:
         // the callee's effect ran with its condition false 5/5 and true 2/2 from a negative call,
         // and its passing condition never flashed). The negative box is the caller's else branch.
-        var passed = calledByStack || EvaluateConditions(ctx.Stack.Conditions, ctx);
-
-        if (ctx.Trigger is not null && !await ctx.Trigger.CanTriggerAsync(ctx, ct))
-            return null;
-
-        return passed;
+        return calledByStack || EvaluateConditions(ctx.Stack.Conditions, ctx);
     }
 
     /// <summary>

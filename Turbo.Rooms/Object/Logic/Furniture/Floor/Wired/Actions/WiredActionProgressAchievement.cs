@@ -9,6 +9,7 @@ using Turbo.Primitives.Achievements.Orleans;
 using Turbo.Primitives.Action;
 using Turbo.Primitives.Furniture.Providers;
 using Turbo.Primitives.Messages.Incoming.Userdefinedroomevents;
+using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms.Enums.Wired;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Object.Logic;
@@ -110,50 +111,63 @@ public class WiredActionProgressAchievement(
         var amount = ResolveAmount(ctx);
         var adds = GetIntParamOrDefault(PARAM_MODE, false);
         var code = WIRED_ACHIEVEMENT_PREFIX + name;
-        var progressed = false;
 
-        foreach (var player in players)
+        // Each player's own grain, asked side by side: one player's two calls do not wait for
+        // the player before them.
+        var progressed = await Task.WhenAll(
+            players.Select(player => ProgressAsync(player.PlayerId, code, amount, adds, ct))
+        );
+
+        return progressed.Contains(true);
+    }
+
+    private async Task<bool> ProgressAsync(
+        PlayerId playerId,
+        string code,
+        long amount,
+        bool adds,
+        CancellationToken ct
+    )
+    {
+        try
         {
-            try
-            {
-                var grain = _grainFactory.GetPlayerAchievementGrain(player.PlayerId);
-                var achievement = (await grain.GetAchievementsAsync(ct)).FirstOrDefault(x =>
-                    CodeOf(x.BadgeId) == code
-                );
+            var grain = _grainFactory.GetPlayerAchievementGrain(playerId);
+            var achievement = (await grain.GetAchievementsAsync(ct)).FirstOrDefault(x =>
+                CodeOf(x.BadgeId) == code
+            );
 
-                if (achievement is null)
-                    continue;
+            if (achievement is null)
+                return false;
 
-                long current = achievement.CurrentPointsTotal;
-                var target = adds ? current + amount : amount;
+            long current = achievement.CurrentPointsTotal;
+            var target = adds ? current + amount : amount;
 
-                if (target <= current)
-                    continue;
+            if (target <= current)
+                return false;
 
-                await grain.AdvanceAsync(
-                    achievement.AchievementId,
-                    target,
-                    nameof(WiredActionProgressAchievement),
-                    $"wired {_ctx.ObjectId} in room {_roomGrain.RoomId}",
-                    $"wired:{_roomGrain.RoomId}:{_ctx.ObjectId}:{player.PlayerId.Value}:{Guid.NewGuid():N}",
-                    ct
-                );
+            await grain.AdvanceAsync(
+                achievement.AchievementId,
+                target,
+                nameof(WiredActionProgressAchievement),
+                $"wired {_ctx.ObjectId} in room {_roomGrain.RoomId}",
+                $"wired:{_roomGrain.RoomId}:{_ctx.ObjectId}:{playerId.Value}:{Guid.NewGuid():N}",
+                ct
+            );
 
-                progressed = true;
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(
-                    ex,
-                    "Wired achievement {Code} could not be progressed for player {PlayerId} in room {RoomId}",
-                    code,
-                    player.PlayerId,
-                    _roomGrain.RoomId
-                );
-            }
+            return true;
         }
+        catch (Exception ex)
+        {
+            Logger.LogError(
+                ex,
+                "Wired achievement {Code} could not be progressed for player {PlayerId} in room {RoomId}",
+                code,
+                playerId,
+                _roomGrain.RoomId
+            );
 
-        return progressed;
+            return false;
+        }
     }
 
     private bool IsEnabled(string name) =>
@@ -183,6 +197,6 @@ public class WiredActionProgressAchievement(
             ? badgeId[BADGE_PREFIX.Length..]
             : badgeId;
 
-        return code.TrimEnd("0123456789".ToCharArray());
+        return code.AsSpan().TrimEnd("0123456789").ToString();
     }
 }

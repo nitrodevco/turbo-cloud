@@ -86,8 +86,9 @@ public class WiredConditionVariableValueMatch(
             return false;
 
         var targetType = GetTargetType(variable, 0);
-        var comparison = GetIntParamOrDefault(1, WiredComparisonType.Equals);
+        var comparison = GetIntParamOrDefault(1, WiredComparisonType.GreaterThan);
         var targets = GetTargetIds(targetType, selection).ToList();
+        var holderOperand = sameHolder ? GetVariable(1) : null;
 
         return Quantify(
             targets.Select(id =>
@@ -95,7 +96,10 @@ public class WiredConditionVariableValueMatch(
                 var own = operand;
 
                 return ReadVariable(variable, targetType, id) is { } value
-                    && (!sameHolder || TryReadOperandOnHolder(1, targetType, id, out own))
+                    && (
+                        !sameHolder
+                        || TryReadOperandOnHolder(holderOperand, targetType, id, out own)
+                    )
                     && WiredComparison.Compare(comparison, value, own);
             }),
             QuantifierRequiresAll

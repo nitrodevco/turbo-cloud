@@ -10,9 +10,14 @@ using Turbo.Rooms.Grains;
 
 namespace Turbo.Rooms.Wired.Variables.User;
 
-/// <summary>What the avatar is holding, by hand item id. Zero is an empty hand.</summary>
-public sealed class UserHandItemVariable(RoomGrain roomGrain)
-    : UserValueVariable<IRoomAvatar>(roomGrain)
+/// <summary>
+/// What the avatar is holding, by hand item id. An avatar with an empty hand does not hold the
+/// variable at all: the client lists it with "can create/delete" and without "is always
+/// available" (Flash variable properties, <c>@handitem</c>), so Give Variable puts something in
+/// a hand, Remove Variable empties it, and "has variable" asks whether the hand is full. It
+/// used to answer 0 for an empty hand, which put every avatar in the room on its holder list.
+/// </summary>
+public sealed class UserHandItemVariable(RoomGrain roomGrain) : UserVariable<IRoomAvatar>(roomGrain)
 {
     protected override string VariableName => "@handitem";
 
@@ -36,14 +41,15 @@ public sealed class UserHandItemVariable(RoomGrain roomGrain)
         WiredTextConnectors.ForIds(Texts, WiredTextConnectors.HAND_ITEM_KEY, TextIds);
 
     /// <summary>
-    /// Writing it puts that hand item in the avatar's hand, or empties it with zero.
+    /// Writing it changes what a full hand holds, or empties it with zero. An empty hand holds
+    /// no variable to change; Give Variable is what fills one.
     /// </summary>
     public override Task<bool> SetValueAsync(
         IWiredExecutionContext ctx,
         WiredVariableKey key,
         WiredVariableValue value
     ) =>
-        CanBind(key) && TryGetAvatarForKey(key, out var avatar)
+        CanBind(key) && TryGetAvatarForKey(key, out var avatar) && avatar.HandItemId != 0
             ? PutInHandAsync(avatar, value)
             : Task.FromResult(false);
 
@@ -90,6 +96,10 @@ public sealed class UserHandItemVariable(RoomGrain roomGrain)
         return true;
     }
 
-    protected override WiredVariableValue GetValueForAvatar(IRoomAvatar avatar) =>
-        WiredVariableValue.Parse(avatar.HandItemId);
+    protected override bool TryGetValueForAvatar(IRoomAvatar avatar, out WiredVariableValue value)
+    {
+        value = WiredVariableValue.Parse(avatar.HandItemId);
+
+        return avatar.HandItemId != 0;
+    }
 }

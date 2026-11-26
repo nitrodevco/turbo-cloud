@@ -40,8 +40,11 @@ public static class WiredSlotSelection
                 case WiredFurniSourceType.SignalItems:
                     set.SelectedFurniIds.UnionWith(ctx.Signal.SelectedFurniIds);
                     break;
+                // Only the furni: the box's whole selection holds its users too, and a furni
+                // slot that answered with them put the users of every user slot into a merged
+                // selection (FurnitureWiredLogic.GetMergedSelection) whatever slot was asked.
                 case WiredFurniSourceType.AllRoomItems:
-                    set.UnionWith(ctx.GetSelection(box));
+                    set.SelectedFurniIds.UnionWith(ctx.GetSelection(box).SelectedFurniIds);
                     break;
             }
         }

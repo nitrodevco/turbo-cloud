@@ -311,26 +311,48 @@ public abstract partial class FurnitureWiredLogic(
         ];
     }
 
-    public List<WiredFurniSourceType[]> GetFurniSources() =>
-        StoredOrDefault(_wiredData.FurniSources, GetDefaultFurniSources());
+    // The sources of each slot, worked out again only when the stored list is another one (a
+    // save, a load and a held configuration each store a new list; none changes one in place).
+    // Every selection a box resolves reads them, several times per stack run, and each read
+    // used to build the box's allowed sets, its defaults and the answer over again.
+    private readonly ResolvedSources<WiredFurniSourceType> _furniSources = new();
+    private readonly ResolvedSources<WiredPlayerSourceType> _playerSources = new();
 
+    /// <summary>The furni sources of each slot. Read-only: the list is shared between reads.</summary>
+    public List<WiredFurniSourceType[]> GetFurniSources() =>
+        _furniSources.Get(_wiredData.FurniSources, GetDefaultFurniSources);
+
+    /// <summary>The user sources of each slot. Read-only: the list is shared between reads.</summary>
     public List<WiredPlayerSourceType[]> GetPlayerSources() =>
-        StoredOrDefault(_wiredData.PlayerSources, GetDefaultPlayerSources());
+        _playerSources.Get(_wiredData.PlayerSources, GetDefaultPlayerSources);
 
     /// <summary>
     /// One entry per slot the box declares: what is stored for the slot, or the slot's default.
     /// A box that was never saved stores no sources at all, so the stored list is often shorter.
     /// </summary>
-    private static List<T[]> StoredOrDefault<T>(List<T[]> stored, List<T[]> defaults)
+    private sealed class ResolvedSources<T>
     {
-        var sources = new List<T[]>(defaults.Count);
+        private List<T[]>? _stored;
+        private List<T[]> _resolved = [];
 
-        for (var index = 0; index < defaults.Count; index++)
-            sources.Add(
-                index < stored.Count && stored[index] is { } chosen ? chosen : defaults[index]
-            );
+        public List<T[]> Get(List<T[]> stored, Func<List<T[]>> defaultsOf)
+        {
+            if (ReferenceEquals(stored, _stored))
+                return _resolved;
 
-        return sources;
+            var defaults = defaultsOf();
+            var sources = new List<T[]>(defaults.Count);
+
+            for (var index = 0; index < defaults.Count; index++)
+                sources.Add(
+                    index < stored.Count && stored[index] is { } chosen ? chosen : defaults[index]
+                );
+
+            _stored = stored;
+            _resolved = sources;
+
+            return sources;
+        }
     }
 
     public List<WiredFurniSourceType[]> GetDefaultFurniSources() =>
@@ -1049,6 +1071,7 @@ public abstract partial class FurnitureWiredLogic(
     protected virtual Task FillInternalDataAsync(CancellationToken ct)
     {
         _snapshot = null;
+        ForgetReadSnapshots();
 
         if (_wiredData is null)
         {

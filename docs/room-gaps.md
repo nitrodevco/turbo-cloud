@@ -13,6 +13,8 @@
 - [3. Missing and needing a decision on what it means](#3-missing-and-needing-a-decision-on-what-it-means)
 - [4. Rules written but not enforced](#4-rules-written-but-not-enforced)
 - [5. Wired](#5-wired)
+    - [Known wired bugs](#known-wired-bugs)
+    - [Wired work left undone on purpose](#wired-work-left-undone-on-purpose)
 - [Closed since the first survey](#closed-since-the-first-survey)
 - [What is *not* missing](#what-is-not-missing)
 
@@ -144,6 +146,61 @@ Still missing around the wired menu and the trading block is self-donation:
 composer.
 
 Chests, contracts and the transaction wired are done ([Wired Rules](rules/wired.md#wired-chests)).
+
+### Known wired bugs
+
+Found by a read-through of the whole wired tree on 2026-11-26 and not fixed in that pass. Each
+names where it is. "Read" means the code was opened and the fault seen; "reported" means a
+reviewer described it and it has not been checked again. Take a line out when it is fixed, with
+the test that holds it.
+
+| # | What is wrong | Where | Status |
+|---|---|---|---|
+| 1 | A level-up or time add-on keeps its `name.*` sub-variables after its variable box is renamed, moved or picked up, and makes none when a variable box is put onto its tile: only the box itself is rebuilt. A `WiredVariableEcho` elsewhere keeps its old snapshot the same way | `FurnitureWiredVariableLogic.OnWiredStackChangedAsync` (`BoxIds = [self]`), `RoomWiredSystem.ProcessVariableBoxAsync` | reported |
+| 2 | State Updated and Furni Matches accept wall furni as picks but keep and compare a floor snapshot only, so a picked wall furni never fires the first and is ignored by the second | `WiredTriggerItemStateUpdated`, `WiredConditionItemMatches` (`KeepsWallSnapshot` unset, `TryGetFloorItem`) | reported |
+| 3 | A give through "From Another Room" skips the per-holder variable cap, and a give that replaces a value is announced as `Updated` where the box it mirrors announces `Created` | `WiredVariableReference.GiveValueAsync` | reported |
+| 4 | Boxes that take players only where the rule is any avatar: a bot or pet in the user slot is dropped, so "all users" passes with nobody asked | `WiredConditionExecutorOnItem`, `FurnitureWiredNeighborhoodSelectorLogic`, `WiredActionBotGiveHandItem`, `WiredActionMoveAsGroup` | reported |
+| 5 | The keyword capturer and the chest scanner write a variable without asking its flags, through a context nobody flushes: a variable without a value can be given a number, and a capture into `@position` moves a furni the room is never told about | `WiredAddonVariableCapturer`, `WiredAddonChestItemTypeScanner` | reported |
+| 6 | A written value is cast from long to int without a bound, so a large one wraps | `FurnitureClockPulseCountVariable`, `FurnitureTeleportTargetVariable` | reported |
+| 7 | Says Keyword checks its `#(name)` markers with one pattern when it is saved and another when it runs; `#(a(b)` is a marker to the first and not to the second | `WiredTriggerHabboSaysKeyword` | reported |
+| 8 | Toggle State answers "done" with nothing toggled, which a short-circuiting stack takes for a success, and logs a failed toggle as unreadable box data | `WiredActionToggleItemState` | read |
+| 9 | A leaderboard keeps the name and figure of a player who is not in the room for as long as the room is loaded | `RoomVariableLeaderboardSystem._absentPlayers` | read |
+| 10 | A user's store is made on the first read of any of their variables, not on the first write | `PlayerActiveStore.TryGetStore` | read |
+
+Against the rules rather than against players:
+
+- Sends awaited from the tick where a box's sends go out with `LogAndForget`: `WiredActionPlaceFurni`
+  (the failure notice, once per avatar), `WiredActionGiveReward`, `FurnitureWiredGiveFromChestLogic`,
+  `WiredAddonLinkSpeaker` (one awaited send per viewer).
+- `_state` read from outside its module: `WiredActionPlaceFurni` (`WiredPlacementFailureNotifiedMs`,
+  `Model`), `FurnitureWiredActionLogic` (`NextAvatarBoundaryMs`), `UserIsGroupAdminVariable`
+  (`GroupLevelByPlayerId`).
+- Limits written as literals: `RoomVariableLeaderboardSystem.MAX_OVERLAYS`,
+  `WiredAddonVariableLeaderboard.MAX_CHOICES`.
+- `WiredActionSendDataframe` reads a variable target by hand instead of through `GetTargetType`.
+- Copies: Set Highlight and Set Furni Transparency are one box around two snapshots; the three
+  `@team.*` variables carry one gate; the counter time formula and its rules are in a condition and
+  a trigger (and have drifted: one clamps minutes, the other refuses them); the area rectangle
+  block is in two selectors; "a literal, or the variable read on furni slot A and user slot B" is
+  written out in four effects; the user-type mask and the group lookup are each in a condition and
+  a selector; Bot Reaches Habbo and Bot Reaches Item share their sources and their bot check.
+
+### Wired work left undone on purpose
+
+Looked at in the same pass and left, with why, so it is not measured again for nothing:
+
+- **Variable fx statuses** allocate a sorted dictionary and a signature per holder per flush. The
+  flush is paced by `VariableFxFlushMs`, capped by `VariableFxMaxStatusesPerViewer`, and the team
+  lookups it makes are dictionary reads; nothing there is per tick.
+- **Initiate Transaction and Give From Chest** ask per player in turn. They draw on one chest, so
+  the order is the point; the reward track and achievement effects, which do not, ask side by side.
+- **Send Signal** resolves its placeholders once per batch. Each batch is delivered inside the
+  execution before the next is sent, so what a receiver changes must show in the next one.
+- Not measured: `KeyValueStore` builds its key string two or three times per call,
+  `WiredData.GetIntParam<T>` boxes each read, Says Keyword builds its marker pattern per chat line,
+  Give Reward parses its prize list per run and writes its claims per player, Send Dataframe
+  decodes its rows per run, and the smart variables' presence is worked out on each read of the
+  variable list. Each is real and small; none was changed without a number to show for it.
 
 ## Closed since the first survey
 

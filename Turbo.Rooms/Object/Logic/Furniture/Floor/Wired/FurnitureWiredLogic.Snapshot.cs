@@ -29,19 +29,32 @@ public abstract partial class FurnitureWiredLogic
     /// </summary>
     protected virtual bool KeepsWallSnapshot => false;
 
+    // The two snapshots as last read. A read parses the section out of the box's extra data,
+    // and that document is parsed afresh after every change to it, a flash of the box included:
+    // State Updated read its snapshot on every state event in the room and Furni Matches on every
+    // run of its stack. Dropped whenever the box writes a snapshot or loads.
+    private Dictionary<int, WiredFurniSnapshotEntry>? _furniSnapshot;
+    private Dictionary<int, WiredWallSnapshotEntry>? _wallSnapshot;
+
+    private void ForgetReadSnapshots()
+    {
+        _furniSnapshot = null;
+        _wallSnapshot = null;
+    }
+
+    /// <summary>The wall snapshot. Read-only: the dictionary is shared between reads.</summary>
     protected Dictionary<int, WiredWallSnapshotEntry> GetWallSnapshot() =>
-        FurnitureExtraDataSections.Read<Dictionary<int, WiredWallSnapshotEntry>>(
+        _wallSnapshot ??= FurnitureExtraDataSections.Read<Dictionary<int, WiredWallSnapshotEntry>>(
             _ctx.RoomObject.ExtraData,
             WiredWallSnapshotEntry.SECTION,
             Logger
         ) ?? [];
 
+    /// <summary>The furni snapshot. Read-only: the dictionary is shared between reads.</summary>
     protected Dictionary<int, WiredFurniSnapshotEntry> GetFurniSnapshot() =>
-        FurnitureExtraDataSections.Read<Dictionary<int, WiredFurniSnapshotEntry>>(
-            _ctx.RoomObject.ExtraData,
-            WiredFurniSnapshotEntry.SECTION,
-            Logger
-        ) ?? [];
+        _furniSnapshot ??= FurnitureExtraDataSections.Read<
+            Dictionary<int, WiredFurniSnapshotEntry>
+        >(_ctx.RoomObject.ExtraData, WiredFurniSnapshotEntry.SECTION, Logger) ?? [];
 
     /// <summary>How <paramref name="item"/> stands now, as a snapshot keeps it.</summary>
     protected static WiredFurniSnapshotEntry EntryOf(IRoomFloorItem item) =>
@@ -68,6 +81,7 @@ public abstract partial class FurnitureWiredLogic
         }
 
         _ctx.RoomObject.ExtraData.UpdateSection(WiredFurniSnapshotEntry.SECTION, snapshot);
+        ForgetReadSnapshots();
 
         if (KeepsWallSnapshot)
             CaptureWallSnapshot(itemIds);
@@ -93,6 +107,7 @@ public abstract partial class FurnitureWiredLogic
         }
 
         _ctx.RoomObject.ExtraData.UpdateSection(WiredWallSnapshotEntry.SECTION, snapshot);
+        ForgetReadSnapshots();
     }
 
     /// <summary>
@@ -150,6 +165,7 @@ public abstract partial class FurnitureWiredLogic
 
     private void DeleteFurniSnapshot()
     {
+        ForgetReadSnapshots();
         _ctx.RoomObject.ExtraData.DeleteSection(WiredFurniSnapshotEntry.SECTION);
 
         if (KeepsWallSnapshot)

@@ -13,6 +13,12 @@ public sealed class FurnitureActiveStore(TimeProvider clock) : ActiveStore
 
     public bool RemoveFurnitureStore(RoomObjectId objectId) => _byItemId.Remove(objectId);
 
+    public override void RemoveVariable(WiredVariableId variableId)
+    {
+        foreach (var store in _byItemId.Values)
+            store.RemoveVariable(variableId);
+    }
+
     public override bool TryGetStore(WiredVariableKey key, out KeyValueStore? store)
     {
         store = null;

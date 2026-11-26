@@ -220,6 +220,25 @@ public sealed class WiredSelectorLabAnswersTests
         set.SelectedAvatarIds.Select(x => x.Value).Should().Equal(expected);
     }
 
+    // A furni wider than a tile has what stands on any of its tiles on it, as Furni Has Furni
+    // On and Users On Furni read it; only its first tile used to be looked at.
+    [Fact]
+    [Trait("evidence", "inferred")]
+    public async Task Furni_on_furni_looks_at_every_tile_a_wide_furni_covers()
+    {
+        _room.AddFloorItem(40, 5, 6, width: 2);
+        _room.AddFloorItem(41, 6, 6).SetPositionZ(Altitude.FromInt(100));
+        var box = await AddSelectorAsync<WiredSelectorItemsOnItem>(
+            "wf_slc_furni_onfurni",
+            intParams: [0],
+            stuffIds: [40]
+        );
+
+        var set = await box.SelectAsync(Context(), Ct);
+
+        set.SelectedFurniIds.Should().Equal(41);
+    }
+
     // selector.4.R5: mode 2 ("Furni at same height") picks the picked furni itself.
     [Fact]
     public async Task Selector4R5_SameHeightPicksThePickedFurniItself()

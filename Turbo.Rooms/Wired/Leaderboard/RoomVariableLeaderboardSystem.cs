@@ -17,6 +17,7 @@ using Turbo.Primitives.Rooms.Events;
 using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Events.Wired;
+using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Snapshots.Wired.Leaderboard;
 using Turbo.Primitives.Rooms.Wired.Variable;
 using Turbo.Rooms.Grains;
@@ -72,10 +73,17 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
                 _overlaysDirty = true;
                 _rowsDirty = true;
                 break;
-            case RoomItemDetachedEvent:
-            case RoomItemPlacedEvent:
-            case RoomItemMovedEvent:
-                _overlaysDirty = true;
+            // Only a leaderboard coming or going changes which are shown: what a wired box
+            // placed, moved or taken does to one is told by the two events above. Every furni
+            // put down or pushed along by a roller used to have the room's furni sorted again.
+            case RoomItemDetachedEvent detached:
+                _overlaysDirty |= _overlayIdsByBox.ContainsKey(detached.ObjectId.Value);
+                break;
+            case RoomItemPlacedEvent placed:
+                _overlaysDirty |= IsLeaderboard(placed.ObjectId);
+                break;
+            case RoomItemMovedEvent moved:
+                _overlaysDirty |= IsLeaderboard(moved.ObjectId);
                 break;
             case WiredVariableChangedEvent:
                 _rowsDirty = true;
@@ -87,6 +95,10 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
 
         return Task.CompletedTask;
     }
+
+    private bool IsLeaderboard(RoomObjectId objectId) =>
+        FurniModule.TryGetItem(objectId, out var item)
+        && item.Logic is WiredAddonVariableLeaderboard;
 
     /// <summary>
     /// A viewer's <c>VariableLeaderboardReplaceSubscription</c>: what to send them now. The room
@@ -135,7 +147,12 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
 
         _subscriptions[(playerId, subscription.OverlayInstanceId)] = subscription;
 
-        var rows = await BuildRowsAsync(overlay, subscription.VariableId, ct);
+        var rows = await BuildRowsAsync(
+            overlay,
+            subscription.VariableId,
+            subscription.ChunkIndices,
+            ct
+        );
         var replies = ImmutableArray.CreateBuilder<IComposer>();
 
         foreach (var chunkIndex in subscription.ChunkIndices)
@@ -192,7 +209,12 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
             if (overlay is null)
                 continue;
 
-            var rows = await BuildRowsAsync(overlay, group.Key.VariableId, ct);
+            var rows = await BuildRowsAsync(
+                overlay,
+                group.Key.VariableId,
+                [.. group.SelectMany(x => x.Value.ChunkIndices).Distinct()],
+                ct
+            );
 
             foreach (var ((playerId, _), subscription) in group)
             {
@@ -381,10 +403,14 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
     /// <summary>
     /// Every holder of the variable the leaderboard shows, filtered and sorted as it is set up,
     /// ranked from 1. Values of players who are not in the room come from the variable's store.
+    /// Only the rows of <paramref name="chunkIndices"/> are sent, so only their players are
+    /// named: a holder who is not in the room is a call to their player grain, and every holder
+    /// the variable ever had was asked, one after the other, for the two chunks a viewer sees.
     /// </summary>
     private async Task<List<VariableLeaderboardRowSnapshot>> BuildRowsAsync(
         Overlay overlay,
         string variableId,
+        IReadOnlyCollection<int> chunkIndices,
         CancellationToken ct
     )
     {
@@ -441,9 +467,16 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
             && snapshot.Flags.HasFlag(WiredVariableFlags.HasTextConnector);
         var rows = new List<VariableLeaderboardRowSnapshot>(holders.Count);
 
+        await ReadAbsentPlayersAsync(
+            chunkIndices.SelectMany(chunkIndex =>
+                holders.Skip(chunkIndex * CHUNK_SIZE).Take(CHUNK_SIZE).Select(x => x.PlayerId)
+            ),
+            ct
+        );
+
         foreach (var holder in holders)
         {
-            var (name, figure) = await GetPlayerAsync(holder.PlayerId, ct);
+            var (name, figure) = GetPlayer(holder.PlayerId);
             string? level = null;
 
             if (
@@ -528,24 +561,52 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
         ];
     }
 
-    private async Task<(string Name, string Figure)> GetPlayerAsync(
+    /// <summary>A holder's name and figure: theirs now when they are here, else as last read.</summary>
+    private (string Name, string Figure) GetPlayer(int playerId) =>
+        AvatarModule.TryGetPlayer(new PlayerId(playerId), out var player)
+            ? (player.Name, player.Figure)
+        : _absentPlayers.TryGetValue(playerId, out var known) ? known
+        : (string.Empty, string.Empty);
+
+    /// <summary>
+    /// Reads the players among <paramref name="playerIds"/> who are not in the room and not
+    /// known yet, side by side. One that cannot be read is shown without a name this time and
+    /// asked again the next: a failed read used to be kept as an empty name for the room's life.
+    /// </summary>
+    private async Task ReadAbsentPlayersAsync(IEnumerable<int> playerIds, CancellationToken ct)
+    {
+        var unknown = playerIds
+            .Distinct()
+            .Where(playerId =>
+                !_absentPlayers.ContainsKey(playerId)
+                && !AvatarModule.TryGetPlayer(new PlayerId(playerId), out _)
+            )
+            .ToList();
+
+        if (unknown.Count == 0)
+            return;
+
+        var read = await Task.WhenAll(unknown.Select(playerId => ReadPlayerAsync(playerId, ct)));
+
+        for (var i = 0; i < unknown.Count; i++)
+        {
+            if (read[i] is { } known)
+                _absentPlayers[unknown[i]] = known;
+        }
+    }
+
+    private async Task<(string Name, string Figure)?> ReadPlayerAsync(
         int playerId,
         CancellationToken ct
     )
     {
-        if (AvatarModule.TryGetPlayer(new PlayerId(playerId), out var player))
-            return (player.Name, player.Figure);
-
-        if (_absentPlayers.TryGetValue(playerId, out var known))
-            return known;
-
         try
         {
             var summary = await _roomGrain
                 ._grainFactory.GetPlayerGrain(new PlayerId(playerId))
                 .GetSummaryAsync(ct);
 
-            known = summary is null ? (string.Empty, string.Empty) : (summary.Name, summary.Figure);
+            return summary is null ? (string.Empty, string.Empty) : (summary.Name, summary.Figure);
         }
         catch (Exception ex)
         {
@@ -556,12 +617,8 @@ public sealed class RoomVariableLeaderboardSystem(RoomGrain roomGrain)
                 playerId
             );
 
-            known = (string.Empty, string.Empty);
+            return null;
         }
-
-        _absentPlayers[playerId] = known;
-
-        return known;
     }
 
     private static VariableLeaderboardChunkUpdateMessageComposer BuildChunk(

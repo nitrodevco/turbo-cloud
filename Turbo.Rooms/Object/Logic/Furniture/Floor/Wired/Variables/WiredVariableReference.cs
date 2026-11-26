@@ -381,7 +381,7 @@ public class WiredVariableReference(
             return true;
 
         if (
-            !AvatarModule.TryGetAvatar(RoomObjectId.Parse(key.TargetId), out var avatar)
+            !WiredSystem.TryGetAvatarOrLeaver(RoomObjectId.Parse(key.TargetId), out var avatar)
             || avatar is not IRoomPlayer player
         )
             return false;

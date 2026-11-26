@@ -84,6 +84,38 @@ the room. A plugin's box is hosted by core's own kinds, so these hold for it too
   because it only reads room state; never reintroduce an async twin or block on a task
   (`GetAwaiter().GetResult()`) inside a grain. When a synchronous caller needs a module answer,
   give the module a synchronous core (`CanPlaceFloorItem`) and let the async method wrap it.
+- **A box with more than one slot of a kind reads the slot it means.** `ctx.GetSelection(box)`
+  is every slot of the box together, furni and users. Place Furni took its custom target user
+  and the holders of its value variable from it, so with nobody triggering the target was a
+  user of the reference slot, and the value was read off a furni to place. A slot is read with
+  `WiredSlotSelection.ForSlot` / `ForUserSlot`, which answer with their own kind only.
+- **`GetFurniSources()` / `GetPlayerSources()` and `GetStuffIds()` hand out a shared list.**
+  They are worked out once per saved configuration and read on every selection; a caller that
+  wants another list builds its own. A save, a load and a held configuration store a new
+  source list rather than change one, which is what the cache stands on.
+- **A value read in a loop over the room is read before the loop**: a param
+  (`GetIntParamOrDefault`), the operand variable (`GetVariable` parses an id and looks it up;
+  `TryReadOperandOnHolder` takes the variable). A param is never read raw
+  (`_wiredData.GetIntParam`) nor inside a `try` that catches whatever the loop body throws.
+- **The trigger is asked before anything is spent.** A stack runs its selectors and add-ons,
+  then asks `CanTriggerAsync`, then spends its Execution Limit, plans its moves and asks its
+  conditions. The trigger used to be asked last, so an event it turned down (Enter Room for
+  another name, a keyword said by someone who is not the owner) used up one execution of the
+  limit. It cannot go before the selectors: a trigger may listen on what a selector picked.
+  What needs neither goes in `MatchesEventAsync`, which is asked before a context is built.
+- **What a holder held goes when the holder does, and what a box created goes with the box.**
+  A player and a bot by `PlayerLeftEvent` / `BotRemovedEvent` (after their own stacks, above),
+  a pet by `PetRemovedEvent`, a furni by `RoomItemDetachedEvent`; a variable box picked up
+  takes its values out of the room's stores (`RoomWiredSystem.ForgetVariableValues`). The
+  last two were missing: a pet's values stayed for the room's life, and a box put down again
+  found everything it had given.
+- **A variable that can be created is held or not, the built-in ones too.** `@handitem` is
+  "can create/delete" and not "always available" in the client, so an empty hand holds no
+  `@handitem`; it answered 0 and was held by everyone.
+- **A permanent variable's store is written once per execution.** The store is one extra data
+  section, serialized whole; `RoomWiredSystem.StorageChanged` holds the write until the
+  execution that changed it ends, and makes it at once outside one. A box that writes its
+  own section on every change does that work once per holder a stack touches.
 - Wired time is counted in half-second pulses. Convert through `WiredPulses`; do not write the
   500 again.
 - Anything that happens over time is an event the system consumes: signals
@@ -244,8 +276,14 @@ the room. A plugin's box is hosted by core's own kinds, so these hold for it too
   utility) implement `IWiredSubVariableProvider` on the variable box tile and are rebuilt with
   the variable boxes. Value timestamps live in `KeyValueStore.Timestamps`
   (`Turbo.Rooms/Wired/Storage/`).
-- Freeze effect ids are `WiredConfig.FreezeEffectIds`; the list ships as zeros and is hotel
-  data. Team effect ids belong to the game, not to wired: `RoomConfig.GameTeamEffectIds`.
+- Freeze effect ids are `WiredConfig.FreezeEffectIds`; the list ships as the five the
+  client's editor names (218, 12, 11, 53, 163). This page said it shipped as zeros and was an
+  option while the boxes read a static array, so neither half was true. The effect Teleport
+  To, Bot Teleport and Kick put on is one option, `WiredConfig.TeleportEffectId`; the two
+  later boxes each had their own `4`. Their delays stay constants in the boxes: an id is the
+  hotel's data, one of Habbo's timings is not a setting
+  (`Turbo.Tests/Architecture/config-allowlist.txt`). Team effect ids belong to the game, not
+  to wired: `RoomConfig.GameTeamEffectIds`.
 - Everything in a wired save comes from a client and is checked before it is stored, in
   `FurnitureWiredLogic.ApplyWiredUpdateAsync`; the same checks run again when a box loads, and
   stored ints that fail them are replaced by the box defaults. A new box gets this for free as
