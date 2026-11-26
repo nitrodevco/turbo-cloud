@@ -144,6 +144,20 @@ the room. A plugin's box is hosted by core's own kinds, so these hold for it too
   `IRoomPet` / `IRoomBot`. Indices are handed out by a counter that only climbs while the room
   is loaded, so one is never two avatars; a player who leaves and returns is a new avatar and
   holds nothing of what the old one did.
+- **A leaver is read until its own stacks have run, and never acted on.** The avatar is out of
+  the room before wired hears `PlayerLeftEvent` / `BotRemovedEvent`, and the stack that fires
+  runs later still (the end of the call, or the next tick). User Leaves Room dropped the
+  leaver's values on the event and then ran its stack for nobody: every variable read as not
+  held. Now the values go when that execution ends (`RoomWiredSystem.Leaving.cs`), and while it
+  runs `RoomWiredSystem.TryGetAvatarOrLeaver` answers with the avatar as it left
+  (`RoomAvatarModule.TryGetDeparted`). Whatever *reads* a user variable's target goes through
+  it (`UserVariable.TryGetAvatarForKey`, the stored variables' `TryGetStore`, the triggering
+  selection); whatever changes an avatar keeps asking `AvatarModule.TryGetAvatar`, so a
+  teleport or a kick skips the leaver as it skips anyone who is gone. A delayed effect of that
+  stack is a new execution and finds nobody, as the captures say. The event itself is published
+  by `RoomAvatarModule.RemoveAvatarFromPlayerAsync`, the one place the door tile, a kick, a ban
+  and the unload all go through; published by the room's leave call alone, none of those fired
+  the trigger or let go of the values.
 - **Wired says "user" and means any avatar.** `IWiredSelectionSet.SelectedAvatarIds` holds
   players, pets and bots alike, by room index, and every selector gathers all three; narrowing
   to one kind is what `wf_slc_users_bytype` is for, and its mask (1 players, 2 pets, 4 bots, the editor's `usertype.1/.2/.4`)

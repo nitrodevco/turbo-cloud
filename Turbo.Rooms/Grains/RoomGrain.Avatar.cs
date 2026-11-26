@@ -115,24 +115,7 @@ public sealed partial class RoomGrain
                         _state.RoomId
                     );
 
-            // Read before the avatar goes: what left is told with the event, because by then
-            // there is nothing left to look up.
-            var objectId = AvatarModule.TryGetPlayer(playerId, out var leaving)
-                ? leaving.ObjectId
-                : RoomObjectId.Parse(0);
-
             await AvatarModule.RemoveAvatarFromPlayerAsync(ctx, playerId, ct);
-
-            await PublishRoomEventAsync(
-                new PlayerLeftEvent
-                {
-                    RoomId = _state.RoomId,
-                    CausedBy = ctx,
-                    PlayerId = playerId,
-                    ObjectId = objectId,
-                },
-                ct
-            );
 
             return true;
         }

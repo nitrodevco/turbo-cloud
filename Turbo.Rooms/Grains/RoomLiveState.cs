@@ -131,9 +131,10 @@ internal sealed class RoomLiveState
 
     /// <summary>
     /// Users who left, by the room index they had, oldest first in
-    /// <see cref="DepartedAvatarOrder"/> (<c>RoomAvatarModule.TryGetDepartedName</c>).
+    /// <see cref="DepartedAvatarOrder"/> (<c>RoomAvatarModule.TryGetDeparted</c>), each as it
+    /// was when it left.
     /// </summary>
-    public Dictionary<RoomObjectId, string> DepartedAvatarNames { get; } = [];
+    public Dictionary<RoomObjectId, IRoomAvatar> DepartedAvatars { get; } = [];
     public Queue<RoomObjectId> DepartedAvatarOrder { get; } = new();
 
     public HashSet<RoomObjectId> DirtyFloorItemIds { get; set; } = [];

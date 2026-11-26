@@ -250,6 +250,10 @@ public sealed class WiredGiveVariableTests
         // Yet the variable box flashes as for a give (ObjectsDataUpdate 7 at the delay end,
         // 2026-10-24T18-17-45, 2/2); a give over an empty selection does not (wlab11 3/3).
         mark.GetState().Should().Be(7);
+
+        // A leaver's values go once the stacks its leaving fired have had their turn, on the
+        // wired tick at the latest; the room has had one long before anyone is back.
+        await _room.Harness.Module<RoomWiredSystem>().ProcessWiredAsync(11_000, dormant: false, Ct);
         _room.Enter(PLAYER_INDEX, 1, 1);
 
         if (afterReentry is { } kept)

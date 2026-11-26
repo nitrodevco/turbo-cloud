@@ -21,6 +21,7 @@ using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Events.RoomItem;
 using Turbo.Primitives.Rooms.Events.Wired;
 using Turbo.Primitives.Rooms.Object;
+using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
 using Turbo.Primitives.Rooms.Wired;
 using Turbo.Primitives.Rooms.Wired.Link;
@@ -162,7 +163,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
         // A KILLED room runs no wired until the halt ends; what happens meanwhile is not kept.
         if (IsKilled(now))
         {
-            _eventQueue.Clear();
+            DropQueuedEvents();
 
             return;
         }
@@ -195,7 +196,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
         if (_stacksById.Count == 0)
         {
-            _eventQueue.Clear();
+            DropQueuedEvents();
 
             return;
         }
@@ -264,7 +265,10 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             if (evt is WiredSignalEvent signal)
                 FlashAntennas(signal);
 
-            await RunExecutionAsync(() => ProcessRoomEventAsync(evt, now, ct), now, ct);
+            if (LeaverOf(evt) is { } leaverId)
+                await RunLeaveAsync(evt, leaverId, now, ct);
+            else
+                await RunExecutionAsync(() => ProcessRoomEventAsync(evt, now, ct), now, ct);
         }
     }
 
@@ -402,9 +406,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
             case PlayerControllerLevelChangedEvent levelEvt:
                 return SendPermissionsAsync(levelEvt.PlayerId, levelEvt.ControllerLevel, ct);
             case PlayerLeftEvent playerLeftEvt:
-                _playerActiveStore.RemoveAvatarStore(playerLeftEvt.ObjectId);
-                ForgetUserVisualization(playerLeftEvt.ObjectId);
-                QueueEvent(evt);
+                OnAvatarLeft(evt, playerLeftEvt.ObjectId);
                 break;
             case RoomItemPickupEvent pickupEvt:
                 ForgetFurniValues(pickupEvt.ObjectId);
@@ -412,9 +414,7 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
                 break;
             // A bot picked up leaves as a user does, and lets go of what it held the same way.
             case BotRemovedEvent botRemovedEvt:
-                _playerActiveStore.RemoveAvatarStore(botRemovedEvt.ObjectId);
-                ForgetUserVisualization(botRemovedEvt.ObjectId);
-                QueueEvent(evt);
+                OnAvatarLeft(evt, botRemovedEvt.ObjectId);
                 break;
             case RoomItemDetachedEvent detatchedEvt:
                 _furnitureActiveStore.RemoveFurnitureStore(detatchedEvt.ObjectId);
@@ -443,26 +443,28 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
     /// type some trigger listens to, or anything while stacks are waiting to be rebuilt (a box
     /// placed a moment ago may listen to it). Every walk, chat and item change used to be
     /// queued in any room with a wired box in it, only to be looked up and dropped. The queue
-    /// is bounded by <c>WiredConfig.MaxQueuedEvents</c>.
+    /// is bounded by <c>WiredConfig.MaxQueuedEvents</c>. Whether it was kept.
     /// </summary>
-    private void QueueEvent(RoomEvent evt)
+    private bool QueueEvent(RoomEvent evt)
     {
         if (
             evt is not WiredStackCalledEvent
             && _dirtyStackIds.Count == 0
             && !_stackIdsByEventType.ContainsKey(evt.GetType())
         )
-            return;
+            return false;
 
         if (_eventQueue.Count >= WiredConfig.MaxQueuedEvents)
         {
             _droppedEvents++;
             RecordError(WiredErrorKind.ExecutorOverload, NowMs());
 
-            return;
+            return false;
         }
 
         _eventQueue.Enqueue(evt);
+
+        return true;
     }
 
     private async Task ProcessRoomEventAsync(RoomEvent evt, long now, CancellationToken ct)
@@ -987,15 +989,20 @@ public sealed partial class RoomWiredSystem(RoomGrain roomGrain)
 
     private void AddAvatarByObjectId(WiredProcessingContext ctx, RoomObjectId objectId)
     {
-        if (AvatarModule.TryGetAvatar(objectId, out _))
+        if (TryGetAvatarOrLeaver(objectId, out _))
             ctx.Selected.SelectedAvatarIds.Add(objectId);
     }
 
-    /// <summary>An event names the player; a selection names the avatar they are here.</summary>
+    /// <summary>
+    /// An event names the player; a selection names the avatar they are here, or were when it
+    /// is their leaving that is running (<see cref="TryGetAvatarOrLeaver"/>).
+    /// </summary>
     private void AddPlayerById(WiredProcessingContext ctx, PlayerId playerId)
     {
         if (AvatarModule.TryGetPlayer(playerId, out var player))
             ctx.Selected.SelectedAvatarIds.Add(player.ObjectId);
+        else if (_leaver is IRoomPlayer leaver && leaver.PlayerId == playerId)
+            ctx.Selected.SelectedAvatarIds.Add(leaver.ObjectId);
     }
 
     private async Task ProcessStackCallAsync(

@@ -173,7 +173,7 @@ public sealed partial class RoomWiredSystem
 
         _killedUntilMs = execution.Now + WiredConfig.KilledDurationMs;
 
-        _eventQueue.Clear();
+        DropQueuedEvents();
         _pendingStackExecutions.Clear();
         _stackSchedule.Clear();
 

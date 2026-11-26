@@ -22,6 +22,7 @@ using Turbo.Primitives.Policies;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
 using Turbo.Primitives.Rooms.Events.Avatar;
+using Turbo.Primitives.Rooms.Events.Player;
 using Turbo.Primitives.Rooms.Object;
 using Turbo.Primitives.Rooms.Object.Avatars;
 using Turbo.Primitives.Rooms.Object.Furniture.Floor;
@@ -416,6 +417,10 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
         );
     }
 
+    /// <summary>
+    /// Takes a player's avatar out of the room and says so (<see cref="PlayerLeftEvent"/>),
+    /// whichever way they go: leaving, the door tile, a kick, a ban or the room unloading.
+    /// </summary>
     public async Task RemoveAvatarFromPlayerAsync(
         ActionContext ctx,
         PlayerId playerId,
@@ -433,6 +438,17 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
 
             // Keeps the group level cache to the people in the room; one who comes back is asked again.
             SecurityModule.ForgetGroupLevel(playerId);
+
+            await _roomGrain.PublishRoomEventAsync(
+                new PlayerLeftEvent
+                {
+                    RoomId = _roomGrain.RoomId,
+                    CausedBy = ctx,
+                    PlayerId = playerId,
+                    ObjectId = avatar.ObjectId,
+                },
+                ct
+            );
         }
         catch (Exception ex)
         {
@@ -467,21 +483,35 @@ public sealed partial class RoomAvatarModule(RoomGrain roomGrain) : RoomGrainCom
     /// U=a2", trigger.23.R2 "P T=frank" for a bot picked up). The newest
     /// <see cref="DEPARTED_NAMES_KEPT"/> are kept.
     /// </summary>
-    public bool TryGetDepartedName(RoomObjectId objectId, [NotNullWhen(true)] out string? name) =>
-        State.DepartedAvatarNames.TryGetValue(objectId, out name);
+    public bool TryGetDepartedName(RoomObjectId objectId, [NotNullWhen(true)] out string? name)
+    {
+        name = TryGetDeparted(objectId, out var avatar) ? avatar.Name : null;
+
+        return name is not null;
+    }
+
+    /// <summary>
+    /// A user who has left the room, as they were when they left: on no tile and in none of the
+    /// room's lists, so only for reading. The stack their leaving fires reads them through it
+    /// (<c>RoomWiredSystem.TryGetAvatarOrLeaver</c>).
+    /// </summary>
+    public bool TryGetDeparted(
+        RoomObjectId objectId,
+        [NotNullWhen(true)] out IRoomAvatar? avatar
+    ) => State.DepartedAvatars.TryGetValue(objectId, out avatar);
 
     internal void RememberDeparted(IRoomAvatar avatar)
     {
         if (avatar is not (IRoomPlayer or IRoomBot))
             return;
 
-        if (State.DepartedAvatarNames.TryAdd(avatar.ObjectId, avatar.Name))
+        if (State.DepartedAvatars.TryAdd(avatar.ObjectId, avatar))
             State.DepartedAvatarOrder.Enqueue(avatar.ObjectId);
         else
-            State.DepartedAvatarNames[avatar.ObjectId] = avatar.Name;
+            State.DepartedAvatars[avatar.ObjectId] = avatar;
 
         while (State.DepartedAvatarOrder.Count > DEPARTED_NAMES_KEPT)
-            State.DepartedAvatarNames.Remove(State.DepartedAvatarOrder.Dequeue());
+            State.DepartedAvatars.Remove(State.DepartedAvatarOrder.Dequeue());
     }
 
     /// <summary>The avatars on a tile; none for a tile outside the room.</summary>

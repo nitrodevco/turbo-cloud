@@ -15,7 +15,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Floor.Wired.Triggers;
 
 /// <summary>
 /// Fires when a player leaves, or a bot is picked up (<see cref="BotRemovedEvent"/>). The user is
-/// already gone, so only their id is known.
+/// already gone and triggers all the same: its stack reads the variables it held and the avatar
+/// it was (<c>RoomWiredSystem.TryGetAvatarOrLeaver</c>), and no effect acts on it.
 /// </summary>
 [RoomObjectLogic("wf_trg_leave_room")]
 public class WiredTriggerHabboLeaveRoom(

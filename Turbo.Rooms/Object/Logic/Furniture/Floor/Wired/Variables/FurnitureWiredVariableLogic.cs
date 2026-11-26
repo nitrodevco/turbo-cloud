@@ -196,7 +196,7 @@ public abstract class FurnitureWiredVariableLogic
             key.TargetType == WiredVariableTargetType.User
             && snapshot.Flags.Has(WiredVariableFlags.CanCreateAndDelete)
             && CanBind(key)
-            && !AvatarModule.TryGetAvatar(RoomObjectId.Parse(key.TargetId), out _)
+            && !WiredSystem.TryGetAvatarOrLeaver(RoomObjectId.Parse(key.TargetId), out _)
         )
         {
             FlashWithinAsync(6, 7)
@@ -928,7 +928,9 @@ public abstract class FurnitureWiredVariableLogic
     /// room-active store and last as long as it is in the room. A user who is not in the room has
     /// no store here: a delayed Give Variable reaching a user who left before it ran is lost,
     /// a permanent value keeps what it held and one held while in the room is not given (official
-    /// client capture 2026-10-24, WIN63-202610201032, action.39.B2 2/2).
+    /// client capture 2026-10-24, WIN63-202610201032, action.39.B2 2/2). The one exception is
+    /// the user whose leaving is running its stacks: those read and change what it held
+    /// (<c>RoomWiredSystem.TryGetAvatarOrLeaver</c>).
     /// </summary>
     private bool TryGetStore(
         WiredVariableKey key,
@@ -950,7 +952,7 @@ public abstract class FurnitureWiredVariableLogic
 
         if (
             key.TargetType == WiredVariableTargetType.User
-            && !AvatarModule.TryGetAvatar(RoomObjectId.Parse(key.TargetId), out avatar)
+            && !WiredSystem.TryGetAvatarOrLeaver(RoomObjectId.Parse(key.TargetId), out avatar)
         )
             return false;
 

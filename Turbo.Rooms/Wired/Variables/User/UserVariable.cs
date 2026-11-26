@@ -40,7 +40,9 @@ public abstract class UserVariable<TAvatar>(RoomGrain roomGrain) : WiredInternal
     /// any avatar and the only id all three kinds share: a pet and a bot have no player id,
     /// and a player's own id is a separate thing the <c>@user_id</c> variable reports, just as
     /// <c>@pet_id</c> and <c>@bot_id</c> report theirs. The out parameter is annotated, so a
-    /// caller that checks the result does not repeat a null check.
+    /// caller that checks the result does not repeat a null check. A user whose leaving is
+    /// running its stacks is still read, as it was when it left
+    /// (<c>RoomWiredSystem.TryGetAvatarOrLeaver</c>).
     /// </summary>
     protected virtual bool TryGetAvatarForKey(
         in WiredVariableKey key,
@@ -49,7 +51,10 @@ public abstract class UserVariable<TAvatar>(RoomGrain roomGrain) : WiredInternal
     {
         avatar = default;
 
-        if (!AvatarModule.TryGetAvatar(key.TargetId, out var found) || found is not TAvatar typed)
+        if (
+            !WiredSystem.TryGetAvatarOrLeaver(key.TargetId, out var found)
+            || found is not TAvatar typed
+        )
             return false;
 
         avatar = typed;
