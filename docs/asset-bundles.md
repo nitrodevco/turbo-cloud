@@ -249,7 +249,10 @@ What the hotel takes from the followed release:
   skins, and put into `habbo-window-manager-com.nitro` beside its templates as Studio's `withTheme`
   puts it - `theme.png` (every sprite on one sheet, each edge extruded into a 1-pixel gutter),
   `theme_spritesheet.json` and `theme-variants.json` - with its `theme-*` sprites named in the asset
-  data. `ThemeRules.cs` is a copy of Studio's `theme-rules.json`.
+  data. `ThemeRules.cs` is a copy of Studio's `theme-rules.json`. Which layer a group of skin
+  entities becomes (sprite, nine-slice, composite, tile) and where each entity sits in it is
+  nitro-theme's rule, `utils/skinLayers.ts`, which Studio's `skinArt` calls: `SkinArt`'s
+  `GroupLayer` / `SlotLayer` follow it, and a change there is made here too.
 
 ## Publishing
 

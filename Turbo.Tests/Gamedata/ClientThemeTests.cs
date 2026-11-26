@@ -169,6 +169,80 @@ public sealed class ClientThemeTests
         ClientTheme.Build(hab).Should().BeNull();
     }
 
+    /// <summary>
+    /// Illumina's multi middle button (container button 106): a face that takes the tint, and one
+    /// untinted 1px etch line along its bottom. A stateful component is sized by its art, which
+    /// once made that lone untinted piece a sprite, and a sprite fills the button: the etch's pixel
+    /// covered the face. It is a nine-slice with the line in its bottom row, as nitro-theme's
+    /// <c>skinGroupLayers</c> places it.
+    /// </summary>
+    [Fact]
+    public void A_lone_untinted_strip_of_a_button_face_is_placed_along_its_edge_not_stretched_over_it()
+    {
+        var sheet = Image(1, 4, (_, y) => [(byte)(60 * y), 120, 200, 255]);
+        var hab = NitroConverterTests.Hab(
+            (
+                "habbo_element_description_xml",
+                XML,
+                Encoding.UTF8.GetBytes(
+                    """
+                    <elements>
+                        <window type="container_button" style="106" renderer="skin" asset="illumina_light_skin_button_multi_middle_xml" layout="multi_middle" />
+                    </elements>
+                    """
+                )
+            ),
+            (
+                "illumina_light_skin_button_multi_middle_xml",
+                XML,
+                Encoding.UTF8.GetBytes(
+                    """
+                    <skin>
+                        <templates>
+                            <template name="face" asset="illumina_light_button_multi">
+                                <entities>
+                                    <entity name="button_top_center"><region><Rectangle x="0" y="0" width="1" height="1" /></region></entity>
+                                    <entity name="button_center_center"><region><Rectangle x="0" y="1" width="1" height="1" /></region></entity>
+                                    <entity name="button_bottom_center"><region><Rectangle x="0" y="2" width="1" height="1" /></region></entity>
+                                    <entity name="button_etch_center"><region><Rectangle x="0" y="3" width="1" height="1" /></region></entity>
+                                </entities>
+                            </template>
+                        </templates>
+                        <layouts>
+                            <layout name="multi_middle">
+                                <entities>
+                                    <entity name="button_top_center" colorize="true"><region><Rectangle x="0" y="0" width="11" height="4" /></region><scale horizontal="strech" vertical="fixed" /></entity>
+                                    <entity name="button_center_center" colorize="true"><region><Rectangle x="0" y="4" width="11" height="10" /></region><scale horizontal="strech" vertical="strech" /></entity>
+                                    <entity name="button_bottom_center" colorize="true"><region><Rectangle x="0" y="14" width="11" height="4" /></region><scale horizontal="strech" vertical="move" /></entity>
+                                    <entity name="button_etch_center" colorize="false"><region><Rectangle x="0" y="18" width="11" height="1" /></region><scale horizontal="strech" vertical="move" /></entity>
+                                </entities>
+                            </layout>
+                        </layouts>
+                        <states><state name="default" template="face" layout="multi_middle" /></states>
+                    </skin>
+                    """
+                )
+            ),
+            ("illumina_light_button_multi_png", PNG, sheet.EncodePng())
+        );
+
+        var theme = ClientTheme.Build(HabLibrary.Read(hab))!;
+        var variant = JsonNode.Parse(theme.Files[ClientTheme.VARIANTS])!["variants"]![
+            "containerButton"
+        ]!["106"]!;
+
+        variant["overlays"]!["default"]!["kind"]!.GetValue<string>().Should().Be("nineSlice");
+        variant["overlays"]!["default"]!
+            .ToJsonString()
+            .Should()
+            .Contain(
+                """
+                "leftWidth":0,"topHeight":4,"rightWidth":0,"bottomHeight":5
+                """
+            );
+        variant["states"]!["default"]!["kind"]!.GetValue<string>().Should().Be("nineSlice");
+    }
+
     /// <summary>The window manager library: the element row, its window layout, its skin and sheet, and the icon set.</summary>
     private static HabLibrary Library() => HabLibrary.Read(WindowManagerHab());
 

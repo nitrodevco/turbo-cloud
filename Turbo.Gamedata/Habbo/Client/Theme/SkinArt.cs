@@ -81,8 +81,9 @@ internal sealed record SkinVariantArt(JsonObject Fields, Dictionary<string, Rgba
 
 /// <summary>
 /// A variant's art, read off its skin the way the client's <c>BitmapSkinRenderer</c> draws it, as
-/// Studio's <c>server/theme/skinArt.ts</c> builds it: the layers the theme draws
-/// (<c>BackgroundLayerConfig</c>s) and the sprites they name, cut out of the skin's sheet.
+/// Studio's <c>server/theme/skinArt.ts</c> builds it with nitro-theme's <c>utils/skinLayers.ts</c>
+/// rules: the layers the theme draws (<c>BackgroundLayerConfig</c>s) and the sprites they name,
+/// cut out of the skin's sheet.
 /// <para>
 /// A skin state is a template (regions of the sheet) and a layout (where each region sits at the
 /// skin's own size, and how it follows a resize on each axis). The entities of a state are grouped
@@ -594,7 +595,12 @@ internal static partial class SkinArt
     private static List<SkinPiece> GridOf(SkinState state) =>
         [.. state.Pieces.Where(x => !x.IsCentered && !x.IsTiled)];
 
-    /// <summary>A composite piece placed as the renderer places the entity; a <c>tiled</c> axis grows as <c>strech</c> does, its bitmap repeated.</summary>
+    /// <summary>
+    /// A composite piece placed as the renderer places the entity (nitro-theme's
+    /// <c>CompositeLayerPieceProps</c>); a <c>tiled</c> axis grows as <c>strech</c> does. The
+    /// composite layer stretches the bitmap over it rather than repeating it, so it carries no tile
+    /// flag: a group with a tile is drawn as its own tile layers where it can be.
+    /// </summary>
     private static JsonObject CompositePiece(
         SkinPiece piece,
         string textureKey,
@@ -603,9 +609,6 @@ internal static partial class SkinArt
     )
     {
         var field = new JsonObject { ["textureKey"] = textureKey };
-
-        if (piece.IsTiled)
-            field["tile"] = true;
 
         switch (piece.H)
         {
@@ -743,10 +746,19 @@ internal static partial class SkinArt
         };
     }
 
+    /// <summary>The piece lies over the whole of its state's skin.</summary>
+    private static bool CoversSkin(SkinPiece piece, SkinState state) =>
+        piece.At.X == 0
+        && piece.At.Y == 0
+        && piece.At.Width == state.Width
+        && piece.At.Height == state.Height;
+
     /// <summary>
     /// The layers a group of pieces is drawn as, with the sprites they name: one sprite, one
     /// nine-slice, or a composite of every piece placed as the renderer places it, and a tile layer
-    /// for each piece that tiles on its own.
+    /// for each piece that tiles on its own. Which layer, and where each piece sits in it, follows
+    /// nitro-theme's <c>utils/skinLayers.ts</c> (<c>skinGroupLayers</c>), the rules the theme's
+    /// components draw by.
     /// </summary>
     private static List<JsonObject> GroupLayer(
         RgbaImage sheet,
@@ -796,9 +808,18 @@ internal static partial class SkinArt
                     }
             );
         }
-        else if (artSized && rest.Count == 1 && tiled.Count == 0)
+        else if (
+            artSized
+            && rest.Count == 1
+            && tiled.Count == 0
+            && (state.Pieces.Count == 1 || CoversSkin(rest[0], state))
+        )
         {
             // One piece in a component sized by its art (a bubble's pointer): the box is the piece.
+            // Not one piece of several that does not cover the skin, which the box is not: a sprite
+            // fills the box, and an illumina multi middle button's lone untinted piece (its 1px
+            // button_etch_center along the bottom) covered the whole button and hid its face. Such
+            // a piece is placed as the rest are, below.
             var asset = AssetName(stem);
 
             sprites[asset] = CutPiece(sheet, rest[0]);
@@ -808,10 +829,7 @@ internal static partial class SkinArt
             rest.Count == 1
             && rest[0].H == SkinScale.Strech
             && rest[0].V == SkinScale.Strech
-            && rest[0].At.X == 0
-            && rest[0].At.Y == 0
-            && rest[0].At.Width == width
-            && rest[0].At.Height == height
+            && CoversSkin(rest[0], state)
         )
         {
             var asset = AssetName(stem);
