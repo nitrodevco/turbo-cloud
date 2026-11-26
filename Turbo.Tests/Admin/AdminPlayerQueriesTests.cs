@@ -173,25 +173,22 @@ public sealed class AdminPlayerQueriesTests : IDisposable
             .Players.Select(x => x.Name)
             .Should()
             .Equal("alice", "moderator", "bob_100%", "Carol");
-        result.Players[0].RoomsOwned.Should().Be(2);
         result.Order.Should().Be(new ListOrder("seen", ListOrder.DESC));
     }
 
     [Fact]
     public async Task Players_SortByAnyColumnTheListShows_EitherWay()
     {
-        // Alice owns two rooms; the rest none, and tie by id.
-        (await Queries().SearchAsync("", PlayerSearchMode.Name, false, 1, "rooms", null, Ct))
+        // The list no longer shows the rooms a player owns, so it no longer sorts by them: asked
+        // for, that order reads as the list's default, most recently seen first.
+        var byRooms = await Queries()
+            .SearchAsync("", PlayerSearchMode.Name, false, 1, "rooms", null, Ct);
+
+        byRooms.Order.Should().Be(new ListOrder("seen", ListOrder.DESC));
+        byRooms
             .Players.Select(x => x.Name)
             .Should()
-            .Equal("alice", "moderator", "Carol", "bob_100%");
-        (
-            await Queries()
-                .SearchAsync("", PlayerSearchMode.Name, false, 1, "rooms", ListOrder.ASC, Ct)
-        )
-            .Players.Select(x => x.Name)
-            .Should()
-            .Equal("bob_100%", "Carol", "moderator", "alice");
+            .Equal("alice", "moderator", "bob_100%", "Carol");
 
         // Turned round, who never logged in counts as longest ago.
         (
@@ -432,6 +429,110 @@ public sealed class AdminPlayerQueriesTests : IDisposable
             .Should()
             .Equal(1, 2, 3, 4, 5);
     }
+
+    [Fact]
+    public async Task TheSanctionsLog_ListsEveryPlayersBansAndCautions_NewestFirst_WithWhoGaveThem()
+    {
+        // Alice's three bans come from the constructor: 1 holds, 2 ran out, 3 was lifted.
+        _db.Insert(
+            OtherSanction(4, BOB, SanctionKind.Caution, issuer: null, expiresAt: NOW.AddHours(-2))
+        );
+        _db.Insert(OtherSanction(5, 99, SanctionKind.Ban, issuer: MOD, expiresAt: null));
+
+        var log = await Sanctions().SearchAsync(null, null, null, 1, null, null, Ct);
+
+        log.Total.Should().Be(5);
+        log.Entries.Select(x => x.Id).Should().Equal(5, 4, 3, 2, 1);
+
+        var byId = log.Entries.ToDictionary(x => x.Id);
+
+        // A ban on a player who is gone still shows, by their id, and holds while it has no end.
+        byId[5].PlayerName.Should().BeNull();
+        byId[5].IsActive.Should().BeTrue();
+        // A caution from the console: no issuer, and over once given.
+        byId[4].PlayerName.Should().Be("bob_100%");
+        byId[4].Kind.Should().Be("Caution");
+        byId[4].IssuerId.Should().BeNull();
+        byId[4].IssuerName.Should().BeNull();
+        byId[4].IsActive.Should().BeFalse();
+        byId[3].RevokedByName.Should().Be("moderator");
+        byId[3].IsActive.Should().BeFalse();
+        byId[2].IsActive.Should().BeFalse();
+        byId[1].IssuerName.Should().Be("moderator");
+        byId[1].IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task TheSanctionsLog_IsNarrowedByPlayer_ByKind_AndByWhetherTheyHoldNow()
+    {
+        _db.Insert(
+            OtherSanction(4, BOB, SanctionKind.Caution, issuer: null, expiresAt: NOW.AddHours(-2))
+        );
+        _db.Insert(OtherSanction(5, CAROL, SanctionKind.Ban, issuer: MOD, expiresAt: null));
+
+        var sanctions = Sanctions();
+
+        async Task<int[]> IdsAsync(string? player, string? kind, bool? active) =>
+            [
+                .. (
+                    await sanctions.SearchAsync(player, kind, active, 1, null, null, Ct)
+                ).Entries.Select(x => x.Id),
+            ];
+
+        (await IdsAsync("ALICE", null, null)).Should().Equal(3, 2, 1);
+        (await IdsAsync(BOB.ToString(CultureInfo.InvariantCulture), null, null)).Should().Equal(4);
+        (await IdsAsync(null, "caution", null)).Should().Equal(4);
+        (await IdsAsync(null, "BAN", null)).Should().Equal(5, 3, 2, 1);
+        (await IdsAsync(null, null, true)).Should().Equal(5, 1);
+        (await IdsAsync(null, null, false)).Should().Equal(4, 3, 2);
+        (await IdsAsync("alice", null, true)).Should().Equal(1);
+        // A kind the log doesn't know reads as every kind, as a sort it doesn't know reads as its default.
+        (await IdsAsync(null, "warning", null)).Should().Equal(5, 4, 3, 2, 1);
+        (await IdsAsync("nobody", null, null)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task TheSanctionsLog_IsNumberedPages_NewestOrOldestFirst()
+    {
+        _db.Insert(OtherSanction(4, BOB, SanctionKind.Caution, issuer: null, expiresAt: NOW));
+        _db.Insert(OtherSanction(5, CAROL, SanctionKind.Ban, issuer: MOD, expiresAt: null));
+
+        var paged = Sanctions(pageSize: 2);
+        var second = await paged.SearchAsync(null, null, null, 2, null, null, Ct);
+
+        second.Total.Should().Be(5);
+        second.PageSize.Should().Be(2);
+        second.Entries.Select(x => x.Id).Should().Equal(3, 2);
+        // A page past the last is the last.
+        (await paged.SearchAsync(null, null, null, 9, null, null, Ct))
+            .Entries.Select(x => x.Id)
+            .Should()
+            .Equal(1);
+        (await Sanctions().SearchAsync(null, null, null, 1, "when", ListOrder.ASC, Ct))
+            .Entries.Select(x => x.Id)
+            .Should()
+            .Equal(1, 2, 3, 4, 5);
+    }
+
+    private AdminSanctions Sanctions(int pageSize = 100) =>
+        new(_db, Options.Create(new AdminConfig { SanctionsPageSize = pageSize }), _time);
+
+    private static PlayerSanctionEntity OtherSanction(
+        int id,
+        int playerId,
+        SanctionKind kind,
+        int? issuer,
+        DateTime? expiresAt
+    ) =>
+        new()
+        {
+            Id = id,
+            PlayerEntityId = playerId,
+            Kind = kind,
+            Reason = $"reason {id}",
+            IssuerEntityId = issuer,
+            ExpiresAt = expiresAt,
+        };
 
     private AdminRoomVisits Visits(int pageSize = 100) =>
         new(_db, Options.Create(new AdminConfig { RoomVisitsPageSize = pageSize }));

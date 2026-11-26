@@ -36,6 +36,7 @@
 - [Messages](#messages)
 - [Currency log](#currency-log)
 - [Room visits](#room-visits)
+- [Sanctions log](#sanctions-log)
 - [Permission editor](#permission-editor)
     - [Viewing as a group](#viewing-as-a-group)
 - [Who can make links for whom](#who-can-make-links-for-whom)
@@ -109,7 +110,7 @@ and show as tabs along its header:
 | World | **Assets** | Overview, Bundles (furniture, clothing, effects, pets), Publish: see [asset-bundles.md](asset-bundles.md) |
 | Appearance | **Themes** (all of a theme in one place: [plugin-data.md](plugin-data.md), "In the panel"), **Chat bubbles** | Themes: Theme studio, Themes, Template patches, Images, Texts, Windows & skins; Windows & skins: Windows, Skins; Texts: By window, By shown text |
 | Staff | **Access** | Groups, Players, Who has a node, Log, Nodes, Staff passkeys |
-| Staff | **Logs** | Command log, Chat log, Messages, Currency, Room visits, Permission log |
+| Staff | **Logs** | Command log, Chat log, Messages, Currency, Room visits, Sanctions, Permission log |
 | Server | **Settings**, **Database**, **Console** | |
 
 You only see the places and tabs you may open. The hotel's state (open, maintenance, shutting
@@ -577,28 +578,25 @@ Staff with `admin.players.view` get a **Players** page, for finding and looking 
 acting on them with the matching command permissions.
 
 - **Search** every player by part of their name (case ignored), by id, or by part of the
-  Discord username they sign in to the [public site](public-site.md) with. Players with a
-  Discord account have a **Discord** badge. Results come 25 to a page, most recently logged in first; players who have never logged in come last. **Online
+  Discord username they sign in to the [public site](public-site.md) with. Results come 25 to a page, most recently logged in first; players who have never logged in come last. **Online
   only** shows just the players connected right now. The page also says how many are online.
-- **A player's page** (`/players/<id>`) is laid out as a room's page is. Its header, on both
-  tabs, has their head and name, their id, when they joined and their motto, whether they are
-  online and where, and buttons to the chat log narrowed to them and to their permissions (for
-  staff who may open each). Its tabs:
+- **A player's page** (`/players/<id>`) is laid out as a room's page is. Its header, on every
+  tab, has their head and name, their id and when they joined, and a button to their permissions
+  (for staff who may open them). Its tabs:
   - **Overview**: the answer to the last action on them; four figures at a glance (online or when
-    last seen, respect, rooms owned, and sanctions, red or amber while one holds); their balances,
-    a tile each, with one row under them to give or take an amount of any of them; a card of tabs:
-    their sanctions, newest first (active, ended or lifted, why, by whom, and until when), the rooms
-    they own (with a link to the Rooms page searched by owner id) and the rooms they went into
-    lately (with a link to the Room visits log). Beside these are the **Player controls**, their
-    profile (what holds on them now, the room they are in or when they last logged in, motto, when
-    they joined, gender, figure), and links to the Currency log, Chat log, Messages and Command log
-    narrowed to them, each for staff who may open it. On a phone the controls come first.
+    last seen, with a link to the room they are in; respect; their rooms, with a link to the Rooms
+    page searched by owner id; and sanctions, red or amber while one holds); their balances, a tile
+    each, with one row under them to give or take an amount of any of them; and a tile each for
+    the Command log, Chat log, Messages, Currency log, Room visits and [Sanctions](#sanctions-log)
+    logs narrowed to them, for staff who may open each. Beside these are the **Player controls**;
+    on a phone they come first.
   - **Inventory**: how much furniture they have in their inventory and placed in rooms, their
     badges, pets and bots; their furniture by kind and their badges (worn ones first), each with
     a filter, an **Add** button, and on each badge a button to take it.
-  - **Account**: their [login ticket](#login-tickets) and [Discord account](#discord-accounts),
-    side by side. The tab is there when it has something for you: a ticket you may issue, or a
-    Discord account.
+  - **Account**: their profile (what holds on them now, the room they are in or when they last
+    logged in, motto, when they joined, gender, figure) beside their
+    [login ticket](#login-tickets), for staff who may issue one, and their
+    [Discord account](#discord-accounts), when they have one.
 - People in a room link to their player pages.
 
 Looking at a player starts nothing for them: who is online comes from the open sessions, and only
@@ -1246,12 +1244,28 @@ recording was on are not there.
 
 Staff with `admin.players.view` get a **Room visits** page under Logs: who went into which room,
 newest first, from the entry log the navigator's history keeps. Narrow it to one player (exact
-name or id) or one room (by id). A player's **Visits** tab and a room's **Visitors** tab each show the
-latest of their own visits and link to the rest.
+name or id) or one room (by id). A room's **Visitors** tab shows its latest visits and links to the
+rest, and a player's overview links to theirs.
 
 Like the chat log, the page goes a page at a time (`RoomVisitsPageSize`) and counts at most 10,000
 visits: the log grows with every room entered. It sorts by when and by room id, both of which its
 indexes keep in order. A player or room that is gone shows by its id.
+
+## Sanctions log
+
+Staff with `admin.players.view` get a **Sanctions** page under Logs (`/logs/sanctions`): every ban
+and caution the hotel has given, newest first, from `player_sanctions` (`GET /api/sanctions`). Each
+says on whom, why, who gave it (or the console), until when or for good, whether it was lifted and
+by whom, and whether it holds now. Narrow it to one player (exact name or id), to bans or cautions,
+and to those in force now or those that are over. A player's overview links to theirs. A mute and a
+trade lock are not sanctions: they are permission changes, in the Permission log.
+
+It goes a page at a time (`SanctionsPageSize`) and counts as the other logs do. It sorts by when
+only. A player or staff member who is gone shows by their id.
+
+The logs' pages are all under `/logs/` (`/logs/command-log`, `/logs/chat-log`, `/logs/messages`,
+`/logs/currency-log`, `/logs/room-visits`, `/logs/sanctions`, `/logs/permission-log`), and `/logs`
+opens the first one you may see.
 
 ## Permission editor
 
@@ -1359,7 +1373,7 @@ passkey; they add more while signed in instead.
 | `admin.passkeys.reset` | Making setup and reset links for other players (Access → Staff passkeys, `:adminsetup <name>`), within the rule above. |
 | `admin.rooms.view` | The Rooms page: finding any room and seeing its settings, who is inside, rights and bans. |
 | `admin.rooms.transfer` | With `admin.rooms.view`: giving any room to another player. |
-| `admin.players.view` | The Players page: finding any player and seeing their profile, wallet, rooms and sanctions; and the Room visits log. |
+| `admin.players.view` | The Players page: finding any player and seeing their profile, wallet, rooms and sanctions; and the Room visits and Sanctions logs. |
 | `admin.approvals.view` | The Approvals page: what plugins, AI agents and MCP tools asked to do and wait for a yes, and what became of each. Deciding one needs its own node as well (`approvals.decide` unless it names another). |
 | `admin.commandlog.view` | The Command log page: every logged command, who ran it, where from, and how it went. |
 | `admin.chatlog.view` | The Chat log page: what players said in rooms, whispers included, and each line in context. |
@@ -1762,6 +1776,7 @@ them.
 | `CommandLogPageSize` | `50` | | Entries per page on the Command log page. |
 | `ChatlogPageSize` | `100` | | Lines per page on the Chat log page; a line in context shows half as many on each side. |
 | `RoomVisitsPageSize` | `100` | | Visits per page on the Room visits page. |
+| `SanctionsPageSize` | `50` | | Bans and cautions per page on the Sanctions page. |
 | `ReportsPageSize` | `50` | | Reports per page on the Reports page. |
 | `JobWaitSeconds` | `3` | | How long a request for long work (a catalog reset, rollback, import, generate or publish) waits before it answers `202` and the panel asks after it at `GET /api/jobs/{id}`. Keep it well under the proxy's timeout. |
 | `JobKeepMinutes` | `30` | | How long a finished job's answer is kept for whoever started it. |

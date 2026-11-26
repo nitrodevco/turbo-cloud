@@ -78,6 +78,9 @@ public sealed class AdminConfig
     /// <summary>Visits per page in the panel's room visits log.</summary>
     public int RoomVisitsPageSize { get; init; } = 100;
 
+    /// <summary>Bans and cautions per page in the panel's sanctions log.</summary>
+    public int SanctionsPageSize { get; init; } = 50;
+
     /// <summary>Changes per page in the panel's currency log.</summary>
     public int CurrencyLogPageSize { get; init; } = 100;
 

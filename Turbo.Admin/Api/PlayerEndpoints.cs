@@ -18,11 +18,14 @@ namespace Turbo.Admin.Api;
 /// Finding and looking at players, for staff with <c>admin.players.view</c>, and acting on them.
 /// An action (ban, silence, warn, give, ...) is the hotel's own operator command, written by
 /// <see cref="PlayerActionLine"/> and run as the staff member through <see cref="PanelCommands"/>:
-/// their command node, the command's guards, its notices and the command log, as in game.
+/// their command node, the command's guards, its notices and the command log, as in game. The
+/// sanctions log, every player's bans and cautions, is here too: it is what a player's page says
+/// about them, for every player, under the same node.
 /// </summary>
 internal sealed class PlayerEndpoints(
     IGrainFactory grainFactory,
     AdminPlayerQueries players,
+    AdminSanctions sanctions,
     ICommandRegistryProvider registryProvider,
     IOperatorCommandRunner runner
 )
@@ -42,7 +45,26 @@ internal sealed class PlayerEndpoints(
         group
             .MapPost("/{id:int}/actions", ActAsync)
             .ChecksInHandler("Each action runs as its command, which checks its own node.");
+
+        secured
+            .MapGet("/sanctions", SanctionsAsync)
+            .RequirePermission(PermissionNodes.Admin.PLAYERS_VIEW, NO_ACCESS);
     }
+
+    private async Task<IResult> SanctionsAsync(
+        string? player,
+        string? kind,
+        bool? active,
+        int? page,
+        string? sort,
+        string? dir,
+        CancellationToken ct
+    ) =>
+        Results.Ok(
+            await sanctions
+                .SearchAsync(player, kind, active, page ?? 1, sort, dir, ct)
+                .ConfigureAwait(false)
+        );
 
     private async Task<IResult> AbilitiesAsync(HttpContext http, CancellationToken ct)
     {

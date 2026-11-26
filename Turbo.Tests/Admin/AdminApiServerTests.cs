@@ -287,6 +287,7 @@ public sealed class AdminApiServerTests : IDisposable
         services.AddSingleton<Turbo.Admin.Telemetry.AdminClientTelemetry>();
         services.AddSingleton<AdminRoomEditor>();
         services.AddSingleton<AdminPlayerQueries>();
+        services.AddSingleton<AdminSanctions>();
         services.AddSingleton<AdminTicketPolicy>();
         services.AddSingleton<AdminSiteAccounts>();
         services.AddSingleton<AdminCommandLogQueries>();

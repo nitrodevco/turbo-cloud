@@ -48,6 +48,7 @@ public sealed class AdminModule : IHostPluginModule
         services.AddSingleton<AdminClientTelemetry>();
         services.AddSingleton<AdminRoomEditor>();
         services.AddSingleton<AdminPlayerQueries>();
+        services.AddSingleton<AdminSanctions>();
         services.AddSingleton<AdminTicketPolicy>();
         services.AddSingleton<AdminSiteAccounts>();
         services.AddSingleton<AdminCommandLogQueries>();

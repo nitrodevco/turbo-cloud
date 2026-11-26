@@ -40,12 +40,11 @@ public sealed class AdminPlayerQueries(
 
     /// <summary>
     /// The columns the list sorts by: when they were last seen (who never logged in counts as
-    /// longest ago), their name, the rooms they own and when they joined.
+    /// longest ago), their name and when they joined.
     /// </summary>
     private static readonly ListSorts<PlayerEntity> SORTS = new ListSorts<PlayerEntity>()
         .Add("seen", ListOrder.DESC, x => x.LastLoginAt != null, x => x.LastLoginAt, x => x.Id)
         .Add("name", ListOrder.ASC, x => x.Name, x => x.Id)
-        .Add("rooms", ListOrder.DESC, x => x.Rooms!.Count, x => x.Id)
         .Add("joined", ListOrder.DESC, x => x.CreatedAt, x => x.Id);
 
     public async Task<PlayerListResponse> SearchAsync(
@@ -119,7 +118,6 @@ public sealed class AdminPlayerQueries(
                 x.Motto,
                 x.LastLoginAt,
                 x.CreatedAt,
-                RoomsOwned = x.Rooms!.Count,
                 DiscordUsername = db
                     .PlayerDiscordLinks.Where(l => l.PlayerEntityId == x.Id)
                     .Select(l => l.DiscordUsername)
@@ -143,7 +141,6 @@ public sealed class AdminPlayerQueries(
                     online.Contains(x.Id),
                     x.LastLoginAt,
                     x.CreatedAt,
-                    x.RoomsOwned,
                     x.DiscordUsername
                 )),
             ]

@@ -11,6 +11,5 @@ public sealed record PlayerListItem(
     bool IsOnline,
     DateTime? LastLoginUtc,
     DateTime JoinedUtc,
-    int RoomsOwned,
     string? DiscordUsername
 );
