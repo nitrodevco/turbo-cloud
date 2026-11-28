@@ -14,6 +14,12 @@ configuration, asset discovery and jobs, themes, and AI continuations.
 - Hand-item catalogues read locally stored client actions, figure assets and imported texts.
   Keep server hand-item IDs distinct from sprite-part IDs. Vending edits preserve unrelated
   extra-data sections and custom IDs, and use the definition history rather than direct writes.
+- **A figure asset's name carries its part type**:
+  `h_<action>_<part type>_<part id>_<direction>_<frame>`, so a carried item is `h_crr_ri_317_2_0`.
+  The catalogue once looked for `h_crr_317_…`, and its test fixture used the same made-up name, so
+  the tests passed while every real hand item showed "Asset missing". A fixture for client art is
+  named as a real bundle names it: open one (`assets/bundled/figures/hh_human_item.nitro` is a
+  zip) before writing it.
 - Furniture import applies known vending defaults only while creating floor definitions assigned
   the vending logic. Preserve existing server fields and keep historical migration seed data frozen.
 - Vending repairs require an explicit versioned preview selection. Revalidate after beginning the

@@ -52,9 +52,15 @@ internal sealed class HandItemPreview
     public bool Contains(string definition, int part) =>
         _sheet is not null && _frames is not null && Asset(definition, part) is not null;
 
+    /// <summary>
+    /// The art of a carried part, named as the client names a figure asset:
+    /// <c>h_&lt;action&gt;_&lt;part type&gt;_&lt;part id&gt;_&lt;direction&gt;_&lt;frame&gt;</c>,
+    /// facing the room's way (2) when it is drawn so.
+    /// </summary>
     private string? Asset(string definition, int part)
     {
-        var prefix = "h_" + definition + "_" + part.ToString(CultureInfo.InvariantCulture) + "_";
+        var prefix =
+            $"h_{definition}_{HandItemCatalog.CARRIED_PART}_{part.ToString(CultureInfo.InvariantCulture)}_";
         var preferred = prefix + "2_0";
         return _assets.ContainsKey(preferred)
             ? preferred

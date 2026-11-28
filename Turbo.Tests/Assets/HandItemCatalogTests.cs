@@ -187,11 +187,11 @@ public sealed class HandItemCatalogTests : IDisposable
     private Task Figure(bool alias = false, bool manifestAlias = false)
     {
         var asset = alias
-            ? """{"name":"h_crr_311_2_0","source":"original","flipH":true},{"name":"original"}"""
-            : """{"name":"h_crr_311_2_0"}""";
-        var frameName = alias ? "original" : "h_crr_311_2_0";
+            ? """{"name":"h_crr_ri_311_2_0","source":"original","flipH":true},{"name":"original"}"""
+            : """{"name":"h_crr_ri_311_2_0"}""";
+        var frameName = alias ? "original" : "h_crr_ri_311_2_0";
         var data = manifestAlias
-            ? """{"assets":[{"name":"original"}],"aliases":[{"name":"h_crr_311_2_0","link":"original","flipH":true}]}"""
+            ? """{"assets":[{"name":"original"}],"aliases":[{"name":"h_crr_ri_311_2_0","link":"original","flipH":true}]}"""
             : "{\"assets\":[" + asset + "]}";
         return Save(
             AssetBundleKind.Figure,

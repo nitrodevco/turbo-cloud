@@ -32,6 +32,12 @@ internal sealed class HandItemCatalog(
 ) : IHandItemCatalog
 {
     private const string ACTION_LIBRARY = "habbo-avatar-render-lib";
+
+    /// <summary>
+    /// The figure part type of a carried item (the right hand's item), as a figure map and an
+    /// asset's name spell it.
+    /// </summary>
+    internal const string CARRIED_PART = "ri";
     private readonly SemaphoreSlim _gate = new(1, 1);
     private string? _signature;
     private ImmutableArray<HandItemSnapshot> _items = [];
@@ -282,7 +288,7 @@ internal sealed class HandItemCatalog(
                 ? []
                 : (JsonNode.Parse(row.MapEntries) as JsonArray)
                     ?.OfType<JsonObject>()
-                    .Where(x => Text(x["type"]) == "ri")
+                    .Where(x => Text(x["type"]) == CARRIED_PART)
                     .Select(x => Positive(x["id"]))
                     .OfType<int>()
                     .ToHashSet()
