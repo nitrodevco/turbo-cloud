@@ -97,6 +97,15 @@ internal sealed class GamedataEndpoints(
                 );
             }
         });
+        // Streamed from its file, which the result closes when it is sent.
+        group.MapGet("/habbo/client/releases/{version}/file", (string version) =>
+            client.OpenRelease(version) is { } asar
+                ? Results.File(asar, "application/octet-stream", $"habbo-client-{version}.asar")
+                : AdminResults.Error(
+                    StatusCodes.Status404NotFound,
+                    "There is no such release, or it is downloading."
+                )
+        );
         group.MapDelete(
             "/habbo/client/releases/{version}",
             async (string version, HttpContext http, CancellationToken ct) =>

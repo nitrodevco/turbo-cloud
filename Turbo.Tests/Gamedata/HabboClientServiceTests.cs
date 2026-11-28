@@ -99,6 +99,40 @@ public sealed class HabboClientServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_release_kept_is_opened_whole_to_download_and_one_not_kept_is_not()
+    {
+        var asar = TestClientRelease.Asar(
+            ("release-manifest.json", TestClientRelease.Manifest(TestClientRelease.VERSION))
+        );
+
+        _habbo.Serve(
+            "https://sandbox.habbo.com/gamedata/clienturls",
+            $$"""{"html-windows-version":"{{TestClientRelease.VERSION}}","html-windows":"{{LISTING}}"}"""
+        );
+        _habbo.Serve(LISTING, TestClientRelease.Listing(asar));
+        _habbo.Serve(ASAR, asar);
+
+        var client = Client();
+
+        await client.CheckAsync(wait: true, Ct);
+
+        using (var file = client.OpenRelease(TestClientRelease.VERSION))
+        {
+            using var copy = new MemoryStream();
+
+            await file!.CopyToAsync(copy, Ct);
+            copy.ToArray().Should().Equal(asar);
+        }
+
+        client.OpenRelease("96_classic-js-x").Should().BeNull();
+        // A name that is no release's is not looked for on disk.
+        client.OpenRelease("../environments.json").Should().BeNull();
+
+        (await client.ForgetAsync(TestClientRelease.VERSION, Ct)).Should().BeTrue();
+        client.OpenRelease(TestClientRelease.VERSION).Should().BeNull();
+    }
+
+    [Fact]
     public async Task A_release_that_is_not_what_its_listing_says_is_not_kept_and_says_why()
     {
         var asar = TestClientRelease.Asar(

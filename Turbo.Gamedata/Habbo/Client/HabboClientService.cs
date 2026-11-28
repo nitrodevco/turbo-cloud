@@ -247,6 +247,34 @@ internal sealed partial class HabboClientService(
         return true;
     }
 
+    public Stream? OpenRelease(string version)
+    {
+        if (
+            !IsVersion(version)
+            || _downloading.ContainsKey(version)
+            || ReadRelease(version) is null
+        )
+            return null;
+
+        try
+        {
+            // Shared for deleting too: a release forgotten or pruned while it is sent goes on being sent.
+            return new FileStream(
+                Path.Combine(ReleasesRoot, version, ASAR_FILE),
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read | FileShare.Delete,
+                81920,
+                useAsync: true
+            );
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            // Forgotten between the look and the opening.
+            return null;
+        }
+    }
+
     /// <summary>The release the hotel builds from - the followed environment's - opened; null when none is downloaded.</summary>
     public async Task<HabboClientRelease?> OpenFollowedAsync(CancellationToken ct)
     {

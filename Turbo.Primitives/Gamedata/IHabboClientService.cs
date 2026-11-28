@@ -1,3 +1,4 @@
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Gamedata.Snapshots;
@@ -23,4 +24,10 @@ public interface IHabboClientService
 
     /// <summary>Forgets a downloaded release; false when there is none of that version, or it is downloading.</summary>
     public Task<bool> ForgetAsync(string version, CancellationToken ct);
+
+    /// <summary>
+    /// A downloaded release's <c>app.asar</c>, opened to be sent whole; null when there is none of
+    /// that version, or it is downloading. The caller closes it.
+    /// </summary>
+    public Stream? OpenRelease(string version);
 }
