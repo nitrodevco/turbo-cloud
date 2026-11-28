@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -23,7 +24,7 @@ namespace Turbo.Admin.Media;
 
 /// <summary>
 /// One index of every image the hotel can show (<c>docs/media-library.md</c>), whatever keeps it:
-/// the client's image library (<c>c_images</c>) and the catalog's and furniture's pictures
+/// the client's image library (<c>c_images</c>) and the catalog's pictures and icons
 /// in the asset folder (each from Habbo, an upload or put there by hand), the client's own images
 /// (the window manager's, which notices name), and each plugin's <c>wwwroot/styles/</c> images.
 /// Each image says what each kind of field stores to show it, and where the hotel shows it:
@@ -34,7 +35,6 @@ namespace Turbo.Admin.Media;
 public sealed class MediaLibrary(
     IDbContextFactory<TurboDbContext> database,
     IAssetBundleStore store,
-    AdminCatalogImages catalogImages,
     TimeProvider time,
     ILogger<MediaLibrary> logger,
     ClientAssets? addresses = null,
@@ -51,8 +51,11 @@ public sealed class MediaLibrary(
     /// <summary>The folder under the image library an upload goes to when none is chosen.</summary>
     public const string UPLOAD_FOLDER = "uploads";
 
-    /// <summary>The kind an upload names to be a catalog picture (<c>images/catalog</c>) rather than a library image.</summary>
+    /// <summary>The kind of a catalog picture (<c>images/catalog</c>, and the image library's <c>catalogue/</c>).</summary>
     public const string KIND_CATALOG_PICTURE = "catalogue-picture";
+
+    /// <summary>The kind of a catalog page's icon (<c>images/catalog-icons</c>).</summary>
+    public const string KIND_CATALOG_ICON = "catalogue-icon";
 
     public const string SOURCE_LIBRARY = "library";
     public const string SOURCE_ASSETS = "assets";
@@ -78,10 +81,14 @@ public sealed class MediaLibrary(
         (AssetBundleKind.LibraryImage, "library"),
         (AssetBundleKind.CatalogImage, "catalog"),
         (AssetBundleKind.CatalogIcon, "catalog-icon"),
-        (AssetBundleKind.FurniIcon, "furni-icon"),
     ];
 
     private readonly ConcurrentDictionary<string, (long, DateTime, (int, int)?)> _sizes = new();
+    private static readonly StringComparer PathOrder = StringComparer.Create(
+        CultureInfo.InvariantCulture,
+        CompareOptions.IgnoreCase | CompareOptions.NumericOrdering
+    );
+
     private readonly SemaphoreSlim _tagsLock = new(1, 1);
     private Index? _index;
 
@@ -100,6 +107,10 @@ public sealed class MediaLibrary(
                     || x.Tags.Any(tag => tag.Contains(word, StringComparison.OrdinalIgnoreCase))
                     || (x.SourceDetail?.Contains(word, StringComparison.OrdinalIgnoreCase) ?? false)
                 )
+            )
+            .Where(x =>
+                query.Catalog
+                || x.StoreKind is not (AssetBundleKind.CatalogImage or AssetBundleKind.CatalogIcon)
             )
             .ToList();
         var facets = new MediaFacets(Count(found, x => x.Kind), Count(found, x => x.Source));
@@ -134,7 +145,8 @@ public sealed class MediaLibrary(
             "modified" => found.OrderBy(x => x.Modified ?? DateTime.MinValue),
             "size" => found.OrderBy(x => x.Bytes),
             "used" => found.OrderBy(x => index.UsesOf(x.Id).Count),
-            _ => found.OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase),
+            // By the numbers in a path, so icon_2 comes before icon_10.
+            _ => found.OrderBy(x => x.Path, PathOrder),
         };
 
         if (query.Descending)
@@ -179,14 +191,14 @@ public sealed class MediaLibrary(
 
     /// <summary>
     /// Keeps each file in the image library's <paramref name="folder"/> (<see cref="UPLOAD_FOLDER"/>
-    /// when none), or as a catalog picture for <see cref="KIND_CATALOG_PICTURE"/>, recorded so a
-    /// publish sends it; a file that is no PNG, GIF, JPEG or WebP of its name's type, too large or
-    /// badly named is refused with why, and the rest kept.
+    /// when none), recorded so a publish sends it; a file that is no PNG, GIF, JPEG or WebP of its
+    /// name's type, too large or badly named is refused with why, and the rest kept. The catalog's
+    /// pictures and icons are not uploaded here: <see cref="AdminCatalogImages.UploadAsync"/> and
+    /// <see cref="UploadCatalogIconAsync"/> take those, under the catalog's own permission.
     /// </summary>
     public async Task<MediaUploadResponse> UploadAsync(
         IReadOnlyList<(string FileName, byte[] Data)> files,
         string? folder,
-        string? kind,
         PlayerId player,
         CancellationToken ct
     )
@@ -210,22 +222,6 @@ public sealed class MediaLibrary(
 
             try
             {
-                if (
-                    string.Equals(
-                        kind?.Trim(),
-                        KIND_CATALOG_PICTURE,
-                        StringComparison.OrdinalIgnoreCase
-                    )
-                )
-                {
-                    var picture = await catalogImages
-                        .UploadAsync(null, name, data, player, ct)
-                        .ConfigureAwait(false);
-
-                    kept.Add($"catalog:{picture.File}");
-                    continue;
-                }
-
                 var path = $"{under}/{name}";
 
                 if (!store.IsValidName(AssetBundleKind.LibraryImage, path))
@@ -266,6 +262,38 @@ public sealed class MediaLibrary(
             ],
             refused
         );
+    }
+
+    /// <summary>
+    /// Keeps a PNG as the catalog icon of a number (<c>icon_&lt;n&gt;.png</c>), replacing the one it
+    /// has, recorded so a publish sends it. Answers the icon, or why the file is refused.
+    /// </summary>
+    public async Task<(MediaImage? Icon, string? Error)> UploadCatalogIconAsync(
+        int number,
+        byte[] data,
+        PlayerId player,
+        CancellationToken ct
+    )
+    {
+        if (number <= 0)
+            return (null, "An icon's number is 1 or more.");
+
+        var name = CatalogIconFile(number);
+
+        if (Problem(name, data) is { } why)
+            return (null, why);
+
+        await KeepAsync(AssetBundleKind.CatalogIcon, name, data, ct).ConfigureAwait(false);
+
+        logger.LogInformation("Player {PlayerId} uploaded the catalog icon {Name}", player, name);
+
+        _index = null;
+
+        var index = await IndexAsync(ct).ConfigureAwait(false);
+
+        return index.Find(CatalogIconId(number)) is { } entry
+            ? (ImageOf(entry, index, withUses: false), null)
+            : (null, "The icon was not kept.");
     }
 
     /// <summary>Renames an image (its folder kept) and sets its tags; see <see cref="MediaEditOutcome"/>.</summary>
@@ -340,10 +368,31 @@ public sealed class MediaLibrary(
             : MediaEditOutcome.Missing;
     }
 
-    /// <summary>Deletes an image the asset folder keeps, unless anything shows it; see <see cref="MediaEditOutcome"/>.</summary>
-    public async Task<MediaEditOutcome> DeleteAsync(
+    /// <summary>
+    /// Deletes an image the asset folder keeps, unless anything shows it; see
+    /// <see cref="MediaEditOutcome"/>. The catalog's pictures and icons are refused: those are
+    /// deleted under the catalog's own permission (<see cref="DeleteCatalogIconAsync"/>,
+    /// <see cref="AdminCatalogImages.DeleteAsync"/>).
+    /// </summary>
+    public Task<MediaEditOutcome> DeleteAsync(string id, PlayerId player, CancellationToken ct) =>
+        DeleteAsync(id, player, catalog: false, ct);
+
+    /// <summary>Deletes the catalog icon of a number, unless a page shows it.</summary>
+    public Task<MediaEditOutcome> DeleteCatalogIconAsync(
+        int number,
+        PlayerId player,
+        CancellationToken ct
+    ) => DeleteAsync(CatalogIconId(number), player, catalog: true, ct);
+
+    /// <summary>The id the index gives the catalog icon of a number.</summary>
+    public static string CatalogIconId(int number) => $"catalog-icon:{CatalogIconFile(number)}";
+
+    private static string CatalogIconFile(int number) => $"icon_{number}.png";
+
+    private async Task<MediaEditOutcome> DeleteAsync(
         string id,
         PlayerId player,
+        bool catalog,
         CancellationToken ct
     )
     {
@@ -357,6 +406,11 @@ public sealed class MediaLibrary(
                 entry.Source == SOURCE_PLUGIN
                     ? "A plugin's image is taken away on the plugin's Theme tab."
                     : "The client's own images come with the client."
+            );
+
+        if (!catalog && kind is (AssetBundleKind.CatalogImage or AssetBundleKind.CatalogIcon))
+            return MediaEditOutcome.Refused(
+                "The catalog's pictures and icons are deleted on Catalog > Images."
             );
 
         if (index.UsesOf(id) is { Count: > 0 } uses)
@@ -623,8 +677,7 @@ public sealed class MediaLibrary(
         kind switch
         {
             AssetBundleKind.CatalogImage => KIND_CATALOG_PICTURE,
-            AssetBundleKind.CatalogIcon => "catalogue-icon",
-            AssetBundleKind.FurniIcon => "furni-icon",
+            AssetBundleKind.CatalogIcon => KIND_CATALOG_ICON,
             _ => name.Split('/')[0].ToLowerInvariant() switch
             {
                 var top when top.StartsWith("web_promo", StringComparison.Ordinal) => "promo",
@@ -1272,7 +1325,11 @@ public sealed class MediaLibrary(
     }
 }
 
-/// <summary>A media library search (<see cref="MediaLibrary.SearchAsync"/>): every filter optional, lists comma separated.</summary>
+/// <summary>
+/// A media library search (<see cref="MediaLibrary.SearchAsync"/>): every filter optional, lists
+/// comma separated. <see cref="Catalog"/> false leaves out the asset folder's catalog pictures and
+/// icons, which Catalog > Images lists: they are not found and not counted.
+/// </summary>
 public sealed record MediaQuery(
     string? Text = null,
     string? Kind = null,
@@ -1286,7 +1343,8 @@ public sealed record MediaQuery(
     string? Sort = null,
     bool Descending = false,
     int Page = 0,
-    int Size = 60
+    int Size = 60,
+    bool Catalog = true
 );
 
 /// <summary>What a rename, tag or delete came to: done (with the image, for an edit), no such image, refused with why, or refused because these show it.</summary>

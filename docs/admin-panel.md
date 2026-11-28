@@ -961,7 +961,8 @@ that is recolorable (by its logic or its `*_recolorable` class) with its colours
 
 ### Catalog pictures
 
-The **Images** tab lists the catalog's pictures (the headers and teasers its pages show) as the files
+The **Images** tab has two sections, **Pictures** and **Icons**; the **Upload** button in the page's
+header uploads to the one shown. Pictures are the headers and teasers the pages show, as the files
 in `images/catalog` (`docs/asset-bundles.md`), however they got there, each with the pages that
 show it; **Not used** narrows it to those no page shows. Staff with `catalog.manage` upload a GIF or
 PNG (at most 4 MB), named as typed or as its file, written into the folder as `<name>.gif`, the file
@@ -971,6 +972,14 @@ picture is picked by typing, among the same list, drawn beside their names, or u
 `GET /api/catalog/images?q=&show=all|unused&page=&size=`
 and `GET /api/catalog/images/{name}/file` need `admin.catalog.view`; `POST /api/catalog/images`
 (a form with `file` and `name`) and `DELETE /api/catalog/images/{name}` need `catalog.manage`.
+
+Icons are the pictures beside the pages' names, the files in `images/catalog-icons`, each by the
+number a page stores for it (`icon_<n>.png`) and with the pages that show it; staff with
+`catalog.manage` upload a PNG under a number, replace one, or delete one no page shows.
+`GET /api/catalog/icons?q=&show=all|unused&page=&size=` (the media library's images,
+[media-library.md](media-library.md)) and `GET /api/catalog/icons/{number}/file` need
+`admin.catalog.view`; `POST /api/catalog/icons` (a form with `file` and `number`) and
+`DELETE /api/catalog/icons/{number}` (409 with the pages while one shows it) need `catalog.manage`.
 
 An import's plan names the headers and teasers its pages show that the hotel has no file of: the
 client shows nothing there until they are taken in. **Fetch from Habbo** takes just those in, as
@@ -1570,11 +1579,11 @@ for other previews to draw with too.
 
 ## Media library
 
-Gamedata > Media library finds any image the hotel can show (the image library, catalog pictures and
-icons, furniture icons, the client's own images, plugins' images), shows what a field stores
-for it and where it is shown, and takes uploads into the image library for the next publish. See
-[media-library.md](media-library.md). Badges' pictures are the Library's **Badges** tab instead: a
-page of them at a time, found by code, each opened to download or delete it.
+Gamedata > Media library finds the images the hotel can show (the image library, the client's own
+images, plugins' images), shows what a field stores for it and where it is shown, and takes uploads
+into the image library for the next publish. See [media-library.md](media-library.md). Badges'
+pictures are the Library's **Badges** tab instead: a page of them at a time, found by code, each
+opened to download or delete it. The catalog's pictures and icons are the Catalog's **Images** tab.
 
 ## Hotel view
 

@@ -67,6 +67,7 @@ internal sealed class MediaEndpoints(
         bool? desc,
         int? page,
         int? size,
+        bool? catalog,
         HttpContext http,
         CancellationToken ct
     ) =>
@@ -86,7 +87,8 @@ internal sealed class MediaEndpoints(
                         sort,
                         desc ?? false,
                         page ?? 0,
-                        size ?? 60
+                        size ?? 60,
+                        catalog ?? true
                     ),
                     ct
                 )
@@ -173,7 +175,7 @@ internal sealed class MediaEndpoints(
 
         var player = AdminIdentity.Of(http).PlayerId;
         var result = await media
-            .UploadAsync(files, form["folder"].ToString(), form["kind"].ToString(), player, ct)
+            .UploadAsync(files, form["folder"].ToString(), player, ct)
             .ConfigureAwait(false);
 
         await audit

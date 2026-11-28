@@ -14,16 +14,23 @@ the hotel can show, wherever it is kept, and where each one is shown. Staff find
 name, path or tag instead of typing an address, copy the value a field stores for it, and upload new
 ones. The admin API under `/api/media` serves the same index to the panel's image picker.
 
+The catalog's pictures and icons are in the index, so the picker finds them for a catalog page's
+fields, but the page does not list them (it asks with `catalog=false`): Catalog > Images does, in
+its Pictures and Icons sections.
+
 Badges are not in it: no field names a badge by its picture, and a hotel has thousands of them.
 Gamedata > Library > Badges lists their pictures a page at a time, found by code
 ([asset bundles](asset-bundles.md)).
+
+Furniture icons are not in it either: a publish draws them from each furniture's bundle, and no
+field names one. The furniture's own pages show them.
 
 ## What it lists
 
 | Source | Where it is | Id |
 | --- | --- | --- |
 | Image library (`library`) | the asset folder's `c_images/`, the folder `image.library.url` names: hotel view, notice and front page promo pictures (`web_promo/`, `web_promo_small/`, `reception/`, ...) | `library:web_promo/summer.png` |
-| Asset folder (`assets`, or `habbo` / `upload` by its record) | catalog pictures (`images/catalog`), catalog icons and furniture icons ([asset bundles](asset-bundles.md)) | `catalog:<file>`, `catalog-icon:icon_<n>.png`, `furni-icon:<file>` |
+| Asset folder (`assets`, or `habbo` / `upload` by its record) | catalog pictures (`images/catalog`) and catalog icons ([asset bundles](asset-bundles.md)) | `catalog:<file>`, `catalog-icon:icon_<n>.png` |
 | Client (`client`) | the PNGs of the `habbo-window-manager-com` template bundle, which a notice names without a `/` | `client:<name>` |
 | Plugin (`plugin`) | each plugin's `wwwroot/styles/` images, the hotel's own data plugin's among them ([plugin data](plugin-data.md)) | `plugin:<key>/styles/<file>` |
 
@@ -54,15 +61,18 @@ ending in the image's path all count.
 
 An image anything shows can't be deleted or renamed: the answer is 409 with the places
 (`{ message, usedOn }`), so staff change them first. The client's and plugins' images are not
-deleted here (a plugin's go on its Theme tab).
+deleted here (a plugin's go on its Theme tab), and nor are the catalog's pictures and icons, which
+Catalog > Images deletes under `catalog.manage`.
 
 ## Uploading
 
 Upload one or many images at once (drop them onto the page, or choose them): PNG, GIF, JPEG or WebP,
 each at most 4 MB and named for its type. They go into the image library's chosen folder
-(`c_images/<folder>/`), or into the catalog pictures, and are recorded like any asset, so the next
+(`c_images/<folder>/`) and are recorded like any asset, so the next
 [publish](asset-bundles.md#publishing) sends them where the client loads them. Players see them once
-the assets are published.
+the assets are published. The catalog's pictures and icons are uploaded on Catalog > Images, and
+pictures from a catalog page's own fields too, through the catalog's routes and `catalog.manage`
+([admin panel](admin-panel.md)); this API takes neither.
 
 Tags (lowercase, found by search) are kept in the asset folder's `.media/tags.json`, beside the
 images they name, so every server sharing the folder sees them; a publish does not send it.
@@ -74,9 +84,9 @@ as well, and each change goes to the command log as `media`.
 
 | Call | Answers |
 | --- | --- |
-| `GET /api/media?q=&kind=&source=&shape=&used=all\|used\|unused&minWidth=&maxWidth=&minHeight=&maxHeight=&sort=name\|modified\|size\|used&desc=&page=&size=` | `{ total, items, facets: { kinds, sources }, canManage }`; `kind`, `source` and `shape` take comma lists, `shape` keeps images that give that value (`relative`, `catalogpicture`, `catalogicon`, `clientimage`, `plugin`, `url`) |
+| `GET /api/media?q=&kind=&source=&shape=&used=all\|used\|unused&minWidth=&maxWidth=&minHeight=&maxHeight=&sort=name\|modified\|size\|used&desc=&page=&size=&catalog=` | `{ total, items, facets: { kinds, sources }, canManage }`; `kind`, `source` and `shape` take comma lists, `shape` keeps images that give that value (`relative`, `catalogpicture`, `catalogicon`, `clientimage`, `plugin`, `url`); `catalog=false` leaves the catalog's pictures and icons out, uncounted; paths sort by the numbers in them (`icon_2` before `icon_10`) |
 | `GET /api/media/item?id=` | one image with `usedOn` |
 | `GET /api/media/file?id=` | its bytes, before any publish |
-| `POST /api/media` (form: `files`, `folder`, `kind`) | `{ items, refused: [{ file, why }] }`; `kind=catalogue-picture` keeps them as catalog pictures |
+| `POST /api/media` (form: `files`, `folder`) | `{ items, refused: [{ file, why }] }`; into the image library only |
 | `PATCH /api/media/item?id=` `{ name?, tags? }` | the image; a rename keeps its folder and type |
-| `DELETE /api/media/item?id=` | 204, or 409 `{ message, usedOn }` |
+| `DELETE /api/media/item?id=` | 204, or 409 `{ message, usedOn }`; 400 for a catalog picture or icon |
