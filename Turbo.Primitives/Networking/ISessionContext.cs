@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Frozen;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using SuperSocket.Server.Abstractions.Session;
@@ -12,6 +14,14 @@ public interface ISessionContext : IAppSession
     public SessionKey SessionKey { get; }
     public bool PolicyDone { get; set; }
     public string RevisionId { get; }
+
+    /// <summary>
+    /// The features of Habbo's protocol this client named in its hello, of those the server
+    /// knows (<see cref="Features.ClientFeatures"/>); empty until then and for a client that
+    /// names none. The encoder picks a packet's layout by it. These are not Turbo's extension
+    /// capabilities, which the presence grain keeps.
+    /// </summary>
+    public FrozenSet<string> ClientFeatures { get; }
     public IRc4Engine? CryptoIn { get; }
     public IRc4Engine? CryptoOut { get; }
 
@@ -62,6 +72,12 @@ public interface ISessionContext : IAppSession
     public string? ServerCloseReason { get; }
 
     public void SetRevisionId(string revisionId);
+
+    /// <summary>
+    /// Replaces <see cref="ClientFeatures"/> with the names in <paramref name="advertised"/>
+    /// the server knows; any other name is ignored.
+    /// </summary>
+    public void SetClientFeatures(IEnumerable<string> advertised);
     public void SetupEncryption(byte[] key, bool setCryptoOut = false);
     public Task SendComposerAsync(IComposer composer, CancellationToken ct);
 }

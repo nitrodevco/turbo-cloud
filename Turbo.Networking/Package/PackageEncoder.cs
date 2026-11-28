@@ -1,11 +1,17 @@
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Collections.Frozen;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using SuperSocket.ProtoBase;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Networking.Extensions;
 using Turbo.Primitives.Networking.Revisions;
+using Turbo.Primitives.Packets;
 using Turbo.Primitives.Plugins.Messages;
 
 namespace Turbo.Networking.Package;
@@ -23,6 +29,13 @@ public sealed class PackageEncoder(
     private readonly ComposerPayloadCache _payloadCache = payloadCache;
     private readonly ILogger<PackageEncoder> _logger = logger;
     private readonly IPluginMessageDirectory? _pluginMessages = pluginMessages;
+
+    // Each revision's feature serializers by composer type, built the first time a session with
+    // a feature is written to: a send then costs one lookup, and only for such a session.
+    private readonly ConditionalWeakTable<
+        IRevision,
+        FrozenDictionary<Type, FeatureSerializer[]>
+    > _featureSerializers = [];
 
     public int Encode(IBufferWriter<byte> writer, OutgoingPackage pack) =>
         Encode(writer, pack.Session, pack.Composer);
@@ -103,9 +116,11 @@ public sealed class PackageEncoder(
 
         var composerType = composer.GetType();
 
-        // Core first; the plugin overlay is only asked about a type the revision lacks.
+        // A layout for a feature this session's client named in its hello comes first, then
+        // core; the plugin overlay is only asked about a type the revision lacks.
         if (
-            !revision.Serializers.TryGetValue(composerType, out var serializer)
+            !TryGetFeatureSerializer(session, revision, composerType, out var serializer)
+            && !revision.Serializers.TryGetValue(composerType, out serializer)
             && !_extensions.TryGetSerializer(composerType, out serializer!)
         )
         {
@@ -121,9 +136,66 @@ public sealed class PackageEncoder(
         if (_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("Outgoing {Composer}", composer);
 
-        // The cached bytes are shared by every recipient.
+        // The cached bytes are shared by every recipient this serializer writes for: the cache
+        // keys them by serializer as well as composer, so a feature's layout and the plain one
+        // are held apart.
         return _payloadCache.GetOrSerialize(serializer, composer);
     }
+
+    /// <summary>
+    /// The serializer of a protocol feature <paramref name="session"/>'s client named, when the
+    /// revision has one for <paramref name="composerType"/>. Of two features claiming one type,
+    /// the name that sorts first (ordinal) writes it.
+    /// </summary>
+    private bool TryGetFeatureSerializer(
+        ISessionContext session,
+        IRevision revision,
+        Type composerType,
+        [MaybeNullWhen(false)] out ISerializer serializer
+    )
+    {
+        var features = session.ClientFeatures;
+
+        if (
+            features.Count > 0
+            && _featureSerializers
+                .GetValue(revision, static x => IndexFeatureSerializers(x))
+                .TryGetValue(composerType, out var candidates)
+        )
+        {
+            foreach (var candidate in candidates)
+            {
+                if (!features.Contains(candidate.Feature))
+                    continue;
+
+                serializer = candidate.Serializer;
+
+                return true;
+            }
+        }
+
+        serializer = null;
+
+        return false;
+    }
+
+    private static FrozenDictionary<Type, FeatureSerializer[]> IndexFeatureSerializers(
+        IRevision revision
+    ) =>
+        revision
+            .FeatureSerializers.SelectMany(feature =>
+                feature.Value.Select(x =>
+                    (Type: x.Key, Entry: new FeatureSerializer(feature.Key, x.Value))
+                )
+            )
+            .GroupBy(x => x.Type)
+            .ToFrozenDictionary(
+                x => x.Key,
+                x =>
+                    x.Select(y => y.Entry).OrderBy(y => y.Feature, StringComparer.Ordinal).ToArray()
+            );
+
+    private readonly record struct FeatureSerializer(string Feature, ISerializer Serializer);
 
     // A plugin message is written already; it is framed here with the header its name has now,
     // and dropped when its plugin has gone since it was sent.

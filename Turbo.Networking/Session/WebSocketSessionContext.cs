@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,6 +39,7 @@ public class WebSocketSessionContext(
         set => _state.PolicyDone = value;
     }
     public string RevisionId => _state.RevisionId;
+    public FrozenSet<string> ClientFeatures => _state.ClientFeatures;
     public IRc4Engine? CryptoIn => _state.CryptoIn;
     public IRc4Engine? CryptoOut => _state.CryptoOut;
     public RoomId ActiveRoomId => _state.ActiveRoomId;
@@ -88,6 +90,9 @@ public class WebSocketSessionContext(
         );
 
     public void SetRevisionId(string revisionId) => _state.RevisionId = revisionId;
+
+    public void SetClientFeatures(IEnumerable<string> advertised) =>
+        _state.SetClientFeatures(advertised);
 
     public void SetupEncryption(byte[] key, bool setCryptoOut = false) =>
         _state.SetupEncryption(key, setCryptoOut);

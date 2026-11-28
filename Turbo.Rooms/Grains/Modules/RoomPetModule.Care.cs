@@ -88,6 +88,12 @@ public sealed partial class RoomPetModule
                 Respect = pet.Respect,
                 PetOwnerId = pet.OwnerId,
                 Pet = pet.GetPetSnapshot(),
+                Room = new PetRoomSnapshot
+                {
+                    RoomId = _roomGrain.RoomId,
+                    Name = State.RoomSnapshot.Name,
+                    Description = State.RoomSnapshot.Description,
+                },
             },
             ct
         );

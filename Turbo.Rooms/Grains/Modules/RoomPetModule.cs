@@ -369,23 +369,70 @@ public sealed partial class RoomPetModule(RoomGrain roomGrain) : RoomGrainCompon
             await BroadcastStatusAsync(pet, ct);
 
         if (name is not null && name != pet.Name)
-        {
-            pet.SetName(name);
-
-            await _roomGrain.SendComposerToRoomAsync(
-                new UserRemoveMessageComposer { ObjectId = pet.ObjectId },
-                ct
-            );
-            await _roomGrain.SendComposerToRoomAsync(
-                new UsersMessageComposer { Avatars = [pet.GetSnapshot()] },
-                ct
-            );
-        }
+            await ShowUnderNameAsync(pet, name, ct);
 
         Persist(pet);
         await SendInfoToOwnerAsync(pet, ct);
 
         return true;
+    }
+
+    /// <summary>
+    /// The owner renaming their pet standing here (the info stand's rename dialog, client build
+    /// 116 on), under the rules a name given in this room is held to. The client hides the
+    /// button for a dead monsterplant waiting to be revived, so that one is refused. The row is
+    /// written before the answer: the client asks for its pets tab again on success, and that
+    /// list reads a placed pet's row.
+    /// </summary>
+    public async Task<bool> RenamePetAsync(
+        ActionContext ctx,
+        int petId,
+        string name,
+        CancellationToken ct
+    )
+    {
+        if (!TryGetPet(petId, out var pet) || pet.OwnerId != ctx.PlayerId)
+            return false;
+
+        RefreshFlags(pet);
+
+        if (pet.IsMonsterplant && pet.CanRevive)
+            return false;
+
+        var status = PetNames.Validate(
+            name,
+            Config.NameMinLength,
+            Config.NameMaxLength,
+            _roomGrain._wordFilter
+        );
+
+        if (status != PetNameValidationType.Ok)
+            return false;
+
+        var approved = name.Trim();
+
+        if (approved != pet.Name)
+            await ShowUnderNameAsync(pet, approved, ct);
+
+        Persist(pet);
+        await PersistNowAsync(ct);
+
+        return true;
+    }
+
+    // The Users packet is the only carrier of a name, so the room sees the pet leave and arrive.
+    private async Task ShowUnderNameAsync(IRoomPet pet, string name, CancellationToken ct)
+    {
+        pet.SetName(name);
+
+        await _roomGrain.SendComposerToRoomAsync(
+            new UserRemoveMessageComposer { ObjectId = pet.ObjectId },
+            ct
+        );
+        await _roomGrain.SendComposerToRoomAsync(
+            new UsersMessageComposer { Avatars = [pet.GetSnapshot()] },
+            ct
+        );
     }
 
     /// <summary>

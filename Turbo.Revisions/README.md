@@ -33,6 +33,9 @@ When adding packet mappings in `Turbo.Revisions/Revision20260909`:
    - incoming: `Parsers` dictionary with `MessageEvent` key
    - outgoing: `Serializers` dictionary with composer type + `MessageComposer` id
 5. Ensure the required `using` directives are present in `Revision20260909.cs` for new parser/serializer namespaces.
+6. A layout only a client naming a protocol feature in its hello reads is a second serializer
+   for the same composer type, registered in `FeatureSerializers`; the one in `Serializers`
+   keeps writing what it wrote (`docs/client-features.md`).
 
 ## When adding protocol support
 1. Add parser(s) under `Parsers/<Domain>/`.

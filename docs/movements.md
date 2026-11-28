@@ -298,7 +298,7 @@ with none; custody only, no snapshot and no position).
 | create | `None` -> `Inventory` | `catalog.purchase` and the others of a catalogue offer (pets, then bots, then furni of one offer), `reward.track`, `product.claim`, `pet.breed`, `use.pet_package`, `use.monsterplant_seed` (after the used-up furni) |
 | check out | `Inventory` -> `Room` | `pet.place`, `bot.place`; a placement that fails gives it back under the placement's refund cause |
 | return | `Room` -> `Inventory` | `pet.pickup`, `bot.pickup`, `room.delete` |
-| delete | `Inventory` or `Room` -> `None` | `pet.compost`, `staff.delete_bot` (actor 0: the panel does not say who) |
+| delete | `Inventory` or `Room` -> `None` | `pet.compost`, `pet.retire` (after the credits it is charged, when the hotel prices it), `staff.delete_bot` (actor 0: the panel does not say who) |
 
 ## Trades
 

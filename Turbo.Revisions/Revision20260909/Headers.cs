@@ -235,6 +235,7 @@ internal static class MessageEvent
     public const int GetPetCommandsMessageEvent = 2778;
     public const int GetPetInfoMessageEvent = 781;
     public const int GetPetInventoryMessageEvent = 3281;
+    public const int GetPetRetirementPriceMessageEvent = 7700;
     public const int GetPopularRoomTagsMessageEvent = 3538;
     public const int GetProductOfferMessageEvent = 2108;
     public const int GetPromoArticlesMessageEvent = 2990;
@@ -420,6 +421,7 @@ internal static class MessageEvent
     public const int RemovePetFromFlatMessageEvent = 670;
     public const int RemoveRightsMessageEvent = 1998;
     public const int RemoveSaddleFromPetMessageEvent = 2732;
+    public const int RenamePetMessageEvent = 7702;
     public const int RenderRoomMessageEvent = 754;
     public const int RenderRoomThumbnailMessageEvent = 540;
     public const int RentableSpaceCancelRentMessageEvent = 3437;
@@ -437,6 +439,7 @@ internal static class MessageEvent
     public const int ResetUnseenItemsMessageEvent = 2723;
     public const int RespectPetMessageEvent = 3757;
     public const int RespectUserMessageEvent = 117;
+    public const int RetirePetMessageEvent = 7701;
     public const int RoomAdEventTabAdClickedMessageEvent = 2463;
     public const int RoomAdEventTabViewedMessageEvent = 33;
     public const int RoomAdPurchaseInitiatedMessageEvent = 1571;
@@ -994,8 +997,11 @@ internal static class MessageComposer
     public const int PetPlacingErrorMessageComposer = 2172;
     public const int PetReceivedMessageComposer = 355;
     public const int PetRemovedFromInventoryMessageComposer = 919;
+    public const int PetRenameResultMessageComposer = 7702;
     public const int PetRespectFailedMessageComposer = 3157;
     public const int PetRespectNotificationMessageComposer = 2316;
+    public const int PetRetirementPriceMessageComposer = 7700;
+    public const int PetRetirementResultMessageComposer = 7701;
     public const int PetStatusUpdateMessageComposer = 609;
     public const int PetSupplementedNotificationMessageComposer = 2201;
     public const int PhoneCollectionStateMessageComposer = 2151;

@@ -26,6 +26,9 @@ things the Habbo protocol cannot say; for those Turbo offers **extensions**, whi
 for by name. A client that never asks (the Flash client, any other port) never sends or receives
 an extension packet, so neither side depends on the other.
 
+These are not the features Habbo's own client names in its hello to be sent newer layouts of
+Habbo's packets; those are [client features](client-features.md).
+
 ## The exchange
 
 After `AuthenticationOK` the client may send:

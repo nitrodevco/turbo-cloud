@@ -302,18 +302,11 @@ internal static class FurnitureState
 
     /// <summary>
     /// The dimmer's own line: both emulators write <c>on,preset,background,#RRGGBB,brightness</c>
-    /// with 2 for yes and 1 for no.
+    /// with 2 for yes and 1 for no. A sixth part saying furni keep their lights is kept.
     /// </summary>
     private static string Dimmer(string raw) =>
-        Preset(raw) is { } preset
-            ? string.Join(
-                DimmerStates.SEPARATOR,
-                preset.Enabled ? DimmerStates.ON : DimmerStates.OFF,
-                preset.Id,
-                preset.Type,
-                preset.Color,
-                preset.Brightness
-            )
+        Preset(raw) is { } line
+            ? DimmerStates.Compose(line.Enabled ? DimmerStates.ON : DimmerStates.OFF, line.Preset)
             : $"{DimmerStates.OFF},1,{DimmerStates.EFFECT_ROOM},{DimmerStates.DEFAULT_COLOR},{DimmerStates.MAX_BRIGHTNESS}";
 
     /// <summary>The three presets Morningstar keeps on the room, as Turbo's dimmer section.</summary>
@@ -330,46 +323,43 @@ internal static class FurnitureState
             if (id > DimmerStates.PRESET_COUNT)
                 break;
 
-            if (Preset(entry) is not { } preset)
+            if (Preset(entry) is not { } line)
                 continue;
 
-            presets.Add(
-                new DimmerPresetSnapshot
-                {
-                    Id = id++,
-                    Type = preset.Type,
-                    Color = preset.Color,
-                    Brightness = preset.Brightness,
-                }
-            );
+            presets.Add(line.Preset with { Id = id++ });
         }
 
         return presets;
     }
 
-    private static (bool Enabled, int Id, int Type, string Color, int Brightness)? Preset(
-        string raw
-    )
+    // The client reads a line of five parts or more, so a sixth (furni keep their lights) is
+    // not a reason to drop one.
+    private static (bool Enabled, DimmerPresetSnapshot Preset)? Preset(string raw)
     {
         var parts = raw.Trim().Split(DimmerStates.SEPARATOR);
 
-        if (parts.Length != DimmerStates.FIELD_COUNT)
+        if (parts.Length < DimmerStates.FIELD_COUNT)
             return null;
 
         var color = parts[3].Trim().ToUpperInvariant();
 
         return (
             SourceText.Int(parts[0]) == DimmerStates.ON,
-            Math.Clamp(SourceText.Int(parts[1]), 1, DimmerStates.PRESET_COUNT),
-            SourceText.Int(parts[2]) == DimmerStates.EFFECT_BACKGROUND
-                ? DimmerStates.EFFECT_BACKGROUND
-                : DimmerStates.EFFECT_ROOM,
-            DimmerStates.IsValidColor(color) ? color : DimmerStates.DEFAULT_COLOR,
-            Math.Clamp(
-                SourceText.Int(parts[4]),
-                DimmerStates.MIN_BRIGHTNESS,
-                DimmerStates.MAX_BRIGHTNESS
-            )
+            new DimmerPresetSnapshot
+            {
+                Id = Math.Clamp(SourceText.Int(parts[1]), 1, DimmerStates.PRESET_COUNT),
+                Type =
+                    SourceText.Int(parts[2]) == DimmerStates.EFFECT_BACKGROUND
+                        ? DimmerStates.EFFECT_BACKGROUND
+                        : DimmerStates.EFFECT_ROOM,
+                Color = DimmerStates.IsValidColor(color) ? color : DimmerStates.DEFAULT_COLOR,
+                Brightness = Math.Clamp(
+                    SourceText.Int(parts[4]),
+                    DimmerStates.MIN_BRIGHTNESS,
+                    DimmerStates.MAX_BRIGHTNESS
+                ),
+                KeepFurnitureLights = DimmerStates.KeepsFurnitureLights(parts),
+            }
         );
     }
 

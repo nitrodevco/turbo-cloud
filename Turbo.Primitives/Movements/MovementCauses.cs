@@ -110,6 +110,7 @@ public static class MovementCauses
     public const string PET_PICKUP = "pet.pickup";
     public const string PET_UNSADDLE = "pet.unsaddle";
     public const string PET_COMPOST = "pet.compost";
+    public const string PET_RETIRE = "pet.retire";
     public const string BOT_PLACE = "bot.place";
     public const string BOT_PICKUP = "bot.pickup";
     public const string PRODUCT_CLAIM = "product.claim";

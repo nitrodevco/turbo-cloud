@@ -31,6 +31,7 @@ public class RoomDimmerSavePresetMessageHandler(IGrainFactory grainFactory)
                     Color = message.Color,
                     Brightness = message.Brightness,
                     Apply = message.Apply,
+                    KeepFurnitureLights = message.KeepFurnitureLights,
                 },
                 ct
             )

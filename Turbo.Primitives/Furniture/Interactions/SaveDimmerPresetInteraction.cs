@@ -20,4 +20,7 @@ public sealed record SaveDimmerPresetInteraction : FurnitureInteraction
 
     [Id(4)]
     public required bool Apply { get; init; }
+
+    [Id(5)]
+    public required bool KeepFurnitureLights { get; init; }
 }

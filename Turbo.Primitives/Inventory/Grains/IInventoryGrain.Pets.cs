@@ -13,6 +13,30 @@ public partial interface IInventoryGrain
     public Task SendPetInventoryAsync(CancellationToken ct);
 
     /// <summary>
+    /// The pets tab of a client naming
+    /// <see cref="Networking.Features.ClientFeatures.PET_INVENTORY_LOCATIONS"/>: the pets in the
+    /// inventory and, with the room each stands in, the player's pets placed in rooms.
+    /// </summary>
+    public Task SendPetInventoryWithLocationsAsync(CancellationToken ct);
+
+    /// <summary>Tells the player what retiring a pet costs (<c>PetRetirementCreditsPrice</c>).</summary>
+    public Task SendPetRetirementPriceAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Retires a pet in this inventory: the price is charged, the pet deleted for good, and the
+    /// player told the outcome. False, and nothing changed, when the pet is not in the inventory
+    /// (placed in a room, or not the player's) or the player cannot pay.
+    /// </summary>
+    public Task<bool> RetirePetAsync(int petId, CancellationToken ct);
+
+    /// <summary>
+    /// Renames a pet in this inventory, under the rules a bought pet's name is held to. False
+    /// when the name is refused or the pet is not in the inventory; a pet standing in a room is
+    /// renamed by the room (<c>IRoomGrain.RenamePetAsync</c>).
+    /// </summary>
+    public Task<bool> RenamePetAsync(int petId, string name, CancellationToken ct);
+
+    /// <summary>
     /// Tells the player whether a pet could be bought under this name: the same rules a pet
     /// purchase is held to, asked before the purchase is confirmed.
     /// </summary>

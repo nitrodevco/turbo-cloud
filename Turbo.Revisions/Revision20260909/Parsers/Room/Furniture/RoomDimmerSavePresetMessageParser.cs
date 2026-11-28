@@ -14,8 +14,9 @@ internal class RoomDimmerSavePresetMessageParser : IParser
         var brightness = packet.PopInt();
         var apply = packet.PopBoolean();
 
-        // The client always writes false here; nothing reads it.
-        packet.PopBoolean();
+        // Whether furni keep their own lights (build 116's RoomDimmerSavePresetMessageComposer);
+        // an older client always writes false here.
+        var keepFurnitureLights = packet.PopBoolean();
 
         return new RoomDimmerSavePresetMessage
         {
@@ -24,6 +25,7 @@ internal class RoomDimmerSavePresetMessageParser : IParser
             Color = color,
             Brightness = brightness,
             Apply = apply,
+            KeepFurnitureLights = keepFurnitureLights,
             ObjectId = packet.PopInt(),
         };
     }

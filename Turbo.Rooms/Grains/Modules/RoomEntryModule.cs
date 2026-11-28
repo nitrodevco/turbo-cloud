@@ -94,9 +94,18 @@ public sealed class RoomEntryModule(
             RoomDoorModeType.NoobLobby => await IsNewUserAsync(playerId)
                 ? RoomEntryAccessType.Allowed
                 : RoomEntryAccessType.NewUsersOnly,
+            RoomDoorModeType.FriendsOnly => await IsFriendOfOwnerAsync(playerId)
+                ? RoomEntryAccessType.Allowed
+                : RoomEntryAccessType.FriendsOnly,
             _ => RoomEntryAccessType.Allowed,
         };
     }
+
+    // The owner's messenger answers from memory and interleaved, and awaits nothing of a room.
+    private Task<bool> IsFriendOfOwnerAsync(PlayerId playerId) =>
+        GrainFactory
+            .GetPlayerMessengerGrain(State.RoomSnapshot.OwnerId)
+            .IsFriendAsync(playerId, CancellationToken.None);
 
     private async Task<bool> IsNewUserAsync(PlayerId playerId) =>
         onboarding is not null

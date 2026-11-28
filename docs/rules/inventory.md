@@ -21,6 +21,13 @@ Rules for inventory sections, unseen items, badges and trading.
   `InventoryUnitSection<T>`. The two modules were two hundred lines copied; a third kind of
   room-placed unit is a subclass, not a copy. (EF translates the interface-typed `Where`,
   `ExecuteUpdate` and `ExecuteDelete` in the base to plain column SQL; checked against MySQL.)
+- The pets tab of a client naming `pet_inventory_locations` is the one list that also holds what
+  is in a room (`SendPetInventoryWithLocationsAsync`): the placed pets are read from their rows
+  for that list alone and never join the section, and their rooms come from
+  `INavigatorService.GetRoomsByIdsAsync`, not from the room grains, which await the inventory
+  when a pet is placed (`docs/client-features.md`).
+- Retiring a pet (`InventoryPetModule.RetireAsync`) charges `PetRetirementCreditsPrice` before it
+  deletes, numbers the pet's movement after the charge's, and refunds when the delete fails.
 - Inventory items are built by `IInventoryFurnitureLoader` and nowhere else, so loaded, granted,
   picked-up and traded items read their extra data and stuff data the same way.
 - Tell the client once per change, not once per item: an addition is one "list changed", a

@@ -45,6 +45,14 @@ public class InventoryConfig
     public int PetNameMinLength { get; init; } = 1;
     public int PetNameMaxLength { get; init; } = 15;
 
+    /// <summary>
+    /// Credits a player is charged for sending a pet to retirement, which deletes it for good;
+    /// 0 makes it free. A player who cannot pay keeps the pet. The client shows the number in its
+    /// confirmation as "n credits" and does not say which way they go: here they are a charge,
+    /// never a payout.
+    /// </summary>
+    public int PetRetirementCreditsPrice { get; init; } = 0;
+
     /// <summary>Name given to a bot bought from the catalog when its product has none.</summary>
     public string BotDefaultName { get; init; } = "Bot";
     public string BotDefaultMotto { get; init; } = string.Empty;

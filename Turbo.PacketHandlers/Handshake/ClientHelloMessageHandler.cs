@@ -27,6 +27,7 @@ public class ClientHelloMessageHandler(IClientTelemetry telemetry)
         }
 
         ctx.SetRevisionId(message.Production);
+        ctx.SetClientFeatures(message.Features);
         _telemetry.RecordLoginStep(ctx.SessionKey, ctx.PlayerId, ClientLoginSteps.SOCKET_OK);
 
         await ValueTask.CompletedTask.ConfigureAwait(false);

@@ -19,7 +19,8 @@ namespace Turbo.Rooms.Object.Logic.Furniture.Wall;
 
 /// <summary>
 /// A moodlight. Its legacy data is <c>state,presetId,effectId,#RRGGBB,brightness</c> as the client
-/// renders it; the three presets live in the item's extra data under <see cref="DimmerPresetSnapshot.SECTION"/>.
+/// renders it, with <c>,true</c> after it when the preset keeps furni lights
+/// (<see cref="DimmerStates.Compose"/>); the three presets live in the item's extra data under <see cref="DimmerPresetSnapshot.SECTION"/>.
 /// Editing needs room rights, which is also when the client offers the editor. Every moodlight
 /// Habbo has hangs on the wall (furnidata <c>wallitemtypes</c>, category <c>dimmer</c>).
 /// </summary>
@@ -86,12 +87,15 @@ public class FurnitureDimmerLogic(IStuffDataFactory stuffDataFactory, IRoomWallI
             Type = save.EffectType,
             Color = save.Color.ToUpperInvariant(),
             Brightness = save.Brightness,
+            KeepFurnitureLights = save.KeepFurnitureLights,
         };
 
         _ctx.RoomObject.ExtraData.UpdateSection(DimmerPresetSnapshot.SECTION, presets);
 
         if (save.Apply)
-            await SetLegacyDataAsync(Compose(DimmerStates.ON, presets[save.PresetId - 1]));
+            await SetLegacyDataAsync(
+                DimmerStates.Compose(DimmerStates.ON, presets[save.PresetId - 1])
+            );
 
         return true;
     }
@@ -101,7 +105,7 @@ public class FurnitureDimmerLogic(IStuffDataFactory stuffDataFactory, IRoomWallI
         var (state, presetId, presets) = Current();
         var next = state == DimmerStates.ON ? DimmerStates.OFF : DimmerStates.ON;
 
-        return SetLegacyDataAsync(Compose(next, presets[presetId - 1]));
+        return SetLegacyDataAsync(DimmerStates.Compose(next, presets[presetId - 1]));
     }
 
     private Task SendPresetsAsync(ActionContext ctx, CancellationToken ct)
@@ -182,14 +186,4 @@ public class FurnitureDimmerLogic(IStuffDataFactory stuffDataFactory, IRoomWallI
 
         return presets;
     }
-
-    private static string Compose(int state, DimmerPresetSnapshot preset) =>
-        string.Join(
-            DimmerStates.SEPARATOR,
-            state,
-            preset.Id,
-            preset.Type,
-            preset.Color,
-            preset.Brightness
-        );
 }

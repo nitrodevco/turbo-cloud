@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Frozen;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -6,6 +8,7 @@ using Turbo.Crypto;
 using Turbo.Primitives.Crypto;
 using Turbo.Primitives.Networking;
 using Turbo.Primitives.Rooms;
+using KnownClientFeatures = Turbo.Primitives.Networking.Features.ClientFeatures;
 
 namespace Turbo.Networking.Session;
 
@@ -42,6 +45,10 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
 
     public bool PolicyDone { get; set; } = true;
     public string RevisionId { get; set; } = "Default";
+
+    // Written by the receive loop with the hello, as RevisionId is, and read by every send. The
+    // set is immutable and replaced whole, so a send sees the old one or the new one.
+    public FrozenSet<string> ClientFeatures { get; private set; } = FrozenSet<string>.Empty;
     public IRc4Engine? CryptoIn { get; private set; }
     public IRc4Engine? CryptoOut { get; private set; }
 
@@ -61,6 +68,9 @@ internal sealed class SessionContextState(ILogger<ISessionContext> logger)
     public DateTime LastActiveUtc => new(Interlocked.Read(ref _lastActiveTicks), DateTimeKind.Utc);
 
     public void MarkActive() => Interlocked.Exchange(ref _lastActiveTicks, DateTime.UtcNow.Ticks);
+
+    public void SetClientFeatures(IEnumerable<string> advertised) =>
+        ClientFeatures = KnownClientFeatures.Known(advertised);
 
     public void SetupEncryption(byte[] key, bool setCryptoOut = false)
     {

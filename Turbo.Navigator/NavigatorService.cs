@@ -578,6 +578,39 @@ public sealed class NavigatorService(
         return rooms.Count == 0 ? null : rooms[Random.Shared.Next(rooms.Count)];
     }
 
+    public async Task<ImmutableDictionary<RoomId, RoomInfoSnapshot>> GetRoomsByIdsAsync(
+        IReadOnlyCollection<RoomId> roomIds,
+        CancellationToken ct
+    )
+    {
+        if (roomIds.Count == 0)
+            return ImmutableDictionary<RoomId, RoomInfoSnapshot>.Empty;
+
+        var live = await GetLiveRoomsAsync(ct).ConfigureAwait(false);
+        var rooms = ImmutableDictionary.CreateBuilder<RoomId, RoomInfoSnapshot>();
+        var notLoaded = new List<RoomId>();
+
+        foreach (var roomId in roomIds.Distinct())
+        {
+            if (live.TryGetValue(roomId, out var room))
+                rooms[roomId] = room;
+            else
+                notLoaded.Add(roomId);
+        }
+
+        if (notLoaded.Count > 0)
+        {
+            foreach (
+                var room in await _navigatorProvider
+                    .GetRoomsByIdsAsync(notLoaded, ct)
+                    .ConfigureAwait(false)
+            )
+                rooms[room.RoomId] = room;
+        }
+
+        return rooms.ToImmutable();
+    }
+
     public async Task<bool> RoomExistsAsync(RoomId roomId, CancellationToken ct)
     {
         if (roomId.Value <= 0)

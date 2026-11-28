@@ -22,4 +22,11 @@ public sealed record DimmerPresetSnapshot
 
     [Id(3)]
     public required int Brightness { get; init; }
+
+    /// <summary>
+    /// Whether furni keep their own lights under this preset (a client with
+    /// <c>room_dimmer_lights</c> sets it). False in every preset stored before it existed.
+    /// </summary>
+    [Id(4)]
+    public bool KeepFurnitureLights { get; init; }
 }

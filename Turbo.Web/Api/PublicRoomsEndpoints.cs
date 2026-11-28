@@ -181,7 +181,8 @@ internal sealed class PublicRoomsEndpoints(
     /// <summary>
     /// The capture's <c>"open"</c>; the others by the hotel's text keys
     /// (<c>navigator.roomsettings.doormode.doorbell|password|invisible</c>) and Flash's
-    /// <c>RoomSettingsData.DOOR_MODE_NOOBS_ONLY</c> (inference: only "open" is recorded).
+    /// <c>RoomSettingsData.DOOR_MODE_NOOBS_ONLY</c>; friends only by build 116's
+    /// <c>roomsettings.access_rights.friends</c> (inference: only "open" is recorded).
     /// </summary>
     private static string DoorModeOf(RoomDoorModeType doorMode) =>
         doorMode switch
@@ -190,6 +191,7 @@ internal sealed class PublicRoomsEndpoints(
             RoomDoorModeType.Password => "password",
             RoomDoorModeType.Invisible => "invisible",
             RoomDoorModeType.NoobLobby => "noobs_only",
+            RoomDoorModeType.FriendsOnly => "friends",
             _ => "open",
         };
 

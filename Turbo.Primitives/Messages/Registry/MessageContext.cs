@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Action;
@@ -42,6 +44,15 @@ public sealed class MessageContext(ISessionContext session, PlayerId playerId, R
         await _session.SendComposerAsync(composer, ct).ConfigureAwait(false);
 
     public void SetRevisionId(string production) => _session.SetRevisionId(production);
+
+    /// <summary>
+    /// The protocol features this session's client named in its hello
+    /// (<see cref="ISessionContext.ClientFeatures"/>).
+    /// </summary>
+    public FrozenSet<string> ClientFeatures => _session.ClientFeatures;
+
+    public void SetClientFeatures(IEnumerable<string> advertised) =>
+        _session.SetClientFeatures(advertised);
 
     public void SetupEncryption(byte[] key, bool setCryptoOut = false) =>
         _session.SetupEncryption(key, setCryptoOut);

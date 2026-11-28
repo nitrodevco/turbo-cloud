@@ -67,6 +67,7 @@ using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents;
 using Turbo.Primitives.Messages.Outgoing.Userdefinedroomevents.Wiredmenu;
 using Turbo.Primitives.Messages.Outgoing.Users;
 using Turbo.Primitives.Messages.Outgoing.Vault;
+using Turbo.Primitives.Networking.Features;
 using Turbo.Primitives.Networking.Revisions;
 using Turbo.Primitives.Packets;
 using Turbo.Revisions.Revision20260909.Parsers.Advertisement;
@@ -798,6 +799,12 @@ public class Revision20260909 : IRevision
             { MessageEvent.CancelPetBreedingMessageEvent, new CancelPetBreedingMessageParser() },
             { MessageEvent.ConfirmPetBreedingMessageEvent, new ConfirmPetBreedingMessageParser() },
             { MessageEvent.GetPetInventoryMessageEvent, new GetPetInventoryMessageParser() },
+            {
+                MessageEvent.GetPetRetirementPriceMessageEvent,
+                new GetPetRetirementPriceMessageParser()
+            },
+            { MessageEvent.RetirePetMessageEvent, new RetirePetMessageParser() },
+            { MessageEvent.RenamePetMessageEvent, new RenamePetMessageParser() },
             #endregion
 
             #region Inventory Purse
@@ -2520,6 +2527,24 @@ public class Revision20260909 : IRevision
                 typeof(PetRemovedFromInventoryEventMessageComposer),
                 new PetRemovedFromInventoryEventMessageComposerSerializer(
                     MessageComposer.PetRemovedFromInventoryMessageComposer
+                )
+            },
+            {
+                typeof(PetRetirementPriceMessageComposer),
+                new PetRetirementPriceMessageComposerSerializer(
+                    MessageComposer.PetRetirementPriceMessageComposer
+                )
+            },
+            {
+                typeof(PetRetirementResultMessageComposer),
+                new PetRetirementResultMessageComposerSerializer(
+                    MessageComposer.PetRetirementResultMessageComposer
+                )
+            },
+            {
+                typeof(PetRenameResultMessageComposer),
+                new PetRenameResultMessageComposerSerializer(
+                    MessageComposer.PetRenameResultMessageComposer
                 )
             },
             #endregion
@@ -5378,5 +5403,65 @@ public class Revision20260909 : IRevision
             },
             #endregion
         }.ToFrozenDictionary();
+    #endregion
+
+    #region Client features
+    // What replaces a serializer above for a client that named the feature in its hello
+    // (docs/client-features.md). The header is the same; only the layout differs.
+    public IReadOnlyDictionary<
+        string,
+        IReadOnlyDictionary<Type, ISerializer>
+    > FeatureSerializers { get; } =
+        new Dictionary<string, IReadOnlyDictionary<Type, ISerializer>>
+        {
+            {
+                // Every packet build 116 reads a PetData from: its parser reads the room there.
+                ClientFeatures.PET_INVENTORY_LOCATIONS,
+                new Dictionary<Type, ISerializer>
+                {
+                    {
+                        typeof(PetInventoryEventMessageComposer),
+                        new PetInventoryEventMessageComposerSerializer(
+                            MessageComposer.PetInventoryMessageComposer,
+                            withLocations: true
+                        )
+                    },
+                    {
+                        typeof(PetAddedToInventoryEventMessageComposer),
+                        new PetAddedToInventoryEventMessageComposerSerializer(
+                            MessageComposer.PetAddedToInventoryMessageComposer,
+                            withLocations: true
+                        )
+                    },
+                    {
+                        typeof(PetReceivedMessageComposer),
+                        new PetReceivedMessageComposerSerializer(
+                            MessageComposer.PetReceivedMessageComposer,
+                            withLocations: true
+                        )
+                    },
+                    {
+                        typeof(PetRespectNotificationEventMessageComposer),
+                        new PetRespectNotificationEventMessageComposerSerializer(
+                            MessageComposer.PetRespectNotificationMessageComposer,
+                            withLocations: true
+                        )
+                    },
+                }.ToFrozenDictionary()
+            },
+            {
+                ClientFeatures.ROOM_DIMMER_LIGHTS,
+                new Dictionary<Type, ISerializer>
+                {
+                    {
+                        typeof(RoomDimmerPresetsMessageComposer),
+                        new RoomDimmerPresetsMessageComposerSerializer(
+                            MessageComposer.RoomDimmerPresetsMessageComposer,
+                            keepFurnitureLights: true
+                        )
+                    },
+                }.ToFrozenDictionary()
+            },
+        }.ToFrozenDictionary(StringComparer.Ordinal);
     #endregion
 }

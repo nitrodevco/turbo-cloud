@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Turbo.Primitives.Messages.Outgoing.Inventory.Pets;
@@ -84,4 +85,59 @@ internal sealed partial class InventoryGrain
             ),
             ct
         );
+
+    public async Task SendPetInventoryWithLocationsAsync(CancellationToken ct)
+    {
+        var placed = await PetModule.GetPlacedAsync(ct);
+        var rooms = await _navigatorService.GetRoomsByIdsAsync(
+            [.. placed.Select(x => x.RoomId!.Value).Distinct()],
+            ct
+        );
+        var pets = (await GetAllPetSnapshotsAsync(ct)).Concat(placed).OrderBy(x => x.Id).ToList();
+
+        await Presence.SendComposerAsync(
+            ComposerFragments.Build(
+                pets,
+                _inventoryConfig.PetInventoryFragmentSize,
+                (total, current, fragment) =>
+                    new PetInventoryEventMessageComposer
+                    {
+                        TotalFragments = total,
+                        CurrentFragment = current,
+                        Pets = fragment,
+                        Rooms =
+                        [
+                            .. fragment
+                                .Where(x => x.RoomId is not null)
+                                .Select(x => x.RoomId!.Value)
+                                .Distinct()
+                                .Where(rooms.ContainsKey)
+                                .Select(x => new PetRoomSnapshot
+                                {
+                                    RoomId = x,
+                                    Name = rooms[x].Name,
+                                    Description = rooms[x].Description,
+                                }),
+                        ],
+                    }
+            ),
+            ct
+        );
+    }
+
+    public Task SendPetRetirementPriceAsync(CancellationToken ct) =>
+        _grainFactory.SendComposerToPlayerAsync(
+            PlayerId,
+            new PetRetirementPriceMessageComposer
+            {
+                Credits = _inventoryConfig.PetRetirementCreditsPrice,
+            },
+            ct
+        );
+
+    public Task<bool> RetirePetAsync(int petId, CancellationToken ct) =>
+        PetModule.RetireAsync(petId, ct);
+
+    public Task<bool> RenamePetAsync(int petId, string name, CancellationToken ct) =>
+        PetModule.RenameAsync(petId, name, ct);
 }

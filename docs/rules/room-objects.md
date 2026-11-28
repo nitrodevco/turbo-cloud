@@ -31,10 +31,10 @@ plugin authors.
   `SendComposerToPlayerAsync` (the grain factory extension); room-wide changes go through
   `SetLegacyDataAsync` / `SetNumberDataAsync` /
   `SetStringDataAsync` / `SetMapDataAsync`, which persist and refresh in one step.
-- The exact data shape each widget needs (dimmer `state,preset,effect,#RRGGBB,brightness`, toner
-  `[state,h,s,l]`, love lock string array, trophy tab-separated) comes from the Flash client's
-  logic classes; the constants next to each logic record the format, so verify against the client
-  before changing one.
+- The exact data shape each widget needs (dimmer `state,preset,effect,#RRGGBB,brightness` and an
+  optional `,true`, toner `[state,h,s,l]`, love lock string array, trophy tab-separated) comes
+  from the Flash client's logic classes; the constants next to each logic record the format, so
+  verify against the client before changing one.
 - Delayed item work (a dice landing, a door closing) is scheduled on `RoomTimerSystem`, keyed by
   the item, and cancelled in `OnPickupAsync`. Never `Task.Delay` inside a grain turn.
 - A table of protocol state values the client interprets lives as a static class under
@@ -245,6 +245,12 @@ plugin authors.
   `FurniturePetSupplyLogic` for all its kinds). Only the drink held it, so a cat playing beside
   its ball looked round mid-play, and the turn faced the item's anchor, a diagonal from beside
   the far end of a long trough.
+- A pet's name changes where the pet is: the room renames one standing in it
+  (`RoomPetModule.RenamePetAsync`, the owner only, never a dead monsterplant waiting to be
+  revived) and writes the row at once (`PersistNowAsync`), because the client reads its pets tab
+  again on the answer and that list reads a placed pet's row; the inventory renames one it holds.
+  The Users packet is the only carrier of a name, so the room sees the pet leave and arrive
+  (`ShowUnderNameAsync`, shared with the staff edit).
 - Wire shapes (pet figure struct, `PetInfo` field order, bot skill ids, chatter string) come
   from the Flash client and are recorded on the enums and helpers under
   `Turbo.Primitives/Pets` and `Turbo.Primitives/Bots`; verify against the client before changing.

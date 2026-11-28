@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +8,7 @@ using Turbo.Primitives.Navigator.Snapshots;
 using Turbo.Primitives.Players;
 using Turbo.Primitives.Rooms;
 using Turbo.Primitives.Rooms.Enums;
+using Turbo.Primitives.Rooms.Snapshots;
 
 namespace Turbo.Primitives.Navigator;
 
@@ -92,6 +94,15 @@ public interface INavigatorService
     public Task<RoomId?> GetRoomNetworkRoomAsync(
         int networkId,
         RoomId homeRoomId,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// The rooms of <paramref name="roomIds"/> that exist, by id: a loaded room as it is now
+    /// (the directory's live copy), the rest from the room cache.
+    /// </summary>
+    public Task<ImmutableDictionary<RoomId, RoomInfoSnapshot>> GetRoomsByIdsAsync(
+        IReadOnlyCollection<RoomId> roomIds,
         CancellationToken ct
     );
 

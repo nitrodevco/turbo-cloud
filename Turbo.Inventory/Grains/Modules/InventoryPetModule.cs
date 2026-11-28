@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
@@ -21,6 +22,7 @@ using Turbo.Primitives.Pets;
 using Turbo.Primitives.Pets.Enums;
 using Turbo.Primitives.Pets.Providers;
 using Turbo.Primitives.Pets.Snapshots;
+using Turbo.Primitives.Players.Wallet;
 using Turbo.Primitives.Rooms;
 
 namespace Turbo.Inventory.Grains.Modules;
@@ -270,6 +272,132 @@ internal sealed class InventoryPetModule(
             new PetReceivedMessageComposer { BoughtAsGift = false, Pet = pet },
             ct
         );
+    }
+
+    /// <summary>
+    /// The player's pets standing in rooms, as their rows say: a room writes a pet's row on its
+    /// next hand-over, so a level gained moments ago may not be in it yet.
+    /// </summary>
+    public async Task<ImmutableArray<PetSnapshot>> GetPlacedAsync(CancellationToken ct)
+    {
+        var ownerName = await GetOwnerNameAsync(ct);
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var entities = await dbCtx
+            .Pets.AsNoTracking()
+            .Where(x => x.PlayerEntityId == PlayerId.Value && x.RoomEntityId != null)
+            .OrderBy(x => x.Id)
+            .ToListAsync(ct);
+
+        return [.. entities.Select(x => x.ToSnapshot(ownerName))];
+    }
+
+    /// <summary>
+    /// Renames a pet in the inventory under the rules a bought pet's name is held to. The row is
+    /// written before the list; the client asks for its pets again once it is told.
+    /// </summary>
+    public async Task<bool> RenameAsync(int petId, string name, CancellationToken ct)
+    {
+        var (status, _) = ApproveName(name);
+
+        if (status != PetNameValidationType.Ok)
+            return false;
+
+        await EnsureReadyAsync(ct);
+
+        if (!_section.ById.TryGetValue(petId, out var pet))
+            return false;
+
+        var approved = name.Trim();
+
+        await using var dbCtx = await _dbCtxFactory.CreateDbContextAsync(ct);
+
+        var updated = await dbCtx
+            .Pets.Where(x =>
+                x.Id == petId && x.PlayerEntityId == PlayerId.Value && x.RoomEntityId == null
+            )
+            .ExecuteUpdateAsync(up => up.SetProperty(x => x.Name, approved), ct);
+
+        if (updated == 0)
+        {
+            _logger.LogWarning(
+                "Pet {PetId} of player {PlayerId} is listed in the inventory but its row is elsewhere; reloading",
+                petId,
+                PlayerId
+            );
+
+            _section.IsReady = false;
+
+            return false;
+        }
+
+        _section.ById[petId] = pet with { Name = approved };
+
+        return true;
+    }
+
+    /// <summary>
+    /// Sends a pet in the inventory to retirement and tells the player the outcome: the price
+    /// is charged first, the pet then deleted for good, and the price given back when the delete
+    /// fails. A pet standing in a room is not retired; the client offers it for none.
+    /// </summary>
+    public async Task<bool> RetireAsync(int petId, CancellationToken ct)
+    {
+        var retired = await TryRetireAsync(petId, ct);
+
+        await GrainFactory.SendComposerToPlayerAsync(
+            PlayerId,
+            new PetRetirementResultMessageComposer { PetId = petId, Success = retired },
+            ct
+        );
+
+        return retired;
+    }
+
+    private async Task<bool> TryRetireAsync(int petId, CancellationToken ct)
+    {
+        await EnsureReadyAsync(ct);
+
+        if (!_section.ById.ContainsKey(petId))
+            return false;
+
+        var price = Config.PetRetirementCreditsPrice;
+        List<WalletDebitRequest> cost =
+            price > 0
+                ? [new WalletDebitRequest { CurrencyKind = CurrencyKind.Credits, Amount = price }]
+                : [];
+        var cause = MovementCause.New(MovementCauses.PET_RETIRE, PlayerId.Value, petId);
+
+        if (
+            cost.Count > 0
+            && !(
+                await GrainFactory.GetPlayerWalletGrain(PlayerId).TryDebitAsync(cost, cause, ct)
+            ).Succeeded
+        )
+            return false;
+
+        var deleted = false;
+
+        try
+        {
+            // The pet's movement follows the charge's seqs.
+            deleted = await DeleteAsync(petId, cause.StartingAt(cost.Count), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to delete pet {PetId} of player {PlayerId} for retirement",
+                petId,
+                PlayerId
+            );
+        }
+
+        if (!deleted)
+            await GrainFactory.RefundAsync(PlayerId, cost, cause, _logger, "retiring a pet");
+
+        return deleted;
     }
 
     /// <summary>

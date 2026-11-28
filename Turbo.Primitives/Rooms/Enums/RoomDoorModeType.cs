@@ -13,4 +13,12 @@ public enum RoomDoorModeType
     /// Set with <c>:nooblobby</c>; the room settings window does not offer it.
     /// </summary>
     NoobLobby = 4,
+
+    /// <summary>
+    /// Only the owner's friends get in, beside the owner, whoever has rights and staff
+    /// (<c>roomsettings.access_rights.friends</c>, the room settings window's choice from client
+    /// build 116). The room stays listed; the client asks nothing before it tries the door. The
+    /// client's 5 and 6 are not door modes a room is saved with.
+    /// </summary>
+    FriendsOnly = 7,
 }

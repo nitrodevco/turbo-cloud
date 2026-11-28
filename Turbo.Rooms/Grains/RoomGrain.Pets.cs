@@ -101,6 +101,18 @@ public sealed partial class RoomGrain
     public Task<bool> CompostPetAsync(ActionContext ctx, int petId, CancellationToken ct) =>
         RunLoggedAsync(ctx, "compost pet", petId, () => PetModule.CompostPetAsync(ctx, petId, ct));
 
+    public Task<bool> RenamePetAsync(
+        ActionContext ctx,
+        int petId,
+        string name,
+        CancellationToken ct
+    ) => RunLoggedAsync(ctx, "rename pet", petId, async () =>
+        {
+            await PetModule.EnsurePetsLoadedAsync(ct);
+
+            return await PetModule.RenamePetAsync(ctx, petId, name, ct);
+        });
+
     public Task<bool> PassHandItemToPetAsync(ActionContext ctx, int petId, CancellationToken ct) =>
         RunLoggedAsync(ctx, "pass a hand item to pet", petId, () =>
             PetModule.PassHandItemToPetAsync(ctx, petId, ct)

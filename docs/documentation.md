@@ -23,6 +23,7 @@
     - [Plugin Messages](plugin-messages.md)
     - [Plugin Packets](plugin-packets.md)
     - [Client Capabilities](client-capabilities.md)
+    - [Client Features](client-features.md)
     - [Web Routes](plugin-web-routes.md)
     - [Admin Panel](admin-panel.md)
     - [Settings](settings.md)

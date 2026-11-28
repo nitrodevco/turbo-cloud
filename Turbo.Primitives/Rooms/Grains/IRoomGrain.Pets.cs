@@ -60,6 +60,18 @@ public partial interface IRoomGrain
     public Task<bool> HarvestPetAsync(ActionContext ctx, int petId, CancellationToken ct);
     public Task<bool> CompostPetAsync(ActionContext ctx, int petId, CancellationToken ct);
 
+    /// <summary>
+    /// The owner's new name for their pet standing here, under the room's pet name rules; the
+    /// room sees the pet again under it. False when the pet is not here or not the player's, the
+    /// name is refused, or the pet is a dead monsterplant waiting to be revived.
+    /// </summary>
+    public Task<bool> RenamePetAsync(
+        ActionContext ctx,
+        int petId,
+        string name,
+        CancellationToken ct
+    );
+
     /// <summary>Hands the player's carried item to an adjacent pet, which eats or drinks it.</summary>
     public Task<bool> PassHandItemToPetAsync(ActionContext ctx, int petId, CancellationToken ct);
 

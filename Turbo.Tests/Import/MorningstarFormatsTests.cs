@@ -143,6 +143,20 @@ public class MorningstarFormatsTests
             )
             ?["stuff"]?["Data"];
 
+    /// <summary>
+    /// A moodlight's line is five parts, or six when furni keep their lights (build 116); the
+    /// sixth was a reason to drop the whole line for the default one.
+    /// </summary>
+    [Theory]
+    [InlineData("2,3,2,#ff00ff,200", "2,3,2,#FF00FF,200")]
+    [InlineData("2,3,2,#ff00ff,200,TRUE", "2,3,2,#FF00FF,200,true")]
+    [InlineData("1,3,2,#ff00ff,200,false", "1,3,2,#FF00FF,200")]
+    [InlineData("2,3,2,#ff00ff", "1,1,1,#000000,255")]
+    public void A_dimmer_reads_five_parts_or_six(string raw, string expected)
+    {
+        Assert.Equal(expected, Stuff("dimmer", raw)!.GetValue<string>());
+    }
+
     [Fact]
     public void A_badge_display_turns_owner_date_badge_into_turbos_order()
     {

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Reflection;
 
@@ -23,7 +24,7 @@ public sealed class CallLog
 
 /// <summary>
 /// Signature-agnostic fakes built on <see cref="DispatchProxy"/>. They answer every call with a
-/// neutral value (a completed task, default, an empty immutable array, or another fake for
+/// neutral value (a completed task, default, an empty immutable array or frozen set, or another fake for
 /// interface-typed results) and record it. Because nothing is bound to a method signature, a test
 /// keeps compiling when the code under test adds a parameter to a grain method or renames an
 /// unrelated one.
@@ -146,6 +147,8 @@ public class RecordingProxy : DispatchProxy
             return Owner.Create(rt, Guid.NewGuid());
         if (rt.IsGenericType && rt.GetGenericTypeDefinition() == typeof(ImmutableArray<>))
             return rt.GetField(nameof(ImmutableArray<int>.Empty))!.GetValue(null);
+        if (rt.IsGenericType && rt.GetGenericTypeDefinition() == typeof(FrozenSet<>))
+            return rt.GetProperty(nameof(FrozenSet<int>.Empty))!.GetValue(null);
         if (rt.IsValueType)
             return Activator.CreateInstance(rt);
         return null;

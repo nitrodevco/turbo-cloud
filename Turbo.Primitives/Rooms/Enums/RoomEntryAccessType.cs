@@ -23,4 +23,7 @@ public enum RoomEntryAccessType
 
     /// <summary>No room has this id (deleted, or never there).</summary>
     NotFound = 9,
+
+    /// <summary>The door lets in the owner's friends only (<see cref="RoomDoorModeType.FriendsOnly"/>), and the player is not one.</summary>
+    FriendsOnly = 10,
 }
