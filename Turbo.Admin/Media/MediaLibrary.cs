@@ -23,7 +23,7 @@ namespace Turbo.Admin.Media;
 
 /// <summary>
 /// One index of every image the hotel can show (<c>docs/media-library.md</c>), whatever keeps it:
-/// the client's image library (<c>c_images</c>) and the catalog's, badges' and furniture's pictures
+/// the client's image library (<c>c_images</c>) and the catalog's and furniture's pictures
 /// in the asset folder (each from Habbo, an upload or put there by hand), the client's own images
 /// (the window manager's, which notices name), and each plugin's <c>wwwroot/styles/</c> images.
 /// Each image says what each kind of field stores to show it, and where the hotel shows it:
@@ -78,7 +78,6 @@ public sealed class MediaLibrary(
         (AssetBundleKind.LibraryImage, "library"),
         (AssetBundleKind.CatalogImage, "catalog"),
         (AssetBundleKind.CatalogIcon, "catalog-icon"),
-        (AssetBundleKind.Badge, "badge"),
         (AssetBundleKind.FurniIcon, "furni-icon"),
     ];
 
@@ -451,7 +450,6 @@ public sealed class MediaLibrary(
             "catalogpicture" => values.CatalogPicture is not null,
             "catalogicon" => values.CatalogIcon is not null,
             "clientimage" => values.ClientImage is not null,
-            "badge" => values.Badge is not null,
             "plugin" => values.Plugin is not null,
             "url" => values.Url.Length > 0,
             _ => false,
@@ -626,7 +624,6 @@ public sealed class MediaLibrary(
         {
             AssetBundleKind.CatalogImage => KIND_CATALOG_PICTURE,
             AssetBundleKind.CatalogIcon => "catalogue-icon",
-            AssetBundleKind.Badge => "badge",
             AssetBundleKind.FurniIcon => "furni-icon",
             _ => name.Split('/')[0].ToLowerInvariant() switch
             {
@@ -634,7 +631,6 @@ public sealed class MediaLibrary(
                 "reception" or "hotelview" or "hotel_view" => "reception",
                 var top when top.StartsWith("quest", StringComparison.Ordinal) => "quest",
                 "catalogue" => KIND_CATALOG_PICTURE,
-                var top when top.StartsWith("album", StringComparison.Ordinal) => "badge",
                 _ => "other",
             },
         };
@@ -655,13 +651,11 @@ public sealed class MediaLibrary(
                 null,
                 null,
                 null,
-                null,
                 assets.ImageLibrary.Length > 0 ? assets.ImageLibrary + name : ""
             ),
             AssetBundleKind.CatalogImage => new(
                 null,
                 AdminCatalogImages.NameOf(name),
-                null,
                 null,
                 null,
                 null,
@@ -676,21 +670,11 @@ public sealed class MediaLibrary(
                     : null,
                 null,
                 null,
-                null,
                 bare.StartsWith("icon_", StringComparison.Ordinal)
                     ? Fill(assets.CatalogIcon, "%name%", bare["icon_".Length..])
                     : ""
             ),
-            AssetBundleKind.Badge => new(
-                null,
-                null,
-                null,
-                null,
-                bare,
-                null,
-                Fill(assets.Badge, "%badgename%", bare)
-            ),
-            _ => new(null, null, null, null, null, null, ""),
+            _ => new(null, null, null, null, null, ""),
         };
     }
 
@@ -761,7 +745,7 @@ public sealed class MediaLibrary(
                 "client-image",
                 SOURCE_CLIENT,
                 WINDOW_LIBRARY,
-                new(null, null, null, name, null, null, ""),
+                new(null, null, null, name, null, ""),
                 null,
                 null,
                 data.LongLength,
@@ -809,7 +793,7 @@ public sealed class MediaLibrary(
                         "theme",
                         SOURCE_PLUGIN,
                         key,
-                        new(null, null, null, null, null, image.Path, Absolute(image.Url ?? "")),
+                        new(null, null, null, null, image.Path, Absolute(image.Url ?? "")),
                         null,
                         null,
                         image.Bytes,

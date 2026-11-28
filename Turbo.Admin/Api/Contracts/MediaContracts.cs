@@ -6,7 +6,7 @@ namespace Turbo.Admin.Api.Contracts;
 /// <summary>
 /// What a field stores to show an image, by the shape it takes: a path under the client's image
 /// library (<see cref="Relative"/>), a catalog picture's name, a catalog icon's number, one of the
-/// client's own images by name, a badge's code, a path in a plugin's <c>wwwroot/</c>, or the full
+/// client's own images by name, a path in a plugin's <c>wwwroot/</c>, or the full
 /// address (<see cref="Url"/>, empty when players load it from no address of its own).
 /// </summary>
 public sealed record MediaValues(
@@ -14,7 +14,6 @@ public sealed record MediaValues(
     string? CatalogPicture,
     int? CatalogIcon,
     string? ClientImage,
-    string? Badge,
     string? Plugin,
     string Url
 );

@@ -6,6 +6,7 @@ using Turbo.Admin.Catalog;
 using Turbo.Admin.Media;
 using Turbo.Database.Entities.Gamedata;
 using Turbo.Database.Entities.Hotel;
+using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Players;
 using Turbo.Tests.Assets;
 using Turbo.Tests.Support;
@@ -117,6 +118,23 @@ public sealed class MediaLibraryTests : IDisposable
             .Items.Select(x => x.Path)
             .Should()
             .Equal("web_promo/winter.png");
+    }
+
+    [Fact]
+    public async Task Search_LeavesBadgesToTheLibrarysOwnTab()
+    {
+        // Badges are listed on Gamedata > Library > Badges, a page at a time from their records.
+        var badge = _folder.Store.FullPathOf(AssetBundleKind.Badge, "ACH_Login1.gif");
+
+        Directory.CreateDirectory(Path.GetDirectoryName(badge)!);
+        await File.WriteAllBytesAsync(badge, [.. "GIF89a"u8, 1, 0, 1, 0, 0, 0, 0, 0x3B], Ct);
+        Library_("web_promo/summer.png", Png(1, 1));
+
+        var found = await Library.SearchAsync(new MediaQuery(), Ct);
+
+        found.Items.Select(x => x.Id).Should().Equal("library:web_promo/summer.png");
+        found.Facets.Kinds.Keys.Should().Equal("promo");
+        (await Library.GetAsync("badge:ACH_Login1.gif", Ct)).Should().BeNull();
     }
 
     [Fact]

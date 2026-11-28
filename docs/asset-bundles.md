@@ -23,8 +23,9 @@ Habbo has that the hotel lacks, or has an older revision of, and converts it (`T
 them: a folder on this server, or an FTP, FTPS or SFTP server. The admin panel's **Gamedata &
 assets** page does all of this beside the gamedata, and checks the bundles against the hotel's
 furniture, clothing, effects and pets: its **Updates** tab shows what a sync would download, each
-kind's tab (Furniture, Clothing, Effects, Pets) lists its bundles with its data, and **Publish**
-holds the targets.
+kind's tab (Furniture, Clothing, Effects, Pets) lists its bundles with its data, **Badges** lists
+the badges' pictures the same way (a page at a time, found by code), and **Publish** holds the
+targets.
 
 ## Uploading
 

@@ -14,12 +14,16 @@ the hotel can show, wherever it is kept, and where each one is shown. Staff find
 name, path or tag instead of typing an address, copy the value a field stores for it, and upload new
 ones. The admin API under `/api/media` serves the same index to the panel's image picker.
 
+Badges are not in it: no field names a badge by its picture, and a hotel has thousands of them.
+Gamedata > Library > Badges lists their pictures a page at a time, found by code
+([asset bundles](asset-bundles.md)).
+
 ## What it lists
 
 | Source | Where it is | Id |
 | --- | --- | --- |
 | Image library (`library`) | the asset folder's `c_images/`, the folder `image.library.url` names: hotel view, notice and front page promo pictures (`web_promo/`, `web_promo_small/`, `reception/`, ...) | `library:web_promo/summer.png` |
-| Asset folder (`assets`, or `habbo` / `upload` by its record) | catalog pictures (`images/catalog`), catalog icons, badges and furniture icons ([asset bundles](asset-bundles.md)) | `catalog:<file>`, `catalog-icon:icon_<n>.png`, `badge:<code>.gif`, `furni-icon:<file>` |
+| Asset folder (`assets`, or `habbo` / `upload` by its record) | catalog pictures (`images/catalog`), catalog icons and furniture icons ([asset bundles](asset-bundles.md)) | `catalog:<file>`, `catalog-icon:icon_<n>.png`, `furni-icon:<file>` |
 | Client (`client`) | the PNGs of the `habbo-window-manager-com` template bundle, which a notice names without a `/` | `client:<name>` |
 | Plugin (`plugin`) | each plugin's `wwwroot/styles/` images, the hotel's own data plugin's among them ([plugin data](plugin-data.md)) | `plugin:<key>/styles/<file>` |
 
@@ -37,7 +41,6 @@ Each image gives the values the kinds of fields store for it, under `values`:
 | `catalogPicture` | `catalog_header_furni` | a catalog page's headers and teasers |
 | `catalogIcon` | `12` | a catalog page's icon |
 | `clientImage` | the PNG's name in the bundle | a notice's image by name |
-| `badge` | `ACH_Login1` | badges |
 | `plugin` | `styles/frame.png` | a theme's image properties and patches |
 | `url` | `https://images.example.com/c_images/web_promo/summer.png` | anything taking an address; empty when the image has none of its own |
 
@@ -71,7 +74,7 @@ as well, and each change goes to the command log as `media`.
 
 | Call | Answers |
 | --- | --- |
-| `GET /api/media?q=&kind=&source=&shape=&used=all\|used\|unused&minWidth=&maxWidth=&minHeight=&maxHeight=&sort=name\|modified\|size\|used&desc=&page=&size=` | `{ total, items, facets: { kinds, sources }, canManage }`; `kind`, `source` and `shape` take comma lists, `shape` keeps images that give that value (`relative`, `catalogpicture`, `catalogicon`, `clientimage`, `badge`, `plugin`, `url`) |
+| `GET /api/media?q=&kind=&source=&shape=&used=all\|used\|unused&minWidth=&maxWidth=&minHeight=&maxHeight=&sort=name\|modified\|size\|used&desc=&page=&size=` | `{ total, items, facets: { kinds, sources }, canManage }`; `kind`, `source` and `shape` take comma lists, `shape` keeps images that give that value (`relative`, `catalogpicture`, `catalogicon`, `clientimage`, `plugin`, `url`) |
 | `GET /api/media/item?id=` | one image with `usedOn` |
 | `GET /api/media/file?id=` | its bytes, before any publish |
 | `POST /api/media` (form: `files`, `folder`, `kind`) | `{ items, refused: [{ file, why }] }`; `kind=catalogue-picture` keeps them as catalog pictures |

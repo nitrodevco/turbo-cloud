@@ -1571,9 +1571,10 @@ for other previews to draw with too.
 ## Media library
 
 Gamedata > Media library finds any image the hotel can show (the image library, catalog pictures and
-icons, badges, furniture icons, the client's own images, plugins' images), shows what a field stores
+icons, furniture icons, the client's own images, plugins' images), shows what a field stores
 for it and where it is shown, and takes uploads into the image library for the next publish. See
-[media-library.md](media-library.md).
+[media-library.md](media-library.md). Badges' pictures are the Library's **Badges** tab instead: a
+page of them at a time, found by code, each opened to download or delete it.
 
 ## Hotel view
 
