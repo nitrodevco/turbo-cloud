@@ -57,6 +57,20 @@ public sealed class HandItemEndpointsTests : IAsyncDisposable
                     }
                 )
                 : Fakes.NotHandled;
+        _fakes.Handlers["SearchAsync"] = call =>
+            call.Interface == typeof(IHandItemCatalog)
+                ? Task.FromResult(
+                    new HandItemCatalogPage
+                    {
+                        Items = [],
+                        // What it was asked, so the test reads the route's arguments back.
+                        Message = (string?)call.Args[0],
+                        Total = 120,
+                        PageSize = (int)call.Args[1]!,
+                        Revision = "fixture-revision",
+                    }
+                )
+                : Fakes.NotHandled;
         _fakes.Handlers["GetPreviewAsync"] = call =>
             Task.FromResult<byte[]?>((int)call.Args[0]! == 1128 ? [137, 80, 78, 71] : null);
         (_server, _, _) = AdminApiServerTests.Build(
@@ -91,12 +105,32 @@ public sealed class HandItemEndpointsTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task The_list_is_a_page_of_what_the_words_find()
+    {
+        await _server.StartAsync(Ct);
+        using var response = await GetAsync("/api/gamedata/hand-items/list?q=bow&page=2");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var found = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct)).RootElement;
+        found.GetProperty("message").GetString().Should().Be("bow");
+        found.GetProperty("pageSize").GetInt32().Should().Be(2);
+        found.GetProperty("total").GetInt32().Should().Be(120);
+        found.GetProperty("revision").GetString().Should().Be("fixture-revision");
+
+        using var whole = await GetAsync("/api/gamedata/hand-items/list");
+        var first = JsonDocument.Parse(await whole.Content.ReadAsStringAsync(Ct)).RootElement;
+        first.GetProperty("message").ValueKind.Should().Be(JsonValueKind.Null);
+        first.GetProperty("pageSize").GetInt32().Should().Be(0);
+    }
+
+    [Fact]
     public async Task Catalogue_and_previews_require_the_same_view_permission()
     {
         await _server.StartAsync(Ct);
         _canView = false;
         using var catalog = await GetAsync("/api/gamedata/hand-items");
+        using var list = await GetAsync("/api/gamedata/hand-items/list");
         using var preview = await GetAsync("/api/gamedata/hand-items/1128/preview");
+        list.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         catalog.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         preview.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }

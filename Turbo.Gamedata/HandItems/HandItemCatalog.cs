@@ -12,10 +12,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Turbo.Assets;
 using Turbo.Assets.Nitro;
 using Turbo.Database.Context;
 using Turbo.Database.Entities.Assets;
+using Turbo.Gamedata.Configuration;
 using Turbo.Primitives.Gamedata;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Gamedata.Snapshots;
@@ -28,6 +30,7 @@ internal sealed class HandItemCatalog(
     IDbContextFactory<TurboDbContext> dbCtxFactory,
     IAssetBundleStore store,
     IHotelTextProvider texts,
+    IOptions<GamedataConfig> config,
     ILogger<HandItemCatalog> logger
 ) : IHandItemCatalog
 {
@@ -75,6 +78,44 @@ internal sealed class HandItemCatalog(
         {
             _gate.Release();
         }
+    }
+
+    public async Task<HandItemCatalogPage> SearchAsync(
+        string? query,
+        int page,
+        CancellationToken ct
+    )
+    {
+        var size = Math.Max(1, config.Value.TextPageSize);
+        var words = (query ?? string.Empty).Trim();
+        var catalog = await GetAsync(ct).ConfigureAwait(false);
+        var found =
+            words.Length == 0
+                ? catalog.Items
+                :
+                [
+                    .. catalog.Items.Where(x =>
+                        x.Id.ToString(CultureInfo.InvariantCulture)
+                            .Contains(words, StringComparison.Ordinal)
+                        || x.Name?.Contains(words, StringComparison.OrdinalIgnoreCase) == true
+                        || x.Library?.Contains(words, StringComparison.OrdinalIgnoreCase) == true
+                    ),
+                ];
+
+        return new HandItemCatalogPage
+        {
+            // Cast before the product: a page number a client chose can overflow an int.
+            Items =
+            [
+                .. found
+                    .Skip((int)Math.Min((long)Math.Max(0, page) * size, int.MaxValue))
+                    .Take(size),
+            ],
+            Total = found.Length,
+            PageSize = size,
+            Revision = catalog.Revision,
+            Message = catalog.Message,
+        };
     }
 
     public async Task<byte[]?> GetPreviewAsync(int id, CancellationToken ct)

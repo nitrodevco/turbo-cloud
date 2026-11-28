@@ -87,9 +87,12 @@ Loaded rooms pick up definition changes when they reload. There is no automatic 
 selections under `items`. The preview requires `admin.gamedata.view`; apply also requires
 `gamedata.manage`. Stale selections return 409 and invalid selections return 400.
 
-`GET /api/gamedata/hand-items` returns the local catalogue and its revision;
-`GET /api/gamedata/hand-items/{id}/preview` returns its PNG, or 404 when unavailable. Both require
-`admin.gamedata.view`. Saving configuration uses `PUT /api/gamedata/furniture/{id}` and additionally
+`GET /api/gamedata/hand-items` returns the local catalogue and its revision, whole: what a vending
+furni's hand items are picked from. `GET /api/gamedata/hand-items/list?q=&page=0` is the Library's
+list: a page of the hand items whose id, name or figure library holds the words, with the count of
+all it found. `GET /api/gamedata/hand-items/{id}/preview` returns an item's PNG, or 404 when
+unavailable. All three require `admin.gamedata.view`. Saving configuration uses
+`PUT /api/gamedata/furniture/{id}` and additionally
 requires `gamedata.manage`.
 
 A definition opened from the list edits every column it has: the furnidata fields, and the

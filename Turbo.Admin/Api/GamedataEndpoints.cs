@@ -129,6 +129,9 @@ internal sealed class GamedataEndpoints(
         group.MapGet("/hand-items", async (CancellationToken ct) =>
             Results.Ok(await handItems.GetAsync(ct).ConfigureAwait(false))
         );
+        group.MapGet("/hand-items/list", async (string? q, int? page, CancellationToken ct) =>
+            Results.Ok(await handItems.SearchAsync(q, page ?? 0, ct).ConfigureAwait(false))
+        );
         group.MapGet("/hand-items/{id:int}/preview", async (int id, CancellationToken ct) =>
             await handItems.GetPreviewAsync(id, ct).ConfigureAwait(false) is { } image
                 ? Results.File(image, "image/png")

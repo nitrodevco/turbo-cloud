@@ -2,9 +2,11 @@ using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Turbo.Assets.Conversion;
 using Turbo.Assets.Nitro;
 using Turbo.Database.Entities.Assets;
+using Turbo.Gamedata.Configuration;
 using Turbo.Gamedata.HandItems;
 using Turbo.Primitives.Gamedata.Enums;
 using Turbo.Primitives.Texts;
@@ -29,13 +31,47 @@ public sealed class HandItemCatalogTests : IDisposable
             Task.FromResult(new HotelTexts(_labels));
     }
 
-    private HandItemCatalog Catalog() =>
+    private HandItemCatalog Catalog(int pageSize = 50) =>
         new(
             _db,
             _folder.Store,
             _fakes.Create<IHotelTextProvider>(),
+            Options.Create(new GamedataConfig { TextPageSize = pageSize }),
             NullLogger<HandItemCatalog>.Instance
         );
+
+    [Fact]
+    public async Task Search_pages_the_catalogue_and_finds_by_id_name_or_library()
+    {
+        await Actions(
+            """[{"id":"1128","value":"311"},{"id":"1200","value":"400"},{"id":"1300","value":"401"}]"""
+        );
+        await Figure();
+        var catalog = Catalog(pageSize: 2);
+
+        var first = await catalog.SearchAsync(null, 0, Ct);
+        first.Items.Select(x => x.Id).Should().Equal(1128, 1200);
+        first.Total.Should().Be(3);
+        first.PageSize.Should().Be(2);
+        first.Revision.Should().Be((await catalog.GetAsync(Ct)).Revision);
+        (await catalog.SearchAsync(" ", 1, Ct)).Items.Select(x => x.Id).Should().Equal(1300);
+        (await catalog.SearchAsync(null, 2, Ct)).Items.Should().BeEmpty();
+        (await catalog.SearchAsync(null, int.MaxValue, Ct)).Items.Should().BeEmpty();
+        (await catalog.SearchAsync(null, -1, Ct))
+            .Items.Select(x => x.Id)
+            .Should()
+            .Equal(1128, 1200);
+
+        var named = await catalog.SearchAsync(" coFFee ", 0, Ct);
+        named.Items.Select(x => x.Id).Should().Equal(1128);
+        named.Total.Should().Be(1);
+        (await catalog.SearchAsync("13", 0, Ct)).Items.Select(x => x.Id).Should().Equal(1300);
+        (await catalog.SearchAsync("HUMAN_item", 0, Ct))
+            .Items.Select(x => x.Id)
+            .Should()
+            .Equal(1128);
+        (await catalog.SearchAsync("tea", 0, Ct)).Total.Should().Be(0);
+    }
 
     [Fact]
     public async Task Maps_server_ids_to_parts_and_ignores_invalid_parameters()
